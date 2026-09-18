@@ -1,0 +1,4174 @@
+[
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_10",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "lambda: broadcaster.broadcast_alert(alert_data, event_type),",
+"new": "lambda: broadcaster.broadcast_alert(None, event_type),",
+"ctx": "await broadcast_with_retry("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_11",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "lambda: broadcaster.broadcast_alert(alert_data, event_type),",
+"new": "lambda: broadcaster.broadcast_alert(alert_data, None),",
+"ctx": "await broadcast_with_retry("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_12",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "lambda: broadcaster.broadcast_alert(alert_data, event_type),",
+"new": "lambda: broadcaster.broadcast_alert(event_type),",
+"ctx": "await broadcast_with_retry("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_13",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "lambda: broadcaster.broadcast_alert(alert_data, event_type),",
+"new": "lambda: broadcaster.broadcast_alert(alert_data, ),",
+"ctx": "await broadcast_with_retry("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_14",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "f\"Background broadcast failed permanently for alert {event_type.value}: {e}\",",
+"new": "None,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_15",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "extra={ | \"event_type\": event_type.value, | \"alert_data\": alert_data, | },",
+"new": "extra=None,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_17",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "extra={ | \"event_type\": event_type.value, | \"alert_data\": alert_data, | }, | )",
+"new": ")",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_18",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "\"event_type\": event_type.value,",
+"new": "\"XXevent_typeXX\": event_type.value,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_19",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "\"event_type\": event_type.value,",
+"new": "\"EVENT_TYPE\": event_type.value,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_2",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "message_type=f\"alert_{event_type.value}\",",
+"new": "message_type=None,",
+"ctx": "await broadcast_with_retry("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_20",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "\"alert_data\": alert_data,",
+"new": "\"XXalert_dataXX\": alert_data,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_alert_with_retry_background__mutmut_21",
+"fn": "x_broadcast_alert_with_retry_background",
+"old": "\"alert_data\": alert_data,",
+"new": "\"ALERT_DATA\": alert_data,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_1",
+"fn": "x_broadcast_with_retry",
+"old": "last_exception: Exception | None = None",
+"new": "last_exception: Exception | None = \"\"",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_10",
+"fn": "x_broadcast_with_retry",
+"old": "if attempt > 0:",
+"new": "if attempt >= 0:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_11",
+"fn": "x_broadcast_with_retry",
+"old": "if attempt > 0:",
+"new": "if attempt > 1:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_12",
+"fn": "x_broadcast_with_retry",
+"old": "f\"Broadcast succeeded on retry attempt {attempt} for {message_type}\",",
+"new": "None,",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_13",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra=None,",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_15",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1}, | )",
+"new": ")",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_16",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra={\"XXmessage_typeXX\": message_type, \"attempt\": attempt + 1},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_17",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra={\"MESSAGE_TYPE\": message_type, \"attempt\": attempt + 1},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_18",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra={\"message_type\": message_type, \"XXattemptXX\": attempt + 1},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_19",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra={\"message_type\": message_type, \"ATTEMPT\": attempt + 1},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_20",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra={\"message_type\": message_type, \"attempt\": attempt - 1},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_21",
+"fn": "x_broadcast_with_retry",
+"old": "extra={\"message_type\": message_type, \"attempt\": attempt + 1},",
+"new": "extra={\"message_type\": message_type, \"attempt\": attempt + 2},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_42",
+"fn": "x_broadcast_with_retry",
+"old": "f\"Broadcast failed for {message_type}, retrying in {total_delay:.2f}s \" | f\"(attempt {attempt + 1}/{max_retries + 1}): {e}\",",
+"new": "None,",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_43",
+"fn": "x_broadcast_with_retry",
+"old": "extra={ | \"message_type\": message_type, | \"attempt\": attempt + 1, | \"max_retries\": max_retries + 1, | \"retry_delay\": total_delay, | \"error\": str(e), | },",
+"new": "extra=None,",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_45",
+"fn": "x_broadcast_with_retry",
+"old": "extra={ | \"message_type\": message_type, | \"attempt\": attempt + 1, | \"max_retries\": max_retries + 1, | \"retry_delay\": total_delay, | \"error\": str(e), | }, | )",
+"new": ")",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_46",
+"fn": "x_broadcast_with_retry",
+"old": "f\"(attempt {attempt + 1}/{max_retries + 1}): {e}\",",
+"new": "f\"(attempt {attempt - 1}/{max_retries + 1}): {e}\",",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_47",
+"fn": "x_broadcast_with_retry",
+"old": "f\"(attempt {attempt + 1}/{max_retries + 1}): {e}\",",
+"new": "f\"(attempt {attempt + 2}/{max_retries + 1}): {e}\",",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_48",
+"fn": "x_broadcast_with_retry",
+"old": "f\"(attempt {attempt + 1}/{max_retries + 1}): {e}\",",
+"new": "f\"(attempt {attempt + 1}/{max_retries - 1}): {e}\",",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_49",
+"fn": "x_broadcast_with_retry",
+"old": "f\"(attempt {attempt + 1}/{max_retries + 1}): {e}\",",
+"new": "f\"(attempt {attempt + 1}/{max_retries + 2}): {e}\",",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_50",
+"fn": "x_broadcast_with_retry",
+"old": "\"message_type\": message_type,",
+"new": "\"XXmessage_typeXX\": message_type,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_51",
+"fn": "x_broadcast_with_retry",
+"old": "\"message_type\": message_type,",
+"new": "\"MESSAGE_TYPE\": message_type,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_52",
+"fn": "x_broadcast_with_retry",
+"old": "\"attempt\": attempt + 1,",
+"new": "\"XXattemptXX\": attempt + 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_53",
+"fn": "x_broadcast_with_retry",
+"old": "\"attempt\": attempt + 1,",
+"new": "\"ATTEMPT\": attempt + 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_54",
+"fn": "x_broadcast_with_retry",
+"old": "\"attempt\": attempt + 1,",
+"new": "\"attempt\": attempt - 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_55",
+"fn": "x_broadcast_with_retry",
+"old": "\"attempt\": attempt + 1,",
+"new": "\"attempt\": attempt + 2,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_56",
+"fn": "x_broadcast_with_retry",
+"old": "\"max_retries\": max_retries + 1,",
+"new": "\"XXmax_retriesXX\": max_retries + 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_57",
+"fn": "x_broadcast_with_retry",
+"old": "\"max_retries\": max_retries + 1,",
+"new": "\"MAX_RETRIES\": max_retries + 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_58",
+"fn": "x_broadcast_with_retry",
+"old": "\"max_retries\": max_retries + 1,",
+"new": "\"max_retries\": max_retries - 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_59",
+"fn": "x_broadcast_with_retry",
+"old": "\"max_retries\": max_retries + 1,",
+"new": "\"max_retries\": max_retries + 2,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_60",
+"fn": "x_broadcast_with_retry",
+"old": "\"retry_delay\": total_delay,",
+"new": "\"XXretry_delayXX\": total_delay,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_61",
+"fn": "x_broadcast_with_retry",
+"old": "\"retry_delay\": total_delay,",
+"new": "\"RETRY_DELAY\": total_delay,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_62",
+"fn": "x_broadcast_with_retry",
+"old": "\"error\": str(e),",
+"new": "\"XXerrorXX\": str(e),",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_63",
+"fn": "x_broadcast_with_retry",
+"old": "\"error\": str(e),",
+"new": "\"ERROR\": str(e),",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_64",
+"fn": "x_broadcast_with_retry",
+"old": "\"error\": str(e),",
+"new": "\"error\": str(None),",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_68",
+"fn": "x_broadcast_with_retry",
+"old": "metrics.record_failure(attempt + 1)",
+"new": "metrics.record_failure(attempt - 1)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_69",
+"fn": "x_broadcast_with_retry",
+"old": "metrics.record_failure(attempt + 1)",
+"new": "metrics.record_failure(attempt + 2)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_70",
+"fn": "x_broadcast_with_retry",
+"old": "f\"Broadcast failed after {max_retries + 1} attempts for {message_type}: {e}\",",
+"new": "None,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_71",
+"fn": "x_broadcast_with_retry",
+"old": "extra={ | \"message_type\": message_type, | \"total_attempts\": max_retries + 1, | \"error\": str(e), | },",
+"new": "extra=None,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_72",
+"fn": "x_broadcast_with_retry",
+"old": "exc_info=True,",
+"new": "exc_info=None,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_74",
+"fn": "x_broadcast_with_retry",
+"old": "extra={ | \"message_type\": message_type, | \"total_attempts\": max_retries + 1, | \"error\": str(e), | },",
+"new": "",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_75",
+"fn": "x_broadcast_with_retry",
+"old": "exc_info=True, | )",
+"new": ")",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_76",
+"fn": "x_broadcast_with_retry",
+"old": "f\"Broadcast failed after {max_retries + 1} attempts for {message_type}: {e}\",",
+"new": "f\"Broadcast failed after {max_retries - 1} attempts for {message_type}: {e}\",",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_77",
+"fn": "x_broadcast_with_retry",
+"old": "f\"Broadcast failed after {max_retries + 1} attempts for {message_type}: {e}\",",
+"new": "f\"Broadcast failed after {max_retries + 2} attempts for {message_type}: {e}\",",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_78",
+"fn": "x_broadcast_with_retry",
+"old": "\"message_type\": message_type,",
+"new": "\"XXmessage_typeXX\": message_type,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_79",
+"fn": "x_broadcast_with_retry",
+"old": "\"message_type\": message_type,",
+"new": "\"MESSAGE_TYPE\": message_type,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_80",
+"fn": "x_broadcast_with_retry",
+"old": "\"total_attempts\": max_retries + 1,",
+"new": "\"XXtotal_attemptsXX\": max_retries + 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_81",
+"fn": "x_broadcast_with_retry",
+"old": "\"total_attempts\": max_retries + 1,",
+"new": "\"TOTAL_ATTEMPTS\": max_retries + 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_82",
+"fn": "x_broadcast_with_retry",
+"old": "\"total_attempts\": max_retries + 1,",
+"new": "\"total_attempts\": max_retries - 1,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_83",
+"fn": "x_broadcast_with_retry",
+"old": "\"total_attempts\": max_retries + 1,",
+"new": "\"total_attempts\": max_retries + 2,",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_84",
+"fn": "x_broadcast_with_retry",
+"old": "\"error\": str(e),",
+"new": "\"XXerrorXX\": str(e),",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_85",
+"fn": "x_broadcast_with_retry",
+"old": "\"error\": str(e),",
+"new": "\"ERROR\": str(e),",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_86",
+"fn": "x_broadcast_with_retry",
+"old": "\"error\": str(e),",
+"new": "\"error\": str(None),",
+"ctx": "extra={"
+},
+{
+"key": "backend.services.event_broadcaster.x_broadcast_with_retry__mutmut_87",
+"fn": "x_broadcast_with_retry",
+"old": "exc_info=True,",
+"new": "exc_info=False,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x_get_broadcaster__mutmut_10",
+"fn": "x_get_broadcaster",
+"old": "logger.info(\"Global event broadcaster initialized\")",
+"new": "logger.info(\"GLOBAL EVENT BROADCASTER INITIALIZED\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_get_broadcaster__mutmut_7",
+"fn": "x_get_broadcaster",
+"old": "logger.info(\"Global event broadcaster initialized\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_get_broadcaster__mutmut_8",
+"fn": "x_get_broadcaster",
+"old": "logger.info(\"Global event broadcaster initialized\")",
+"new": "logger.info(\"XXGlobal event broadcaster initializedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_get_broadcaster__mutmut_9",
+"fn": "x_get_broadcaster",
+"old": "logger.info(\"Global event broadcaster initialized\")",
+"new": "logger.info(\"global event broadcaster initialized\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_requires_ack__mutmut_21",
+"fn": "x_requires_ack",
+"old": "risk_score = data.get(\"risk_score\", 0)",
+"new": "risk_score = data.get(\"risk_score\", 1)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_requires_ack__mutmut_27",
+"fn": "x_requires_ack",
+"old": "risk_level = data.get(\"risk_level\", \"\")",
+"new": "risk_level = data.get(\"risk_level\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_requires_ack__mutmut_29",
+"fn": "x_requires_ack",
+"old": "risk_level = data.get(\"risk_level\", \"\")",
+"new": "risk_level = data.get(\"risk_level\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_requires_ack__mutmut_32",
+"fn": "x_requires_ack",
+"old": "risk_level = data.get(\"risk_level\", \"\")",
+"new": "risk_level = data.get(\"risk_level\", \"XXXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_stop_broadcaster__mutmut_3",
+"fn": "x_stop_broadcaster",
+"old": "logger.info(\"Global event broadcaster stopped\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_stop_broadcaster__mutmut_4",
+"fn": "x_stop_broadcaster",
+"old": "logger.info(\"Global event broadcaster stopped\")",
+"new": "logger.info(\"XXGlobal event broadcaster stoppedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_stop_broadcaster__mutmut_5",
+"fn": "x_stop_broadcaster",
+"old": "logger.info(\"Global event broadcaster stopped\")",
+"new": "logger.info(\"global event broadcaster stopped\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x_stop_broadcaster__mutmut_6",
+"fn": "x_stop_broadcaster",
+"old": "logger.info(\"Global event broadcaster stopped\")",
+"new": "logger.info(\"GLOBAL EVENT BROADCASTER STOPPED\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1record_failure__mutmut_3",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1record_failure",
+"old": "self.failed_broadcasts += 1",
+"new": "self.failed_broadcasts = 1",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1record_failure__mutmut_6",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1record_failure",
+"old": "self.retries_exhausted += 1",
+"new": "self.retries_exhausted = 1",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1record_success__mutmut_10",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1record_success",
+"old": "self.retry_counts[retry_count] += 1",
+"new": "self.retry_counts[retry_count] = 1",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1record_success__mutmut_9",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1record_success",
+"old": "if retry_count in self.retry_counts:",
+"new": "if retry_count not in self.retry_counts:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_10",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1to_dict",
+"old": "\"retry_counts\": self.retry_counts,",
+"new": "\"RETRY_COUNTS\": self.retry_counts,",
+"ctx": "return {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_17",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1to_dict",
+"old": "if (self.successful_broadcasts + self.failed_broadcasts) > 0",
+"new": "if (self.successful_broadcasts - self.failed_broadcasts) > 0",
+"ctx": "\"success_rate\": ("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_19",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1to_dict",
+"old": "if (self.successful_broadcasts + self.failed_broadcasts) > 0",
+"new": "if (self.successful_broadcasts + self.failed_broadcasts) > 1",
+"ctx": "\"success_rate\": ("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_9",
+"fn": "x\u01c1BroadcastRetryMetrics\u01c1to_dict",
+"old": "\"retry_counts\": self.retry_counts,",
+"new": "\"XXretry_countsXX\": self.retry_counts,",
+"ctx": "return {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "self._listener_healthy = False",
+"new": "self._listener_healthy = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "self._listener_healthy = False",
+"new": "self._listener_healthy = True",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "half_open_max_calls=1,",
+"new": "half_open_max_calls=None,",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "success_threshold=1,",
+"new": "success_threshold=None,",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "failure_threshold=self.MAX_RECOVERY_ATTEMPTS,",
+"new": "",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "recovery_timeout=30.0,",
+"new": "",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "half_open_max_calls=1,",
+"new": "",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "success_threshold=1,",
+"new": "",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "recovery_timeout=30.0,",
+"new": "recovery_timeout=31.0,",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "half_open_max_calls=1,",
+"new": "half_open_max_calls=2,",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "success_threshold=1,",
+"new": "success_threshold=2,",
+"ctx": "self._circuit_breaker = WebSocketCircuitBreaker("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1__init____mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1__init__",
+"old": "self._pubsub: PubSub | None = None",
+"new": "self._pubsub: PubSub | None = \"\"",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"service\": \"event_broadcaster\",",
+"new": "\"SERVICE\": \"event_broadcaster\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"service\": \"event_broadcaster\",",
+"new": "\"service\": \"XXevent_broadcasterXX\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"service\": \"event_broadcaster\",",
+"new": "\"service\": \"EVENT_BROADCASTER\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"status\": \"degraded\",",
+"new": "\"XXstatusXX\": \"degraded\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"status\": \"degraded\",",
+"new": "\"STATUS\": \"degraded\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"status\": \"degraded\",",
+"new": "\"status\": \"XXdegradedXX\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"status\": \"degraded\",",
+"new": "\"status\": \"DEGRADED\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"message\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"new": "\"XXmessageXX\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"message\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"new": "\"MESSAGE\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"message\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"new": "\"message\": \"XXReal-time event broadcasting is degraded. Events may be delayed or unavailable.XX\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"message\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"new": "\"message\": \"real-time event broadcasting is degraded. events may be delayed or unavailable.\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"message\": \"Real-time event broadcasting is degraded. Events may be delayed or unavailable.\",",
+"new": "\"message\": \"REAL-TIME EVENT BROADCASTING IS DEGRADED. EVENTS MAY BE DELAYED OR UNAVAILABLE.\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"circuit_state\": self._circuit_breaker.get_state().value,",
+"new": "\"XXcircuit_stateXX\": self._circuit_breaker.get_state().value,",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"circuit_state\": self._circuit_breaker.get_state().value,",
+"new": "\"CIRCUIT_STATE\": self._circuit_breaker.get_state().value,",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "logger.info(\"Broadcast degraded state notification to connected clients\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "logger.info(\"Broadcast degraded state notification to connected clients\")",
+"new": "logger.info(\"XXBroadcast degraded state notification to connected clientsXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "logger.info(\"Broadcast degraded state notification to connected clients\")",
+"new": "logger.info(\"broadcast degraded state notification to connected clients\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "logger.info(\"Broadcast degraded state notification to connected clients\")",
+"new": "logger.info(\"BROADCAST DEGRADED STATE NOTIFICATION TO CONNECTED CLIENTS\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"type\": \"service_status\",",
+"new": "\"XXtypeXX\": \"service_status\",",
+"ctx": "degraded_message = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"type\": \"service_status\",",
+"new": "\"TYPE\": \"service_status\",",
+"ctx": "degraded_message = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"type\": \"service_status\",",
+"new": "\"type\": \"XXservice_statusXX\",",
+"ctx": "degraded_message = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"data\": {",
+"new": "\"XXdataXX\": {",
+"ctx": "degraded_message = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"data\": {",
+"new": "\"DATA\": {",
+"ctx": "degraded_message = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state__mutmut_9",
+"fn": "x\u01c1EventBroadcaster\u01c1_broadcast_degraded_state",
+"old": "\"service\": \"event_broadcaster\",",
+"new": "\"XXserviceXX\": \"event_broadcaster\",",
+"ctx": "\"data\": {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_enter_degraded_mode__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1_enter_degraded_mode",
+"old": "\"CRITICAL: EventBroadcaster has entered DEGRADED MODE after exhausting \"",
+"new": "\"CRITICAL: EVENTBROADCASTER HAS ENTERED DEGRADED MODE AFTER EXHAUSTING \"",
+"ctx": "logger.critical("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_enter_degraded_mode__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1_enter_degraded_mode",
+"old": "\"CRITICAL: EventBroadcaster has entered DEGRADED MODE after exhausting \"",
+"new": "\"XXCRITICAL: EventBroadcaster has entered DEGRADED MODE after exhausting XX\"",
+"ctx": "logger.critical("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Listener task died unexpectedly. \" | f\"Recovery attempts: {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}\"",
+"new": "None",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "return True",
+"new": "return False",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Supervisor giving up - max recovery attempts reached. \"",
+"new": "\"XXSupervisor giving up - max recovery attempts reached. XX\"",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Supervisor giving up - max recovery attempts reached. \"",
+"new": "\"supervisor giving up - max recovery attempts reached. \"",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Supervisor giving up - max recovery attempts reached. \"",
+"new": "\"SUPERVISOR GIVING UP - MAX RECOVERY ATTEMPTS REACHED. \"",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "return True",
+"new": "return False",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._recovery_attempts += 1",
+"new": "self._recovery_attempts = 1",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._recovery_attempts += 1",
+"new": "self._recovery_attempts -= 1",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._recovery_attempts += 1",
+"new": "self._recovery_attempts += 2",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Listener task died unexpectedly. \"",
+"new": "\"XXListener task died unexpectedly. XX\"",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "logger.info(f\"Supervisor restarting listener (attempt {self._recovery_attempts})\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "if self._pubsub is None and not await self._resubscribe_for_supervisor():",
+"new": "if self._pubsub is None and await self._resubscribe_for_supervisor():",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "return False  # Continue loop to retry",
+"new": "return True  # Continue loop to retry",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._listener_task = asyncio.create_task(self._listen_for_events())",
+"new": "self._listener_task = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._listener_task = asyncio.create_task(self._listen_for_events())",
+"new": "self._listener_task = asyncio.create_task(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._listener_healthy = True",
+"new": "self._listener_healthy = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "self._listener_healthy = True",
+"new": "self._listener_healthy = False",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "logger.info(\"Supervisor successfully restarted listener\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Listener task died unexpectedly. \"",
+"new": "\"listener task died unexpectedly. \"",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_30",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "logger.info(\"Supervisor successfully restarted listener\")",
+"new": "logger.info(\"XXSupervisor successfully restarted listenerXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "logger.info(\"Supervisor successfully restarted listener\")",
+"new": "logger.info(\"supervisor successfully restarted listener\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_32",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "logger.info(\"Supervisor successfully restarted listener\")",
+"new": "logger.info(\"SUPERVISOR SUCCESSFULLY RESTARTED LISTENER\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "return False",
+"new": "return True",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Listener task died unexpectedly. \"",
+"new": "\"LISTENER TASK DIED UNEXPECTEDLY. \"",
+"ctx": "logger.warning("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_dead_listener__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_dead_listener",
+"old": "\"Supervisor: circuit breaker is OPEN - \"",
+"new": "\"XXSupervisor: circuit breaker is OPEN - XX\"",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "self._listener_healthy = True",
+"new": "self._listener_healthy = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "self._listener_healthy = True",
+"new": "self._listener_healthy = False",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "if self._recovery_attempts > 0:",
+"new": "if self._recovery_attempts >= 0:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "if self._recovery_attempts > 0:",
+"new": "if self._recovery_attempts > 1:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "logger.info(\"Listener recovered successfully, resetting recovery counter\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "logger.info(\"Listener recovered successfully, resetting recovery counter\")",
+"new": "logger.info(\"XXListener recovered successfully, resetting recovery counterXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "logger.info(\"Listener recovered successfully, resetting recovery counter\")",
+"new": "logger.info(\"listener recovered successfully, resetting recovery counter\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_handle_healthy_listener__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1_handle_healthy_listener",
+"old": "logger.info(\"Listener recovered successfully, resetting recovery counter\")",
+"new": "logger.info(\"LISTENER RECOVERED SUCCESSFULLY, RESETTING RECOVERY COUNTER\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "async for message in self._redis.listen(self._pubsub):",
+"new": "async for message in self._redis.listen(None):",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "break",
+"new": "return",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.debug(f\"Received event from Redis: {event_data}\")",
+"new": "logger.debug(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "exc_info=True,",
+"new": "exc_info=None,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "exc_info=True, | )",
+"new": ")",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "exc_info=True,",
+"new": "exc_info=False,",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.error(\"Cannot listen for events: pubsub not initialized\")",
+"new": "logger.error(\"XXCannot listen for events: pubsub not initializedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.info(\"Event listener cancelled\")",
+"new": "logger.info(\"XXEvent listener cancelledXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.error(f\"Error in event listener: {e}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.error(\"Cannot listen for events: pubsub not initialized\")",
+"new": "logger.error(\"cannot listen for events: pubsub not initialized\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_40",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "\"Event listener circuit breaker is OPEN - \"",
+"new": "\"XXEvent listener circuit breaker is OPEN - XX\"",
+"ctx": "logger.error("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_43",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "if self._recovery_attempts <= self.MAX_RECOVERY_ATTEMPTS:",
+"new": "if self._recovery_attempts < self.MAX_RECOVERY_ATTEMPTS:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_50",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "base_delay = min(2 ** (self._recovery_attempts - 1), 30)",
+"new": "base_delay = min(3 ** (self._recovery_attempts - 1), 30)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_53",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "base_delay = min(2 ** (self._recovery_attempts - 1), 30)",
+"new": "base_delay = min(2 ** (self._recovery_attempts - 1), 31)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.info(\"Starting event listener loop\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_64",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "f\"Restarting event listener after error \" | f\"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}) \" | f\"in {backoff:.1f}s\"",
+"new": "None",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.info(\"Starting event listener loop\")",
+"new": "logger.info(\"XXStarting event listener loopXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.info(\"Starting event listener loop\")",
+"new": "logger.info(\"starting event listener loop\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_listen_for_events__mutmut_9",
+"fn": "x\u01c1EventBroadcaster\u01c1_listen_for_events",
+"old": "logger.info(\"Starting event listener loop\")",
+"new": "logger.info(\"STARTING EVENT LISTENER LOOP\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor",
+"old": "self._pubsub = await self._redis.subscribe(self._channel_name)",
+"new": "self._pubsub = await self._redis.subscribe(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor",
+"old": "return False",
+"new": "return True",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "self._client_formats.get(ws, SerializationFormat.JSON) for ws in connections_snapshot",
+"new": "self._client_formats.get(None, SerializationFormat.JSON) for ws in connections_snapshot",
+"ctx": "unique_formats = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_dict, format=client_format, track_stats=True",
+"new": "message_dict, format=None, track_stats=True",
+"ctx": "prepared_cache[client_format] = prepare_message_with_format("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_dict, format=client_format, track_stats=True",
+"new": "message_dict, format=client_format, track_stats=None",
+"ctx": "prepared_cache[client_format] = prepare_message_with_format("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_dict, format=client_format, track_stats=True",
+"new": "message_dict, track_stats=True",
+"ctx": "prepared_cache[client_format] = prepare_message_with_format("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_dict, format=client_format, track_stats=True | )",
+"new": "message_dict, format=client_format, )",
+"ctx": "prepared_cache[client_format] = prepare_message_with_format("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_dict, format=client_format, track_stats=True",
+"new": "message_dict, format=client_format, track_stats=False",
+"ctx": "prepared_cache[client_format] = prepare_message_with_format("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "client_format = self._client_formats.get(ws, SerializationFormat.JSON)",
+"new": "client_format = self._client_formats.get(None, SerializationFormat.JSON)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "return_exceptions=True,",
+"new": "return_exceptions=None,",
+"ctx": "results = await asyncio.gather("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "return_exceptions=True, | )",
+"new": ")",
+"ctx": "results = await asyncio.gather("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_38",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "return_exceptions=True,",
+"new": "return_exceptions=False,",
+"ctx": "results = await asyncio.gather("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_dict = event_data",
+"new": "message_dict = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_str = json.dumps(event_data)",
+"new": "message_str = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_all_clients__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_all_clients",
+"old": "message_str = json.dumps(event_data)",
+"new": "message_str = json.dumps(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_single_client__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_single_client",
+"old": "if was_compressed and isinstance(prepared_message, bytes):",
+"new": "if was_compressed or isinstance(prepared_message, bytes):",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_send_to_single_client__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_send_to_single_client",
+"old": "logger.warning(f\"Failed to send to WebSocket client: {e}\")",
+"new": "logger.warning(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task started\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "break",
+"new": "return",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task cancelled\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task cancelled\")",
+"new": "logger.info(\"XXListener supervision task cancelledXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task cancelled\")",
+"new": "logger.info(\"listener supervision task cancelled\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task cancelled\")",
+"new": "logger.info(\"LISTENER SUPERVISION TASK CANCELLED\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.error(f\"Unexpected error in supervisor task: {e}\", exc_info=True)",
+"new": "logger.error(f\"Unexpected error in supervisor task: {e}\", exc_info=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task started\")",
+"new": "logger.info(\"XXListener supervision task startedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.error(f\"Unexpected error in supervisor task: {e}\", exc_info=True)",
+"new": "logger.error(f\"Unexpected error in supervisor task: {e}\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.error(f\"Unexpected error in supervisor task: {e}\", exc_info=True)",
+"new": "logger.error(f\"Unexpected error in supervisor task: {e}\", exc_info=False)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task stopped\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task stopped\")",
+"new": "logger.info(\"XXListener supervision task stoppedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task stopped\")",
+"new": "logger.info(\"listener supervision task stopped\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task stopped\")",
+"new": "logger.info(\"LISTENER SUPERVISION TASK STOPPED\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task started\")",
+"new": "logger.info(\"listener supervision task started\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "logger.info(\"Listener supervision task started\")",
+"new": "logger.info(\"LISTENER SUPERVISION TASK STARTED\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "await asyncio.sleep(self.SUPERVISION_INTERVAL)",
+"new": "await asyncio.sleep(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_supervise_listener__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1_supervise_listener",
+"old": "break",
+"new": "return",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \" | f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"",
+"new": "f\"AI action recognized broadcast to Redis: action_type={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"",
+"new": "f\"AI action recognized broadcast to Redis: action_type={payload.get('XXaction_typeXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"",
+"new": "f\"AI action recognized broadcast to Redis: action_type={payload.get('ACTION_TYPE')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"",
+"new": "f\"confidence={payload.get(None)}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"",
+"new": "f\"confidence={payload.get('XXconfidenceXX')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized",
+"old": "f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"",
+"new": "f\"confidence={payload.get('CONFIDENCE')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"AI threat detected broadcast to Redis: threat_type={payload.get('threat_type')}, \" | f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \" | f\"subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"AI threat detected broadcast to Redis: threat_type={payload.get('threat_type')}, \"",
+"new": "f\"AI threat detected broadcast to Redis: threat_type={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"AI threat detected broadcast to Redis: threat_type={payload.get('threat_type')}, \"",
+"new": "f\"AI threat detected broadcast to Redis: threat_type={payload.get('XXthreat_typeXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"AI threat detected broadcast to Redis: threat_type={payload.get('threat_type')}, \"",
+"new": "f\"AI threat detected broadcast to Redis: threat_type={payload.get('THREAT_TYPE')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \"",
+"new": "f\"severity={payload.get(None)}, confidence={payload.get('confidence')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \"",
+"new": "f\"severity={payload.get('XXseverityXX')}, confidence={payload.get('confidence')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \"",
+"new": "f\"severity={payload.get('SEVERITY')}, confidence={payload.get('confidence')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \"",
+"new": "f\"severity={payload.get('severity')}, confidence={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \"",
+"new": "f\"severity={payload.get('severity')}, confidence={payload.get('XXconfidenceXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "f\"severity={payload.get('severity')}, confidence={payload.get('confidence')}, \"",
+"new": "f\"severity={payload.get('severity')}, confidence={payload.get('CONFIDENCE')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "logger.error(f\"AI threat detected payload validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": "raise ValueError(f\"Invalid AI threat detected payload: {ve}\") from ve",
+"new": "raise ValueError(None) from ve",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_ai_threat_detected",
+"old": " | # ========================================================================= | # AI Event Broadcasting Methods (NEM-5073) | # =========================================================================",
+"new": "",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "broadcast_data = validated_message_union.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message_union.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "broadcast_data = validated_message_union.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message_union.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "broadcast_data = validated_message_union.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message_union.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "f\"Alert broadcast to Redis: {broadcast_data.get('type')} \" | f\"(subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Alert broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Alert broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Alert broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "logger.error(f\"Alert message validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_alert",
+"old": "logger.error(f\"Failed to broadcast alert: {e}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"XXtypeXX\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"TYPE\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "logger.error(f\"Batch analysis completed message validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "f\"Batch analysis completed broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis completed broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "f\"Batch analysis completed broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis completed broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "f\"Batch analysis completed broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis completed broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "batch_data = {\"type\": \"batch.analysis_completed\", \"data\": batch_data}",
+"new": "batch_data = {\"XXtypeXX\": \"batch.analysis_completed\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "batch_data = {\"type\": \"batch.analysis_completed\", \"data\": batch_data}",
+"new": "batch_data = {\"TYPE\": \"batch.analysis_completed\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "batch_data = {\"type\": \"batch.analysis_completed\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"XXbatch.analysis_completedXX\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_completed",
+"old": "batch_data = {\"type\": \"batch.analysis_completed\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"BATCH.ANALYSIS_COMPLETED\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"XXtypeXX\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"TYPE\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "logger.error(f\"Batch analysis failed message validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "f\"Batch analysis failed broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis failed broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "f\"Batch analysis failed broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis failed broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "f\"Batch analysis failed broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis failed broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "batch_data = {\"type\": \"batch.analysis_failed\", \"data\": batch_data}",
+"new": "batch_data = {\"XXtypeXX\": \"batch.analysis_failed\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "batch_data = {\"type\": \"batch.analysis_failed\", \"data\": batch_data}",
+"new": "batch_data = {\"TYPE\": \"batch.analysis_failed\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "batch_data = {\"type\": \"batch.analysis_failed\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"XXbatch.analysis_failedXX\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_failed",
+"old": "batch_data = {\"type\": \"batch.analysis_failed\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"BATCH.ANALYSIS_FAILED\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"XXtypeXX\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"TYPE\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "logger.error(f\"Batch analysis started message validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "f\"Batch analysis started broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis started broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "f\"Batch analysis started broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis started broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "f\"Batch analysis started broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Batch analysis started broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "batch_data = {\"type\": \"batch.analysis_started\", \"data\": batch_data}",
+"new": "batch_data = {\"XXtypeXX\": \"batch.analysis_started\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "batch_data = {\"type\": \"batch.analysis_started\", \"data\": batch_data}",
+"new": "batch_data = {\"TYPE\": \"batch.analysis_started\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "batch_data = {\"type\": \"batch.analysis_started\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"XXbatch.analysis_startedXX\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_batch_analysis_started",
+"old": "batch_data = {\"type\": \"batch.analysis_started\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"BATCH.ANALYSIS_STARTED\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "data_dict = camera_status_data.get(\"data\", {})",
+"new": "data_dict = camera_status_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "data_dict = camera_status_data.get(\"data\", {})",
+"new": "data_dict = camera_status_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "f\"Camera status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Camera status broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "f\"Camera status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Camera status broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "f\"Camera status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Camera status broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "camera_status_data = {\"type\": \"camera_status\", \"data\": camera_status_data}",
+"new": "camera_status_data = {\"XXtypeXX\": \"camera_status\", \"data\": camera_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "camera_status_data = {\"type\": \"camera_status\", \"data\": camera_status_data}",
+"new": "camera_status_data = {\"TYPE\": \"camera_status\", \"data\": camera_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "camera_status_data = {\"type\": \"camera_status\", \"data\": camera_status_data}",
+"new": "camera_status_data = {\"type\": \"XXcamera_statusXX\", \"data\": camera_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_camera_status__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_camera_status",
+"old": "camera_status_data = {\"type\": \"camera_status\", \"data\": camera_status_data}",
+"new": "camera_status_data = {\"type\": \"CAMERA_STATUS\", \"data\": camera_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"XXtypeXX\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"detection.batch\", \"DATA\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(None, {})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get({})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"XXdataXX\", {})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "data_dict = batch_data.get(\"data\", {})",
+"new": "data_dict = batch_data.get(\"DATA\", {})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "validated_data = WebSocketDetectionBatchData.model_validate(data_dict)",
+"new": "validated_data = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "validated_data = WebSocketDetectionBatchData.model_validate(data_dict)",
+"new": "validated_data = WebSocketDetectionBatchData.model_validate(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"TYPE\" not in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "validated_message = WebSocketDetectionBatchMessage(data=validated_data)",
+"new": "validated_message = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "validated_message = WebSocketDetectionBatchMessage(data=validated_data)",
+"new": "validated_message = WebSocketDetectionBatchMessage(data=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(self._channel_name, None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "if \"type\" not in batch_data:",
+"new": "if \"type\" in batch_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_30",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(self._channel_name, )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"Detection batch broadcast to Redis: {broadcast_data.get('type')} \" | f\"(batch_id: {data_dict.get('batch_id')}, \" | f\"camera_id: {data_dict.get('camera_id')}, \" | f\"detection_count: {data_dict.get('detection_count')}, \" | f\"subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_32",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"Detection batch broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Detection batch broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"Detection batch broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Detection batch broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"Detection batch broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Detection batch broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"(batch_id: {data_dict.get('batch_id')}, \"",
+"new": "f\"(batch_id: {data_dict.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"(batch_id: {data_dict.get('batch_id')}, \"",
+"new": "f\"(batch_id: {data_dict.get('XXbatch_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_37",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"(batch_id: {data_dict.get('batch_id')}, \"",
+"new": "f\"(batch_id: {data_dict.get('BATCH_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_38",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"camera_id: {data_dict.get('camera_id')}, \"",
+"new": "f\"camera_id: {data_dict.get(None)}, \"",
+"ctx": "f\"(batch_id: {data_dict.get('batch_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_39",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"camera_id: {data_dict.get('camera_id')}, \"",
+"new": "f\"camera_id: {data_dict.get('XXcamera_idXX')}, \"",
+"ctx": "f\"(batch_id: {data_dict.get('batch_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_40",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"camera_id: {data_dict.get('camera_id')}, \"",
+"new": "f\"camera_id: {data_dict.get('CAMERA_ID')}, \"",
+"ctx": "f\"(batch_id: {data_dict.get('batch_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_41",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"detection_count: {data_dict.get('detection_count')}, \"",
+"new": "f\"detection_count: {data_dict.get(None)}, \"",
+"ctx": "f\"(batch_id: {data_dict.get('batch_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_42",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"detection_count: {data_dict.get('detection_count')}, \"",
+"new": "f\"detection_count: {data_dict.get('XXdetection_countXX')}, \"",
+"ctx": "f\"(batch_id: {data_dict.get('batch_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_43",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "f\"detection_count: {data_dict.get('detection_count')}, \"",
+"new": "f\"detection_count: {data_dict.get('DETECTION_COUNT')}, \"",
+"ctx": "f\"(batch_id: {data_dict.get('batch_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_43",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "",
+"new": " | async def broadcast_infrastructure_alert(self, alert_data: dict[str, Any]) -> int: | \"\"\"Broadcast an infrastructure alert to all connected WebSocket clients via Redis pub/sub. |  | Infrastructure alerts originate from Prometheus/Alertmanager webhooks and represent | system health issues (GPU memory, database connections, pipeline health, etc.) | separate from AI-generated security alerts. |  | This method validates the alert data against the WebSocketInfrastructureAlertMessage | schema before publishing to Redis. |  | Args: | alert_data: Alert data dictionary containing infrastructure alert details |  | Returns: | Number of Redis subscribers that received the message |  | Raises: | ValueError: If the message fails schema validation |  | Example alert_data: | { | \"type\": \"infrastructure_alert\", | \"data\": { | \"alertname\": \"HSIGPUMemoryHigh\", | \"status\": \"firing\", | \"severity\": \"warning\", | \"component\": \"gpu\", | \"summary\": \"GPU memory usage is high\", | \"description\": \"GPU memory usage is above 90%\", | \"started_at\": \"2026-01-17T12:22:56Z\", | \"fingerprint\": \"abc123def456\",  # pragma: allowlist secret | \"receiver\": \"critical-receiver\" | } | } | \"\"\" | try: | # Ensure the message has the correct structure | if \"type\" not in alert_data: | alert_data = {\"type\": \"infrastructure_alert\", \"data\": alert_data} |  | # Validate message format before broadcasting | try: | # Extract the data portion and validate it | data_dict = alert_data.get(\"data\", {}) | validated_data = WebSocketInfrastructureAlertData.model_validate(data_dict) | validated_message = WebSocketInfrastructureAlertMessage(data=validated_data) | # Use the validated message for broadcasting | broadcast_data = validated_message.model_dump(mode=\"json\") | except ValidationError as ve: | logger.error(f\"Infrastructure alert message validation failed: {ve}\") | raise ValueError(f\"Invalid infrastructure alert message format: {ve}\") from ve |  | # Publish validated message to Redis channel | subscriber_count = await self._redis.publish(self._channel_name, broadcast_data) | logger.debug( | f\"Infrastructure alert broadcast to Redis: {broadcast_data.get('type')} \" | f\"(alertname: {data_dict.get('alertname')}, \" | f\"severity: {data_dict.get('severity')}, \" | f\"status: {data_dict.get('status')}, \" | f\"subscribers: {subscriber_count})\" | ) | return subscriber_count | except ValueError: | # Re-raise validation errors | raise | except Exception as e: | logger.error(f\"Failed to broadcast infrastructure alert: {e}\") | raise",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = {\"XXtypeXX\": \"detection.batch\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = {\"TYPE\": \"detection.batch\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"XXdetection.batchXX\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"DETECTION.BATCH\", \"data\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_batch__mutmut_9",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_batch",
+"old": "batch_data = {\"type\": \"detection.batch\", \"data\": batch_data}",
+"new": "batch_data = {\"type\": \"detection.batch\", \"XXdataXX\": batch_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "if \"type\" not in detection_data:",
+"new": "if \"XXtypeXX\" not in detection_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = {\"type\": \"detection.new\", \"DATA\": detection_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = detection_data.get(None, {})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = detection_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = detection_data.get({})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = detection_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = detection_data.get(\"XXdataXX\", {})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "data_dict = detection_data.get(\"data\", {})",
+"new": "data_dict = detection_data.get(\"DATA\", {})",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "validated_data = WebSocketDetectionNewData.model_validate(data_dict)",
+"new": "validated_data = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "validated_data = WebSocketDetectionNewData.model_validate(data_dict)",
+"new": "validated_data = WebSocketDetectionNewData.model_validate(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "if \"type\" not in detection_data:",
+"new": "if \"TYPE\" not in detection_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "validated_message = WebSocketDetectionNewMessage(data=validated_data)",
+"new": "validated_message = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "validated_message = WebSocketDetectionNewMessage(data=validated_data)",
+"new": "validated_message = WebSocketDetectionNewMessage(data=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(self._channel_name, None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "if \"type\" not in detection_data:",
+"new": "if \"type\" in detection_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_30",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(self._channel_name, )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"Detection new broadcast to Redis: {broadcast_data.get('type')} \" | f\"(detection_id: {data_dict.get('detection_id')}, \" | f\"camera_id: {data_dict.get('camera_id')}, \" | f\"subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_32",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"Detection new broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Detection new broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"Detection new broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Detection new broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"Detection new broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Detection new broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"(detection_id: {data_dict.get('detection_id')}, \"",
+"new": "f\"(detection_id: {data_dict.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"(detection_id: {data_dict.get('detection_id')}, \"",
+"new": "f\"(detection_id: {data_dict.get('XXdetection_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_37",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"(detection_id: {data_dict.get('detection_id')}, \"",
+"new": "f\"(detection_id: {data_dict.get('DETECTION_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_38",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"camera_id: {data_dict.get('camera_id')}, \"",
+"new": "f\"camera_id: {data_dict.get(None)}, \"",
+"ctx": "f\"(detection_id: {data_dict.get('detection_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_39",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"camera_id: {data_dict.get('camera_id')}, \"",
+"new": "f\"camera_id: {data_dict.get('XXcamera_idXX')}, \"",
+"ctx": "f\"(detection_id: {data_dict.get('detection_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_40",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "f\"camera_id: {data_dict.get('camera_id')}, \"",
+"new": "f\"camera_id: {data_dict.get('CAMERA_ID')}, \"",
+"ctx": "f\"(detection_id: {data_dict.get('detection_id')}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = {\"XXtypeXX\": \"detection.new\", \"data\": detection_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = {\"TYPE\": \"detection.new\", \"data\": detection_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = {\"type\": \"XXdetection.newXX\", \"data\": detection_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = {\"type\": \"DETECTION.NEW\", \"data\": detection_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_detection_new__mutmut_9",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_detection_new",
+"old": "detection_data = {\"type\": \"detection.new\", \"data\": detection_data}",
+"new": "detection_data = {\"type\": \"detection.new\", \"XXdataXX\": detection_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"Entity matched broadcast to Redis: entity_id={payload.get('entity_id')}, \" | f\"matched={payload.get('matched_entity_id')}, \" | f\"score={payload.get('similarity_score')}, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"Entity matched broadcast to Redis: entity_id={payload.get('entity_id')}, \"",
+"new": "f\"Entity matched broadcast to Redis: entity_id={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"Entity matched broadcast to Redis: entity_id={payload.get('entity_id')}, \"",
+"new": "f\"Entity matched broadcast to Redis: entity_id={payload.get('XXentity_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"Entity matched broadcast to Redis: entity_id={payload.get('entity_id')}, \"",
+"new": "f\"Entity matched broadcast to Redis: entity_id={payload.get('ENTITY_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"matched={payload.get('matched_entity_id')}, \"",
+"new": "f\"matched={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"matched={payload.get('matched_entity_id')}, \"",
+"new": "f\"matched={payload.get('XXmatched_entity_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"matched={payload.get('matched_entity_id')}, \"",
+"new": "f\"matched={payload.get('MATCHED_ENTITY_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"score={payload.get('similarity_score')}, subscribers={subscriber_count}\"",
+"new": "f\"score={payload.get(None)}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"score={payload.get('similarity_score')}, subscribers={subscriber_count}\"",
+"new": "f\"score={payload.get('XXsimilarity_scoreXX')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_27",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "f\"score={payload.get('similarity_score')}, subscribers={subscriber_count}\"",
+"new": "f\"score={payload.get('SIMILARITY_SCORE')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "logger.error(f\"Entity matched payload validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": "raise ValueError(f\"Invalid entity matched payload: {ve}\") from ve",
+"new": "raise ValueError(None) from ve",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_matched__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_matched",
+"old": " | # ========================================================================= | # Entity Event Broadcasting Methods (NEM-5073) | # =========================================================================",
+"new": "",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \" | f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"",
+"new": "f\"Entity track updated broadcast to Redis: entity_id={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"",
+"new": "f\"Entity track updated broadcast to Redis: entity_id={payload.get('XXentity_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"",
+"new": "f\"Entity track updated broadcast to Redis: entity_id={payload.get('ENTITY_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"",
+"new": "f\"camera={payload.get(None)}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"",
+"new": "f\"camera={payload.get('XXcamera_idXX')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"",
+"new": "f\"camera={payload.get('CAMERA_ID')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated",
+"old": "",
+"new": " | # ========================================================================= | # AI Event Broadcasting Methods (NEM-5073) | # =========================================================================",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "data_dict = event_data.get(\"data\", {})",
+"new": "data_dict = event_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "data_dict = event_data.get(\"data\", {})",
+"new": "data_dict = event_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "f\"Event broadcast to Redis: {broadcast_data.get('type')} \" | f\"(subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "f\"Event broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Event broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "f\"Event broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Event broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "f\"Event broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Event broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "event_data = {\"type\": \"event\", \"data\": event_data}",
+"new": "event_data = {\"XXtypeXX\": \"event\", \"data\": event_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "event_data = {\"type\": \"event\", \"data\": event_data}",
+"new": "event_data = {\"TYPE\": \"event\", \"data\": event_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "event_data = {\"type\": \"event\", \"data\": event_data}",
+"new": "event_data = {\"type\": \"XXeventXX\", \"data\": event_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_event__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_event",
+"old": "event_data = {\"type\": \"event\", \"data\": event_data}",
+"new": "event_data = {\"type\": \"EVENT\", \"data\": event_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_1",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "if \"type\" not in scene_change_data:",
+"new": "if \"XXtypeXX\" not in scene_change_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "data_dict = scene_change_data.get(\"data\", {})",
+"new": "data_dict = scene_change_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "data_dict = scene_change_data.get(\"data\", {})",
+"new": "data_dict = scene_change_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "if \"type\" not in scene_change_data:",
+"new": "if \"TYPE\" not in scene_change_data:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "f\"Scene change broadcast to Redis: {broadcast_data.get('type')} \" | f\"(subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "f\"Scene change broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Scene change broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "f\"Scene change broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Scene change broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "f\"Scene change broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Scene change broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "scene_change_data = {\"type\": \"scene_change\", \"data\": scene_change_data}",
+"new": "scene_change_data = {\"XXtypeXX\": \"scene_change\", \"data\": scene_change_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "scene_change_data = {\"type\": \"scene_change\", \"data\": scene_change_data}",
+"new": "scene_change_data = {\"TYPE\": \"scene_change\", \"data\": scene_change_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "scene_change_data = {\"type\": \"scene_change\", \"data\": scene_change_data}",
+"new": "scene_change_data = {\"type\": \"XXscene_changeXX\", \"data\": scene_change_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_scene_change__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_scene_change",
+"old": "scene_change_data = {\"type\": \"scene_change\", \"data\": scene_change_data}",
+"new": "scene_change_data = {\"type\": \"SCENE_CHANGE\", \"data\": scene_change_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "timestamp=status_data.get(\"timestamp\", \"\"),",
+"new": "timestamp=status_data.get(None, \"\"),",
+"ctx": "validated_message = WebSocketServiceStatusMessage("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "timestamp=status_data.get(\"timestamp\", \"\"),",
+"new": "timestamp=status_data.get(\"timestamp\", None),",
+"ctx": "validated_message = WebSocketServiceStatusMessage("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "timestamp=status_data.get(\"timestamp\", \"\"),",
+"new": "timestamp=status_data.get(\"timestamp\", ),",
+"ctx": "validated_message = WebSocketServiceStatusMessage("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "timestamp=status_data.get(\"timestamp\", \"\"),",
+"new": "timestamp=status_data.get(\"XXtimestampXX\", \"\"),",
+"ctx": "validated_message = WebSocketServiceStatusMessage("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "timestamp=status_data.get(\"timestamp\", \"\"),",
+"new": "timestamp=status_data.get(\"TIMESTAMP\", \"\"),",
+"ctx": "validated_message = WebSocketServiceStatusMessage("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "timestamp=status_data.get(\"timestamp\", \"\"),",
+"new": "timestamp=status_data.get(\"timestamp\", \"XXXX\"),",
+"ctx": "validated_message = WebSocketServiceStatusMessage("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "data_dict = status_data.get(\"data\", {})",
+"new": "data_dict = status_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "f\"Service status broadcast to Redis: {broadcast_data.get('type')} \" | f\"(subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "f\"Service status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Service status broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "f\"Service status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Service status broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_36",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "f\"Service status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Service status broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_service_status__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_service_status",
+"old": "data_dict = status_data.get(\"data\", {})",
+"new": "data_dict = status_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")",
+"new": "data_dict[\"hourly\"] = validated_hourly.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")",
+"new": "data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")",
+"new": "data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "logger.error(f\"Hourly summary validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}",
+"new": "data_dict: dict[str, Any] = {\"XXhourlyXX\": None, \"daily\": None}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")",
+"new": "data_dict[\"daily\"] = validated_daily.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")",
+"new": "data_dict[\"daily\"] = validated_daily.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")",
+"new": "data_dict[\"daily\"] = validated_daily.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "logger.error(f\"Daily summary validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}",
+"new": "data_dict: dict[str, Any] = {\"HOURLY\": None, \"daily\": None}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_35",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}",
+"new": "data_dict: dict[str, Any] = {\"hourly\": None, \"XXdailyXX\": None}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_41",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \" | f\"(hourly: {'yes' if hourly else 'no'}, \" | f\"daily: {'yes' if daily else 'no'}, \" | f\"subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_42",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Summary update broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_43",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Summary update broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_44",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Summary update broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_45",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"(hourly: {'yes' if hourly else 'no'}, \"",
+"new": "f\"(hourly: {'yes' if (hourly) and False else 'no'}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_46",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"(hourly: {'yes' if hourly else 'no'}, \"",
+"new": "f\"(hourly: {'yes' if (hourly) or True else 'no'}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_47",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"(hourly: {'yes' if hourly else 'no'}, \"",
+"new": "f\"(hourly: {'XXyesXX' if hourly else 'no'}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_48",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"(hourly: {'yes' if hourly else 'no'}, \"",
+"new": "f\"(hourly: {'YES' if hourly else 'no'}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_49",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"(hourly: {'yes' if hourly else 'no'}, \"",
+"new": "f\"(hourly: {'yes' if hourly else 'XXnoXX'}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}",
+"new": "data_dict: dict[str, Any] = {\"hourly\": None, \"DAILY\": None}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_50",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"(hourly: {'yes' if hourly else 'no'}, \"",
+"new": "f\"(hourly: {'yes' if hourly else 'NO'}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_51",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"daily: {'yes' if daily else 'no'}, \"",
+"new": "f\"daily: {'yes' if (daily) and False else 'no'}, \"",
+"ctx": "f\"(hourly: {'yes' if hourly else 'no'}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_52",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"daily: {'yes' if daily else 'no'}, \"",
+"new": "f\"daily: {'yes' if (daily) or True else 'no'}, \"",
+"ctx": "f\"(hourly: {'yes' if hourly else 'no'}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_53",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"daily: {'yes' if daily else 'no'}, \"",
+"new": "f\"daily: {'XXyesXX' if daily else 'no'}, \"",
+"ctx": "f\"(hourly: {'yes' if hourly else 'no'}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_54",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"daily: {'yes' if daily else 'no'}, \"",
+"new": "f\"daily: {'YES' if daily else 'no'}, \"",
+"ctx": "f\"(hourly: {'yes' if hourly else 'no'}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_55",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"daily: {'yes' if daily else 'no'}, \"",
+"new": "f\"daily: {'yes' if daily else 'XXnoXX'}, \"",
+"ctx": "f\"(hourly: {'yes' if hourly else 'no'}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_56",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "f\"daily: {'yes' if daily else 'no'}, \"",
+"new": "f\"daily: {'yes' if daily else 'NO'}, \"",
+"ctx": "f\"(hourly: {'yes' if hourly else 'no'}, \""
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_57",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_summary_update",
+"old": "logger.error(f\"Failed to broadcast summary update: {e}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "data_dict = worker_status_data.get(\"data\", {})",
+"new": "data_dict = worker_status_data.get(\"data\", None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "data_dict = worker_status_data.get(\"data\", {})",
+"new": "data_dict = worker_status_data.get(\"data\", )",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_29",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_30",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "broadcast_data = validated_message.model_dump(mode=\"json\")",
+"new": "broadcast_data = validated_message.model_dump(mode=\"JSON\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_32",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "logger.error(f\"Worker status message validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_39",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"Worker status broadcast to Redis: {broadcast_data.get('type')} \" | f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \" | f\"subscribers: {subscriber_count})\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_40",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"Worker status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Worker status broadcast to Redis: {broadcast_data.get(None)} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_41",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"Worker status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Worker status broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_42",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"Worker status broadcast to Redis: {broadcast_data.get('type')} \"",
+"new": "f\"Worker status broadcast to Redis: {broadcast_data.get('TYPE')} \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_43",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \"",
+"new": "f\"(worker: {data_dict.get(None)}, event: {data_dict.get('event_type')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_44",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \"",
+"new": "f\"(worker: {data_dict.get('XXworker_nameXX')}, event: {data_dict.get('event_type')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_45",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \"",
+"new": "f\"(worker: {data_dict.get('WORKER_NAME')}, event: {data_dict.get('event_type')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_46",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \"",
+"new": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_47",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \"",
+"new": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('XXevent_typeXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_48",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('event_type')}, \"",
+"new": "f\"(worker: {data_dict.get('worker_name')}, event: {data_dict.get('EVENT_TYPE')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "worker_status_data = {\"type\": \"worker_status\", \"data\": worker_status_data}",
+"new": "worker_status_data = {\"XXtypeXX\": \"worker_status\", \"data\": worker_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "worker_status_data = {\"type\": \"worker_status\", \"data\": worker_status_data}",
+"new": "worker_status_data = {\"TYPE\": \"worker_status\", \"data\": worker_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "worker_status_data = {\"type\": \"worker_status\", \"data\": worker_status_data}",
+"new": "worker_status_data = {\"type\": \"XXworker_statusXX\", \"data\": worker_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_worker_status__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_worker_status",
+"old": "worker_status_data = {\"type\": \"worker_status\", \"data\": worker_status_data}",
+"new": "worker_status_data = {\"type\": \"WORKER_STATUS\", \"data\": worker_status_data}",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \" | f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone approach broadcast to Redis: zone_id={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone approach broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone approach broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"",
+"new": "f\"eta={payload.get(None)}s, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"",
+"new": "f\"eta={payload.get('XXeta_secondsXX')}s, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"",
+"new": "f\"eta={payload.get('ETA_SECONDS')}s, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_approach",
+"old": "",
+"new": " | # ========================================================================= | # Entity Event Broadcasting Methods (NEM-5073) | # =========================================================================",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"Zone crossing broadcast to Redis: zone_id={payload.get('zone_id')}, \" | f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"Zone crossing broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone crossing broadcast to Redis: zone_id={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"Zone crossing broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone crossing broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"Zone crossing broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone crossing broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "f\"entity_id={payload.get(None)}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "f\"entity_id={payload.get('XXentity_idXX')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "f\"entity_id={payload.get('ENTITY_ID')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "logger.error(f\"Zone crossing payload validation failed: {ve}\")",
+"new": "logger.error(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": "raise ValueError(f\"Invalid zone crossing payload: {ve}\") from ve",
+"new": "raise ValueError(None) from ve",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_crossing",
+"old": " | # ========================================================================= | # Zone Event Broadcasting Methods (NEM-5073) | # =========================================================================",
+"new": "",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \" | f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"",
+"new": "f\"dwell={payload.get(None)}s, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"",
+"new": "f\"dwell={payload.get('XXdwell_duration_secondsXX')}s, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert",
+"old": "f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"",
+"new": "f\"dwell={payload.get('DWELL_DURATION_SECONDS')}s, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_10",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=None),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"XXjsonXX\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "\"data\": validated.model_dump(mode=\"json\"),",
+"new": "\"data\": validated.model_dump(mode=\"JSON\"),",
+"ctx": "broadcast_data = {"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)",
+"new": "subscriber_count = await self._redis.publish(None, broadcast_data)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \" | f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "None",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get(None)}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"",
+"new": "f\"Zone dwell started broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "f\"entity_id={payload.get(None)}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "f\"entity_id={payload.get('XXentity_idXX')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started",
+"old": "f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"",
+"new": "f\"entity_id={payload.get('ENTITY_ID')}, subscribers={subscriber_count}\"",
+"ctx": "logger.debug("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1connect__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1connect",
+"old": "self._client_formats[websocket] = format",
+"new": "self._client_formats[websocket] = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1connect__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1connect",
+"old": "extra={\"format\": format.value},",
+"new": "extra=None,",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1connect__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1connect",
+"old": "extra={\"format\": format.value}, | )",
+"new": ")",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1connect__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1connect",
+"old": "extra={\"format\": format.value},",
+"new": "extra={\"XXformatXX\": format.value},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1connect__mutmut_8",
+"fn": "x\u01c1EventBroadcaster\u01c1connect",
+"old": "extra={\"format\": format.value},",
+"new": "extra={\"FORMAT\": format.value},",
+"ctx": "logger.info("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1disconnect__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1disconnect",
+"old": "self._client_formats.pop(websocket, None)",
+"new": "self._client_formats.pop(None, None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1get_instance__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1get_instance",
+"old": "\"EventBroadcaster has not been initialized. \" | \"Call get_broadcaster() during application startup.\"",
+"new": "None",
+"ctx": "raise RuntimeError("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1get_instance__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1get_instance",
+"old": "\"EventBroadcaster has not been initialized. \"",
+"new": "\"XXEventBroadcaster has not been initialized. XX\"",
+"ctx": "raise RuntimeError("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1get_instance__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1get_instance",
+"old": "\"EventBroadcaster has not been initialized. \"",
+"new": "\"eventbroadcaster has not been initialized. \"",
+"ctx": "raise RuntimeError("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1get_instance__mutmut_5",
+"fn": "x\u01c1EventBroadcaster\u01c1get_instance",
+"old": "\"EventBroadcaster has not been initialized. \"",
+"new": "\"EVENTBROADCASTER HAS NOT BEEN INITIALIZED. \"",
+"ctx": "raise RuntimeError("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1record_ack__mutmut_6",
+"fn": "x\u01c1EventBroadcaster\u01c1record_ack",
+"old": "current = self._client_acks.get(websocket, 0)",
+"new": "current = self._client_acks.get(websocket, 1)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1record_ack__mutmut_7",
+"fn": "x\u01c1EventBroadcaster\u01c1record_ack",
+"old": "if sequence > current:",
+"new": "if sequence >= current:",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1start__mutmut_2",
+"fn": "x\u01c1EventBroadcaster\u01c1start",
+"old": "logger.warning(\"Event broadcaster already started\")",
+"new": "logger.warning(\"XXEvent broadcaster already startedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1start__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1start",
+"old": "logger.warning(\"Event broadcaster already started\")",
+"new": "logger.warning(\"event broadcaster already started\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_11",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "shutdown_message = json.dumps( | { | \"type\": \"system.shutdown\", | \"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True}, | } | )",
+"new": "shutdown_message = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_12",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "{ | \"type\": \"system.shutdown\", | \"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True}, | }",
+"new": "None",
+"ctx": "shutdown_message = json.dumps("
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_13",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"type\": \"system.shutdown\",",
+"new": "\"XXtypeXX\": \"system.shutdown\",",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_14",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"type\": \"system.shutdown\",",
+"new": "\"TYPE\": \"system.shutdown\",",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_15",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"type\": \"system.shutdown\",",
+"new": "\"type\": \"XXsystem.shutdownXX\",",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_16",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"type\": \"system.shutdown\",",
+"new": "\"type\": \"SYSTEM.SHUTDOWN\",",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_17",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"XXdataXX\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_18",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"DATA\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_19",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"XXreasonXX\": \"Server shutting down\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_20",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"REASON\": \"Server shutting down\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_21",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"reason\": \"XXServer shutting downXX\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_22",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"reason\": \"server shutting down\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_23",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"reason\": \"SERVER SHUTTING DOWN\", \"reconnect\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_24",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"reason\": \"Server shutting down\", \"XXreconnectXX\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_25",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"reason\": \"Server shutting down\", \"RECONNECT\": True},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_26",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": True},",
+"new": "\"data\": {\"reason\": \"Server shutting down\", \"reconnect\": False},",
+"ctx": "{"
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_28",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "await ws.send_text(shutdown_message)",
+"new": "await ws.send_text(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_3",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "self._listener_healthy = False",
+"new": "self._listener_healthy = None",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_31",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "logger.info(\"Event broadcaster stopped\")",
+"new": "logger.info(None)",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_32",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "logger.info(\"Event broadcaster stopped\")",
+"new": "logger.info(\"XXEvent broadcaster stoppedXX\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_33",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "logger.info(\"Event broadcaster stopped\")",
+"new": "logger.info(\"event broadcaster stopped\")",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_34",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "logger.info(\"Event broadcaster stopped\")",
+"new": "logger.info(\"EVENT BROADCASTER STOPPED\") |  | async def __aenter__(self) -> EventBroadcaster: | \"\"\"Async context manager entry. |  | Starts the event broadcaster and returns self for use in async with statements. |  | Returns: | Self for use in the context manager block. |  | Example: | async with EventBroadcaster(redis_client) as broadcaster: | # broadcaster is started and listening for events | await broadcaster.broadcast_event(event_data) | # broadcaster is automatically stopped when exiting the block | \"\"\" | await self.start() | return self |  | async def __aexit__( | self, | exc_type: type[BaseException] | None, | exc_val: BaseException | None, | exc_tb: object, | ) -> None: | \"\"\"Async context manager exit. |  | Stops the event broadcaster, ensuring cleanup even if an exception occurred. |  | Args: | exc_type: Exception type if an exception was raised, None otherwise. | exc_val: Exception value if an exception was raised, None otherwise. | exc_tb: Exception traceback if an exception was raised, None otherwise. | \"\"\" | await self.stop()",
+"ctx": null
+},
+{
+"key": "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1stop__mutmut_4",
+"fn": "x\u01c1EventBroadcaster\u01c1stop",
+"old": "self._listener_healthy = False",
+"new": "self._listener_healthy = True",
+"ctx": null
+}
+]

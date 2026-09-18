@@ -1,0 +1,185 @@
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_12
+-        camera_health_context=camera_health_context,
++        camera_health_context=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_13
+-        detection_dicts=detection_dicts,
++        detection_dicts=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_14
+-        auto_tuning_context=auto_tuning_context,
++        auto_tuning_context=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_15
+-        household_context=household_context,
++        household_context=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_16
+-        camera_name=camera_name,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_17
+-        start_time=start_time,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_18
+-        end_time=end_time,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_19
+-        detections_list=detections_list,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_2
+-    camera_name = sanitize_camera_name(camera_name)
++    camera_name = sanitize_camera_name(None)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_22
+-        camera_health_context=camera_health_context,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_23
+-        detection_dicts=detection_dicts,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_24
+-        auto_tuning_context=auto_tuning_context,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_25
+-        household_context=household_context,
+-    )
++        )
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_26
+-    prompt = analyzer._validate_and_truncate_prompt(prompt)
++    prompt = None
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_27
+-    prompt = analyzer._validate_and_truncate_prompt(prompt)
++    prompt = analyzer._validate_and_truncate_prompt(None)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_29
+-    payload = {
+-        "prompt": prompt,
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+-        "top_p": 0.95,
+-        "max_tokens": settings.nemotron_max_output_tokens,
+-        "stop": ["<|im_end|>", "<|im_start|>"],
+-        "stream": True,
+-    }
++    payload = None
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_30
+-        "prompt": prompt,
++        "XXpromptXX": prompt,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_31
+-        "prompt": prompt,
++        "PROMPT": prompt,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_32
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
++        "XXtemperatureXX": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_33
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
++        "TEMPERATURE": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_34
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
++        "temperature": 1.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_35
+-        "top_p": 0.95,
++        "XXtop_pXX": 0.95,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_36
+-        "top_p": 0.95,
++        "TOP_P": 0.95,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_37
+-        "top_p": 0.95,
++        "top_p": 1.95,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_38
+-        "max_tokens": settings.nemotron_max_output_tokens,
++        "XXmax_tokensXX": settings.nemotron_max_output_tokens,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_39
+-        "max_tokens": settings.nemotron_max_output_tokens,
++        "MAX_TOKENS": settings.nemotron_max_output_tokens,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_4
+-    detections_list = sanitize_detection_description(detections_list)
++    detections_list = sanitize_detection_description(None)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_40
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "XXstopXX": ["<|im_end|>", "<|im_start|>"],
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_41
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "STOP": ["<|im_end|>", "<|im_start|>"],
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_42
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["XX<|im_end|>XX", "<|im_start|>"],
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_43
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["<|IM_END|>", "<|im_start|>"],
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_44
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["<|im_end|>", "XX<|im_start|>XX"],
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_45
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["<|im_end|>", "<|IM_START|>"],
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_46
+-        "stream": True,
++        "XXstreamXX": True,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_47
+-        "stream": True,
++        "STREAM": True,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_48
+-        "stream": True,
++        "stream": False,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_50
+-    headers = {"Content-Type": "application/json"}
++    headers = {"XXContent-TypeXX": "application/json"}
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_51
+-    headers = {"Content-Type": "application/json"}
++    headers = {"content-type": "application/json"}
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_52
+-    headers = {"Content-Type": "application/json"}
++    headers = {"CONTENT-TYPE": "application/json"}
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_53
+-    headers = {"Content-Type": "application/json"}
++    headers = {"Content-Type": "XXapplication/jsonXX"}
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_54
+-    headers = {"Content-Type": "application/json"}
++    headers = {"Content-Type": "APPLICATION/JSON"}
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_57
+-    async with inference_semaphore, httpx.AsyncClient(timeout=analyzer._timeout) as client:  # noqa: SIM117
++    async with inference_semaphore, httpx.AsyncClient(timeout=None) as client:  # noqa: SIM117
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_58
+-            "POST",
++            None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_59
+-            f"{analyzer._llm_url}/completion",
++            None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_6
+-        camera_name=camera_name,
++        camera_name=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_60
+-            json=payload,
++            json=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_61
+-            headers=headers,
++            headers=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_62
+-            "POST",
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_63
+-            f"{analyzer._llm_url}/completion",
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_64
+-            json=payload,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_65
+-            headers=headers,
+-        ) as response:
++            ) as response:
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_66
+-            "POST",
++            "XXPOSTXX",
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_67
+-            "POST",
++            "post",
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_7
+-        start_time=start_time,
++        start_time=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_78
+-                        break
++                        return
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_8
+-        end_time=end_time,
++        end_time=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_83
+-                        content = data.get("content", "")
++                        content = data.get("content", None)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_85
+-                        content = data.get("content", "")
++                        content = data.get("content", )
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_88
+-                        content = data.get("content", "")
++                        content = data.get("content", "XXXX")
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_89
+-                        logger.warning(f"Malformed SSE data: {data_str[:100]}")
++                        logger.warning(None)
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_9
+-        detections_list=detections_list,
++        detections_list=None,
+### backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_90
+-                        logger.warning(f"Malformed SSE data: {data_str[:100]}")
++                        logger.warning(f"Malformed SSE data: {data_str[:101]}")

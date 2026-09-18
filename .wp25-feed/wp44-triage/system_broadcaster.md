@@ -1,185 +1,85 @@
 # WP4.4 Triage Dossier — backend/services/system_broadcaster.py
 
-**Run context:** WP4.3 baseline. Meta: 755 keys — 115 survived, 105 killed, 535 not yet checked (null).
-**Scope of this dossier:** the 115 confirmed survivors (exit_code 0) only.
-**Diff extraction:** `mutmut.mutation.diff_apply.get_diff_for_mutant` (read-only, repo cwd, per-key retries
-around the live run's rewrites). All 115/115 diffs captured. Raw diffs JSON: `/tmp/wp25/wp44-triage/sb_diffs.json`.
-**Covering tests:** `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`.
+**Survivors: 324** (of 755 mutants; 431 killed, 0 unchecked) — module kill-rate 57.1%.
+Evidence extracted from `mutants/backend/services/system_broadcaster.py.meta` + per-mutant
+function bodies in the mutant copy (manual region diff vs `__mutmut_orig`); the 25 mutants the
+line-diff could not localize (closure-region / multi-line-arg mutations) were confirmed with
+read-only `uv run mutmut show <key>` (all rc=0). Full raw per-key diff:
+`/tmp/wp25/wp44-triage/system_broadcaster_diffs.txt` + `/tmp/wp25/wp44-triage/nodiff_mutmut.txt`;
+key lists per cluster: `/tmp/wp25/wp44-triage/cluster_keys.json`.
 
-## Covering test files
+**Covering test files** (from `mutants/mutmut-stats.json` `tests_by_mangled_function_name`):
 
-| File | Key anchors (line) |
+| File | Covers |
 |---|---|
-| `backend/tests/unit/services/test_system_broadcaster.py` | disconnect:88 · start_broadcasting:204 · stop_broadcasting:217 · already_running:232 · gpu_stats_error:321 · camera_stats_error:338 · reset_pubsub_connection:354 · reset_no_redis:374 · reset_unsub_err:386 · reset_sub_err:406 · gpu_stats_none_result:818 · degraded_state:1776 · connect_failure:1750 · camera_deprecated:2016 · get_health_status_healthy/degraded/unhealthy:2061/2084/2107 · gasync_fast_path:2152 · gasync_slow_path:2186 · gasync_updates:2218 · stop_system_broadcaster:2248 |
-| `backend/tests/unit/services/test_system_broadcaster_history.py` | five_min:126 (`58 <= len <= 60` — loose) · fifteen_min:154 (`<= 60 and > 0` only) · sixty_min:180 (same) · partial_data:205 |
-| `backend/tests/unit/services/test_async_context_managers.py` | test_start_stop_aliases:584 (calls `start(interval=10.0)` — never exercises the 5.0 default) |
+| `backend/tests/unit/services/test_system_broadcaster.py` (2300 ln) | everything except history: connect/disconnect, broadcast_*, pubsub start/stop/reset, listener, recovery, status, AI health, singleton fns (lines cited inline below) |
+| `backend/tests/unit/services/test_system_broadcaster_history.py` (276 ln) | `get_performance_history` (existing range tests L116-223: 5m test has a 59-60 tolerance + boundary pad, 15m/60m tests assert only `<= 60` and `> 0` — far too weak for sampling params) |
+| `backend/tests/unit/services/test_async_context_managers.py` | `start`/`__aenter__` alias |
 
-**Why so much survives:** the history tests assert only counts with generous tolerances; the pub/sub
-reset tests assert `assert_called_once()` with no args; error-path tests assert only 3 of 5 dict keys;
-`stop_broadcasting` never has a connection attached; logger text is (rightly) never asserted.
+Cluster classification totals: **TEST-GAP 94 (29.0%)**, EQUIVALENT 190 (58.6%), LOW-VALUE 38 (11.7%). 35 clusters; counts sum to 324 exactly.
 
-## Cluster table (counts sum to 115)
+## Cluster table
 
-| # | Cluster | Fn | Count | Class | Example keys (≤3) |
-|---|---|---|---|---|---|
-| C1 | Window length `timedelta(minutes=N)` → N+1 for each range (5→6, 15→16, 60→61) — includes/excludes a snapshot that should be at the window edge; existing tests never place a snapshot at the edge | `get_performance_history` (src :205,:209,:213) | 3 | **TEST-GAP** | `get_performance_history__mutmut_8` / `_17` / `_25` |
-| C2 | Sampling-interval constant mutants `3→4`, `12→13`, `3/12→None` — returns wrong point count (45/55/180) or wrong cadence; tests assert only `<=60 and >0` | `get_performance_history` (:210,:214) | 4 | **TEST-GAP** | `get_performance_history__mutmut_19` / `_27` / `_26` |
-| C3 | Time-range branch condition flipped (`elif == FIFTEEN_MIN → !=`, `if sample_interval == 1 → != 1`) — FIFTEEN_MIN falls into SIXTY_MIN branch (window 15m but interval-12 over-filtered; same 60-point count), FIVE_MIN gets unsampled branch; counts match, contents differ | `get_performance_history` (:208,:224) | 2 | **TEST-GAP** | `get_performance_history__mutmut_13` / `_33` |
-| C4 | `max_points = 60 → 61` in each branch — cap off-by-one, invisible unless filtered/sampled len ever exceeds 60 (tests' 5-second spacing keeps it at ≤60) | `get_performance_history` (:207,:211,:215) | 3 | **TEST-GAP** | `get_performance_history__mutmut_12` / `_21` / `_29` |
-| C5 | Window filter boundary `s.timestamp >= window_start → >` — snapshot exactly at the edge dropped; window_start is `datetime.now(UTC)`-derived inside, so only a frozen clock + boundary snapshot can hit it | `get_performance_history` (:218) | 1 | **TEST-GAP** | `get_performance_history__mutmut_31` |
-| C6 | Return-cap short-circuits (`… if len > max and False`, `… if len > max or True`, `filtered[-max:] → filtered[+max:]`) — behavior diverges only when len(filtered)/len(sampled) exceeds max_points, which the 5s-spaced fixtures never produce | `get_performance_history` (:226,:230) | 4 | **TEST-GAP** | `get_performance_history__mutmut_35` / `_37` / `_42` |
-| C7 | `system.shutdown` payload structure: whole message → None, `"type"`/`"data"`/`"reason"`/`"reconnect"` keys case/XX-renamed, `"system.shutdown"` value case-flipped, `"reconnect": True → False` — the NEM-4987 wire contract for reconnecting clients is asserted nowhere (test_system_broadcaster_stop_broadcasting:217 has no connections attached) | `stop_broadcasting` (:1122–:1125) | 12 | **TEST-GAP** | `stop_broadcasting__mutmut_3` / `_6` / `_17` |
-| C8 | `self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)` channel-args mutants (arg→None, second arg dropped) — leaves a channel subscribed after reset; test :367 only `assert_called_once()` | `_reset_pubsub_connection` (:609) | 4 | **TEST-GAP** | `_reset_pubsub_connection__mutmut_8` / `_9` / `_10` |
-| C9 | `redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)` channel-args mutants (same shapes) — listener ends up on the wrong/None channel; test :369 asserts call-once without args | `_reset_pubsub_connection` (:622–:624) | 4 | **TEST-GAP** | `_reset_pubsub_connection__mutmut_16` / `_17` / `_18` |
-| C10 | Error-fallback GPU dict key renames `"temperature"/"inference_fps" → "XX…"/"UPPER"` in the `except` return (:876–:882); `test_..._get_latest_gpu_stats_error`:321 asserts only utilization/memory_used/memory_total — 2 of 5 keys unwatched (the none-result test at :818 already kills the parallel copies in the `gpu_stat is None` dict) | `_get_latest_gpu_stats` (:876) | 4 | **TEST-GAP** | `_get_latest_gpu_stats__mutmut_13` / `_15` / `_14` |
-| C11 | `get_system_broadcaster_async` slow-path construction kwargs: `redis_getter=redis_getter → None` (getter never wired), kwarg deleted entirely, `start_broadcasting(interval) → start_broadcasting(None)` — slow-path test (:2186) asserts `_redis_client` and `_running`, never `_redis_getter` or the interval threaded through | `get_system_broadcaster_async` (:1325–:1334) | 3 | **TEST-GAP** | `x_get_system_broadcaster_async__mutmut_9` / `_11` / `_13` |
-| C12 | `start_broadcasting(interval: float = 5.0 → 6.0)` default, and `self._broadcast_loop(interval) → _broadcast_loop(None)` — every caller passes an explicit interval so the default is unexercised; sleep(None) would kill the real loop but tests patch `_broadcast_loop` | `start_broadcasting` (:1092,:1111) | 2 | **TEST-GAP** | `start_broadcasting__mutmut_1` / `_10` |
-| C13 | `start()` alias default `interval: float = 5.0 → 6.0` — test_start_stop_aliases passes 10.0 explicitly; `async with broadcaster:` path (`__aenter__ → start()`) uses the default | `start` (:1145) | 1 | **TEST-GAP** | `start__mutmut_1` |
-| C14 | `status_data = await self._get_system_status() → None` in connect's initial-status send — client receives `send_json(None)` instead of system status; the only connect test (:1750) stubs `_get_system_status` to *raise*, so the happy path's payload is unasserted | `connect` (:269) | 1 | **TEST-GAP** | `connect__mutmut_3` |
-| C15 | DB-health probe expression mutants: `session.execute(select(func.count()).select_from(Camera)) → execute(None)` / `select(None)…` — with AsyncMock session both still "succeed"; only a real DB would raise; test (:2061) asserts only the returned string | `_get_health_status` (:1076) | 2 | **TEST-GAP** | `_get_health_status__mutmut_1` / `_3` |
-| C16 | Log message text mutants across 10 functions: `logger.<level>(msg)` message → `None` / `"XX…XX"` / case flips (e.g. `logger.info(None)` replacing `"Global system broadcaster stopped"`) | many | 37 | **EQUIVALENT** | `disconnect__mutmut_2`, `x_stop_system_broadcaster__mutmut_3`, `broadcast_status__mutmut_14` |
-| C17 | History return-cap conditions that are semantically identical to the original (`if len > 60` → `or True` (slice `[-60:]` of a ≤60 list is identity), `→ >=` (when len==60 both paths return the same list), `sample_interval == 1 → == 2` (FIVE_MIN falls to else with `[::1]` = identity), `sample_interval → None` in FIVE_MIN branch (`[::None]` = full copy)`), all inside `len ≤ max_points` reachable range | `get_performance_history` (:224–:230) | 6 | **EQUIVALENT** | `get_performance_history__mutmut_36` / `_38` / `_43` |
-| C18 | Dead store: `self._pubsub = None → ""` at :618 — always overwritten by the resubscribe result (:622) or by the error handler's `= None` (:632) before any read; falsy-vs-None indistinguishable here | `_reset_pubsub_connection` (:618) | 1 | **EQUIVALENT** | `_reset_pubsub_connection__mutmut_14` |
-| C19 | `exc_info=True` removal on error/warning log calls (→ None / False / argument dropped) — real change (traceback no longer captured in exception logs) but pure observability; no test should assert logging internals | 6 functions (connect, broadcast_status, _get_camera_stats, _get_latest_gpu_stats, _get_health_status, _reset_pubsub_connection) | 18 | **LOW-VALUE** | `connect__mutmut_5`, `_get_camera_stats__mutmut_2`, `broadcast_status__mutmut_18` |
-| C20 | `system.shutdown` payload free-text: `"reason": "Server shutting down"` case/XX variants — human-readable string with no consumer asserting it (frontend grep: no reference to `system.shutdown` payload text) | `stop_broadcasting` (:1124) | 3 | **LOW-VALUE** | `stop_broadcasting__mutmut_12` / `_13` / `_14` |
+Cluster keys are suffixes of `backend.services.system_broadcaster.` (`xǁSystemBroadcasterǁ` = class method).
 
-**Totals:** TEST-GAP 50 · EQUIVALENT 44 · LOW-VALUE 21 = 115.
+| # | Cluster | N | Class | Diff pattern | Examples (<=3) |
+|---|---|---:|---|---|---|
+| 1 | **C2** logger message text | 110 | EQUIVALENT | `logger.X("msg")` → `logger.X(None)` / `"XXmsgXX"` / lower / UPPER; multi-line f-string log arg → `None` | `_listen_for_updates__mutmut_12`, `_attempt_listener_recovery__mutmut_49`, `x_stop_system_broadcaster__mutmut_4` |
+| 2 | **C1** logger `exc_info` kwarg | 48 | EQUIVALENT | `exc_info=True` → `None`/`False`/removed, message identical | `_broadcast_loop__mutmut_6`, `_broadcast_loop__mutmut_8`, `_broadcast_loop__mutmut_9` |
+| 3 | **SS1** system-status dict *key text* | 19 | EQUIVALENT | `"gpu"`-dict keys → `"XXmemory_usedXX"`/`"MEMORY_USED"`, `"timestamp"` key casing | `_get_system_status__mutmut_16`, `_get_system_status__mutmut_78`, `_get_system_status__mutmut_106` |
+| 4 | **PS1** pub/sub channel args | 16 | TEST-GAP | `subscribe_dedicated(SYSTEM_STATUS, PERFORMANCE)` and `unsubscribe(...)` → first arg `None`, second `None`, only 2nd channel, only 1st channel (`system_status`/`performance_update` → `None`/dropped in 3 lifecycle fns) | `_reset_pubsub_connection__mutmut_10`, `_start_pubsub_listener__mutmut_12`, `_stop_pubsub_listener__mutmut_5` |
+| 5 | **SD1** shutdown payload | 15 | TEST-GAP | `stop_broadcasting` NEM-4987 notice: `"XXtypeXX"`/`"TYPE"`, `"XXsystem.shutdownXX"`, `"XXreasonXX"`, `"XXreconnectXX"`, whole dict → `None`, **`"reconnect": True → False`**; test L217-228 never attaches a connection | `stop_broadcasting__mutmut_4`, `stop_broadcasting__mutmut_17`, `stop_broadcasting__mutmut_3` |
+| 6 | **CB** circuit-breaker config kwargs | 14 | LOW-VALUE | `__init__` breaker kwargs `recovery_timeout 30→31/None`, `half_open_max_calls 1→2/None`, `success_threshold 1→2/None`, `name` text, kwargs *dropped* (22/23/25) | `__init____mutmut_18`, `__init____mutmut_22`, `__init____mutmut_27` |
+| 7 | **H2** recovery backoff math | 12 | LOW-VALUE | `base_delay 1→2`, `max_delay 60→61`, `2**(n-1)` → `/2**`, `2*`, `3**`, `2**(n±1)`, jitter `delay/x`, `uniform(1.1,0.3)`, `delay−jitter` (all timing, tests stub `asyncio.sleep`) | `_attempt_listener_recovery__mutmut_21`, `_attempt_listener_recovery__mutmut_29`, `_attempt_listener_recovery__mutmut_43` |
+| 8 | **G5a** history truncation short-circuit | 4 | EQUIVALENT | `if len>max` → `and False` / slice `[+max_points:]` (empty slice) + falsy-empty fallback `return filtered` == original when `len<=max`; tests only ever hit `len<=max` | `get_performance_history__mutmut_35`, `get_performance_history__mutmut_37`, `get_performance_history__mutmut_40` |
+| 9 | **G5b** history truncation boundary | 4 | TEST-GAP | `or True` (always `[-60:]`), `>= max_points`, on both branches — observable **only when len(sampled) > 60**, which no test constructs (max window count = 60) | `get_performance_history__mutmut_36`, `get_performance_history__mutmut_38`, `get_performance_history__mutmut_41` |
+| 10 | **SQL2** camera-stats SQL | 8 | TEST-GAP | `select(func.count())`→`select(None)`/`None` stmt, execute(None), `where(None)`, **`Camera.status == ONLINE.value` → `!=`** — mocked session never inspects compiled SQL | `_get_camera_stats_with_session__mutmut_11`, `_get_camera_stats_with_session__mutmut_1`, `_get_camera_stats_with_session__mutmut_8` |
+| 11 | **G3** history sample_interval | 5 | TEST-GAP | 1/3/12 → `None`/4/13; 15m/60m tests assert `len<=60 and >0` so 4 or 13 sampling still passes | `get_performance_history__mutmut_9`, `get_performance_history__mutmut_19`, `get_performance_history__mutmut_27` |
+| 12 | **L3** listener payload extraction | 6 | TEST-GAP | `wrapped_data.get("payload")` → `None`/`get(None)`/`"XXpayloadXX"`/`"PAYLOAD"`, `if not status_data` → `if status_data`, `status_data = wrapped_data` → `None` — existing message tests use *legacy* unwrapped format, never the `{_origin_instance, payload}` wrapper | `_listen_for_updates__mutmut_39`, `_listen_for_updates__mutmut_41`, `_listen_for_updates__mutmut_37` |
+| 13 | **SQL1** GPU-stats SQL | 6 | TEST-GAP | `select(GPUStats)`→`None`, `order_by(None)`, `limit(1)→None/2`, `execute(None)` — mock returns 1 row whatever the statement | `_get_latest_gpu_stats_with_session__mutmut_3`, `_get_latest_gpu_stats_with_session__mutmut_5`, `_get_latest_gpu_stats_with_session__mutmut_1` |
+| 14 | **H1** attempt counting / give-up cmp | 2 | TEST-GAP | `attempts += 1 → += 2`; `attempts > MAX` → `>= MAX` (boundary: existing test sets `MAX+1`, skipping the equality case) | `_attempt_listener_recovery__mutmut_4`, `_attempt_listener_recovery__mutmut_14` |
+| 15 | **PP1** perf payload | 5 | TEST-GAP | broadcast_performance msg `"data"`→`"XXdataXX"`/`"DATA"`; `model_dump(mode="json")` → `None`/`"XXjsonXX"`/`"JSON"` (invalid modes raise → caught → silent drop) | `broadcast_performance__mutmut_13`, `broadcast_performance__mutmut_15`, `broadcast_performance__mutmut_16` |
+| 16 | **AI1** httpx client kwargs/urls | 4 | TEST-GAP | `AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT)` → `timeout=None` ×2; `client.get(f"{url}/health")` → `get(None)` ×2 (mock accepts anything) | `_check_ai_health__mutmut_6`, `_check_ai_health__mutmut_8`, `_check_ai_health__mutmut_15` |
+| 17 | **SS2** status failure-path values | 4 | TEST-GAP | `gpu_stats/camera_stats/queue_stats = await _get_*()` → `None`; DB-error path `{"active": 0, "total": 0}` → `{"total": 1}` | `_get_system_status__mutmut_1`, `_get_system_status__mutmut_34`, `_get_system_status__mutmut_30` |
+| 18 | **DG1** degraded-state payload keys | 4 | TEST-GAP | `"message"`→`"XXmessageXX"`/`"MESSAGE"`, `"circuit_state"`→`"XXcircuit_stateXX"`/`"CIRCUIT_STATE"` — existing test L1786-92 asserts type/service/status but **not** `message`/`circuit_state` | `_broadcast_degraded_state__mutmut_17`, `_broadcast_degraded_state__mutmut_22` |
+| 19 | **L2** listener resets attempts | 2 | TEST-GAP | per-message `self._recovery_attempts = 0` → `1`/`None` (no test reads the counter after processing) | `_listen_for_updates__mutmut_19`, `_listen_for_updates__mutmut_20` |
+| 20 | **L4** listener routing | 4 | TEST-GAP | `_send_to_local_clients(None)`, `listen(None)`, `continue→break` ×2 (early stop only observable with ≥2 messages; the 2-message test uses unwrapped dicts) | `_listen_for_updates__mutmut_45`, `_listen_for_updates__mutmut_16`, `_listen_for_updates__mutmut_36` |
+| 21 | **NP1** None-as-payload | 2 | TEST-GAP | `_broadcast_loop`: `broadcast_status(None)`; `connect`: initial `status_data = None` then `send_json(None)` | `_broadcast_loop__mutmut_2`, `connect__mutmut_3` |
+| 22 | **K1** `_recovery_attempts` init | 3 | TEST-GAP | `__init__`/`_start_pubsub_listener` reset `0 → 1/None` | `__init____mutmut_12`, `_start_pubsub_listener__mutmut_18`, `_start_pubsub_listener__mutmut_19` |
+| 23 | **H3** restart-task dropped | 1 | TEST-GAP | recovery success path `self._listener_task = create_task(...)` → `None`: listener never restarted, unasserted | `_attempt_listener_recovery__mutmut_47` |
+| 24 | **IID** instance id | 1 | TEST-GAP | `self._instance_id = str(uuid.uuid4())` → `str(None)` — kills multi-instance self-filtering uniqueness (existing self-skip test uses the mutated constant, so still passes) | `__init____mutmut_15` |
+| 25 | **SG1** async-singleton wiring | 3 | TEST-GAP | `SystemBroadcaster(redis_getter=redis_getter)` → `redis_getter=None` / kwarg dropped; `start_broadcasting(interval)` → `(None)` | `x_get_system_broadcaster_async__mutmut_9`, `x_get_system_broadcaster_async__mutmut_11`, `x_get_system_broadcaster_async__mutmut_13` |
+| 26 | **IV1a** loop interval arg | 1 | TEST-GAP | `create_task(self._broadcast_loop(None))` — `asyncio.sleep(None)` (indefinite) would wedge the loop; never run for real | `start_broadcasting__mutmut_10` |
+| 27 | **G1a** history range dispatch | 1 | TEST-GAP | `elif time_range == FIFTEEN_MIN` → `!=` — 15m range silently falls into the 60m branch; existing 15m test (`<= 60`) can't tell | `get_performance_history__mutmut_13` |
+| 28 | **AI2** AI aggregate booleans | 2 | LOW-VALUE | `"any_healthy": or→and`, `"all_healthy": and→or` — only observable in the 1-of-2 mixed case; **consumer `_get_system_status` derives its own aggregates and never reads `any_healthy`**, so the only victim is an unused dict field (see draft T6) | `_check_ai_health__mutmut_36`, `_check_ai_health__mutmut_39` |
+| 29 | **G4** history max_points | 3 | LOW-VALUE | `max_points 60 → 61` ×3 — unobservable while window yields ≤60 points (every existing test) | `get_performance_history__mutmut_12`, `get_performance_history__mutmut_21`, `get_performance_history__mutmut_29` |
+| 30 | **G2** history window minutes | 4 | LOW-VALUE | `timedelta(minutes=5/15/60)` ±1 — inside existing tolerance pads (5m test allows `five_min_ago` −5s slack) | `get_performance_history__mutmut_8`, `get_performance_history__mutmut_17`, `get_performance_history__mutmut_25` |
+| 31 | **G1b** history sampling branches | 3 | LOW-VALUE | `if sample_interval == 1` → `!= 1` / `== 2` (routing identical for the tested 1/3/12 values), `s.timestamp >= window_start` → `>` (boundary point excluded, within tolerance) | `get_performance_history__mutmut_31`, `get_performance_history__mutmut_33`, `get_performance_history__mutmut_34` |
+| 32 | **EQ1** break↔return | 2 | EQUIVALENT | `break` → `return` at loop-tail exits (identical) | `_broadcast_loop__mutmut_4`, `_listen_for_updates__mutmut_18` |
+| 33 | **EQ2** None→"" falsy sentinels | 3 | EQUIVALENT | `_listener_task`/`_pubsub` `None` → `""` (all consumers are truthiness checks) | `__init____mutmut_3`, `__init____mutmut_8`, `_reset_pubsub_connection__mutmut_14` |
+| 34 | **DP1** deprecated health probe | 2 | EQUIVALENT | deprecated `_get_health_status` DB probe `session.execute(select(count))` → `None`/`select(None)` — result unused; with mock session cannot raise | `_get_health_status__mutmut_1`, `_get_health_status__mutmut_3` |
+| 35 | **IV1b** default interval | 2 | EQUIVALENT | `start`/`start_broadcasting(interval: float = 5.0)` → `6.0` — every production + test call site passes interval explicitly | `start__mutmut_1`, `start_broadcasting__mutmut_1` |
 
-Notes:
-- C19's `logger.error(None, exc_info=True)` message→None variants are counted in C16 (they are text mutants);
-  C19 is only the exc_info argument changes.
-- `_get_health_status` has no production callers (deprecated), but its unit tests execute every mutant line,
-  so C15 stays TEST-GAP per the "executes the line, never asserts it" rule.
-- The 6 EQUIVALENT copies of the GPU none-result dict keys (not in the survivor set) prove the dict-shape
-  testing approach works — the error-dict gap in C10 is purely the weak test at :321.
+**TEST-GAP (94):** PS1 16, SD1 15, SQL2 8, L3 6, SQL1 6, G3 5, PP1 5, SS2 4, AI1 4, G5b 4, DG1 4, L4 4, H1 2, L2 2, NP1 2, K1 3, SG1 3, H3 1, IID 1, IV1a 1, G1a 1.
+**EQUIVALENT (190):** C2 110, C1 48, SS1 19, G5a 4, EQ1 2, EQ2 3, DP1 2, IV1b 2.
+**LOW-VALUE (38):** CB 14, H2 12, G2 4, G1b 3, G4 3, AI2 2.
+Totals: 94 + 190 + 38 = 324 (exact).
 
-## Drafted tests (UNVERIFIED — not yet run red/green)
+## Drafted kill-tests (7 — UNVERIFIED, not run red/green)
 
-Style follows `test_system_broadcaster.py` / `test_system_broadcaster_history.py`: `@pytest.mark.asyncio`,
-`AsyncMock`, string-path `patch`. TDD procedure for each: apply the cluster's mutant diff → assert must FAIL (red);
-revert to original → must PASS (green).
+Style follows `test_system_broadcaster.py` / `test_system_broadcaster_history.py` (`@pytest.mark.asyncio`, `AsyncMock`, `patch.object(..., autospec=True)`).
 
-### D1 — exact history expectations (kills C1, C2, C3, C4, C5, C6) → `backend/tests/unit/services/test_system_broadcaster_history.py`
+### T1 — pub/sub lifecycle uses BOTH channels — kills PS1 (16) (+ L4 `listen(None)` helper effect)
 
-```python
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_performance_history_five_min_exact_points():
-    """5m range with dense (1s) data: exact 5-min window, interval 1, cap 60, >= boundary.
-
-    // UNVERIFIED - not yet run red/green
-    Kills: window 5->6 min, max_points 60->61, cap short-circuit mutants
-    (and False / or True / +max_points slice), >= boundary drop, via a frozen
-    clock + exact expected list.
-    """
-    broadcaster = SystemBroadcaster()
-
-    frozen = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
-
-    class _FrozenDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return frozen
-
-    # 240 snapshots at 1-second spacing (4 minutes) + one boundary snapshot exactly
-    # at now-5min + one out-of-window snapshot at 5.5 minutes ago.
-    snapshots = [
-        PerformanceUpdate(timestamp=frozen - timedelta(seconds=240 - i)) for i in range(240)
-    ]
-    snapshots.insert(0, PerformanceUpdate(timestamp=frozen - timedelta(minutes=5)))
-    snapshots.insert(0, PerformanceUpdate(timestamp=frozen - timedelta(minutes=5, seconds=30)))
-    for s in snapshots:
-        broadcaster._store_performance_snapshot(s)
-
-    with patch("backend.services.system_broadcaster.datetime", _FrozenDateTime):
-        result = broadcaster.get_performance_history(TimeRange.FIVE_MIN)
-
-    # Window = last 5 min: the 5.5-min snapshot excluded, the exactly-at-boundary
-    # snapshot INCLUDED (>=). 241 qualify -> cap keeps the LAST 60.
-    assert len(result) == 60
-    assert result == snapshots[-60:]
-    assert all(s.timestamp >= frozen - timedelta(minutes=5) for s in result)
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_performance_history_sampled_ranges_exact_points():
-    """15m samples every 3rd, 60m every 12th — assert exact timestamps, not just counts.
-
-    // UNVERIFIED - not yet run red/green
-    Kills: interval 3->4, 12->13, 3/12->None, FIFTEEN_MIN elif-flip (13),
-    sample_interval != 1 flip (33), and window/return-cap mutants on the
-    sampled branch.
-    """
-    broadcaster = SystemBroadcaster()
-
-    frozen = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
-
-    class _FrozenDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return frozen
-
-    # 720 snapshots at 5s spacing covering the full 60 minutes (0..719).
-    snapshots = [
-        PerformanceUpdate(timestamp=frozen - timedelta(seconds=(720 - i) * 5)) for i in range(720)
-    ]
-    for s in snapshots:
-        broadcaster._store_performance_snapshot(s)
-
-    with patch("backend.services.system_broadcaster.datetime", _FrozenDateTime):
-        result_15 = broadcaster.get_performance_history(TimeRange.FIFTEEN_MIN)
-        result_60 = broadcaster.get_performance_history(TimeRange.SIXTY_MIN)
-
-    # 15m: last 180 snapshots qualify; every 3rd -> 60 points; capped at 60.
-    expected_15 = snapshots[-180:][::3]
-    assert len(expected_15) == 60
-    assert [s.timestamp for s in result_15] == [s.timestamp for s in expected_15]
-
-    # 60m: all 720 qualify; every 12th -> 60 points.
-    expected_60 = snapshots[::12]
-    assert len(expected_60) == 60
-    assert [s.timestamp for s in result_60] == [s.timestamp for s in expected_60]
-```
-
-Red proof sketch (one line): on `__mutmut_19` (interval 4) the 15m result is 45 points with
-shifted timestamps → timestamp-list assert fails; on `_13` (FIFTEEN_MIN branch flipped to SIXTY)
-result timestamps are `snapshots[::12]`-derived → mismatch; green on original by construction.
-
-### D2 — shutdown wire contract (kills C7) → `backend/tests/unit/services/test_system_broadcaster.py`
+Target: `backend/tests/unit/services/test_system_broadcaster.py` (next to L492 `start_pubsub_listener_success`).
 
 ```python
 @pytest.mark.asyncio
-async def test_system_broadcaster_stop_broadcasting_sends_shutdown_notice():
-    """NEM-4987: clients must receive the exact system.shutdown notice on stop.
+async def test_system_broadcaster_pubsub_lifecycle_subscribes_both_channels():
+    """_start_pubsub_listener / _reset / _stop must use BOTH status+performance channels.
 
-    // UNVERIFIED - not yet run red/green
-    Kills all 12 structural payload mutants (type/data/reason/reconnect keys,
-    value casing, reconnect True->False, whole message -> None).
-    """
-    broadcaster = SystemBroadcaster()
-    mock_ws = AsyncMock()
-    broadcaster.connections.add(mock_ws)
-    broadcaster._running = True
-
-    await broadcaster.stop_broadcasting()
-
-    mock_ws.send_json.assert_called_once_with(
-        {
-            "type": "system.shutdown",
-            "data": {"reason": "Server shutting down", "reconnect": True},
-        }
-    )
-```
-
-### D3 — reset uses both channels explicitly (kills C8 + C9) → `backend/tests/unit/services/test_system_broadcaster.py`
-
-```python
-@pytest.mark.asyncio
-async def test_system_broadcaster_reset_pubsub_subscribes_both_channels():
-    """Reset must unsubscribe and re-subscribe the *documented* channel pair.
-
-    // UNVERIFIED - not yet run red/green
-    Kills channel-arg mutants: unsubscribe(_SYSTEM_STATUS_CHANNEL|PERFORMANCE_UPDATE_CHANNEL|None...)
-    and subscribe_dedicated(...) arg drops/None.
+    WP4.4 kill-test for PS1 cluster: channel-arg mutations (None / single-channel)
+    in subscribe_dedicated() and unsubscribe() calls. UNVERIFIED - not yet run red/green.
     """
     from backend.services.system_broadcaster import (
         PERFORMANCE_UPDATE_CHANNEL,
@@ -187,167 +87,373 @@ async def test_system_broadcaster_reset_pubsub_subscribes_both_channels():
     )
 
     mock_redis = AsyncMock()
-    new_pubsub = AsyncMock()
-    mock_redis.subscribe_dedicated.return_value = new_pubsub
-
-    broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    old_pubsub = AsyncMock()
-    broadcaster._pubsub = old_pubsub
-
-    await broadcaster._reset_pubsub_connection()
-
-    old_pubsub.unsubscribe.assert_called_once_with(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
-    mock_redis.subscribe_dedicated.assert_called_once_with(
-        SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
-    )
-    assert broadcaster._pubsub is new_pubsub
-```
-
-### D4 — error-fallback GPU dict full shape (kills C10) → `backend/tests/unit/services/test_system_broadcaster.py`
-
-```python
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_gpu_stats_error_returns_all_null_keys():
-    """Error path must expose the SAME 5-key schema as the success/none-result paths.
-
-    // UNVERIFIED - not yet run red/green
-    Kills temperature/inference_fps key-rename mutants in the except-return dict.
-    """
-    broadcaster = SystemBroadcaster()
-
-    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
-        mock_session.side_effect = ConnectionError("Database error")
-
-        gpu_stats = await broadcaster._get_latest_gpu_stats()
-
-    assert set(gpu_stats.keys()) == {
-        "utilization",
-        "memory_used",
-        "memory_total",
-        "temperature",
-        "inference_fps",
-    }
-    assert all(value is None for value in gpu_stats.values())
-```
-
-### D5 — interval + redis_getter threading (kills C11 + C12 + C13) → `backend/tests/unit/services/test_system_broadcaster.py`
-
-```python
-@pytest.mark.asyncio
-async def test_get_system_broadcaster_async_slow_path_threads_interval_and_getter():
-    """Slow path must wire redis_getter and pass the (default) interval into the loop.
-
-    // UNVERIFIED - not yet run red/green
-    Kills: redis_getter=redis_getter->None and kwarg-deleted (TypeError->error),
-    start_broadcasting(interval)->(None), and the 5.0->6.0 default (loop called
-    with 6.0 instead of 5.0).
-    """
-    from backend.services.system_broadcaster import get_system_broadcaster_async, reset_broadcaster_state
-
-    reset_broadcaster_state()
-
-    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub
 
     async def empty_listen(pubsub):
         for _ in []:
             yield
 
     mock_redis.listen = empty_listen
-    mock_getter = MagicMock(return_value=mock_redis)
 
-    with patch.object(SystemBroadcaster, "_broadcast_loop", autospec=True) as loop_mock:
-        broadcaster = await get_system_broadcaster_async(redis_getter=mock_getter)
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
-    loop_mock.assert_called_once_with(broadcaster, 5.0)  # module default interval
-    assert broadcaster._redis_getter is mock_getter  # getter must survive construction
+    # --- start: subscribe_dedicated must name both channels, in order ---
+    await broadcaster._start_pubsub_listener()
+    assert mock_redis.subscribe_dedicated.call_args.args == (
+        SYSTEM_STATUS_CHANNEL,
+        PERFORMANCE_UPDATE_CHANNEL,
+    )
 
-    # Cleanup
-    await broadcaster.stop_broadcasting()
-    reset_broadcaster_state()
+    # --- stop: unsubscribe must name both channels ---
+    await broadcaster._stop_pubsub_listener()
+    mock_pubsub.unsubscribe.assert_called_once_with(
+        SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+    )
 
+    # --- reset: old sub unsubscribed from both, fresh sub created on both ---
+    old_pubsub = AsyncMock()
+    broadcaster._pubsub = old_pubsub
+    await broadcaster._reset_pubsub_connection()
+    old_pubsub.unsubscribe.assert_called_once_with(
+        SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+    )
+    assert mock_redis.subscribe_dedicated.call_args.args == (
+        SYSTEM_STATUS_CHANNEL,
+        PERFORMANCE_UPDATE_CHANNEL,
+    )
 
-@pytest.mark.asyncio
-async def test_system_broadcaster_start_alias_default_interval_is_five_seconds():
-    """start() alias default interval must stay 5.0 (used by the async-context path).
-
-    // UNVERIFIED - not yet run red/green
-    Kills start(interval: float = 5.0 -> 6.0).
-    """
-    broadcaster = SystemBroadcaster()
-    broadcaster.start_broadcasting = AsyncMock()
-
-    await broadcaster.start()
-
-    broadcaster.start_broadcasting.assert_called_once_with(5.0)
+    # Cleanup: cancel listener task spawned by the last subscribe path
+    broadcaster._pubsub_listening = False
+    if broadcaster._listener_task:
+        broadcaster._listener_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await broadcaster._listener_task
 ```
 
-Note: `_get_broadcaster_lock` is module-global; `reset_broadcaster_state()` (already used by the
-neighboring tests at :2152+) keeps the fixture isolation identical to `test_get_system_broadcaster_async_slow_path_initialization`.
+TDD: on any PS1 mutant (e.g. `_start_pubsub_listener__mutmut_12` first-channel → `None`) the `call_args.args ==` assert fails; on original it passes because `system_broadcaster.py:550-552` passes both constants.
 
-### D6 — connect sends the real initial status (kills C14) → `backend/tests/unit/services/test_system_broadcaster.py`
+### T2 — shutdown notice shape + resilience — kills SD1 (15) + NP1-loop-half (partial)
+
+Target: `test_system_broadcaster.py` (after L217 `stop_broadcasting`).
 
 ```python
 @pytest.mark.asyncio
-async def test_system_broadcaster_connect_sends_initial_status_payload():
-    """On connect the client gets the freshly gathered system_status payload.
+async def test_stop_broadcasting_sends_shutdown_notice_shape():
+    """NEM-4987: stop_broadcasting must send type=system.shutdown with reconnect=True.
 
-    // UNVERIFIED - not yet run red/green
-    Kills status_data = await self._get_system_status() -> None (client would
-    receive send_json(None)).
+    WP4.4 kill-test for SD1 (payload key/value text mutations) — and proves the
+    notice is best-effort: a dead socket must not abort shutdown.
+    UNVERIFIED - not yet run red/green.
     """
     broadcaster = SystemBroadcaster()
-    mock_websocket = AsyncMock()
+    broadcaster._running = True
 
-    expected = {
-        "type": "system_status",
-        "data": {"gpu": {}, "cameras": {}, "queue": {}, "health": "healthy"},
-        "timestamp": "2026-01-01T00:00:00+00:00",
-    }
+    good_ws = AsyncMock()
+    dead_ws = AsyncMock()
+    dead_ws.send_json.side_effect = ConnectionError("client already gone")
+    broadcaster.connections.add(good_ws)
+    broadcaster.connections.add(dead_ws)
 
-    with patch.object(broadcaster, "_get_system_status", return_value=expected, autospec=True):
-        await broadcaster.connect(mock_websocket)
+    await broadcaster.stop_broadcasting()  # must not raise despite dead_ws
 
-    assert mock_websocket in broadcaster.connections
-    mock_websocket.send_json.assert_called_once_with(expected)
+    good_ws.send_json.assert_called_once_with(
+        {
+            "type": "system.shutdown",
+            "data": {"reason": "Server shutting down", "reconnect": True},
+        }
+    )
+    assert broadcaster._running is False
+    assert broadcaster._broadcast_task is None
 ```
 
-### D7 (optional, low priority) — DB probe is a real COUNT over camera (kills C15) → `backend/tests/unit/services/test_system_broadcaster.py`
+TDD: `stop_broadcasting__mutmut_17` (`reconnect: False`) and every key-text mutant (`"XXtypeXX"`, `"REASON"`, …) fail the dict-equality assert; `__mutmut_3` (whole dict → `None`) fails on payload; original passes.
+
+### T3 — listener forwards the `payload` of a remote wrapped message and resets attempts — kills L3 (6) + L2 (2) + L4 self-skip `continue→break` (36) + H3 (1) + K1 (3) + SS2 `_get_system_status__mutmut_1` (partial)
+
+Target: `test_system_broadcaster.py` (after L1874 `listen_skips_self_originated_messages`).
 
 ```python
 @pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_probes_database_with_count_query():
-    """The deprecated health check must probe the DB with a COUNT query over cameras.
+async def test_listen_for_updates_forwards_remote_wrapped_payload():
+    """Listener must unwrap {payload} from REMOTE instances and reset recovery state.
 
-    // UNVERIFIED - not yet run red/green
-    Kills session.execute(None) (AttributeError on compile) and select(None)
-    (compiled SQL has no count()).
+    WP4.4 kill-test: L3 (payload key mutations), L2 (_recovery_attempts reset),
+    L4 (self-origin continue->break stops later messages), H3/K1 via follow-up
+    recovery assertions. UNVERIFIED - not yet run red/green.
     """
+    mock_redis = AsyncMock()
+    mock_pubsub = AsyncMock()
+
+    remote_payload = {"type": "system_status", "from": "other-instance"}
+    second_payload = {"type": "performance_update", "seq": 2}
+    messages = [
+        # self-originated (must be skipped but NOT stop the loop)
+        {
+            "data": {
+                "_origin_instance": "self-id",
+                "payload": {"type": "system_status", "test": "mine"},
+            }
+        },
+        {"data": {"_origin_instance": "remote-id", "payload": remote_payload}},
+        {"data": {"_origin_instance": "remote-id", "payload": second_payload}},
+    ]
+
+    async def mock_listen(pubsub):
+        for msg in messages:
+            yield msg
+
+    mock_redis.listen = mock_listen
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._instance_id = "self-id"
+    broadcaster._pubsub = mock_pubsub
+    broadcaster._pubsub_listening = True
+    broadcaster._recovery_attempts = 3  # dirty counter must be reset by message processing
+
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    await broadcaster._listen_for_updates()
+
+    # Both remote payloads forwarded verbatim (unwrapped), self message never sent
+    assert mock_ws.send_text.call_count == 2
+    assert json.loads(mock_ws.send_text.call_args_list[0].args[0]) == remote_payload
+    assert json.loads(mock_ws.send_text.call_args_list[1].args[0]) == second_payload
+    # Recovery bookkeeping on successful message processing
+    assert broadcaster._recovery_attempts == 0
+```
+
+TDD: `get("XXpayloadXX")`-style mutants forward the wrapper or nothing → first `send_text` payload assert fails; `continue→break` (`__mutmut_36`) yields count 1 ≠ 2; `_recovery_attempts = 1/None` mutants fail the last assert; original passes.
+
+### T4 — recovery timing bound + listener restart after success — kills H3 (1, co-kill), H2 (some), plus boundary give-up `>` vs `>=` — kills H1 (2)
+
+Target: `test_system_broadcaster.py` (after L1611 `is_degraded_after_max_recovery_attempts`).
+
+```python
+@pytest.mark.asyncio
+async def test_attempt_listener_recovery_backoff_bounds_and_restart():
+    """Recovery sleep must be in [1s, 78s] with base=1 doubling, and restart the task.
+
+    WP4.4 kill-test: H2 division/`3**`/base_delay mutants (sleep out of band) and
+    H3 (_listener_task = None — listener never restarted).
+    UNVERIFIED - not yet run red/green.
+    """
+    mock_redis = AsyncMock()
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub_listening = True
+    broadcaster._recovery_attempts = 2  # delay should be 1.0 * 2**(2-1) = 2.0s (+10-30% jitter)
+
+    sleeps: list[float] = []
+
+    async def capture_sleep(delay):
+        sleeps.append(delay)
+
+    restart_task = object()
+    with (
+        patch("asyncio.sleep", side_effect=capture_sleep, autospec=True),
+        patch.object(broadcaster, "_reset_pubsub_connection", autospec=True) as mock_reset,
+    ):
+        # reset leaves a truthy pubsub, so the success path must restart the listener
+        async def reset_ok():
+            broadcaster._pubsub = AsyncMock()
+
+        mock_reset.side_effect = reset_ok
+        with patch("asyncio.create_task", return_value=restart_task) as mock_create:
+            await broadcaster._attempt_listener_recovery()
+
+    assert len(sleeps) == 1
+    # original: 2.0s + [0.2, 0.6] jitter; /2**, 3**, base 2.0, -jitter mutants fall outside
+    assert 2.0 <= sleeps[0] <= 2.8, f"backoff {sleeps[0]} outside bounded-exponential range"
+    # H3: recovery success must re-spawn the listener task
+    mock_create.assert_called_once()
+    assert broadcaster._listener_task is restart_task
+
+
+@pytest.mark.asyncio
+async def test_attempt_listener_recovery_allows_attempt_at_max_boundary():
+    """Give-up fires only ABOVE MAX_RECOVERY_ATTEMPTS (attempts > MAX, not >=).
+
+    WP4.4 kill-test for H1 (_attempt_listener_recovery__mutmut_14: > -> >=).
+    UNVERIFIED - not yet run red/green.
+    """
+    mock_redis = AsyncMock()
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    broadcaster._pubsub_listening = True
+    broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS - 1  # -> 5 after +=1, still <= MAX
+
+    slept: list[float] = []
+
+    async def capture_sleep(delay):
+        slept.append(delay)
+        broadcaster._pubsub_listening = False  # stop before reset, isolate the boundary
+
+    with patch("asyncio.sleep", side_effect=capture_sleep, autospec=True):
+        await broadcaster._attempt_listener_recovery()
+
+    # On original: attempt 5 == MAX -> proceeds to backoff (sleep called), not degraded.
+    # On __mutmut_14 (>=): degraded branch taken, no sleep, degraded True.
+    assert slept, "attempt count == MAX must still be allowed to back off"
+    assert broadcaster.is_degraded() is False
+    assert broadcaster._recovery_attempts == broadcaster.MAX_RECOVERY_ATTEMPTS
+```
+
+TDD: `+= 2` mutant makes `_recovery_attempts` 6 > MAX → degraded, `slept` empty → both asserts fail; `>=` mutant skips sleep → `assert slept` fails; original passes both.
+
+### T5 — SQL statement shape: GPU ORDER BY/LIMIT and camera ONLINE filter — kills SQL1 (6) + SQL2 (8)
+
+Target: `test_system_broadcaster.py` (after L1179 `get_camera_stats_with_session`).
+
+```python
+@pytest.mark.asyncio
+async def test_gpu_and_camera_statements_sql_shape():
+    """GPU query: newest-first LIMIT 1; camera active-count filters ONLINE.
+
+    WP4.4 kill-test: SQL1 (order_by/limit clobbering) and SQL2 — notably
+    _get_camera_stats_with_session__mutmut_11 (WHERE == ONLINE -> != ONLINE).
+    Mocked sessions cannot see this, so compile the captured statements.
+    UNVERIFIED - not yet run red/green.
+    """
+    from sqlalchemy import select as sa_select
+
+    from backend.models import Camera, CameraStatus
+
     broadcaster = SystemBroadcaster()
 
+    # --- GPU: capture the executed statement ---
     mock_session = AsyncMock()
     mock_result = MagicMock()
-    mock_result.scalar_one.return_value = 5
+    mock_result.scalar_one_or_none.return_value = None
     mock_session.execute.return_value = mock_result
 
-    @asynccontextmanager
-    async def mock_get_session():
-        yield mock_session
+    await broadcaster._get_latest_gpu_stats_with_session(mock_session)
 
-    with (
-        patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
-    ):
-        health = await broadcaster._get_health_status()
+    gpu_stmt = mock_session.execute.call_args.args[0]
+    compiled = str(gpu_stmt.compile(compile_kwargs={"literal_binds": True}))
+    assert "ORDER BY" in compiled.upper() and "DESC" in compiled.upper()
+    # LIMIT 1 (limit(None) drops the clause; limit(2) -> 'LIMIT 2')
+    assert "LIMIT 1" in compiled.upper()
 
-    assert health == "healthy"
-    (statement,), _ = mock_session.execute.call_args
-    compiled = str(statement.compile(compile_kwargs={"literal_binds": True})).lower()
-    assert "count" in compiled
-    assert "camera" in compiled
+    # --- Camera: second execute() is the active count and must filter ONLINE ---
+    call_count = 0
+
+    def mock_execute(*args):
+        nonlocal call_count
+        call_count += 1
+        r = MagicMock()
+        r.scalar_one.return_value = 0
+        return r
+
+    session2 = AsyncMock()
+    session2.execute.side_effect = mock_execute
+    await broadcaster._get_camera_stats_with_session(session2)
+    assert call_count == 2
+
+    active_stmt = session2.execute.call_args_list[1].args[0]
+    active_compiled = str(active_stmt.compile(compile_kwargs={"literal_binds": True}))
+    online = str(
+        sa_select().where(Camera.status == CameraStatus.ONLINE.value).compile()
+    )
+    # the ONLINE predicate is present, same as the original equality form
+    assert online.split("WHERE")[1].strip() in active_compiled
 ```
 
-## WP4.4 disposition recommendation
+TDD: `!=` mutant's WHERE renders `camera.status != 'online'` — the equality-derived predicate substring is absent → assert fails; `order_by(None)`/`limit(None)`/`limit(2)` mutants fail the GPU ORDER BY/LIMIT asserts; statements that became `None`/`select(None)` raise ArgumentError before reaching asserts.
 
-- Drafts D1–D6 (7 test functions) kill 44 of the 50 TEST-GAP survivors; D7 covers the remaining 2 (C15, deprecated fn — optional).
-- C16/C17/C18 (44 EQUIVALENT) and C19/C20 (21 LOW-VALUE) can go to the suppression ledger as triaged-no-action;
-  C19 (exc_info removals) is the one family a future "assert logging calls" convention would mop up wholesale if the team wants.
+### T6 — AI health: one-down mixed state + request shape — kills AI1 (4) (+ AI2 with a widened assertion)
+
+Target: `test_system_broadcaster.py` (after L1446 `check_ai_health_timeout`).
+
+```python
+@pytest.mark.asyncio
+async def test_check_ai_health_mixed_state_and_request_shape():
+    """One healthy + one failing service -> any_healthy True, all_healthy False;
+    both requests must hit the /health endpoints with the short timeout.
+
+    WP4.4 kill-test: AI1 (timeout=None, url=None) and AI2 aggregate flips
+    (or->and / and->or are only distinguishable in the 1-of-2 case).
+    UNVERIFIED - not yet run red/green.
+    """
+    broadcaster = SystemBroadcaster()
+
+    with patch(
+        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+    ) as mock_client_cls:
+        mock_client = AsyncMock()
+
+        async def mock_get(url):
+            resp = MagicMock()
+            resp.status_code = 200 if url.endswith("health") and "yolo26" in url else 500
+            return resp
+
+        mock_client.get.side_effect = mock_get
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        mock_client_cls.return_value.__aexit__.return_value = None
+
+        result = await broadcaster._check_ai_health()
+
+    # yolo26 healthy (200), nemotron unhealthy (500)
+    assert result["yolo26"] is True
+    assert result["nemotron"] is False
+    assert result["any_healthy"] is True   # __mutmut_36 (or->and) fails here
+    assert result["all_healthy"] is False  # __mutmut_39 (and->or) fails here
+
+    # request shape: every call is a real URL ending /health (kills get(None))
+    urls = [c.args[0] for c in mock_client.get.call_args_list]
+    assert len(urls) == 2
+    assert all(isinstance(u, str) and u.endswith("/health") for u in urls)
+
+    # timeout kwarg preserved (kills timeout=None) — autospec passes it through
+    for c in mock_client_cls.call_args_list:
+        assert c.kwargs.get("timeout") == 1.0  # AI_HEALTH_CHECK_TIMEOUT
+```
+
+TDD: aggregate mutants break the mixed-state asserts; `timeout=None` breaks the kwargs assert; `client.get(None)` breaks the URL assert; original passes.
+
+### T7 — performance-history sampling exactness + truncation boundary — kills G1a (1) + G3 (5) + G5b (4)
+
+Target: `backend/tests/unit/services/test_system_broadcaster_history.py` (append to the `get_performance_history` section).
+
+```python
+@pytest.mark.asyncio
+async def test_get_performance_history_sampling_is_exact():
+    """15m must sample every 3rd and 60m every 12th; >max_points must truncate to 60.
+
+    WP4.4 kill-test: G1a (FIFTEEN_MIN branch dispatch flip), G3 (sample_interval
+    3->4 / 12->13), G5b (>= / always-truncate mutants need len>60 which only a
+    dense buffer produces). UNVERIFIED - not yet run red/green.
+    """
+    broadcaster = SystemBroadcaster()
+    now = datetime.now(UTC)
+
+    # 300 snapshots at 1s spacing -> 15m window holds 900 > 60 sampled... but
+    # buffer maxlen is 720; use 360 snapshots covering 6 min at 1s each.
+    for i in range(360):
+        broadcaster._store_performance_snapshot(
+            PerformanceUpdate(timestamp=now - timedelta(seconds=359 - i))
+        )
+
+    fifteen = broadcaster.get_performance_history(TimeRange.FIFTEEN_MIN)
+    # all 360 snapshots are inside the 15m window; sampled[::3] = 120 -> truncate 60
+    assert len(fifteen) == 60
+    # exact stride: consecutive gaps are 3s (sample_interval==3)
+    gaps = {(b.timestamp - a.timestamp).total_seconds() for a, b in zip(fifteen, fifteen[1:])}
+    assert gaps == {3.0}
+
+    sixty = broadcaster.get_performance_history(TimeRange.SIXTY_MIN)
+    # sample_interval 12: stride 12s
+    gaps60 = {(b.timestamp - a.timestamp).total_seconds() for a, b in zip(sixty, sixty[1:])}
+    assert gaps60 == {12.0}
+    assert len(sixty) == 30  # 360/12 = 30 sampled, under max_points
+```
+
+TDD: on `elif != FIFTEEN_MIN` (G1a) FIFTEEN_MIN falls into the 12/60m branch → gaps `{12.0}` ≠ `{3.0}` fails; `sample_interval 4/13` mutants → gaps `{4.0}`/`{13.0}` fail; `>= max_points` / `or True` mutants still return `[-60:]` at exactly-60 boundary... the always-truncate (`or True`) mutants are observable at len==60 (slice returns same list — EQUIVALENT there); `len(fifteen) == 60` keeps the truncation path exercised so `and False`-form (G5a) would return 120 and fail — original passes (stride math per source lines 204-230).
+
+**Worth 3-6 — final selection:** T1 PS1(16), T2 SD1(15)+NP1 partial, T3 L3+L2+L4+H3 co-kill (~12), T4 H1+H2+H3 (~15), T5 SQL1+SQL2 (14), T6 AI1+AI2 (6), T7 G1a+G3+G5b+G5a-discriminator (~13). Total killable if green: ~95 survivors ≈ 29% of this module's survivor pool.
+
+## Notes / caveats
+
+- **SS1 vs SD1/DG1/PP1 split basis:** the `"XXgpuXX"→"XXmemory_usedXX"`-style key mutants in `_get_system_status` sit inside the *DB-error fallback dict* (source L791-799), reached only when `get_session` raises — under mock-based tests the key text is never observed, and the same text would be unasserted through the `data["gpu"]` pass-through path anyway; the three existing tests that touch the status shape assert key *presence* (`"gpu" in status["data"]`) not dict-equality, so a key rename passes them but breaks the frontend contract. Classified EQUIVALENT **as mutants-under-this-suite with a contract caveat**: a shape-equality assert on the full status dict (add to T3's file if cheap) kills SS1 *and* SS2 together; SS1 stays EQUIVALENT only because no production consumer asserts either — flag for WP4.5 if the frontend schema test (`frontend/src/services`) can pin it instead.
+- C2 membership was heuristically assigned for 41 mutants (13%) whose diffs touch logger lines without a `logger.` prefix (continuation strings); 3 stragglers were hand-audited (all multi-line log args → `None`, correctly C2). Counts carry that caveat; all other clusters were verified per-function against the raw diff list (`cluster_keys.json`).
+- AI2 is only killable via a *direct* `_check_ai_health` mixed-state test (T6) because the production consumer `_get_system_status` recomputes `healthy/degraded/unhealthy` from `yolo26`/`nemotron` directly (source L814-824) and never reads `any_healthy`/`all_healthy` — an API-level test cannot kill these two.
+- Do not run any of these yet: a live mutation run owns pytest on this box (all UNVERIFIED).

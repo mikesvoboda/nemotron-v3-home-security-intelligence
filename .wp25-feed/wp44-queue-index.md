@@ -962,3 +962,50 @@ aggregate: gpu_monitor/pipeline_workers/prompts sit at 71–74% TEST-GAP
 (the kill-test list is real), batch_aggregator at 63% EQUIVALENT. Dossiers:
 .wp25-feed/wp44-triage/*.md (UNVERIFIED — drafting only; verification is the
 serial lane).
+
+## WAVE 56 + 57 (GEN-2 RE-TALLY) — FOLD 2026-09-18
+
+Wave 56 (mid-tail) + nemotron_streaming redo + wave 57 (upper-mid). Fold
+source: workflow journals' structured results (primary channel), every module
+sum-checked against the FINAL arbiter (/tmp/wp25/final-score.json) BEFORE
+folding — 16/16 OK. nemotron_streaming needed a redo: the on-disk gen-1
+dossier was run6-in-flight (271 survivors + "90 unchecked"), and the workflow
+agent died twice on StructuredOutput-only failures; re-dispatched as a
+dossier-first direct agent with the arbiter numbers pinned in-prompt — new
+dossier reconciles 333/533 with zero adjustment (meta exit-code census agrees).
+
+| Module | Surv | G | E | L | Drafts |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| redis_json | 338 | 205 | 100 | 33 | 6 |
+| cleanup_service | 348 | 162 | 96 | 90 | 6 |
+| performance_collector | 341 | 258 | 80 | 3 | 6 |
+| baseline | 369 | 346 | 23 | 0 | 6 |
+| webhook_service | 571 | 388 | 160 | 23 | 6 |
+| export_service | 398 | 226 | 34 | 138 | 6 |
+| redis_streams | 429 | 238 | 24 | 167 | 6 |
+| nemotron_streaming | 333 | 237 | 13 | 83 | 14 |
+| **W56 TOTAL** | **3,127** | **2,060** | **530** | **537** | **56** |
+| container_discovery | 696 | 647 | 38 | 11 | 6 |
+| routes/system | 638 | 515 | 65 | 58 | 6 |
+| florence_client | 629 | 377 | 67 | 185 | 6 |
+| clip_client | 613 | 197 | 125 | 291 | 6 |
+| event_broadcaster | 590 | 155 | 292 | 143 | 6 |
+| vision_extractor | 457 | 296 | 50 | 111 | 6 |
+| file_watcher | 327 | 90 | 229 | 8 | 6 |
+| system_broadcaster | 324 | 97 | 190 | 38 | 7 |
+| **W57 TOTAL** | **4,274** | **2,374** | **1,056** | **845** | **49** |
+
+MEASURE — gen-2 tallied through wave 57: 11,370 + 3,127 + 4,274 = **18,771
+survivors** across 24 modules; G 10,445 (55.6%) / E 4,779 (25.5%) / L 3,548
+(18.9%); **195 drafted kill-tests** (90 + 56 + 49). Wave-57 shares 55.5/24.7/
+19.8 — TEST-GAP climbs as module weight drops (the log-heavy titans inflated
+E in wave 55); the EQUIVALENT-swell-with-weight finding from wave 55 holds as
+a SHAPE statement, not an aggregate law: file_watcher (70% E, fs-event glue)
+and system_broadcaster (59% E) vs container_discovery at **93% TEST-GAP
+(647/696) — the purest kill-target found in the program**: zero tests call
+build_service_configs at all (mutmut's 66 "covering tests" are transitive
+import artifacts), so six drafted tests cover ~600 survivors. routes/system
+515 G confirms the 638-survivor route module is worth lane time. Head of the
+serial lane unchanged: enrichment_pipeline metrics-label snapshot (534
+mutants/test). Dossiers .wp25-feed/wp44-triage/*.md — UNVERIFIED drafting;
+verification is the serial lane, one pytest job at a time.

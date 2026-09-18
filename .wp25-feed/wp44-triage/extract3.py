@@ -1,65 +1,70 @@
-import json, re, difflib
+import re, difflib
 
-lines = open("mutants/backend/services/retry_handler.py").read().splitlines()
-meta = json.load(open("mutants/backend/services/retry_handler.py.meta"))
-surv = sorted(k for k,v in meta["exit_code_by_key"].items() if v == 0)
+path = '/agents/agent-nemo2/workspace/mutants/backend/services/event_broadcaster.py'
+mut_src = open(path).read().splitlines()
 
-funcs = {}
-i = 0; n = len(lines)
-def_re = re.compile(r'^(\s*)(?:async\s+)?def (\S+?)\(')
-while i < n:
-    m = def_re.match(lines[i])
+def_re = re.compile(r'^(\s*)(?:async )?def (x\w+)__mutmut_(orig|\d+)[(\[]')
+boundary_re = re.compile(
+    r'^\s*(?:@_mutmut_mutated|(?:async )?def \w|class \w|mutants_x|@dataclass|from |import )')
+
+def_starts = []  # (base, suffix, lineno)
+for i, l in enumerate(mut_src):
+    m = def_re.match(l)
     if m:
-        indent = len(m.group(1)); name = m.group(2)
-        # find signature end: first line j>=i where cumulative depth returns to 0
-        depth = 0; j = i
-        while True:
-            l = lines[j]
-            depth += l.count("(") + l.count("[") + l.count("{") - l.count(")") - l.count("]") - l.count("}")
-            if depth <= 0: break
-            j += 1
-        sig_end = j
-        # body end: first non-empty line after sig_end with indent <= def indent
-        j = sig_end + 1
-        while j < n:
-            l = lines[j]
-            if l.strip():
-                if (len(l) - len(l.lstrip())) <= indent:
-                    break
-            j += 1
-        funcs[name] = (i, j); i = j
-    else:
-        i += 1
+        def_starts.append((m.group(2), m.group(3), i))
 
-# sanity: orig _move_to_dlq block should be ~140 lines
-b = funcs.get("xǁRetryHandlerǁ_move_to_dlq__mutmut_orig")
-print("move_to_dlq orig block:", b, "lines:", b[1]-b[0] if b else None)
+all_def_lines = [i for _, _, i in def_starts]
 
-out = []
+def block_lines(idx):
+    j = idx + 1
+    # end at next def line (any indent from def_starts list)
+    end = len(mut_src)
+    for d in all_def_lines:
+        if d > idx:
+            end = d
+            break
+    out = mut_src[idx:end]
+    # also cut at a decorator line for the NEXT variant (decorator sits above def; the next def line's decorator is BETWEEN: decorator at end-2 typically). Find first @_mutmut_mutated after idx that isn't at idx-? ; simply cut from first @_mutmut_mutated line strictly > idx
+    for k in range(idx + 1, end):
+        if mut_src[k].lstrip().startswith('@'):
+            end = k
+            break
+    out = mut_src[idx:end]
+    while out and out[-1].strip() == '':
+        out.pop()
+    return [l.rstrip() for l in out]
+
+blocks = {}
+for base, suffix, idx in def_starts:
+    blocks[(base, suffix)] = block_lines(idx)
+
+surv = [l.strip() for l in open('/tmp/wp25/wp44-triage/eb_survivors.txt') if l.strip()]
+out_lines = []
+fails = 0
+empty = 0
 for key in surv:
-    mangled = key.split(".")[-1]
-    base = re.sub(r'__mutmut_\d+$', '__mutmut_orig', mangled)
-    if mangled not in funcs:
-        out.append((key,"MISSING-FUNC")); continue
-    if base not in funcs:
-        out.append((key,"NO-ORIG")); continue
-    s,e = funcs[mangled]; os_,oe = funcs[base]
-    a = [l.strip() for l in lines[os_:oe] if l.strip()]
-    b = [l.strip() for l in lines[s:e] if l.strip()]
-    diffs=[]
-    num = mangled.split("__mutmut_")[-1]
-    for op,i1,i2,j1,j2 in difflib.SequenceMatcher(None,a,b).get_opcodes():
-        if op=="equal": continue
-        ol=" | ".join(a[i1:i2]); nl=" | ".join(b[j1:j2])
-        ol2 = ol.replace("__mutmut_orig","__mutmut_N")
-        nl2 = nl.replace("__mutmut_"+num,"__mutmut_N")
-        if ol2==nl2: continue
-        diffs.append(f"    -{ol}\n    +{nl}")
-    out.append((key,"\n".join(diffs) if diffs else "IDENTICAL-TO-ORIG"))
+    m = re.match(r'backend\.services\.event_broadcaster\.(x.*)__mutmut_(\d+)$', key)
+    base, num = m.group(1), m.group(2)
+    o = blocks.get((base, 'orig'))
+    mu = blocks.get((base, num))
+    if o is None or mu is None:
+        out_lines.append(f'{key}\t{base}\tEXTRACT_FAIL')
+        fails += 1
+        continue
+    # normalize mutant names
+    o = [re.sub(r'__mutmut_(orig|\d+)', '__mutmut_X', l) for l in o]
+    mu = [re.sub(r'__mutmut_(orig|\d+)', '__mutmut_X', l) for l in mu]
+    sm = difflib.SequenceMatcher(None, o, mu)
+    hunks = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == 'equal':
+            continue
+        ol = ' | '.join(x.strip() for x in o[i1:i2])
+        nl = ' | '.join(x.strip() for x in mu[j1:j2])
+        hunks.append(f'-[{ol}] +[{nl}]')
+    if not hunks:
+        empty += 1
+    out_lines.append(f'{key}\t{base}\t' + ' ;; '.join(hunks))
 
-with open("/tmp/wp25/wp44-triage/diffs3.txt","w") as f:
-    for k,d in out:
-        f.write(k+"\n"+d+"\n")
-bad = [k for k,d in out if d in ("IDENTICAL-TO-ORIG","MISSING-FUNC","NO-ORIG")]
-print("wrote",len(out),"still identical/missing:",len(bad))
-for k in bad: print(" ",k)
+open('/tmp/wp25/wp44-triage/eb_diffs3.txt', 'w').write('\n'.join(out_lines) + '\n')
+print('wrote', len(out_lines), 'fails', fails, 'empty', empty)

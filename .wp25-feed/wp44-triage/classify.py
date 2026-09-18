@@ -1,88 +1,86 @@
-import json, re, collections
+import json, re
 
-recs=json.load(open('/tmp/wp25/wp44-triage/line_diffs.json'))
-enr={ (r['fn'],r['num']):r for r in json.load(open('/tmp/wp25/wp44-triage/enriched.json')) }
+path = '/agents/agent-nemo2/workspace/mutants/backend/services/event_broadcaster.py'
+mut_src = open(path).read().splitlines()
 
-def in_str(l, i):
-    """is char index i inside a string literal in line l? (naive but robust enough)"""
-    q=None; esc=False
-    n=0
-    while n<len(l):
-        c=l[n]
-        if q:
-            if esc: esc=False
-            elif c=='\\': esc=True
-            elif c==q: q=None
-        else:
-            if c in '"\'': q=c
-        if n==i: return q is not None
-        n+=1
-    return False
+def_re = re.compile(r'^(\s*)(?:async )?def (x\w+)__mutmut_(orig|\d+)[(\[]')
+def_starts = []
+for i, l in enumerate(mut_src):
+    m = def_re.match(l)
+    if m:
+        def_starts.append((m.group(2), m.group(3), i))
+all_def_lines = [i for _, _, i in def_starts]
 
-def shape(d,i,l):
-    """classify the mutation shape"""
-    if i==') or True' or (i.endswith(') or True')): return 'or-True'
-    if i.endswith(') and False'): return 'and-False'
-    if d=='or' and i=='and': return 'boolop-or->and'
-    if d=='and' and i=='or': return 'boolop-and->or'
-    if d=='not ' and i=='': return 'drop-not'
-    if i=='not ': return 'insert-not'
-    if i=='!' : return 'insert-not'
-    if d in ('True','False') and i in ('True','False') and d!=i: return 'bool-flip'
-    if d in ('==','!=','<','<=','>','>=','in','is','is not','not in'):
-        if i in ('==','!=','<','<=','>','>=','in','is','is not','not in'): return 'cmp-flip'
-    if d=='continue' and i=='break': return 'continue->break'
-    if d=='break' and i=='continue': return 'break->continue'
-    try:
-        fd=float(d); fi=float(i)
-        if fd==fi: return 'num-rewrite'
-        return 'num-tweak'
-    except Exception: pass
-    if d==i.lower() or d.upper()==i: return 'str-case'
-    if i.startswith('XX') and i.endswith('XX') and i[2:-2]==d: return 'str-XXwrap'
-    if d=='' or i=='': return 'insert-del'
-    if re.match(r'^[A-Za-z_][\w.]*$',d) and re.match(r'^[A-Za-z_][\w.]*$',i): return 'name-swap'
-    return 'text-swap'
+def block_lines(idx):
+    end = len(mut_src)
+    for d in all_def_lines:
+        if d > idx:
+            end = d
+            break
+    for k in range(idx + 1, end):
+        ls = mut_src[k].lstrip()
+        if ls.startswith('@') or ls.startswith('mutants_x'):
+            end = k
+            break
+    return mut_src[idx:end]
 
-# find char offset of the change in orig line for str detection
-census=collections.Counter()
-detail=collections.defaultdict(list)
+orig_blocks = {}
+for base, suffix, idx in def_starts:
+    if suffix == 'orig':
+        orig_blocks[base] = block_lines(idx)
+
+recs = json.load(open('eb_records.json'))
+
+def enclosing_context(fn, old):
+    """Find the innermost construct enclosing the mutated line(s) by scanning
+    the orig block lines corresponding to hunk ctx_before + old."""
+    # locate old lines in orig block
+    block = orig_blocks[fn]
+    olines = [l.strip() for l in old.split(' | ')]
+    # find position: search for the first old line
+    pos = -1
+    for i in range(len(block)):
+        if block[i].strip() == olines[0]:
+            # verify subsequent
+            if all(j < len(block) and block[j].strip() == o for j, o in zip(range(i, i + len(olines)), olines)):
+                pos = i
+                break
+    if pos < 0:
+        return '?', None
+    # walk backward tracking bracket balance from pos-1
+    bal = 0
+    for j in range(pos - 1, max(0, pos - 40), -1):
+        l = block[j]
+        bal += -l.count('(') + l.count(')') + -l.count('{') + l.count('}') + -l.count('[') + l.count(']')
+        # actually balance of stuff ABOVE j: we need open count at line pos. Compute open = sum over lines[ j+1 .. pos-1] + partial.
+        # simpler: cumulative opens from start to pos
+    # recompute: opens at position pos
+    def opens_upto(k):
+        s = 0
+        for l in block[:k]:
+            s += l.count('(') - l.count(')') + l.count('{') - l.count('}') + l.count('[') - l.count(']')
+        return s
+    target = opens_upto(pos)
+    # walk backward; maintain running open count at line j (=opens_upto(j)); find smallest j where opens_upto(j) < target
+    for j in range(pos - 1, max(-1, pos - 40), -1):
+        if opens_upto(j) < target:
+            return 'construct', block[j].strip()
+    return 'top', None
+
+out = []
 for r in recs:
-    l=r['orig_line']; m=r['mut_line']
-    d,i=r['del'],r['ins']
-    # recompute position in stripped line
-    p=l.find(d) if d else 0
-    # better: common prefix of l,m
-    n=min(len(l),len(m)); q=0
-    while q<n and l[q]==m[q]: q+=1
-    instr=in_str(l,q)
-    r['instr']=instr
-    # is line a docstring/prose? heuristic: inside triple quotes -> use enriched toktype
-    e=enr.get((r['fn'],r['num']),{})
-    r['toktype']=e.get('toktype')
-    sh=shape(d,i,l)
-    r['shape']=sh
-    if r['toktype'] in ('STRING','FSTRING_START') or (instr and sh not in ('or-True','and-False','boolop-or->and','boolop-and->or','drop-not','insert-not','bool-flip','cmp-flip','continue->break','break->continue','num-rewrite')):
-        # string-region mutation
-        if sh=='str-case': cat='STR-case'
-        elif sh=='str-XXwrap': cat='STR-XXclobber'
-        elif d in ('unknown','confidence','is_suspicious') or d.startswith('unknown'): cat='STR-key-or-default-text'
-        else: cat='STR-other-text'
-    elif sh in ('or-True','and-False','boolop-or->and','boolop-and->or','drop-not','insert-not'): cat='LOGIC-'+sh
-    elif sh in ('bool-flip','cmp-flip'): cat='LOGIC-'+sh
-    elif sh in ('continue->break','break->continue'): cat='LOGIC-flow'
-    elif sh=='num-tweak': cat='NUM-tweak'
-    elif sh=='num-rewrite': cat='NUM-rewrite'
-    else:
-        if d in ('None','0','0.0','""','{}','[]','False','True') or i in ('None','0','0.0','""','{}','[]','False','True'): cat='CONST-default-swap'
-        elif sh=='name-swap': cat='NAME-swap'
-        elif sh=='insert-del': cat='INSERT/DEL-'+(d or i)[:10]
-        else: cat='SWAP-other'
-    r['cat']=cat
-    census[(cat, r['fn'])]+=1
-    detail[cat].append(r)
+    for h in r['hunks']:
+        kind, ctx = enclosing_context(r['fn'], h['old'])
+        out.append({'key': r['key'], 'fn': r['fn'], 'old': h['old'], 'new': h['new'], 'ctx': ctx})
 
-print(collections.Counter(r['cat'] for r in recs).most_common(30))
-print('unmatched? total', sum(census.values()))
-json.dump(recs,open('/tmp/wp25/wp44-triage/line_diffs.json','w'))
-json.dump({k:v for k,v in detail.items()}, open('/tmp/wp25/wp44-triage/buckets.json','w'))
+json.dump(out, open('eb_classified.json', 'w'), indent=0)
+import collections
+c = collections.Counter()
+for o in out:
+    ctx = o['ctx'] or 'TOP'
+    # normalize ctx
+    ctx = re.sub(r'\s+', ' ', ctx)[:70]
+    c[(o['fn'], ctx)] += 1
+print(len(c), 'distinct (fn, enclosing-construct) pairs')
+for k, v in c.most_common(60):
+    print(v, k)

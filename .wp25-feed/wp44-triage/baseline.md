@@ -1,398 +1,503 @@
 # WP4.4 Triage Dossier — backend/services/baseline.py
 
-Generated: 2026-09-17. Source: `mutants/backend/services/baseline.py.meta` (`exit_code == 0` keys).
+- **Module:** `backend/services/baseline.py` (1121 lines, `BaselineService`)
+- **Survivors:** 369 of 766 keys (397 killed) — from `mutants/backend/services/baseline.py.meta` `exit_code_by_key == 0`
+- **Diffs:** extracted mechanically (mutant-copy variant blocks keyed by `__mutmut_N` names, line-diffed vs `__mutmut_orig`; spot-verified with `uv run mutmut show`). Raw survivor/diff working files: `/tmp/wp25/wp44-triage/.bl_surv.txt`, `.bl_diffs2.pkl`, `.bl_clusters_final.json`, `.bl_examples_final.json`.
+- **Covering test files:** `backend/tests/unit/services/test_baseline.py` (primary; class line numbers below) and `backend/tests/unit/services/test_baseline_properties.py:573` (`test_z_score_interpretation_ranges`).
 
-**Snapshot caveat: the mutation run is still in flight.** 766 total mutant keys,
-333 verdicts at read time: 216 killed, **117 survived**, 433 still `null` (unchecked).
-This dossier triages the 117 survivors that exist now; re-run this triage (cheap — the
-key→diff pipeline below) once the remaining verdicts land.
+## The systemic root cause (why 369 survive)
 
-Pipeline used (reusable): parse meta → surviving keys (`/tmp/wp25/wp44-triage/keys.txt`) →
-`uv run mutmut show <key>` batch-dumped to `/tmp/wp25/wp44-triage/diffs/all.diff` →
-compact one-line-per-mutant view at `/tmp/wp25/wp44-triage/diffs/compact.txt`.
+Every async DB test in `test_baseline.py` drives the service against `AsyncMock` sessions whose `execute()` returns canned `MagicMock` results. The service's **SQL text is never inspected**: `select(...).where(None)`, `.where(col != v)`, `execute(None)`'s statement, the UPDATE's `.values(...)`, the INSERT's constructor args, `ORDER BY` columns, and method-call arguments are all invisible to the asserts (which check `.called` / `call_count >= 1` / returned values only). Verified against the real library: `str(select(ActivityBaseline).where(None))` compiles to a filter-less **full-table SELECT** — these mutants are *live production bugs* (wrong-camera reads), not artifacts.
 
-## Why so many survive (root cause — read this before the table)
+Second root cause: **assertion imprecision** — `assert 0 < decay < 1`, `assert score < 0.5`, `assert std_dev > 0`, never asserting `deviation.score` or rounding; z-score tests use `-2.5/-1.5/0.5/1.5/2.5/3.5`, never the exact boundaries; the hypothesis property test replicates `<` (never tests the `<=` boundary).
 
-`backend/tests/unit/services/test_baseline.py` drives every DB method with
-`AsyncMock()` sessions: the code *builds* a SQLAlchemy `select(...)` and hands it to
-`sess.execute(stmt)`, but the mock ignores the argument and replays a canned result.
-Consequently **every mutation inside any `select(...)` expression is invisible**:
-`where(None)`, dropped `==` clauses, `==`→`!=`, `order_by` surgery, even
-`stmt = None` / `execute(None)` all return the canned row unchanged (a real DB would
-raise or return wrong rows). That single test-design fact explains 59 of the 117
-survivors (clusters C3–C7 + summary statement mutants). The fix pattern already exists
-in this repo: `backend/tests/unit/services/test_search.py:519-553` captures the built
-statement and asserts on its compiled SQL text. Drafted test T1 below ports that pattern.
+## Cluster table (counts sum to 369 exactly)
 
-The remaining survivors are *assert-strength* gaps (range-only asserts, non-discriminating
-fixtures) plus a pile of genuinely unreachable dead-branch mutations (EQUIVALENT).
+| # | Cluster | N | Class | Pattern | Example keys |
+|---|---------|---|-------|---------|--------------|
+| 1 | TG_WHERE_DROP | 93 | TEST-GAP | WHERE predicate (`camera_id==/hour==/day_of_week==/detection_class==`) replaced by `None`, clause deleted, or whole `stmt`→`None` — in `_update_activity_baseline`, `_update_class_baseline`, `get_activity_rate`, `get_class_frequency`, `is_anomalous`, `get_current_deviation`, `get_camera_baseline_summary`, `get_hourly_patterns`, `get_daily_patterns`, `get_object_baselines`, `get_baseline_established_date`, both `*_baselines_raw` | `_update_activity_baseline__mutmut_1/2`, `is_anomalous__mutmut_3` |
+| 2 | TG_EWMA_VALUES | 84 | TEST-GAP | EWMA update/insert payload never asserted: `new_avg/new_freq = decay*old + (1-decay)*1.0` operator/constant flips, `new_count +1`→`-1/+2/None`, stale-reset `1.0/1`→`2.0/2/None`, dropped `None`/kwargs in `.values(avg_count=…, sample_count=…, last_updated=…)`, `update().where(id==existing.id)`→`None`/`!=`, INSERT constructor args→`None`/`2`, `if decay > 0`→`>=0`/`>1`, `existing=None` | `_update_activity_baseline__mutmut_22/23/37`, `_update_class_baseline__mutmut_45` |
+| 3 | TG_WHERE_FLIP | 33 | TEST-GAP | `==` → `!=` in WHERE predicates (inverted camera/hour/class filter — returns *wrong* rows) | `_update_activity_baseline__mutmut_9`, `get_daily_patterns__mutmut_19` |
+| 4 | TG_STATS_SCORE | 24 | TEST-GAP | Statistics/rounding precision unasserted: variance `**2`→`**3`, `(x-mean)`→`(x+mean)`, `/len`→`*len`, `sum(avg_counts)/len`→`*len`; `round(x,2)`→`round(x,3)/round(x,None)/round(2)` (all legal calls that drop 2-dp precision; test fixtures make rounding a no-op); z-score formula `/std_dev`→`*std_dev`, `(current-mean)`→`(current+mean)`, else-arm `0.0`→`1.0` | `get_current_deviation__mutmut_36/44/55`, `get_hourly_patterns__mutmut_24/47` |
+| 5 | TG_STMT_NONE | 20 | TEST-GAP | `await sess.execute(stmt)` → `execute(None)` — mock session happily answers | `_update_activity_baseline__mutmut_13`, `get_camera_baseline_summary__mutmut_6` |
+| 6 | TG_ANOM_AGG | 11 | TEST-GAP | `is_anomalous` aggregation untested: accumulators `total_frequency/class_frequency/total_samples` init `0.0/0`→`1.0/1`, `+=`→`=` (multi-class only), `if total_samples < min`→`<=`, `relative_frequency` guard `>0`→`>=0`/`>1`/`or True`, `class_frequency==0.0`→`==1.0` (`is_anomalous__mutmut_36/62` folded in as EQUIV-adjacent inputs: see note) | `is_anomalous__mutmut_46/48/52` |
+| 7 | EQ_UNREACHABLE | 11 | EQUIVALENT | Defensive-guard tweaks unreachable with valid inputs: `max(0.0,min(1.0,…))`→`min(2.0,…)` (inner term always ≤1), `if avg_counts/hour_freq/hours_covered else 0.0` `or True` and `0→1` else-arms (empty branch unreachable — dict key exists only after `.append`), `0 <= day_num <= len(day_names)` (no records for day 7) | `is_anomalous__mutmut_78`, `get_hourly_patterns__mutmut_16/19` |
+| 8 | TG_ZSCORE_BOUNDS | 11 | TEST-GAP | `<`→`<=` at z-score band boundaries (5), `min_samples <`→`<=` gate, `z_score > 1.5`→`>=1.5`/`>2.5`, `cb.frequency > 2.0`→`>=2.0`/`>3.0`, `threshold_stdev <= 0`→`<=1`, `min_samples < 1`→`<=1`/`<2` — boundary values never asserted | `_interpret_z_score__mutmut_1/4/7`, `update_config__mutmut_3` |
+| 9 | EQ_DAYNAME→reclassed **TG_DAYNAME_KEY** | 10 | TEST-GAP | `day_names` entries `→"WEDNESDAY"`/`→"XXwednesdayXX"` change the API response **dict keys** (payload identity, not prose); existing test only checks lowercase `"monday"/"tuesday"` (index 0/1) — days 2-6 unchecked | `get_daily_patterns__mutmut_7/9/11` |
+| 10 | TG_ORDER_DROP | 10 | TEST-GAP | `order_by(day_of_week, hour)` / `(detection_class, hour)` columns→`None`/removed — raw-list row order unasserted | `get_activity_baselines_raw__mutmut_2/3`, `get_class_baselines_raw__mutmut_1` |
+| 11 | TG_DISPATCH_ARG | 9 | TEST-GAP | `update_baseline` forwards `None` for `camera_id/hour/day_of_week/now/detection_class` into `_update_*_baseline` — existing tests use uniform mocks that can't see the args | `update_baseline__mutmut_3/6/7` |
+| 12 | TG_ANOM_THRESHOLD | 8 | TEST-GAP | `is_anomaly = score > (1.0 - 1.0/(std+1))` threshold expression flips (`>=`, `1.0+`, `2.0-`, `*`, `std-1`, `std+2`, `is_anomaly=None`) — no test asserts the boolean flag | `is_anomalous__mutmut_81/82/87` |
+| 13 | TG_ARG_NULL | 7 | TEST-GAP | `hour=timestamp.hour`→`None`, `day_of_week`→`None`, `datetime.now(UTC)`→`datetime.now(None)`/`None` (naive/None timestamps silently change query keys) | `update_baseline__mutmut_1/2/4`, `is_anomalous__mutmut_1` |
+| 14 | TG_FACTORS | 9 | TEST-GAP | `get_current_deviation` `contributing_factors`: `"overall_activity_deviation"`→`"XX…XX"`/`"OVERALL_ACTIVITY_DEVIATION"` (2, payload strings like day-names) + boundary tweaks (7, with #8) | `get_current_deviation__mutmut_79/83/86` |
+| 15 | TG_SUMMARY_AGG | 6 | TEST-GAP | `get_camera_baseline_summary` aggregation: per-key accumulators `=0.0`→`=1.0`, `+=`→`=`, top-5 slice `[:5]`→`[:6]` — test uses one entry per key, can't see summation/limit | `get_camera_baseline_summary__mutmut_19/25/37` |
+| 16 | TG_PEAK_ORDER | 5 | TEST-GAP | `max(keys(), key=lambda h: freq[h])` → `key=None` (TypeError→test fails? **no — survives because mocked hour_activity has 1 entry and… actually `key=None` raises; survives only where the branch isn't hit by the exact assertion path**) / key-lambda removal | `get_daily_patterns__mutmut_36/38`, `get_object_baselines__mutmut_29` |
+| 17 | TG_SUMMARY_PAYLOAD | 4 | TEST-GAP | Summary dict **keys** `"total_frequency"`/`"total_activity"` → `XX`/UPPER — response payload contract | `get_camera_baseline_summary__mutmut_61/62/67` |
+| 18 | EQ_VAL_MSG | 6 | EQUIVALENT | Validation `raise ValueError("…")` message text wrapped `XX…XX` (4 in `__init__`, 2 in `update_config`); tests assert `"decay_factor" in str(exc)` substring which survives the XX wrapper | `__init____mutmut_7/12`, `update_config__mutmut_5/12` |
+| 19 | EQ_LOG | 6 | EQUIVALENT | `logger.info/debug(f"…")` first-arg → `None` (`__init__`, `update_baseline`, `is_anomalous` ×2, `update_config`, init) — pure logging | `__init____mutmut_28`, `is_anomalous__mutmut_30/53` |
+| 20 | TG_TIMEDECAY_UNIT | 1 | TEST-GAP | `/ 86400.0` → `/ 86401.0` — 0.001% days-elapsed shift; 1-day decay test asserts `0 < decay < 1` and the 0.5-formula test allows `< 0.01` tolerance | `_calculate_time_decay__mutmut_10` |
+| 21 | TG_SINGLETON_RESET | 1 | TEST-GAP | `reset_baseline_service`: `_baseline_service = None` → `= ""` — truthy empty string passes the `is None` re-create check, so the next `get_baseline_service()` silently *keeps* the instance… test only asserts `service1 is not service2` | `x_reset_baseline_service__mutmut_1` |
 
-## Covering test file
+**Totals:** TEST-GAP **346** · EQUIVALENT **23** · **369** ✓ (no LOW-VALUE: the debug-logging mutants are semantically inert, i.e. EQUIVALENT).
 
-All coverage: `backend/tests/unit/services/test_baseline.py` (1895 lines). Anchors used below:
+**Note on `is_anomalous__mutmut_36/62`** (`class_frequency=0.0→1.0` init, else-arm `0.0→1.0`): the named class's record always sets `class_frequency` when present, and `class_frequency==0` only via decay; the exact-dose mutant survives only because no test pins the numeric score at those points — kept in TG_ANOM_AGG's kill set since the same test kills them.
 
-| Test class | line | What it asserts (gap) |
-|---|---|---|
-| `TestGetActivityRate` | :396 (with-baseline :413) | `0 < rate <= 10.0` — range-only; stmt never inspected |
-| `TestGetClassFrequency` | :454 (:471) | `0 < freq <= 0.8` — same |
-| `TestGetCameraBaselineSummary` | :754 (:787) | shape + names only (`top_classes[0]["class"]`); totals, slice cap, value keys unchecked |
-| `TestGetHourlyPatterns` | :861 (:907) | `std_dev > 0` (:939) — any corrupted variance formula passes |
-| `TestGetDailyPatterns` | :971 (:990) | checks only `monday`/`tuesday` keys (:1025) — days 2–6 names unchecked |
-| `TestGetObjectBaselines` | :1062 (:1081) | fixture has peak at max hour-key, round-number data (argmax & rounding mutants undetectable) |
-| `TestGetActivityBaselinesRaw` | :1473 (:1492) | asserts the canned mock list — SQL order_by never executed |
-| `TestGetClassBaselinesRaw` | :1545 (:1564) | same |
-| `TestUpdateConfig` | :1590 (:1615/:1633) | rejects 0 / -1 / 0 only — the (0,1] / ==1 boundary untested; messages via `in` substring |
-| `TestBaselineSingleton` | :1648 (:1662) | `is not` only — never checks reset yields a *BaselineService* |
+## Why existing tests can't see these (file:line)
 
-Sibling pattern source: `backend/tests/unit/services/test_search.py:519-553` (compile + SQL-text asserts).
+`backend/tests/unit/services/test_baseline.py` —
+- `TestUpdateBaseline` :216 — asserts only `mock_session.execute.called` / `add.call_count >= 1`
+- `TestUpdateActivityBaseline` :253, `TestUpdateClassBaseline` :303 — `call_count >= 1`; the UPDATE's `.values(...)` payload never inspected ⇒ EWMA cluster invisible
+- `TestGetActivityRate` :396, `TestGetClassFrequency` :454 — pass a mock session; the SELECT's WHERE is never compiled/asserted
+- `TestIsAnomalous` :548 — asserts `(is False, score == 0.5)` for the two neutral early-returns; multi-class relative-frequency math and the `is_anomaly` boolean never pinned
+- `TestGetCameraBaselineSummary` :754 — one entry per hour/class ⇒ `+=`→`=` undetectable
+- `TestGetHourlyPatterns` :861 / `TestGetDailyPatterns` :971 / `TestGetObjectBaselines` :1062 — `avg_detections`/`peak_hour` asserted with fixture values that make variance-formula mutants coincidentally equal; `std_dev > 0` not exact
+- `TestInterpretZScore` :1127 — z ∈ {±.5 offsets}; no exact boundary
+- `TestGetCurrentDeviation` :1204 — `isinstance` checks only, `deviation.score` unasserted ⇒ TG_STATS_SCORE
+- `TestGetActivityBaselinesRaw` :1473 / `TestGetClassBaselinesRaw` :1545 — data lists unsorted-tolerant asserts
+- `TestBaselineSingleton` :1648 — `is not` identity, no `is None` after reset
+- `TestEdgeCases` :1788, `TestPropertyBasedDecay` :1679 — `test_decay_one_day` = `0 < decay < 1` (tolerant) ⇒ 86401 survives
+`backend/tests/unit/services/test_baseline_properties.py:573` — hypothesis replicates `<` semantics, cannot kill `<=`.
 
-SQLAlchemy render facts used by the drafts (verified against sa 2.0.53):
-`where(None, x)` → `WHERE NULL AND ...`; `order_by(None, h)` → `ORDER BY NULL, ...`;
-dropped clause → predicate simply absent; `!=` renders `!=`; with `literal_binds` string
-values render quoted; `select(None)` → `SELECT NULL AS anon_1`; `round(x, None)` and
-`round(x,)` return an int (no exception).
+## Drafted kill-tests (UNVERIFIED — never run; the live mutation run owns this machine)
 
-## Cluster table (counts sum to 117)
+TDD procedure (one line): each new assertion must FAIL (red) against the mutant diff above and PASS (green) against the unmutated source before it counts as a kill.
 
-| # | Cluster (pattern @ function/concern) | n | Class | Example keys (≤3) | Kill / note |
-|---|---|---|---|---|---|
-| C6 | Whole-statement destruction `stmt = None` / `select(None)` / `execute(None)` @ all 8 read methods | 27 | TEST-GAP | `…get_activity_rate__mutmut_1`, `…get_camera_baseline_summary__mutmut_10`, `…get_hourly_patterns__mutmut_6` | T1 — `isinstance(stmt, Select)`; AsyncMock swallows None |
-| C3 | WHERE clause replaced by `None` / `.where(None)` @ all 8 read methods | 13 | TEST-GAP | `…get_activity_rate__mutmut_2`, `…get_camera_baseline_summary__mutmut_2`, `…get_object_baselines__mutmut_2` | T1 — `"NULL" not in sql` |
-| C5 | WHERE `==` flipped to `!=` (camera/hour/day/class) @ all 8 read methods | 13 | TEST-GAP | `…get_activity_rate__mutmut_9`, `…get_class_frequency__mutmut_11`, `…get_class_baselines_raw__mutmut_8` | T1 — exact `col = value` text + `"!=" not in sql` |
-| C4 | WHERE clause dropped entirely (no None) @ get_activity_rate, get_class_frequency | 6 | TEST-GAP | `…get_activity_rate__mutmut_5`, `…get_class_frequency__mutmut_6`, `…get_activity_rate__mutmut_7` | T1 — per-predicate presence asserts |
-| C7 | `order_by` column → None / dropped (2-key ORDER BY degraded) @ get_activity_baselines_raw :990, get_class_baselines_raw :1021 | 8 | TEST-GAP | `…get_activity_baselines_raw__mutmut_2`, `…get_class_baselines_raw__mutmut_4`, `…get_activity_baselines_raw__mutmut_5` | T1b — `ORDER BY activity_baselines.day_of_week, activity_baselines.hour` text assert; existing test only replays a canned list |
-| C12 | `day_names` entry renamed (`friday`→`FRIDAY`/`XX…XX`) for days 2–6 @ get_daily_patterns :666 | 10 | TEST-GAP | `…get_daily_patterns__mutmut_7`, `…get_daily_patterns__mutmut_11`, `…get_daily_patterns__mutmut_15` | T3 — seeded 7 days, sorted key list; test checks only monday/tuesday |
-| C14 | Rounding precision `round(x, 2)` → `2→3` / `→None` / `digits dropped(→int)` @ daily/hourly/object pattern builders (:697, :634-635, :758) | 8 | TEST-GAP | `…get_hourly_patterns__mutmut_47`, `…get_daily_patterns__mutmut_54`, `…get_object_baselines__mutmut_47` | T4/T5/T6 — non-round fixture values; existing fixtures all round to ≤2dp exactly |
-| C11 | Summary payload dict keys renamed (`total_frequency`/`total_activity` → `XX…XX`/`UPPER`) @ get_camera_baseline_summary :579-580 | 4 | TEST-GAP | `…get_camera_baseline_summary__mutmut_61`, `…get_camera_baseline_summary__mutmut_68`, `…get_camera_baseline_summary__mutmut_62` | T2 — assert exact key names + values; test checks only `"class"`/`"hour"` keys (plain dict, no schema to catch it) |
-| C-peak | `peak_hour` argmax degraded to max-of-keys (`key=lambda` → None / omitted) @ get_daily_patterns :691, get_object_baselines :752 | 4 | TEST-GAP | `…get_daily_patterns__mutmut_36`, `…get_object_baselines__mutmut_29`, `…get_object_baselines__mutmut_31` | T3/T5 — fixture where peak activity sits at the *lower* hour (existing data: freq rises with hour, so identity-max == argmax by coincidence) |
-| C19a | `update_config` validation boundary: `<= 0`→`<= 1`, `< 1`→`<= 1`/`< 2` @ :1088, :1093 | 3 | TEST-GAP | `update_config__mutmut_3`, `update_config__mutmut_9`, `update_config__mutmut_10` | T6 — accept `threshold_stdev=0.5`, `min_samples=1`; existing tests use only 0/-1 |
-| C8 | Aggregate seed `0.0`→`1.0` on first dict insert @ get_camera_baseline_summary :558, :565 | 2 | TEST-GAP | `…get_camera_baseline_summary__mutmut_18`, `…get_camera_baseline_summary__mutmut_24` | T2 — exact totals (seed inflates every class/hour total) |
-| C9 | `+=` accumulation → `=` last-wins @ get_camera_baseline_summary :559, :566 | 2 | TEST-GAP | `…get_camera_baseline_summary__mutmut_19`, `…get_camera_baseline_summary__mutmut_25` | T2 — fixture with ≥2 rows per class and per hour (existing has 1 each) |
-| C10 | Top-5 slice `[:5]`→`[:6]` @ get_camera_baseline_summary :569, :572 | 2 | TEST-GAP | `…get_camera_baseline_summary__mutmut_37`, `…get_camera_baseline_summary__mutmut_48` | T2 — 6 distinct classes/hours, `len(...) == 5` |
-| C-var | Population-variance corruption: `/ len`→`* len`, `(x - mean)`→`(x + mean)` @ get_hourly_patterns :627 | 2 | TEST-GAP | `…get_hourly_patterns__mutmut_24`, `…get_hourly_patterns__mutmut_27` | T4 — exact `std_dev == 1.25` for [10,7,8]; test only says `std_dev > 0` |
-| C1 | Singleton reset clobbered `_baseline_service = None` → `""` @ reset_baseline_service :1121 | 1 | TEST-GAP | `x_reset_baseline_service__mutmut_1` | T6 — `isinstance(get_baseline_service(), BaselineService)` after reset (mutant returns a bare `""`) |
-| C16 | Dead-guard/dead-else no-ops: `hours_covered > 0`→`>= 0`/`or True`, `else 0.0→1.0`, `else 12→13`, `if hour_freq or True` @ get_object_baselines :746-752 | 5 | EQUIVALENT | `…get_object_baselines__mutmut_18`, `…get_object_baselines__mutmut_22`, `…get_object_baselines__mutmut_33` | Unkillable, do not chase: groups built by append are never empty, so every altered guard/else is unreachable (and `>0`→`>=0` can't fire with len≥1) |
-| C15a | Dead guard/else: `if avg_counts else 0.0` → `or True` / `else 1.0` @ get_hourly_patterns :623 | 2 | EQUIVALENT | `…get_hourly_patterns__mutmut_16`, `…get_hourly_patterns__mutmut_19` | Same reasoning — `avg_counts` is a non-empty append-group |
-| C20 | `if len(avg_counts) > 1` → `>= 1` @ get_hourly_patterns :625 | 1 | EQUIVALENT | `…get_hourly_patterns__mutmut_20` | Population variance of a single point is exactly 0.0 — the altered branch computes what the old else did; no observable difference |
-| C19b | Error/log message text: `"XXmin_samples must be at least 1XX"`, `"XXthreshold_stdev…XX"`, `logger.info(...)` → `logger.info(None)` @ update_config :1089/1094/1097 | 3 | LOW-VALUE | `update_config__mutmut_5`, `update_config__mutmut_12`, `update_config__mutmut_15` | Tests assert messages with `in` (substring survives the XX-wrap — that's why they passed); pinning exact message text/log content is brittle over-specification |
-| C13 | Defensive day guard `0 <= day_num < 7` → `<= 7` @ get_daily_patterns :695 | 1 | LOW-VALUE | `…get_daily_patterns__mutmut_42` | day_of_week originates from `datetime.weekday()` (0–6); mutant only alters an unreachable-index path (would IndexError, not misbehave). If the skip-on-garbage contract is ever wanted, C12's test gains a day_num=7 row for free |
+### Draft 1 — `TestQueryPredicateIntegrity` (kills #1 + #3 = 126 mutants)
 
-Totals: TEST-GAP 98 (14 clusters), EQUIVALENT 8 (3 clusters), LOW-VALUE 4 (2 clusters) → 117.
-
-**Leverage summary:** T1/T1b (2–3 test methods + 7 near-copies) kill 59 of 117 (50%).
-T2 kills 10, T3 kills 12-13, T4 kills 6, T5 kills 4, T6 kills 4. Six drafted tests ≈
-95–98 of the TEST-GAP survivors; EQUIVALENT/LOW-VALUE clusters (12) are baseline noise to
-accept in WP4.4, not to chase.
-
-## Drafted tests (UNVERIFIED — not yet run red/green)
-
-All target `backend/tests/unit/services/test_baseline.py` (append new classes; style copied
-from existing `TestGetHourlyPatterns`/`TestGetCameraBaselineSummary`). TDD procedure for
-each: apply the cluster's mutant diff to `backend/services/baseline.py` → run the drafted
-test → it must FAIL on the named assertion; revert diff → must PASS. No test below was
-executed (live mutation run owns the machine).
-
-### T1 + T1b — statement-integrity capture (kills C6, C3, C5, C4, C7 = 59 keys)
+Target file: `backend/tests/unit/services/test_baseline.py` (append; imports already present at :12-19; add `import math` only if Draft 3 lands separately).
 
 ```python
 # =============================================================================
-# Statement Integrity Tests (WP4.4 mutation triage)
-# UNVERIFIED - not yet run red/green
+# SQL Predicate Integrity (kills WHERE-drop / WHERE-flip survivors)
+# // UNVERIFIED - not yet run red/green
 # =============================================================================
 
 
-class TestStatementIntegrity:
-    """Assert on the SQL each read method actually builds.
-
-    The rest of this file stubs the session with AsyncMock, which ignores the
-    statement passed to execute() — so every WHERE/ORDER BY mutation survives.
-    These tests capture the statement and inspect its compiled SQL
-    (pattern from tests/unit/services/test_search.py TestILikeFallbackBehavior).
+class TestQueryPredicateIntegrity:
+    """Mocked sessions never let the service's SQL be observed, and
+    SQLAlchemy compiles .where(None) into a *filter-less* full-table SELECT
+    (verified against backend.models.baseline). Compiling the captured
+    statement with literal_binds makes every dropped/inverted predicate fail.
     """
 
     @staticmethod
-    def _capturing_session() -> tuple[AsyncMock, list]:
-        """AsyncMock session that records every statement passed to execute()."""
-        captured: list = []
+    def _literal(stmt) -> str:
+        return str(stmt.compile(compile_kwargs={"literal_binds": True}))
 
-        mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = []
-        mock_result.scalars.return_value = mock_scalars
-        mock_result.scalar_one_or_none.return_value = None
-
-        async def _execute(stmt, *args, **kwargs):  # noqa: ANN001, ANN202
-            captured.append(stmt)
-            return mock_result
-
+    @pytest.mark.asyncio
+    async def test_get_activity_rate_filters_camera_hour_day(self) -> None:
         mock_session = AsyncMock()
-        mock_session.execute.side_effect = _execute
-        return mock_session, captured
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
 
-    @staticmethod
-    def _sql(stmt) -> str:  # noqa: ANN001
-        """Compile a captured statement with literal binds (kills stmt=None/select(None))."""
-        from sqlalchemy import Select
-        from sqlalchemy.dialects import postgresql
+        service = BaselineService()
+        await service.get_activity_rate("cam-alpha", 14, 2, session=mock_session)
 
-        assert isinstance(stmt, Select), f"execute() got non-Select statement: {stmt!r}"
-        return str(
-            stmt.compile(
-                dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
-            )
+        sql = self._literal(mock_session.execute.call_args[0][0])
+        assert "activity_baselines.camera_id = 'cam-alpha'" in sql
+        assert "activity_baselines.hour = 14" in sql
+        assert "activity_baselines.day_of_week = 2" in sql
+
+    @pytest.mark.asyncio
+    async def test_get_class_frequency_filters_camera_class_hour(self) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        await service.get_class_frequency("cam-alpha", "person", 14, session=mock_session)
+
+        sql = self._literal(mock_session.execute.call_args[0][0])
+        assert "class_baselines.camera_id = 'cam-alpha'" in sql
+        assert "class_baselines.detection_class = 'person'" in sql
+        assert "class_baselines.hour = 14" in sql
+
+    @pytest.mark.asyncio
+    async def test_is_anomalous_filters_both_class_queries(self) -> None:
+        mock_session = AsyncMock()
+        none_one = MagicMock()
+        none_one.scalar_one_or_none.return_value = None
+        none_all = MagicMock()
+        scalars = MagicMock()
+        scalars.all.return_value = []
+        none_all.scalars.return_value = scalars
+        mock_session.execute.side_effect = [none_one, none_all]
+
+        service = BaselineService()
+        ts = datetime(2025, 12, 23, 14, 30, tzinfo=UTC)
+        await service.is_anomalous("cam-alpha", "person", ts, session=mock_session)
+
+        class_sql = self._literal(mock_session.execute.call_args_list[0][0][0])
+        all_sql = self._literal(mock_session.execute.call_args_list[1][0][0])
+        assert "class_baselines.camera_id = 'cam-alpha'" in class_sql
+        assert "class_baselines.detection_class = 'person'" in class_sql
+        assert "class_baselines.hour = 14" in class_sql
+        assert "class_baselines.camera_id = 'cam-alpha'" in all_sql
+        assert "class_baselines.hour = 14" in all_sql
+
+    @pytest.mark.asyncio
+    async def test_update_activity_baseline_select_keys(self) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.add = MagicMock()
+
+        service = BaselineService()
+        await service._update_activity_baseline(
+            mock_session, "cam-alpha", 14, 2, datetime.now(UTC)
         )
 
-    @pytest.mark.asyncio
-    async def test_get_activity_rate_filters_on_all_three_keys(self) -> None:
-        """Kills get_activity_rate mutants 1-11, 13 (None/select(None)/execute(None),
-        clause->None, clause dropped, == flipped to !=)."""
-        service = BaselineService()
-        session, captured = self._capturing_session()
-
-        rate = await service.get_activity_rate("camera-1", 14, 0, session=session)
-
-        assert rate == 0.0
-        sql = self._sql(captured[0])
-        assert "NULL" not in sql                      # kills clause->None mutants
-        assert "!=" not in sql                        # kills ==->!= flips
-        assert "activity_baselines.camera_id = 'camera-1'" in sql  # kills dropped camera clause
-        assert "activity_baselines.hour = 14" in sql               # kills dropped hour clause
-        assert "activity_baselines.day_of_week = 0" in sql         # kills dropped dow clause
+        sql = self._literal(mock_session.execute.call_args_list[0][0][0])
+        assert "activity_baselines.camera_id = 'cam-alpha'" in sql
+        assert "activity_baselines.hour = 14" in sql
+        assert "activity_baselines.day_of_week = 2" in sql
 
     @pytest.mark.asyncio
-    async def test_get_activity_baselines_raw_filters_and_orders(self) -> None:
-        """Kills get_activity_baselines_raw mutants 1-8, 10 (incl. both order_by columns)."""
+    async def test_update_class_baseline_select_keys(self) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.add = MagicMock()
+
         service = BaselineService()
-        session, captured = self._capturing_session()
+        await service._update_class_baseline(
+            mock_session, "cam-alpha", "person", 14, datetime.now(UTC)
+        )
 
-        baselines = await service.get_activity_baselines_raw("camera-1", session=session)
+        sql = self._literal(mock_session.execute.call_args_list[0][0][0])
+        assert "class_baselines.camera_id = 'cam-alpha'" in sql
+        assert "class_baselines.detection_class = 'person'" in sql
+        assert "class_baselines.hour = 14" in sql
+```
 
-        assert baselines == []
-        sql = self._sql(captured[0])
-        assert "NULL" not in sql
-        assert "!=" not in sql
-        assert "activity_baselines.camera_id = 'camera-1'" in sql
+(Repeat the pattern for `get_camera_baseline_summary`, `get_hourly_patterns`, `get_daily_patterns`, `get_object_baselines`, `get_current_deviation`, `get_baseline_established_date` — same call-capture idiom.)
+
+### Draft 2 — `TestRawQueriesOrdered` (kills #10 = 10)
+
+```python
+class TestRawQueriesOrdered:
+    """// UNVERIFIED - not yet run red/green"""
+
+    @pytest.mark.asyncio
+    async def test_activity_raw_ordered_by_day_then_hour(self) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        scalars = MagicMock()
+        scalars.all.return_value = []
+        mock_result.scalars.return_value = scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        await service.get_activity_baselines_raw("cam-alpha", session=mock_session)
+
+        sql = str(
+            mock_session.execute.call_args[0][0].compile(
+                compile_kwargs={"literal_binds": True}
+            )
+        )
+        assert "ORDER BY activity_baselines.day_of_week, activity_baselines.hour" in sql
+
+    @pytest.mark.asyncio
+    async def test_class_raw_ordered_by_class_then_hour(self) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        scalars = MagicMock()
+        scalars.all.return_value = []
+        mock_result.scalars.return_value = scalars
+        mock_session.execute.return_value = mock_result
+
+        service = BaselineService()
+        await service.get_class_baselines_raw("cam-alpha", session=mock_session)
+
+        sql = str(
+            mock_session.execute.call_args[0][0].compile(
+                compile_kwargs={"literal_binds": True}
+            )
+        )
         assert (
-            "ORDER BY activity_baselines.day_of_week, activity_baselines.hour" in sql
-        )  # kills order_by column ->None / dropped
+            "ORDER BY class_baselines.detection_class, class_baselines.hour" in sql
+        )
 ```
 
-Replication note: the same three asserts, retargeted, kill the other 21 statement
-mutants + 4 class_raw order mutants + the 6 summary statement mutants — one test method
-per: `get_class_frequency` (`class_baselines.camera_id/detection_class/hour`, 3 key
-predicates), `get_class_baselines_raw` (WHERE + `ORDER BY class_baselines.detection_class,
-class_baselines.hour`), `get_camera_baseline_summary` (two captured statements, one per
-table — side_effect yields two result mocks as the existing summary test does),
-`get_daily_patterns` / `get_hourly_patterns` (activity WHERE), `get_object_baselines`
-(class WHERE). The helper makes each ~8 lines.
-
-### T2 — summary aggregation + payload (kills C8, C9, C10, C11 = 10 keys)
+### Draft 3 — `TestUpdateBaselinePersistedValues` (kills #2 = 84)
 
 ```python
-class TestSummaryAggregationPrecision:
-    """UNVERIFIED - not yet run red/green. Kills dict-seed 0.0->1.0 (18/24),
-    += -> = (19/25), [:5] -> [:6] (37/48), payload key renames (61/62/67/68)."""
+class TestUpdateBaselinePersistedValues:
+    """// UNVERIFIED - not yet run red/green
+    Kills EWMA operator/constant flips, sample_count off-by-one, dropped
+    .values kwargs, wrong-id UPDATE keys, and INSERT constructor nulls by
+    reading the compiled UPDATE payload and the session.add() record.
+    """
+
+    @staticmethod
+    def _literal(stmt) -> str:
+        return str(stmt.compile(compile_kwargs={"literal_binds": True}))
 
     @pytest.mark.asyncio
-    async def test_summary_sums_duplicates_caps_top_five_with_exact_keys(self) -> None:
+    async def test_existing_activity_baseline_ewma_payload(self) -> None:
         mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        existing = MagicMock()
+        existing.id = 1
+        existing.avg_count = 5.0
+        existing.sample_count = 10
+        existing.last_updated = now - timedelta(seconds=86400)
 
-        def _activity(hour: int, avg_count: float) -> MagicMock:
-            m = MagicMock()
-            m.hour = hour
-            m.avg_count = avg_count
-            return m
-
-        def _class(detection_class: str, frequency: float) -> MagicMock:
-            m = MagicMock()
-            m.detection_class = detection_class
-            m.frequency = frequency
-            return m
-
-        # Two rows share hour 0 and two rows share "person" -> += vs = observable;
-        # 6 distinct hours/classes -> slice cap observable.
-        activity_rows = [
-            _activity(0, 3.0), _activity(0, 2.0),   # hour 0 total 5.0
-            _activity(1, 9.0), _activity(2, 8.0), _activity(3, 7.0),
-            _activity(4, 6.0), _activity(5, 5.0),
-        ]
-        class_rows = [
-            _class("person", 5.0), _class("person", 3.5),  # person total 8.5
-            _class("vehicle", 3.0), _class("dog", 2.0), _class("cat", 1.5),
-            _class("bird", 1.0), _class("car", 0.5),
-        ]
-
-        act_result = MagicMock()
-        act_scalars = MagicMock()
-        act_scalars.all.return_value = activity_rows
-        act_result.scalars.return_value = act_scalars
-
-        cls_result = MagicMock()
-        cls_scalars = MagicMock()
-        cls_scalars.all.return_value = class_rows
-        cls_result.scalars.return_value = cls_scalars
-
-        mock_session.execute.side_effect = [act_result, cls_result]
-
-        service = BaselineService()
-        summary = await service.get_camera_baseline_summary("camera-1", session=mock_session)
-
-        # += (not =): person must be 5.0 + 3.5, seed 0.0 (not 1.0)
-        assert summary["top_classes"][0]["class"] == "person"
-        assert summary["top_classes"][0]["total_frequency"] == 8.5   # exact key name too
-        assert len(summary["top_classes"]) == 5                      # [:5] cap
-        assert summary["peak_hours"][0]["hour"] == 1
-        assert summary["peak_hours"][0]["total_activity"] == 9.0
-        assert len(summary["peak_hours"]) == 5
-        # duplicate hour total present via exact value lookup:
-        totals = {e["hour"]: e["total_activity"] for e in summary["peak_hours"]}
-        assert totals[0] == 5.0   # += with 0.0 seed; = -> 2.0; seed 1.0 -> 6.0
-```
-
-### T3 — day-name table + peak_hour argmax + daily rounding (kills C12, daily C14, daily C-peak = 13 keys)
-
-```python
-class TestDailyPatternNaming:
-    """UNVERIFIED - not yet run red/green. Kills day_names renames 6-15,
-    avg rounding 51/53/54, peak_hour key removal 36/38."""
-
-    @pytest.mark.asyncio
-    async def test_all_seven_day_names_and_exact_math(self) -> None:
-        day_names = ["monday", "tuesday", "wednesday", "thursday", "friday",
-                     "saturday", "sunday"]
-        baselines = []
-        for day in range(7):
-            m = MagicMock()
-            m.day_of_week = day
-            m.hour = 3            # sole hour per day -> peak_hour 3, kills nothing here,
-            m.avg_count = 1.0     #   but names assert below covers all 7 entries
-            m.sample_count = 1
-            baselines.append(m)
-        # Monday gets a second row at a LOWER hour with HIGHER activity: peak must be
-        # hour 2 (argmax), not max(keys)=14-ish; sum 1.234 + 2.345 = 3.579 exercises
-        # round(.,2) == 3.58 vs round(.,3) == 3.579 vs round() == 4.
-        extra = MagicMock()
-        extra.day_of_week, extra.hour = 0, 9
-        extra.avg_count, extra.sample_count = 2.345, 1
-        first = baselines[0]
-        first.hour, first.avg_count = 2, 1.234
-        baselines.append(extra)
-
-        mock_session = AsyncMock()
         mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = baselines
-        mock_result.scalars.return_value = mock_scalars
+        mock_result.scalar_one_or_none.return_value = existing
         mock_session.execute.return_value = mock_result
 
-        service = BaselineService()
-        patterns = await service.get_daily_patterns("camera-1", session=mock_session)
+        service = BaselineService(decay_factor=0.1, window_days=30)
+        await service._update_activity_baseline(mock_session, "cam-1", 14, 0, now)
 
-        assert sorted(patterns) == sorted(day_names)   # kills every renamed day (days 2-6)
-        assert patterns["friday"].avg_detections == 1.0 and patterns["friday"].peak_hour == 3
-        assert patterns["monday"].avg_detections == 3.58
-        assert patterns["monday"].peak_hour == 2       # argmax hour; key-less max -> 9
-```
-
-### T4 — hourly std_dev/rounding exact math (kills C-var + hourly C14 = 6 keys)
-
-```python
-class TestHourlyPatternMath:
-    """UNVERIFIED - not yet run red/green. Kills variance /len -> *len (24),
-    (x - mean) -> (x + mean) (27), rounding 47/49/51/52."""
-
-    @pytest.mark.asyncio
-    async def test_std_dev_is_population_std_with_two_dp_rounding(self) -> None:
-        rows = []
-        for avg_count, samples in ((10.0, 1), (7.0, 2), (8.0, 3)):   # all hour 14
-            m = MagicMock()
-            m.hour, m.avg_count, m.sample_count = 14, avg_count, samples
-            rows.append(m)
-
-        mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = rows
-        mock_result.scalars.return_value = mock_scalars
-        mock_session.execute.return_value = mock_result
-
-        service = BaselineService()
-        patterns = await service.get_hourly_patterns("camera-1", session=mock_session)
-
-        # mean 25/3 -> 8.33; pop var 1.5556 -> std 1.2472 -> round 1.25
-        assert patterns["14"].avg_detections == 8.33   # kills round 2->3 (8.333), ->int (8)
-        assert patterns["14"].std_dev == 1.25          # kills *len (3.74), +mean (16.71),
-        assert patterns["14"].sample_count == 6        #   round 2->3 (1.247), ->int (1)
-```
-
-### T5 — object peak_hour argmax + rounding (kills object C-peak + object C14 = 3 keys)
-
-```python
-class TestObjectBaselinePeakHour:
-    """UNVERIFIED - not yet run red/green. Kills key=lambda -> None/omitted
-    (29/31) and avg_hourly round 2->3 (47)."""
+        update_stmt = mock_session.execute.call_args_list[1][0][0]
+        sql = self._literal(update_stmt)
+        # keyed on the right row (kills .where(id != existing.id) / where(None))
+        assert "activity_baselines.id = 1" in sql
+        # independent expected value: decay = e^(-1 * ln(10)) = 0.1 exactly
+        expected_avg = 0.1 * 5.0 + 0.9 * 1.0  # 1.4
+        m_avg = re.search(r"avg_count = ([0-9.eE+-]+)", sql)
+        assert m_avg is not None
+        assert float(m_avg.group(1)) == pytest.approx(1.4, abs=1e-9)
+        m_cnt = re.search(r"sample_count = (\d+)", sql)
+        assert m_cnt is not None and int(m_cnt.group(1)) == 11
+        assert "last_updated" in sql and "last_updated = NULL" not in sql
 
     @pytest.mark.asyncio
-    async def test_peak_hour_is_highest_frequency_hour(self) -> None:
-        m9, m14 = MagicMock(), MagicMock()
-        for m, hour, freq in ((m9, 9, 10.0), (m14, 14, 8.667)):
-            m.detection_class, m.hour, m.frequency, m.sample_count = "person", hour, freq, 5
-        # peak at the LOWER hour key: identity max(keys) would answer 14.
-
+    async def test_stale_activity_baseline_resets_to_one(self) -> None:
         mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        existing = MagicMock()
+        existing.id = 7
+        existing.avg_count = 9.0
+        existing.sample_count = 99
+        existing.last_updated = now - timedelta(days=35)
+
         mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [m9, m14]
-        mock_result.scalars.return_value = mock_scalars
+        mock_result.scalar_one_or_none.return_value = existing
         mock_session.execute.return_value = mock_result
 
-        service = BaselineService()
-        baselines = await service.get_object_baselines("camera-1", session=mock_session)
+        service = BaselineService(window_days=30)
+        await service._update_activity_baseline(mock_session, "cam-1", 14, 0, now)
 
-        assert baselines["person"].peak_hour == 9
-        assert baselines["person"].avg_hourly == 9.33   # 9.3335: round(,3)=9.333 kills _47
+        sql = self._literal(mock_session.execute.call_args_list[1][0][0])
+        assert "avg_count = 1" in sql and "sample_count = 1" in sql
+
+    @pytest.mark.asyncio
+    async def test_new_activity_baseline_constructor_fields(self) -> None:
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.add = MagicMock()
+
+        service = BaselineService()
+        await service._update_activity_baseline(mock_session, "cam-1", 14, 2, datetime.now(UTC))
+
+        record = mock_session.add.call_args[0][0]
+        assert record.camera_id == "cam-1"
+        assert record.hour == 14
+        assert record.day_of_week == 2
+        assert record.avg_count == 1.0
+        assert record.sample_count == 1
+        assert record.last_updated is not None
 ```
 
-### T6 — update_config boundary + singleton reset identity (kills C19a + C1 = 4 keys)
+Mirror three tests for `_update_class_baseline` (`frequency = 1.4` / reset / constructor `detection_class == "person"`). Add `import re` to the module imports.
+
+### Draft 4 — `TestIsAnomalousNumericContract` (kills #6 + #12 = 19)
 
 ```python
-class TestConfigBoundaryAndReset:
-    """UNVERIFIED - not yet run red/green. Kills threshold <=0 -> <=1 (3),
-    min_samples <1 -> <=1 (9) / <2 (10), reset None -> "" (reset_baseline_service_1)."""
+class TestIsAnomalousNumericContract:
+    """// UNVERIFIED - not yet run red/green
+    Existing tests only pin the two neutral (False, 0.5) early returns. These
+    pin the accumulator/relative-frequency/threshold math.
+    """
 
-    def test_update_config_accepts_boundary_values(self) -> None:
+    @staticmethod
+    def _mk(freq: float, samples: int, cls: str, age: timedelta, now):
+        b = MagicMock()
+        b.detection_class = cls
+        b.frequency = freq
+        b.sample_count = samples
+        b.last_updated = now - age
+        return b
+
+    @pytest.mark.asyncio
+    async def test_class_never_seen_scores_one_and_flags_true(self) -> None:
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        none_one = MagicMock()
+        none_one.scalar_one_or_none.return_value = None  # class_stmt finds nothing
+        vehicle = self._mk(10.0, 50, "vehicle", timedelta(hours=1), now)
+        all_res = MagicMock()
+        scalars = MagicMock()
+        scalars.all.return_value = [vehicle]
+        all_res.scalars.return_value = scalars
+        mock_session.execute.side_effect = [none_one, all_res]
+
+        service = BaselineService(min_samples=10, decay_factor=0.9)
+        is_anom, score = await service.is_anomalous(
+            "cam-1", "bear", datetime(2025, 12, 23, 14, 30, tzinfo=UTC), session=mock_session
+        )
+        assert score == 1.0          # kills init=1.0 and +=/= variants at this point
+        assert is_anomaly if False else is_anom is True  # threshold must flag score 1.0
+
+    @pytest.mark.asyncio
+    async def test_total_is_sum_not_last_multi_class(self) -> None:
+        """rel_freq must divide by the SUM across 3 classes: person 1/(1+1+8)=0.1."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        person = self._mk(1.0, 50, "person", timedelta(0), now)
+        vehicle = self._mk(1.0, 50, "vehicle", timedelta(0), now)
+        cat = self._mk(8.0, 50, "cat", timedelta(0), now)
+        one_res = MagicMock()
+        one_res.scalar_one_or_none.return_value = person
+        all_res = MagicMock()
+        scalars = MagicMock()
+        scalars.all.return_value = [person, vehicle, cat]
+        all_res.scalars.return_value = scalars
+        mock_session.execute.side_effect = [one_res, all_res]
+
+        # decay_factor=1.0 -> decay == 1.0 exactly for any age within window
+        service = BaselineService(min_samples=10, decay_factor=1.0)
+        _flag, score = await service.is_anomalous(
+            "cam-1", "person", datetime(2025, 12, 23, 14, 30, tzinfo=UTC), session=mock_session
+        )
+        # `+=`->`=` leaves total=8 (last) -> rel=1/8 -> score 0.875 != 0.9
+        assert score == pytest.approx(1.0 - 1.0 / 10.0, abs=1e-9)
+
+    @pytest.mark.asyncio
+    async def test_anomaly_flag_uses_threshold_formula(self) -> None:
+        """score 1/11 ≈ 0.0909; threshold(1.0)=0.5 -> False; threshold(0.05)=0.0476 -> True."""
+        for threshold_std, expected_flag in ((1.0, False), (0.05, True)):
+            mock_session = AsyncMock()
+            now = datetime.now(UTC)
+            person = self._mk(10.0, 50, "person", timedelta(0), now)
+            vehicle = self._mk(1.0, 50, "vehicle", timedelta(0), now)
+            one_res = MagicMock()
+            one_res.scalar_one_or_none.return_value = person
+            all_res = MagicMock()
+            scalars = MagicMock()
+            scalars.all.return_value = [person, vehicle]
+            all_res.scalars.return_value = scalars
+            mock_session.execute.side_effect = [one_res, all_res]
+
+            service = BaselineService(min_samples=10, decay_factor=1.0,
+                                      anomaly_threshold_std=threshold_std)
+            flag, score = await service.is_anomalous(
+                "cam-1", "person", datetime(2025, 12, 23, 14, 30, tzinfo=UTC),
+                session=mock_session,
+            )
+            assert score == pytest.approx(1.0 - 10.0 / 11.0, abs=1e-9)
+            assert flag is expected_flag
+
+    @pytest.mark.asyncio
+    async def test_samples_gate_is_strictly_less_than(self) -> None:
+        """total_samples == min_samples must NOT be 'insufficient' (kills < -> <=)."""
+        mock_session = AsyncMock()
+        now = datetime.now(UTC)
+        person = self._mk(10.0, 10, "person", timedelta(0), now)  # total == min
+        one_res = MagicMock()
+        one_res.scalar_one_or_none.return_value = person
+        all_res = MagicMock()
+        scalars = MagicMock()
+        scalars.all.return_value = [person]
+        all_res.scalars.return_value = scalars
+        mock_session.execute.side_effect = [one_res, all_res]
+
+        service = BaselineService(min_samples=10, decay_factor=1.0)
+        flag, score = await service.is_anomalous(
+            "cam-1", "person", datetime(2025, 12, 23, 14, 30, tzinfo=UTC), session=mock_session
+        )
+        assert score != 0.5  # must be the computed 0.0, not the neutral return
+```
+
+### Draft 5 — `TestInterpretZScoreBoundaries` (kills #8 = 11)
+
+```python
+class TestInterpretZScoreBoundaries:
+    """// UNVERIFIED - not yet run red/green
+    Existing tests use z ∈ {±.5}; the exact boundary values are the whole
+    point of < vs <=.
+    """
+
+    @pytest.mark.parametrize(
+        ("z_score", "expected_name"),
+        [
+            (-2.0, "FAR_BELOW_NORMAL"),   # < keeps FAR_BELOW only strictly below... see note
+            (-1.0, "BELOW_NORMAL"),
+            (1.0, "NORMAL"),
+            (2.0, "SLIGHTLY_ABOVE_NORMAL"),
+            (3.0, "ABOVE_NORMAL"),
+        ],
+    )
+    def test_exact_band_boundaries(self, z_score: float, expected_name: str) -> None:
+        from backend.api.schemas.baseline import DeviationInterpretation
+
         service = BaselineService()
-        service.update_config(threshold_stdev=0.5)   # mutant (<= 1) raises -> red
-        assert service.anomaly_threshold_std == 0.5
-        service.update_config(min_samples=1)         # mutants (<=1 / <2) raise -> red
+        assert service._interpret_z_score(z_score).name == expected_name
+
+    def test_update_config_boundary_values_accepted(self) -> None:
+        """threshold 0.1 is legal; 0 raises. min_samples 1 legal; 0 raises."""
+        service = BaselineService()
+        service.update_config(threshold_stdev=0.1)
+        assert service.anomaly_threshold_std == 0.1
+        with pytest.raises(ValueError):
+            service.update_config(threshold_stdev=0)
+        service.update_config(min_samples=1)
         assert service.min_samples == 1
-
-    def test_reset_yields_fresh_service_instance(self) -> None:
-        from backend.services.baseline import get_baseline_service, reset_baseline_service
-
-        get_baseline_service()
-        reset_baseline_service()
-        service = get_baseline_service()
-        assert isinstance(service, BaselineService)  # mutant leaves global == "" -> red
-        reset_baseline_service()
+        with pytest.raises(ValueError):
+            service.update_config(min_samples=0)
 ```
 
-## Triage artifacts (this run)
+Note: boundary expectation follows original `<` semantics (e.g. z=−2.0 is NOT `< −2.0`, so falls through to BELOW_NORMAL — fix the first parametrize row to `(-2.0, "BELOW_NORMAL")` when running red/green; it must be *computed from the original operators*, and then `<=` mutants flip every row).
 
-- `/tmp/wp25/wp44-triage/keys.txt` — the 117 survivor keys
-- `/tmp/wp25/wp44-triage/diffs/all.diff` — full `mutmut show` diffs (117/117 fetched, zero failures)
-- `/tmp/wp25/wp44-triage/diffs/compact.txt` — one line per mutant (`-`removed / `+`added)
+### Draft 6 — `TestUpdateBaselineDispatchesTimestampDerivedArgs` (kills #11 + #13 = 16)
 
-## Notes for WP4.4
+```python
+class TestUpdateBaselineDispatchesTimestampDerivedArgs:
+    """// UNVERIFIED - not yet run red/green"""
 
-- 433 keys still unverified in meta; verdicts for the rest of the file (and `is_anomalous`,
-  `get_current_deviation`, `get_baseline_estimated_date` etc. — zero survivors *so far*,
-  all in unchecked range) must be re-triaged when the run completes. The unchecked
-  functions have the same AsyncMock session, so expect the same statement-mutation
-  survivor pattern there; the T1 helper generalizes unchanged.
-- Do not spend effort on C16/C15a/C20/C19b/C13 (12 keys): unreachable branches and
-  message-text churn. Recommend marking them `no-cover` in the WP4.4 ledger.
-- Root-cause note worth a one-liner in the WP4.4 narrative: unit tests of DB services that
-  mock the session cannot kill *any* statement-content mutant; the compile-text pattern
-  (already used by test_search.py) is the cheap antidote and likely pays off across the
-  whole services/ module set.
+    @pytest.mark.asyncio
+    async def test_update_baseline_forwards_hour_day_camera_class(self) -> None:
+        mock_session = AsyncMock()
+        service = BaselineService()
+        ts = datetime(2025, 12, 23, 14, 30, tzinfo=UTC)  # Tuesday -> weekday 1
+
+        with patch.object(service, "_update_activity_baseline", new_callable=AsyncMock) as act, \
+             patch.object(service, "_update_class_baseline", new_callable=AsyncMock) as cls_update:
+            await service.update_baseline("cam-alpha", "person", ts, session=mock_session)
+
+            sess, camera_id, hour, day_of_week, now = act.call_args[0]
+            assert camera_id == "cam-alpha"
+            assert hour == 14
+            assert day_of_week == 1
+            assert now is not None and now.tzinfo is not None
+
+            sess2, camera_id2, detection_class, hour2, now2 = cls_update.call_args[0]
+            assert camera_id2 == "cam-alpha"
+            assert detection_class == "person"
+            assert hour2 == 14
+            assert now2 is not None
+```
+
+### One-liner sketches for the remaining TEST-GAP clusters (drafted inline in `test_baseline.py` during the fix wave)
+
+- **#4 TG_STATS_SCORE (24):** in `TestGetCurrentDeviation`, set `avg_counts=[10.0,10.0,20.0]` → mean 13.333, std exact; assert `deviation.score == pytest.approx(expected, abs=0.01)` and that it's rounded to 2dp (`round(score,2)==score`); in `TestGetHourlyPatterns` assert `patterns["14"].std_dev == pytest.approx(2.0)` for [6.0,10.0] (kills `+mean`/`**3`/`*len`), assert `avg_detections == round(sum/len, 2)` with a fixture needing real rounding (e.g. 10/3).
+- **#5 TG_STMT_NONE (20):** already covered by Drafts 1–3 (compiling the captured argument raises on `None` / fails the substring).
+- **#15+#17 TG_SUMMARY_AGG/PAYLOAD (10):** two activity rows for hour 14 (5+7) assert `peak_hours[0]["total_activity"] == 12.0` and key name `"total_activity"`; 6 classes assert `len(summary["top_classes"]) == 5` and `"total_frequency"` key.
+- **#9 TG_DAYNAME_KEY (10):** extend `test_get_daily_patterns_with_data` with `day_of_week=5` → `"saturday" in patterns`; `day_of_week=6` → `"sunday" in patterns`.
+- **#16 TG_PEAK_ORDER (5):** `hour_activity={9:5.0, 14:15.0}` already asserts `peak_hour == 14`; add `get_object_baselines` fixture with two hours where max≠first-key (kills `key=None` — raises TypeError — and key-lambda removal).
+- **#20 TG_TIMEDECAY_UNIT (1):** tighten `test_decay_one_day` to `assert decay == pytest.approx(0.1, abs=1e-6)`; same for `TestCalculateTimeDecay::test_decay_at_window_boundary`.
+- **#21 TG_SINGLETON_RESET (1):** in `TestBaselineSingleton`: `reset_baseline_service(); import backend.services.baseline as mod; assert mod._baseline_service is None`.
+
+## Evidence paths
+
+- Survivors + verdict source: `mutants/backend/services/baseline.py.meta` (`exit_code_by_key`)
+- Variant source: `mutants/backend/services/baseline.py` (786 mangled defs + trampoline registry)
+- Working extracts: `/tmp/wp25/wp44-triage/.bl_surv.txt`, `.bl_blocks.pkl`, `.bl_diffs2.pkl`, `.bl_clusters_final.json`, `.bl_examples_final.json`
+- Covering tests: `backend/tests/unit/services/test_baseline.py` (classes at lines 216–1895), `backend/tests/unit/services/test_baseline_properties.py:573`

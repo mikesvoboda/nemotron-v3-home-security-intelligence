@@ -1,243 +1,255 @@
 # WP4.4 Triage Dossier — backend/services/container_discovery.py
 
-**UNVERIFIED — read-only triage wave; no tests were run.** Produced for WP4.3 finding feed → WP4.4.
+**Generation-2 tally (FINAL cache).** Meta: `mutants/backend/services/container_discovery.py.meta` — 858 keys total, 696 SURVIVED (exit_code 0), 162 killed, 0 untested.
+Method: diffs extracted by AST diffing the mutant copies (`mutants/backend/services/container_discovery.py`, 223k lines of clobbered variants) against `backend/services/container_discovery.py`; no test execution, no repo writes. Extraction script: `/tmp/wp25/wp44-triage/_cd_final.py`, raw bucket data `/tmp/wp25/wp44-triage/_cd_final.json`.
 
-- Surviving mutants: **696** of 858 keys (frozen snapshot `/tmp/wp25/wp44-triage/cd-meta-frozen.json`, copy of `mutants/backend/services/container_discovery.py.meta` at ~Sep 18, during the live run). NOTE: the live run is re-verifying verdicts — an earlier read showed 686 survivors; the frozen snapshot adds 10 newly-surviving `ContainerDiscoveryService.__init__` mutants. All counts below are from the frozen snapshot and sum to 696.
-- Per-function: `build_service_configs` 643 surv / 80 killed (723 total) — the epicenter; `build_configs_from_compose` 8/8 surv (0% kill); `__init__` 10 surv (new); `_create_managed_service` 17 surv; `discover_all` 16 surv; `match_container_name` 2 surv. `get_config`, `discover_by_category`: fully killed.
-- Method: mutant copy stores each variant as a full function (`__mutmut_orig` vs `__mutmut_N`); diffs derived by AST-region diff (`/tmp/wp25/wp44-triage/cd_classify.py`, assignments in `cd_clusters_frozen.json`). No `mutmut run`, no pytest.
+## THE ROOT CAUSE (read this first)
 
-## Why this module survives
+**No test in the entire suite ever executes `build_service_configs` or `build_configs_from_compose`.**
+`grep -rn "build_service_configs(" backend/tests/` → 0 hits (rc=1). `mutmut-stats.json` lists 66 covering tests for `build_service_configs`, all in `backend/tests/unit/services/test_container_orchestrator.py` — those are *import-time/transitive* coverage (the orchestrator module imports the discovery module), not invocations: no orchestrator test passes port settings into `ContainerDiscoveryService`, and `backend/services/container_orchestrator.py:167` constructs it without settings. Same for `build_configs_from_compose` (0 direct test references) and for `ContainerDiscoveryService.__init__`'s `settings`/`compose_file` branches — every test builds `ContainerDiscoveryService(mock_docker_client)` with no settings (all fall into the `ALL_CONFIGS` static-dict branch, lines 697-699).
 
-`ServiceConfig` (`backend/services/orchestrator/models.py`, dataclass) has field defaults `startup_grace_period=60, max_failures=5, restart_backoff_base=5.0, restart_backoff_max=300.0`. The tests (all in `backend/tests/unit/services/test_container_discovery.py`) only ever exercise the **no-settings path**: `ContainerDiscoveryService(mock_docker_client)` with `settings=None` binds `self._configs = ALL_CONFIGS` (the static dicts), and the static dicts ARE asserted (TestPreConfiguredServices lines 113-200, TestCategoryPriorityOrdering lines 620-700). But `build_service_configs()`/`build_configs_from_compose()` — the parallel hand-duplicated config builders — are executed only incidentally via the ContainerOrchestrator fixture (`test_container_orchestrator.py:125-140`, MagicMock settings) with **no assertions on the produced configs**. So:
+So the function that contains 643 of 696 survivors (the 25-service hardcoded config table in `build_service_configs`, lines 87-384) is a fully dead-to-tests configuration source, while its *static mirror* (`INFRASTRUCTURE_CONFIGS`/`AI_CONFIGS`/`MONITORING_CONFIGS`, lines 389-630 — the same values with constants instead of `settings.X if settings else const`) **is** heavily asserted in `backend/tests/unit/services/test_container_discovery.py`. The fix is one parameterized table test that calls the builder and asserts the same values the static tests already pin.
 
-1. No test ever calls `build_service_configs(settings)` or `ContainerDiscoveryService(client, settings=...)` and asserts port/tuning → 25 port ternaries × 4 mutants + all tuning mutants survive.
-2. No test ever passes `compose_file=` → the entire compose branch survives.
-3. `include_monitoring` / `settings.monitoring_enabled` is never toggled → survives.
-4. `display_name` / dict keys of the *settings-built* configs are never compared to the static ones (dual-implementation equality is untested).
-5. Dropped-kwarg mutants on monitoring entries are true EQUIVALENTs (explicit value == dataclass default) — unkillable, candidate for mutmut exclude.
+## Cluster table (696 survivors, sums exactly: 643 + 10 + 17 + 16 + 8 + 2)
 
-## Cluster table (696 survivors, sums exact)
-
-| # | Cluster / pattern | n | Class | Example keys (suffix) |
+| # | Cluster (function / pattern) | n | Class | Killed by |
 |---|---|---|---|---|
-| B1 | `build_service_configs`: port ternary `settings.X if settings else D` → whole-line `None` / `if (settings) and False` (always default) / `if (settings) or True` (always attribute) / default `+1`, ×25 ports | 100 | TEST-GAP | `x_build_service_configs__mutmut_1,2,3` |
-| B2 | `build_service_configs`: `port=<x>` → `port=None` ×25 entries | 25 | TEST-GAP | `x_build_service_configs__mutmut_106,134,161` |
-| B3 | `build_service_configs`: dict key case-flip / `XX`-wrap (`"postgres"`→`"POSTGRES"`/`"XXpostgresXX"`) ×25 entries — breaks `match_container_name` substring matching | 50 | TEST-GAP | `x_build_service_configs__mutmut_102,103,130` |
-| B4 | `build_service_configs`: `display_name` case/XX/None | 97 | TEST-GAP | `x_build_service_configs__mutmut_104,120,121` |
-| B5 | `build_service_configs`: `category=ServiceCategory.X` → `category=None` | 25 | TEST-GAP | `x_build_service_configs__mutmut_105,133,160` |
-| B6 | `build_service_configs`: `health_endpoint` value case/XX-wrap | 45 | TEST-GAP | `x_build_service_configs__mutmut_178,179,204` |
-| B7 | `build_service_configs`: `health_endpoint` → `None` / kwarg dropped (default None wins) | 46 | TEST-GAP | `x_build_service_configs__mutmut_162,170,189` |
-| B8 | `build_service_configs`: `health_cmd` (postgres/redis) case/XX/None/dropped | 9 | TEST-GAP | `x_build_service_configs__mutmut_107,115,123` |
-| B10 | `build_service_configs`: `max_failures` → `None` | 19 | TEST-GAP | `x_build_service_configs__mutmut_109,137,164` |
-| B11 | `build_service_configs`: `max_failures` +1 (5→6, 10→11) | 19 | TEST-GAP | `x_build_service_configs__mutmut_127,154,181` |
-| B12a | `build_service_configs`: `max_failures=10` kwarg dropped → dataclass default 5 (INFRA 10→5) | 5 | TEST-GAP | `x_build_service_configs__mutmut_117,145,172` |
-| B12b | `build_service_configs`: `max_failures=5` kwarg dropped on MONITORING — **equals default, semantically identical** | 14 | EQUIVALENT | `x_build_service_configs__mutmut_360,387,414` |
-| B13 | `build_service_configs`: `restart_backoff_base` → None / +1 / dropped (base: 2.0→5.0 INFRA, 10.0→5.0 MON) | 57 | TEST-GAP | `x_build_service_configs__mutmut_110,118,128` |
-| B14 | `build_service_configs`: `restart_backoff_max` → None / +1 / dropped (60.0→300.0 INFRA, 120.0→300.0 MON) | 57 | TEST-GAP | `x_build_service_configs__mutmut_111,119,129` |
-| B15 | `build_service_configs`: `startup_grace_period` → None / +1 | 50 | TEST-GAP | `x_build_service_configs__mutmut_108,126,136` |
-| B16a | `build_service_configs`: `startup_grace_period=60` kwarg dropped (AI florence/clip etc.) — **equals default** | 4 | EQUIVALENT | `x_build_service_configs__mutmut_249,284,302` |
-| B16b | `build_service_configs`: `startup_grace_period` kwarg dropped, default 60 silently wins (10/15/30/120/180→60) | 21 | TEST-GAP | `x_build_service_configs__mutmut_116,144,171` |
-| D1 | `_create_managed_service`: `getattr` default tweaks `[]→None`/arg-drop at paths that never hit the default in any test — **no observable change on any input that reaches them** (see note) | 3 | EQUIVALENT | `..._create_managed_service__mutmut_6,13,16` |
-| D2a | `_create_managed_service`: untagged-image f-string `<untagged:{id[:12]}>` → `getattr(None,...)` / default `'unknown'` / `[:13]`-w-12-char-id / `getattr(container,'id',)` arg-drop | 6 | TEST-GAP | `..._create_managed_service__mutmut_23,25,27` (also 28,29,30) |
-| D2b | Same string tweaks but default never used (container always has `.id`) or slice no-op on the test's 12-char id | 3 | EQUIVALENT | `..._create_managed_service__mutmut_31,32,33` |
-| D3 | `_create_managed_service`: `container_id=getattr(container,"id",…)` default tweaks (`None`/arg-drop/`"XXXX"`) — only fires when container object lacks `.id`; tests always provide it | 3 | LOW-VALUE | `..._create_managed_service__mutmut_60,63,66` |
-| D4 | `_create_managed_service`: `health_cmd=config.health_cmd` → `None` / kwarg dropped | 2 | TEST-GAP | `..._create_managed_service__mutmut_40,52` |
-| E1 | `discover_all`: log message → `None`, `extra=` dict → None/dropped, extra key case/XX-wrap — pure observability, no functional change | 16 | EQUIVALENT | `..._discover_all__mutmut_18,19,21` |
-| F1 | `match_container_name`: `matches.sort(key=len, reverse=True)` → `sort(key=None)` / `sort(reverse=True)` — only changes winner among **equal-length** patterns; no such pattern pair exists in configs | 2 | EQUIVALENT | `..._match_container_name__mutmut_5,7` |
-| G1 | `build_configs_from_compose`: `logger.warning(f"Compose file not found...")` → `logger.warning(None)` — message text only | 1 | EQUIVALENT | `x_build_configs_from_compose__mutmut_4` |
-| G2 | `build_configs_from_compose`: `ComposeParser()`→None, `configs=None`, `parse_file(None)`, fallback `build_service_configs(None, flag)` / `(settings, None)` / `(include_monitoring)` / `(settings,)` | 7 | TEST-GAP | `x_build_configs_from_compose__mutmut_1,2,3` (also 5,6,7,8) |
-| H1a | `__init__`: `include_monitoring = settings.monitoring_enabled if settings else True` → `None` / `and False` (always True) / `else False` | 3 | TEST-GAP | `..._init____mutmut_2,3,5` |
-| H1b | `__init__`: compose branch — `self._configs = None`, `build_configs_from_compose(None, …)`, arg drops/swaps (`(settings, include_monitoring)`, trailing-comma drops) | 7 | TEST-GAP | `..._init____mutmut_6,7,8` (also 9,10,11,12) |
+| G1 | `build_service_configs`: ternary mutations on the 25 `x_port = settings.x_port if settings else CONST` lines — fallback literal tweaked (`else 8080`→`8081`, 25, e.g. mutmut_100), whole ternary replaced (`postgres_port = None`, 25, mutmut_1), `if (settings) and False` (25, mutmut_10 — settings supplied but .env-default silently used), `if (settings) or True` (25, mutmut_11 — AttributeError crash when settings=None) | 100 | TEST-GAP | T1, T2 |
+| G2 | `build_service_configs`: dict entry key clobbered (`"postgres"` → `"XXpostgresXX"` / `"POSTGRES"`, 25×2, mutmut_102/103) — breaks `match_container_name`/`get_config` lookups for that service | 50 | TEST-GAP | T1 |
+| G3 | `build_service_configs`: `display_name` clobbered (→ None / XX-wrapped / case-flipped / tweaked), 25 entries × ~4 variants (mutmut_104/120/121) | 97 | TEST-GAP | T1 |
+| G4 | `build_service_configs`: `port=<x>_port` → `port=None` (25 entries, mutmut_106) | 25 | TEST-GAP | T1 |
+| G5 | `build_service_configs`: `category=ServiceCategory.X` → `category=None` (25 entries, mutmut_105) — silently corrupts `discover_by_category` | 25 | TEST-GAP | T1 |
+| G6 | `build_service_configs`: health target mutated — `health_endpoint`/`health_cmd` → None (25) + string clobbers XX/case/tweak (50) — breaks health checks (wrong URL / lost exec probe) | 75 | TEST-GAP | T1 |
+| G7 | `build_service_configs`: `health_endpoint=`/`health_cmd=` kwarg **deleted** → falls to dataclass default None (25 entries, mutmut_115) | 25 | TEST-GAP | T1 |
+| G8 | `build_service_configs`: self-heal params mutated — `startup_grace_period`/`max_failures`/`restart_backoff_base`/`restart_backoff_max` → None (82, mutmut_108-110) or numeric tweak (82, mutmut_126-128) | 164 | TEST-GAP | T1 |
+| G9 | `build_service_configs`: self-heal kwargs **deleted** where value ≠ ServiceConfig default (infra `max_failures=10`→5, `restart_backoff_base=2.0`→5.0, monitoring grace 15/30→60, etc.) | 64 | TEST-GAP | T1 |
+| E1 | `build_service_configs`: kwargs deleted where the value **equals the ServiceConfig dataclass default** (`max_failures=5` ×14, `startup_grace_period=60` ×4, mutmut_249/284/302) — semantically identical | 18 | EQUIVALENT | — (defaults at `backend/services/orchestrator/models.py:66-71`, pinned by existing `test_service_config_defaults`) |
+| G10 | `__init__`: compose-branch call mutations — `self._configs=None`, dropped/Nulled args to `build_configs_from_compose` (mutmut_6-12, 7) plus `include_monitoring` ternary → None / `and False` (mutmut_2/3, 2). The `compose_file` branch and the settings branch are executed by **zero** tests | 9 | TEST-GAP | T3, T4 |
+| E2 | `__init__`: `include_monitoring ... else True` → `else False` (mutmut_5) — dead branch: the else-value is only consumed when settings exist, where `if settings` is True; the settings=None path uses `ALL_CONFIGS` and ignores the flag | 1 | EQUIVALENT | — |
+| G11 | `_create_managed_service`: untagged-image string content mutations — `getattr(container,'XXidXX'/'ID'...)`, `getattr(None,'id','unknown')`, `[:12]`→`[:13]` (mutmut_23/29/30/33). The existing `test_discover_handles_container_without_image_tags` only asserts `image is not None` | 4 | TEST-GAP | T5 |
+| G12 | `_create_managed_service`: `health_cmd=config.health_cmd` → None / kwarg deleted (mutmut_40/52) — postgres/redis exec health command lost on the ManagedService | 2 | TEST-GAP | T5 |
+| L1 | `_create_managed_service`: defensive-default mutants on never-executed paths — `getattr(container,"image",…)` default tweaks (6/13/16), missing-`id` fallbacks (`'unknown'`/None/case variants, 25/27/28/31/32), `container_id` getattr default tweaks (60/63/66). All fire only when a container lacks `image`/`tags`/`id`, which real docker-py objects and every test mock always provide | 11 | LOW-VALUE | — |
+| E3 | `discover_all`: log-only mutations — debug/info message text → None, `extra={...}` → None/removed/key-clobbered (mutmut_18-35). Return value unaffected | 16 | EQUIVALENT | — |
+| G13 | `build_configs_from_compose`: `parser=None` (mutmut_1) and `configs=None` (mutmut_2) both crash → caught by `except Exception` → silent fallback (parse pass-through never verified); `parse_file(None)` (mutmut_3); fallback-call arg mutations incl. `settings` swallowed positionally `build_service_configs(include_monitoring)` (mutmut_5-8) | 7 | TEST-GAP | T4 |
+| E4 | `build_configs_from_compose`: warning message → None (mutmut_4) | 1 | EQUIVALENT | — |
+| E5 | `match_container_name`: `matches.sort(key=len, reverse=True)` → `sort(reverse=True)` / `sort(key=None, reverse=True)` (mutmut_5/7). The shipped config has exactly two prefix-collision pairs (`redis`/`redis-exporter`, `ai-enrichment`/`ai-enrichment-light`) and the lexicographic-reverse winner equals the longest winner for both — indistinguishable on every reachable input | 2 | EQUIVALENT | — |
 
-TEST-GAP total **650**, EQUIVALENT **43**, LOW-VALUE **3**.
+**Totals: TEST-GAP 647 · EQUIVALENT 38 · LOW-VALUE 11 = 696.**
 
-## Covering test files
+## Covering test file
 
-- `backend/tests/unit/services/test_container_discovery.py` — the module's only dedicated test file. Key regions: `TestServiceConfig` (L64-107, dataclass defaults only), `TestPreConfiguredServices` (L113-200, asserts the **static** dicts, not `build_service_configs`), `TestContainerDiscoveryService` (L264-549, all constructions use `ContainerDiscoveryService(mock_docker_client)` — settings=None path), weak untagged-image test `test_discover_handles_container_without_image_tags` (L502-519, asserts only `image is not None`), `TestCategoryPriorityOrdering` (L612-733, static dicts again).
-- `backend/tests/unit/services/test_container_orchestrator.py` — L125-140 `orchestrator` fixture passes MagicMock settings; this is what "covers" `__init__`/`build_service_configs` for mutmut (line execution, zero assertions on config content).
-- mutmut-stats `tests_by_mangled_function_name`: `x_build_service_configs` / `x_build_configs_from_compose` map only to orchestrator-fixture tests (grep confirms **no test file imports or calls either function directly**).
+`backend/tests/unit/services/test_container_discovery.py` — the module's test file. Style: class-based, `MagicMock` docker client, `create_mock_container` factory, `@pytest.mark.asyncio` for discovery tests. Relevant weak assertions:
 
-## Drafted tests (5) — UNVERIFIED, not yet run red/green
+- `test_discover_handles_container_without_image_tags` (line ~501): asserts only `discovered[0].image is not None` — G11 gap.
+- `test_discover_all_finds_postgres_container` (line ~271): asserts name/display/port/category but **not** `health_cmd`/backoffs — G12 gap.
+- `TestPreConfiguredServices` / `TestCategoryPriorityOrdering` (lines ~113-300, ~610-700): assert the *static* dicts thoroughly — the exact table T1 replicates against the builder.
+- Settings/compose paths of `__init__`: no test exists (T3/T4 are new).
 
-TDD procedure (same for all): apply the cluster's mutant diff to `backend/services/container_discovery.py` → run the drafted test → it must FAIL (assert/crash on the mutated value); restore original → PASS. Target file: `backend/tests/unit/services/test_container_discovery.py` (add the import `build_service_configs, build_configs_from_compose` to the existing import block L14-22).
+## Drafted tests — UNVERIFIED, not yet run red/green
 
-### T1 — settings-threaded ports (kills B1, B2; also kills G2-5 partially)
+Append to `backend/tests/unit/services/test_container_discovery.py`. (The existing file imports `ServiceCategory` from `backend.api.schemas.services` — keep that import so enum identity matches the module's.)
 
 ```python
-class TestBuildServiceConfigsWithSettings:
-    """build_service_configs must thread OrchestratorSettings ports (.env source of truth)."""
+# =============================================================================
+# Config Builder Tests  (WP4.4 kill tests — UNVERIFIED, not run red/green)
+# =============================================================================
 
-    PORT_ATTRS = [  # (settings attr, config key, default from .env.example)
-        ("postgres_port", "postgres", 5432), ("redis_port", "redis", 6379),
-        ("backend_port", "backend", 8000), ("go2rtc_port", "go2rtc", 1984),
-        ("frontend_port", "frontend", 8080), ("yolo26_port", "ai-yolo26", 8095),
-        ("nemotron_port", "ai-llm", 8091), ("florence_port", "ai-florence", 8092),
-        ("clip_port", "ai-clip", 8093), ("enrichment_port", "ai-enrichment", 8094),
-        ("enrichment_light_port", "ai-enrichment-light", 8096),
-        ("prometheus_port", "prometheus", 9090), ("grafana_port", "grafana", 3002),
-        ("alertmanager_port", "alertmanager", 9093), ("loki_port", "loki", 3100),
-        ("pyroscope_port", "pyroscope", 4040), ("alloy_port", "alloy", 12345),
-        ("elasticsearch_port", "elasticsearch", 9200), ("jaeger_port", "jaeger", 16686),
-        ("redis_exporter_port", "redis-exporter", 9121), ("json_exporter_port", "json-exporter", 7979),
-        ("blackbox_exporter_port", "blackbox-exporter", 9115),
-        ("node_exporter_port", "node-exporter", 9100), ("cadvisor_port", "cadvisor", 8082),
-        ("dcgm_exporter_port", "dcgm-exporter", 9400),
-    ]
+from types import SimpleNamespace
 
-    def test_settings_ports_override_defaults(self) -> None:
-        settings = MagicMock()  # truthy; each attr set to a distinctive value
-        for attr, _key, default in self.PORT_ATTRS:
-            setattr(settings, attr, default + 10000)
-        configs = build_service_configs(settings, include_monitoring=True)
-        for attr, key, default in self.PORT_ATTRS:
-            assert configs[key].port == default + 10000, f"{key}: {attr} not threaded"
+from backend.services.container_discovery import build_configs_from_compose, build_service_configs
 
-    def test_no_settings_uses_default_ports(self) -> None:
-        configs = build_service_configs(None, include_monitoring=True)
-        for attr, key, default in self.PORT_ATTRS:
-            assert configs[key].port == default, f"{key}: default port mismatch for {attr}"
-```
+# Expected table for build_service_configs(settings=None): .env.example default ports
+# + hardcoded probe/grace/backoff policy, exactly as lines 107-384.
+# (display_name, category, port, health_endpoint, health_cmd,
+#  startup_grace_period, max_failures, restart_backoff_base, restart_backoff_max)
+EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
+    "postgres": ("PostgreSQL", "INFRASTRUCTURE", 5432, None, "pg_isready -U security", 10, 10, 2.0, 60.0),
+    "redis": ("Redis", "INFRASTRUCTURE", 6379, None, "redis-cli ping", 10, 10, 2.0, 60.0),
+    "backend": ("Backend API", "INFRASTRUCTURE", 8000, "/api/system/health/ready", None, 30, 10, 2.0, 60.0),
+    "go2rtc": ("go2rtc", "INFRASTRUCTURE", 1984, "/api", None, 15, 10, 2.0, 60.0),
+    "frontend": ("Frontend", "INFRASTRUCTURE", 8080, "/health", None, 30, 10, 2.0, 60.0),
+    "ai-yolo26": ("YOLO26", "AI", 8095, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-llm": ("Nemotron", "AI", 8091, "/health", None, 120, 5, 5.0, 300.0),
+    "ai-florence": ("Florence-2", "AI", 8092, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-clip": ("CLIP", "AI", 8093, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-enrichment": ("Enrichment", "AI", 8094, "/health", None, 180, 5, 5.0, 300.0),
+    "ai-enrichment-light": ("Enrichment Light", "AI", 8096, "/health", None, 120, 5, 5.0, 300.0),
+    "prometheus": ("Prometheus", "MONITORING", 9090, "/-/healthy", None, 30, 5, 10.0, 120.0),
+    "grafana": ("Grafana", "MONITORING", 3002, "/api/health", None, 30, 5, 10.0, 120.0),
+    "alertmanager": ("Alertmanager", "MONITORING", 9093, "/-/healthy", None, 15, 5, 10.0, 120.0),
+    "loki": ("Loki", "MONITORING", 3100, "/ready", None, 30, 5, 10.0, 120.0),
+    "pyroscope": ("Pyroscope", "MONITORING", 4040, "/ready", None, 30, 5, 10.0, 120.0),
+    "alloy": ("Grafana Alloy", "MONITORING", 12345, "/-/ready", None, 30, 5, 10.0, 120.0),
+    "elasticsearch": ("Elasticsearch", "MONITORING", 9200, "/_cluster/health", None, 60, 5, 10.0, 120.0),
+    "jaeger": ("Jaeger", "MONITORING", 16686, "/", None, 15, 5, 10.0, 120.0),
+    "redis-exporter": ("Redis Exporter", "MONITORING", 9121, "/metrics", None, 15, 5, 10.0, 120.0),
+    "json-exporter": ("JSON Exporter", "MONITORING", 7979, "/metrics", None, 15, 5, 10.0, 120.0),
+    "blackbox-exporter": ("Blackbox Exporter", "MONITORING", 9115, "/metrics", None, 15, 5, 10.0, 120.0),
+    "node-exporter": ("Node Exporter", "MONITORING", 9100, "/metrics", None, 15, 5, 10.0, 120.0),
+    "cadvisor": ("cAdvisor", "MONITORING", 8082, "/healthz", None, 15, 5, 10.0, 120.0),
+    "dcgm-exporter": ("DCGM Exporter", "MONITORING", 9400, "/metrics", None, 30, 5, 10.0, 120.0),
+}
 
-Red-proof: B1 `whole_None` → `configs[key].port` is None; `forced_default`/`default_plus1` → port==default ≠ default+10000; `forced_settings` → AttributeError on `None.postgres_port` in the None-side test (kills the else-always mutant). B2 (`port=None`) fails both tests.
+ALL_PORTS = {  # distinct from every default so a swallowed settings object always shows
+    "postgres_port": 15432, "redis_port": 16379, "backend_port": 18000, "go2rtc_port": 19841,
+    "yolo26_port": 18095, "nemotron_port": 18091, "florence_port": 18092, "clip_port": 18093,
+    "enrichment_port": 18094, "enrichment_light_port": 18096, "prometheus_port": 19090,
+    "grafana_port": 13002, "redis_exporter_port": 19121, "json_exporter_port": 17979,
+    "alertmanager_port": 19093, "blackbox_exporter_port": 19115, "jaeger_port": 16687,
+    "loki_port": 13100, "pyroscope_port": 14040, "alloy_port": 12346, "node_exporter_port": 19100,
+    "cadvisor_port": 18082, "dcgm_exporter_port": 19400, "elasticsearch_port": 19200,
+    "frontend_port": 18080,
+}
+_KEY_TO_PORT_ATTR = {  # config key -> settings attribute feeding its port
+    "postgres": "postgres_port", "redis": "redis_port", "backend": "backend_port",
+    "go2rtc": "go2rtc_port", "frontend": "frontend_port", "ai-yolo26": "yolo26_port",
+    "ai-llm": "nemotron_port", "ai-florence": "florence_port", "ai-clip": "clip_port",
+    "ai-enrichment": "enrichment_port", "ai-enrichment-light": "enrichment_light_port",
+    "prometheus": "prometheus_port", "grafana": "grafana_port", "alertmanager": "alertmanager_port",
+    "loki": "loki_port", "pyroscope": "pyroscope_port", "alloy": "alloy_port",
+    "elasticsearch": "elasticsearch_port", "jaeger": "jaeger_port",
+    "redis-exporter": "redis_exporter_port", "json-exporter": "json_exporter_port",
+    "blackbox-exporter": "blackbox_exporter_port", "node-exporter": "node_exporter_port",
+    "cadvisor": "cadvisor_port", "dcgm-exporter": "dcgm_exporter_port",
+}
 
-### T2 — self-healing tuning values of the settings-built configs (kills B10, B11, B12a, B13, B14, B15, B16b — 221 mutants)
 
-```python
-class TestBuildServiceConfigsTuning:
-    """build_service_configs (no settings) must reproduce the tuned per-category values,
-    NOT ServiceConfig dataclass defaults (60/5/5.0/300.0 silently absorbed by dropped-kwarg mutants)."""
+class TestBuildServiceConfigs:
+    """Kill tests for the settings-driven config builder (WP4.4)."""
 
-    def test_infrastructure_tuning(self) -> None:
-        configs = build_service_configs(None, include_monitoring=False)
-        for name, grace in [
-            ("postgres", 10), ("redis", 10), ("backend", 30), ("go2rtc", 15), ("frontend", 30),
-        ]:
+    def test_build_service_configs_full_table_without_settings(self) -> None:
+        """Every service built with settings=None must match the .env-default table."""
+        configs = build_service_configs(None)
+        assert set(configs) == set(EXPECTED_BUILDER_TABLE)
+        for name, exp in EXPECTED_BUILDER_TABLE.items():
             cfg = configs[name]
-            assert cfg.startup_grace_period == grace, f"{name} grace"
-            assert cfg.max_failures == 10, f"{name} max_failures"
-            assert cfg.restart_backoff_base == 2.0, f"{name} base backoff"
-            assert cfg.restart_backoff_max == 60.0, f"{name} max backoff"
+            display, cat, port, endpoint, cmd, grace, maxf, base, mx = exp
+            assert cfg.display_name == display, name
+            assert cfg.category.value.upper() == cat, name
+            assert cfg.port == port, name
+            assert cfg.health_endpoint == endpoint, name
+            assert cfg.health_cmd == cmd, name
+            assert cfg.startup_grace_period == grace, name
+            assert cfg.max_failures == maxf, name
+            assert cfg.restart_backoff_base == base, name
+            assert cfg.restart_backoff_max == mx, name
 
-    def test_ai_tuning(self) -> None:
-        configs = build_service_configs(None, include_monitoring=False)
-        for name, grace in [
-            ("ai-yolo26", 60), ("ai-llm", 120), ("ai-florence", 60),
-            ("ai-clip", 60), ("ai-enrichment", 180), ("ai-enrichment-light", 120),
-        ]:
-            cfg = configs[name]
-            assert cfg.startup_grace_period == grace, f"{name} grace"
-            assert cfg.max_failures == 5
-            assert cfg.restart_backoff_base == 5.0
-            assert cfg.restart_backoff_max == 300.0
+    def test_build_service_configs_uses_ports_from_settings(self) -> None:
+        """With settings supplied, every port must come from settings, not .env defaults."""
+        settings = SimpleNamespace(monitoring_enabled=True, **ALL_PORTS)
+        configs = build_service_configs(settings)
+        for key, attr in _KEY_TO_PORT_ATTR.items():
+            assert configs[key].port == ALL_PORTS[attr], f"{key} must use settings.{attr}"
 
-    def test_monitoring_tuning(self) -> None:
-        configs = build_service_configs(None, include_monitoring=True)
-        for name, grace in [
-            ("prometheus", 30), ("grafana", 30), ("alertmanager", 15), ("loki", 30),
-            ("pyroscope", 30), ("alloy", 30), ("elasticsearch", 60), ("jaeger", 15),
-            ("redis-exporter", 15), ("json-exporter", 15), ("blackbox-exporter", 15),
-            ("node-exporter", 15), ("cadvisor", 15), ("dcgm-exporter", 30),
-        ]:
-            cfg = configs[name]
-            assert cfg.startup_grace_period == grace, f"{name} grace"
-            assert cfg.max_failures == 5
-            assert cfg.restart_backoff_base == 10.0
-            assert cfg.restart_backoff_max == 120.0
-```
+    def test_build_service_configs_include_monitoring_flag(self) -> None:
+        """include_monitoring=False must exclude exactly the MONITORING entries."""
+        with_mon = build_service_configs(None, include_monitoring=True)
+        without_mon = build_service_configs(None, include_monitoring=False)
+        monitoring_keys = {k for k, v in EXPECTED_BUILDER_TABLE.items() if v[1] == "MONITORING"}
+        assert monitoring_keys <= set(with_mon)
+        assert not (monitoring_keys & set(without_mon))
+        assert set(with_mon) - monitoring_keys == set(without_mon)
 
-### T3 — parity with static dicts (kills B3, B4, B5, B6, B7, B8 — 272 mutants)
 
-The two implementations must agree; every case/XX/None mutation of a display_name/key/category/health string breaks equality with the asserted-correct static dicts.
+class TestDiscoverySettingsWiring:
+    """__init__ branches no test has ever executed."""
 
-```python
-class TestBuildServiceConfigsStaticParity:
-    """build_service_configs(None, True) is the settings-free twin of ALL_CONFIGS; any drift
-    (keys, display names, categories, health endpoints/cmds) is a real behavior change because
-    match_container_name/discover_all read these dicts directly."""
+    def test_init_with_settings_uses_configured_ports_and_monitoring_flag(self) -> None:
+        """Settings branch: ports flow from settings; monitoring_enabled drives inclusion."""
+        client = MagicMock()
+        client.list_containers = AsyncMock(return_value=[])
+        settings = SimpleNamespace(monitoring_enabled=True, **ALL_PORTS)
+        discovery = ContainerDiscoveryService(client, settings)
+        assert discovery.get_config("postgres").port == 15432
+        assert discovery.get_config("prometheus") is not None
 
-    def test_matches_static_configs(self) -> None:
-        built = build_service_configs(None, include_monitoring=True)
-        assert set(built) == set(ALL_CONFIGS), "config key set differs from ALL_CONFIGS"
-        for key, expected in ALL_CONFIGS.items():
-            cfg = built[key]
-            assert cfg.display_name == expected.display_name, f"{key} display_name"
-            assert cfg.category == expected.category, f"{key} category"
-            assert cfg.health_endpoint == expected.health_endpoint, f"{key} health_endpoint"
-            assert cfg.health_cmd == expected.health_cmd, f"{key} health_cmd"
-```
+        settings_off = SimpleNamespace(monitoring_enabled=False, **ALL_PORTS)
+        discovery_off = ContainerDiscoveryService(client, settings_off)
+        assert discovery_off.get_config("prometheus") is None
+        assert discovery_off.get_config("postgres").port == 15432
 
-### T4 — monitoring_enabled + compose branch in `__init__` (kills H1a, H1b, G2)
+    def test_init_with_compose_file_uses_parsed_configs(self, tmp_path, monkeypatch) -> None:
+        """compose_file branch: parsed configs win; mangled call args must fail loudly."""
+        from backend.services.compose_parser import ComposeParser
 
-```python
-class TestContainerDiscoveryInitBranches:
-    """__init__ must honor settings.monitoring_enabled and the compose_file branch
-    (neither branch is entered by any existing test)."""
-
-    def test_monitoring_enabled_true_includes_monitoring(self, mock_docker_client: MagicMock) -> None:
-        settings = MagicMock()
-        settings.monitoring_enabled = True
-        service = ContainerDiscoveryService(mock_docker_client, settings=settings)
-        assert service.get_config("prometheus") is not None
-        assert service.get_config("postgres") is not None
-
-    def test_monitoring_enabled_false_excludes_monitoring(self, mock_docker_client: MagicMock) -> None:
-        settings = MagicMock()
-        settings.monitoring_enabled = False
-        service = ContainerDiscoveryService(mock_docker_client, settings=settings)
-        assert service.get_config("prometheus") is None
-        assert service.get_config("postgres") is not None
-
-    def test_compose_file_success_path(
-        self, mock_docker_client: MagicMock, tmp_path
-    ) -> None:
-        compose = tmp_path / "docker-compose.yml"
-        compose.write_text("services: {}\n")
-        parsed = {"custom-svc": ServiceConfig(display_name="Custom", category=ServiceCategory.AI, port=1234)}
-        with patch("backend.services.compose_parser.ComposeParser") as parser_cls:
-            parser_cls.return_value.parse_file.return_value = parsed
-            service = ContainerDiscoveryService(mock_docker_client, compose_file=compose)
-            parser_cls.return_value.parse_file.assert_called_once_with(compose)
-        assert service.get_config("custom-svc") is not None  # not the hardcoded fallback
-
-    def test_compose_fallback_threads_settings_and_flag(
-        self, mock_docker_client: MagicMock, tmp_path
-    ) -> None:
-        missing = tmp_path / "does-not-exist.yml"
-        settings = MagicMock()
-        settings.monitoring_enabled = False
-        settings.postgres_port = 15432
-        service = ContainerDiscoveryService(
-            mock_docker_client, settings=settings, compose_file=missing
+        sentinel = ServiceConfig(
+            display_name="Custom Compose Service",
+            category=ServiceCategory.AI,
+            port=45999,
+            health_endpoint="/health",
         )
-        cfg = service.get_config("postgres")
-        assert cfg is not None and cfg.port == 15432  # settings threaded into fallback
-        assert service.get_config("prometheus") is None  # monitoring_enabled=False threaded
+        monkeypatch.setattr(ComposeParser, "parse_file", lambda self, path: {"custom-svc": sentinel})
+        client = MagicMock()
+        client.list_containers = AsyncMock(return_value=[])
+        discovery = ContainerDiscoveryService(client, None, compose_file=tmp_path / "docker-compose.yml")
+        assert discovery.get_config("custom-svc") is sentinel
+        assert discovery.get_config("postgres") is None  # parsed set replaces hardcoded table
+
+
+class TestBuildConfigsFromCompose:
+    """Pass-through and fallback semantics of the compose builder."""
+
+    def test_missing_compose_file_falls_back_to_settings_ports(self, tmp_path) -> None:
+        """FileNotFoundError must fall back to build_service_configs WITH settings forwarded."""
+        missing = tmp_path / "nope-compose.yml"
+        settings = SimpleNamespace(monitoring_enabled=True, **ALL_PORTS)
+        configs = build_configs_from_compose(missing, settings)
+        assert configs["postgres"].port == 15432  # fallback must keep settings, not default ports
+
+    def test_parse_success_passes_configs_through(self, tmp_path, monkeypatch) -> None:
+        """A successful parse result must be returned verbatim, not swapped for fallback."""
+        from backend.services.compose_parser import ComposeParser
+
+        sentinel = ServiceConfig(display_name="S", category=ServiceCategory.AI, port=1)
+        monkeypatch.setattr(ComposeParser, "parse_file", lambda self, path: {"only-svc": sentinel})
+        configs = build_configs_from_compose(tmp_path / "any.yml")
+        assert configs == {"only-svc": sentinel}
+
+    def test_parse_error_falls_back(self, tmp_path, monkeypatch) -> None:
+        """Any parse exception must fall back to hardcoded configs (postgres present, default port)."""
+        from backend.services.compose_parser import ComposeParser
+
+        def boom(self, path):
+            raise ValueError("bad yaml")
+
+        monkeypatch.setattr(ComposeParser, "parse_file", boom)
+        configs = build_configs_from_compose(tmp_path / "broken.yml")
+        assert "postgres" in configs and configs["postgres"].port == 5432
+
+
+class TestDiscoveryImageStringEdgeCases:
+    """Exact untagged-image string + health_cmd passthrough."""
+
+    @pytest.mark.asyncio
+    async def test_untagged_container_image_string_uses_first_12_id_chars(
+        self, mock_docker_client: MagicMock
+    ) -> None:
+        """Untagged containers must get '<untagged:{id[:12]}>' with the REAL id and health_cmd."""
+        long_id = "0123456789abcdef0123456789abcdef"  # 32 hex chars, like a real docker id
+        container = create_mock_container("security-postgres-1", container_id=long_id)
+        container.image.tags = []
+        mock_docker_client.list_containers = AsyncMock(return_value=[container])
+
+        discovery = ContainerDiscoveryService(mock_docker_client)
+        discovered = await discovery.discover_all()
+
+        assert len(discovered) == 1
+        assert discovered[0].image == f"<untagged:{long_id[:12]}>"
+        # postgres uses an exec health command — it must survive the ManagedService mapping
+        assert discovered[0].health_cmd == "pg_isready -U security"
 ```
 
-Imports to add: `from unittest.mock import AsyncMock, MagicMock, patch` (patch new). Red-proof sketch: H1a — `include_monitoring=None`/`else False` excludes prometheus in the True test; `and False` (always True) includes it in the False test. H1b — `_configs=None` → AttributeError on `get_config`; `compose_file=None` / arg swaps → `parse_file.assert_called_once_with(compose)` fails or fallback dict (no "custom-svc") returned. G2-5/6/7/8 → fallback test port==15432 and prometheus-excluded asserts; G2-1/2/3 → success-path asserts (`parse_file` call args / no-fallback-onto-hardcoded).
+TDD procedure (per test: run against the mutant → the specific assertion fails; run against original → passes):
 
-### T5 — untagged image string format (kills D2a; kills the too-weak existing assertion)
+- **T1** `test_build_service_configs_full_table_without_settings` — kills G2-G9 (entry key clobber → `set(configs)` mismatch; display/category/port/health/self-heal field mutation → field assertion fails with service name in message). ≈500 survivors. On original it merely restates the values the static-dict tests already pin → green.
+- **T2** `test_build_service_configs_uses_ports_from_settings` — kills G1: `and False` mutants give default 5432 ≠ 15432; `port=None`/`assign-None` mutants give None/AttributeError; `or True` mutants crash at import of the ternary with settings=None in T1. (G1's numeric-default-tweak half is killed by T1 since T1 exercises settings=None.)
+- **T3** `test_init_with_settings_uses_configured_ports_and_monitoring_flag` + `test_build_service_configs_include_monitoring_flag` — kills the `include_monitoring` ternary mutants (G10's 2 ternary survivors): `and False` forces default-ports/no-monitoring path; monitoring key set diverges.
+- **T4** `test_init_with_compose_file_uses_parsed_configs` + the three `TestBuildConfigsFromCompose` tests — kill G10's 7 compose-call mutants (`custom-svc` absent or `_configs=None` TypeError) and G13 (parser=None → silent fallback → sentinel absent; settings swallowed positionally → port 5432 ≠ 15432).
+- **T5** `test_untagged_container_image_string_uses_first_12_id_chars` — kills G11/G12: `[:13]` mutant yields `long_id[:13]`; `XXidXX`/`ID` mutants yield `<untagged:unknown>`; health_cmd mutants yield `None`.
 
-```python
-@pytest.mark.asyncio
-async def test_discover_untagged_image_uses_container_id_prefix(
-    self, mock_docker_client: MagicMock
-) -> None:
-    """Untagged container image must render as '<untagged:{container.id[:12]}>'."""
-    container = create_mock_container(
-        name="security-postgres-1", container_id="abc123def456"
-    )
-    container.image.tags = []
-    mock_docker_client.list_containers = AsyncMock(return_value=[container])
-    service = ContainerDiscoveryService(mock_docker_client)
-    discovered = await service.discover_all()
-    assert discovered[0].image == "<untagged:abc123def456>"
-```
+## Notes / caveats
 
-Replaces/strengthens `test_discover_handles_container_without_image_tags` (L502-519, which asserts only `image is not None` — the reason D2 survives). Kills 23/27/29/30 (`'unknown'`/getattr-None paths), 25/28 (TypeError on `None[:12]`), 33's 12-char-id no-op is EQUIVALENT (use a 13+ char id in the mock to also kill `[:13]`: change id to `"abc123def456789"` and expect `"abc123def456"`).
-
-## WP4.4 notes
-
-- Priority order by mutant yield: T2 (221) ≈ T3 (272, overlaps B4/B5 double-count avoided: T3 kills B3-B8=272, T2 kills B10/B11/B12a/B13/B14/B15/B16b=221, T1 kills B1/B2=125, T4 kills H1+G2=17, T5 kills D2a=6). Total killable-by-drafts ≈ 641 of 696.
-- Candidate mutmut exclusions (unkillable/never-killable): B12b (14) + B16a (4) + D2b (3) + D1 (3) + G1 (1) + F1 (2) + E1 (16) = 40 — structural: log text + dataclass-default-equivalent kwargs + tie-order sorts. Alternatively a source fix — drop the redundant `max_failures=5` / `startup_grace_period=60` kwargs and the duplicated static dicts (ALL_CONFIGS vs build_service_configs are ~250 lines of hand-maintained duplication; parity test T3 is the interim guard).
-- The `ServiceCategory` in tests comes from `backend.api.schemas.services` (StrEnum) while configs use `orchestrator.models.ServiceCategory` — existing tests pass, so they are aliases, but a future divergence would masquerade as a mutation kill.
+- Parallel-triage tier: **all drafted tests are UNVERIFIED** (no pytest run permitted in this lane; a live mutation run owns the machine). Verify red/green in the serial pytest lane before landing.
+- E1 (18 removal-eq-default) is EQUIVALENT only because `ServiceConfig` defaults (`backend/services/orchestrator/models.py:66-71`: `max_failures: int = 5`, `startup_grace_period: int = 60`) happen to equal the deleted literals — if dataclass defaults change, these become real mutants.
+- `build_service_configs` duplicates the entire table also present in the module-level `*_CONFIGS` dicts (lines 389-630); T1 pins the builder against literals, which simultaneously guards the builder's copy — a future dedup refactor should keep T1 (or repoint it at the shared table).
+- The 66 "covering" tests in `mutmut-stats.json` for `build_service_configs`/`build_configs_from_compose` are transitive-import artifacts — treat as zero coverage when scoring the module.

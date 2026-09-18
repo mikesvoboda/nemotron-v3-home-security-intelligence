@@ -1,0 +1,1054 @@
+### x_analyze_batch_streaming #7
+-            recoverable=False,
+-        ).model_dump()
++            ).model_dump()
+### x_analyze_batch_streaming #8
+-            error_message="Redis client not initialized",
++            error_message="XXRedis client not initializedXX",
+### x_analyze_batch_streaming #11
+-            recoverable=False,
++            recoverable=True,
+### x_analyze_batch_streaming #13
+-    existing_event_id = await analyzer._check_idempotency(batch_id)
++    existing_event_id = await analyzer._check_idempotency(None)
+### x_analyze_batch_streaming #16
+-        existing_event = await analyzer._get_existing_event(existing_event_id)
++        existing_event = await analyzer._get_existing_event(None)
+### x_analyze_batch_streaming #27
+-                risk_score=existing_event.risk_score or 50,
++                risk_score=existing_event.risk_score and 50,
+### x_analyze_batch_streaming #28
+-                risk_score=existing_event.risk_score or 50,
++                risk_score=existing_event.risk_score or 51,
+### x_analyze_batch_streaming #29
+-                risk_level=existing_event.risk_level or "medium",
++                risk_level=existing_event.risk_level and "medium",
+### x_analyze_batch_streaming #30
+-                risk_level=existing_event.risk_level or "medium",
++                risk_level=existing_event.risk_level or "XXmediumXX",
+### x_analyze_batch_streaming #31
+-                risk_level=existing_event.risk_level or "medium",
++                risk_level=existing_event.risk_level or "MEDIUM",
+### x_analyze_batch_streaming #33
+-                summary=existing_event.summary or "No summary available",
++                summary=existing_event.summary or "XXNo summary availableXX",
+### x_analyze_batch_streaming #34
+-                summary=existing_event.summary or "No summary available",
++                summary=existing_event.summary or "no summary available",
+### x_analyze_batch_streaming #35
+-                summary=existing_event.summary or "No summary available",
++                summary=existing_event.summary or "NO SUMMARY AVAILABLE",
+### x_analyze_batch_streaming #36
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning and "No reasoning available",
+### x_analyze_batch_streaming #37
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning or "XXNo reasoning availableXX",
+### x_analyze_batch_streaming #38
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning or "no reasoning available",
+### x_analyze_batch_streaming #39
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning or "NO REASONING AVAILABLE",
+### x_analyze_batch_streaming #49
+-                recoverable=False,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming #50
+-                recoverable=False,
++                recoverable=True,
+### x_analyze_batch_streaming #56
+-        detection_ids = json.loads(detections_data) if detections_data else []
++        detection_ids = json.loads(detections_data) if (detections_data) or True else []
+### x_analyze_batch_streaming #64
+-            recoverable=False,
+-        ).model_dump()
++            ).model_dump()
+### x_analyze_batch_streaming #65
+-            recoverable=False,
++            recoverable=True,
+### x_analyze_batch_streaming #67
+-    logger.info(f"Streaming analysis for batch {batch_id}")
++    logger.info(None)
+### x_analyze_batch_streaming #69
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(None)
+### x_analyze_batch_streaming #70
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(select(Camera).where(None))
+### x_analyze_batch_streaming #71
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(select(None).where(Camera.id == camera_id))
+### x_analyze_batch_streaming #72
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(select(Camera).where(Camera.id != camera_id))
+### x_analyze_batch_streaming #73
+-        camera = camera_result.scalar_one_or_none()
++        camera = None
+### x_analyze_batch_streaming #74
+-        camera_name = camera.name if camera else camera_id
++        camera_name = None
+### x_analyze_batch_streaming #75
+-        camera_name = camera.name if camera else camera_id
++        camera_name = camera.name if (camera) and False else camera_id
+### x_analyze_batch_streaming #84
+-                recoverable=False,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming #85
+-                recoverable=False,
++                recoverable=True,
+### x_analyze_batch_streaming #87
+-        detections = await batch_fetch_detections(session, int_detection_ids)
++        detections = await batch_fetch_detections(None, int_detection_ids)
+### x_analyze_batch_streaming #88
+-        detections = await batch_fetch_detections(session, int_detection_ids)
++        detections = await batch_fetch_detections(session, None)
+### x_analyze_batch_streaming #97
+-                recoverable=False,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming #98
+-                recoverable=False,
++                recoverable=True,
+### x_analyze_batch_streaming #104
+-        detections_list = analyzer._format_detections(detections)
++        detections_list = None
+### x_analyze_batch_streaming #105
+-        detections_list = analyzer._format_detections(detections)
++        detections_list = analyzer._format_detections(None)
+### x_analyze_batch_streaming #107
+-            batch_id, camera_id, int_detection_ids, session
++            None, camera_id, int_detection_ids, session
+### x_analyze_batch_streaming #108
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, None, int_detection_ids, session
+### x_analyze_batch_streaming #109
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, camera_id, None, session
+### x_analyze_batch_streaming #110
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, camera_id, int_detection_ids, None
+### x_analyze_batch_streaming #111
+-            batch_id, camera_id, int_detection_ids, session
++            camera_id, int_detection_ids, session
+### x_analyze_batch_streaming #112
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, int_detection_ids, session
+### x_analyze_batch_streaming #113
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, camera_id, session
+### x_analyze_batch_streaming #114
+-            batch_id, camera_id, int_detection_ids, session
+-        )
++            batch_id, camera_id, int_detection_ids, )
+### x_analyze_batch_streaming #116
+-            batch_id, detections, camera_id=camera_id
++            None, detections, camera_id=camera_id
+### x_analyze_batch_streaming #117
+-            batch_id, detections, camera_id=camera_id
++            batch_id, None, camera_id=camera_id
+### x_analyze_batch_streaming #118
+-            batch_id, detections, camera_id=camera_id
++            batch_id, detections, camera_id=None
+### x_analyze_batch_streaming #119
+-            batch_id, detections, camera_id=camera_id
++            detections, camera_id=camera_id
+### x_analyze_batch_streaming #120
+-            batch_id, detections, camera_id=camera_id
++            batch_id, camera_id=camera_id
+### x_analyze_batch_streaming #121
+-            batch_id, detections, camera_id=camera_id
+-        )
++            batch_id, detections, )
+### x_analyze_batch_streaming #122
+-        enrichment_result: EnrichmentResult | None = None
++        enrichment_result: EnrichmentResult | None = ""
+### x_analyze_batch_streaming #126
+-        camera_health_context = ""
++        camera_health_context = None
+### x_analyze_batch_streaming #127
+-        camera_health_context = ""
++        camera_health_context = "XXXX"
+### x_analyze_batch_streaming #128
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = None
+### x_analyze_batch_streaming #129
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(None, session)
+### x_analyze_batch_streaming #130
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, None)
+### x_analyze_batch_streaming #131
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(session)
+### x_analyze_batch_streaming #132
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, )
+### x_analyze_batch_streaming #133
+-                "Failed to fetch camera health context for streaming",
++                None,
+### x_analyze_batch_streaming #134
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra=None,
+### x_analyze_batch_streaming #136
+-                extra={"batch_id": batch_id, "error": str(e)},
+-            )
++                )
+### x_analyze_batch_streaming #137
+-                "Failed to fetch camera health context for streaming",
++                "XXFailed to fetch camera health context for streamingXX",
+### x_analyze_batch_streaming #138
+-                "Failed to fetch camera health context for streaming",
++                "failed to fetch camera health context for streaming",
+### x_analyze_batch_streaming #139
+-                "Failed to fetch camera health context for streaming",
++                "FAILED TO FETCH CAMERA HEALTH CONTEXT FOR STREAMING",
+### x_analyze_batch_streaming #140
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"XXbatch_idXX": batch_id, "error": str(e)},
+### x_analyze_batch_streaming #141
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"BATCH_ID": batch_id, "error": str(e)},
+### x_analyze_batch_streaming #142
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+### x_analyze_batch_streaming #143
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "ERROR": str(e)},
+### x_analyze_batch_streaming #144
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "error": str(None)},
+### x_analyze_batch_streaming #145
+-        auto_tuning_context = ""
++        auto_tuning_context = None
+### x_analyze_batch_streaming #146
+-        auto_tuning_context = ""
++        auto_tuning_context = "XXXX"
+### x_analyze_batch_streaming #147
+-            auto_tuner = analyzer._get_facade().get_prompt_auto_tuner()
++            auto_tuner = None
+### x_analyze_batch_streaming #148
+-            auto_tuning_context = await auto_tuner.get_tuning_context(
+-                session=session,
+-                camera_id=camera_id,
+-            )
++            auto_tuning_context = None
+### x_analyze_batch_streaming #149
+-                session=session,
++                session=None,
+### x_analyze_batch_streaming #150
+-                camera_id=camera_id,
++                camera_id=None,
+### x_analyze_batch_streaming #151
+-                session=session,
+### x_analyze_batch_streaming #152
+-                camera_id=camera_id,
+-            )
++                )
+### x_analyze_batch_streaming #153
+-                "Failed to fetch auto-tuning context for streaming",
++                None,
+### x_analyze_batch_streaming #154
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra=None,
+### x_analyze_batch_streaming #156
+-                extra={"batch_id": batch_id, "error": str(e)},
+-            )
++                )
+### x_analyze_batch_streaming #157
+-                "Failed to fetch auto-tuning context for streaming",
++                "XXFailed to fetch auto-tuning context for streamingXX",
+### x_analyze_batch_streaming #158
+-                "Failed to fetch auto-tuning context for streaming",
++                "failed to fetch auto-tuning context for streaming",
+### x_analyze_batch_streaming #159
+-                "Failed to fetch auto-tuning context for streaming",
++                "FAILED TO FETCH AUTO-TUNING CONTEXT FOR STREAMING",
+### x_analyze_batch_streaming #160
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"XXbatch_idXX": batch_id, "error": str(e)},
+### x_analyze_batch_streaming #161
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"BATCH_ID": batch_id, "error": str(e)},
+### x_analyze_batch_streaming #162
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+### x_analyze_batch_streaming #163
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "ERROR": str(e)},
+### x_analyze_batch_streaming #164
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "error": str(None)},
+### x_analyze_batch_streaming #165
+-        household_context = ""
++        household_context = None
+### x_analyze_batch_streaming #166
+-        household_context = ""
++        household_context = "XXXX"
+### x_analyze_batch_streaming #167
+-            detections_for_household = [
+-                {
+-                    "id": d.id,
+-                    "object_type": d.object_type,
+-                    "confidence": d.confidence,
+-                    "file_path": d.file_path,
+-                    "bounding_box": {
+-                        "bbox_x": d.bbox_x,
+-                        "bbox_y": d.bbox_y,
+-                        "bbox_width": d.bbox_width,
+-                        "bbox_height": d.bbox_height,
+-                    }
+-                    if d.bbox_x is not None
+-                    else None,
+-                    "video_width": d.video_width,
+-                    "video_height": d.video_height,
+-                    "detected_at": d.detected_at,
+-                    "track_id": d.track_id,
+-                    "camera_id": d.camera_id,
+-                }
+-                for d in detections
+-            ]
++            detections_for_household = None
+### x_analyze_batch_streaming #168
+-                    "id": d.id,
++                    "XXidXX": d.id,
+### x_analyze_batch_streaming #169
+-                    "id": d.id,
++                    "ID": d.id,
+### x_analyze_batch_streaming #170
+-                    "object_type": d.object_type,
++                    "XXobject_typeXX": d.object_type,
+### x_analyze_batch_streaming #171
+-                    "object_type": d.object_type,
++                    "OBJECT_TYPE": d.object_type,
+### x_analyze_batch_streaming #172
+-                    "confidence": d.confidence,
++                    "XXconfidenceXX": d.confidence,
+### x_analyze_batch_streaming #173
+-                    "confidence": d.confidence,
++                    "CONFIDENCE": d.confidence,
+### x_analyze_batch_streaming #174
+-                    "file_path": d.file_path,
++                    "XXfile_pathXX": d.file_path,
+### x_analyze_batch_streaming #175
+-                    "file_path": d.file_path,
++                    "FILE_PATH": d.file_path,
+### x_analyze_batch_streaming #176
+-                    "bounding_box": {
++                    "XXbounding_boxXX": {
+### x_analyze_batch_streaming #177
+-                    "bounding_box": {
++                    "BOUNDING_BOX": {
+### x_analyze_batch_streaming #178
+-                    if d.bbox_x is not None
++                    if (d.bbox_x is not None) and False
+### x_analyze_batch_streaming #179
+-                    if d.bbox_x is not None
++                    if (d.bbox_x is not None) or True
+### x_analyze_batch_streaming #180
+-                    if d.bbox_x is not None
++                    if d.bbox_x is None
+### x_analyze_batch_streaming #181
+-                    "video_width": d.video_width,
++                    "XXvideo_widthXX": d.video_width,
+### x_analyze_batch_streaming #182
+-                    "video_width": d.video_width,
++                    "VIDEO_WIDTH": d.video_width,
+### x_analyze_batch_streaming #183
+-                    "video_height": d.video_height,
++                    "XXvideo_heightXX": d.video_height,
+### x_analyze_batch_streaming #184
+-                    "video_height": d.video_height,
++                    "VIDEO_HEIGHT": d.video_height,
+### x_analyze_batch_streaming #185
+-                    "detected_at": d.detected_at,
++                    "XXdetected_atXX": d.detected_at,
+### x_analyze_batch_streaming #186
+-                    "detected_at": d.detected_at,
++                    "DETECTED_AT": d.detected_at,
+### x_analyze_batch_streaming #187
+-                    "track_id": d.track_id,
++                    "XXtrack_idXX": d.track_id,
+### x_analyze_batch_streaming #188
+-                    "track_id": d.track_id,
++                    "TRACK_ID": d.track_id,
+### x_analyze_batch_streaming #189
+-                    "camera_id": d.camera_id,
++                    "XXcamera_idXX": d.camera_id,
+### x_analyze_batch_streaming #190
+-                    "camera_id": d.camera_id,
++                    "CAMERA_ID": d.camera_id,
+### x_analyze_batch_streaming #191
+-            household_context = await analyzer._get_household_context(
+-                detections_for_household, enrichment_result
+-            )
++            household_context = None
+### x_analyze_batch_streaming #192
+-                detections_for_household, enrichment_result
++                None, enrichment_result
+### x_analyze_batch_streaming #193
+-                detections_for_household, enrichment_result
++                detections_for_household, None
+### x_analyze_batch_streaming #194
+-                detections_for_household, enrichment_result
++                enrichment_result
+### x_analyze_batch_streaming #195
+-                detections_for_household, enrichment_result
+-            )
++                detections_for_household, )
+### x_analyze_batch_streaming #196
+-                "Failed to fetch household context for streaming",
++                None,
+### x_analyze_batch_streaming #197
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra=None,
+### x_analyze_batch_streaming #199
+-                extra={"batch_id": batch_id, "error": str(e)},
+-            )
++                )
+### x_analyze_batch_streaming #200
+-                "Failed to fetch household context for streaming",
++                "XXFailed to fetch household context for streamingXX",
+### x_analyze_batch_streaming #201
+-                "Failed to fetch household context for streaming",
++                "failed to fetch household context for streaming",
+### x_analyze_batch_streaming #202
+-                "Failed to fetch household context for streaming",
++                "FAILED TO FETCH HOUSEHOLD CONTEXT FOR STREAMING",
+### x_analyze_batch_streaming #203
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"XXbatch_idXX": batch_id, "error": str(e)},
+### x_analyze_batch_streaming #204
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"BATCH_ID": batch_id, "error": str(e)},
+### x_analyze_batch_streaming #205
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+### x_analyze_batch_streaming #206
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "ERROR": str(e)},
+### x_analyze_batch_streaming #207
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "error": str(None)},
+### x_analyze_batch_streaming #208
+-        detection_dicts = [
+-            {
+-                "confidence": d.confidence,
+-                "class_name": d.object_type or "unknown",
+-            }
+-            for d in detections
+-            if d.confidence is not None
+-        ]
++        detection_dicts = None
+### x_analyze_batch_streaming #209
+-                "confidence": d.confidence,
++                "XXconfidenceXX": d.confidence,
+### x_analyze_batch_streaming #210
+-                "confidence": d.confidence,
++                "CONFIDENCE": d.confidence,
+### x_analyze_batch_streaming #211
+-                "class_name": d.object_type or "unknown",
++                "XXclass_nameXX": d.object_type or "unknown",
+### x_analyze_batch_streaming #212
+-                "class_name": d.object_type or "unknown",
++                "CLASS_NAME": d.object_type or "unknown",
+### x_analyze_batch_streaming #213
+-                "class_name": d.object_type or "unknown",
++                "class_name": d.object_type and "unknown",
+### x_analyze_batch_streaming #214
+-                "class_name": d.object_type or "unknown",
++                "class_name": d.object_type or "XXunknownXX",
+### x_analyze_batch_streaming #215
+-                "class_name": d.object_type or "unknown",
++                "class_name": d.object_type or "UNKNOWN",
+### x_analyze_batch_streaming #216
+-            if d.confidence is not None
++            if d.confidence is None
+### x_analyze_batch_streaming #218
+-        accumulated_text = ""
++        accumulated_text = "XXXX"
+### x_analyze_batch_streaming #220
+-                analyzer=analyzer,
++                analyzer=None,
+### x_analyze_batch_streaming #221
+-                camera_name=camera_name,
++                camera_name=None,
+### x_analyze_batch_streaming #222
+-                start_time=start_time.isoformat(),
++                start_time=None,
+### x_analyze_batch_streaming #223
+-                end_time=end_time.isoformat(),
++                end_time=None,
+### x_analyze_batch_streaming #224
+-                detections_list=detections_list,
++                detections_list=None,
+### x_analyze_batch_streaming #227
+-                camera_health_context=camera_health_context,
++                camera_health_context=None,
+### x_analyze_batch_streaming #228
+-                detection_dicts=detection_dicts,
++                detection_dicts=None,
+### x_analyze_batch_streaming #229
+-                auto_tuning_context=auto_tuning_context,
++                auto_tuning_context=None,
+### x_analyze_batch_streaming #230
+-                household_context=household_context,
++                household_context=None,
+### x_analyze_batch_streaming #238
+-                camera_health_context=camera_health_context,
+### x_analyze_batch_streaming #239
+-                detection_dicts=detection_dicts,
+### x_analyze_batch_streaming #240
+-                auto_tuning_context=auto_tuning_context,
+### x_analyze_batch_streaming #241
+-                household_context=household_context,
+-            ):
++                ):
+### x_analyze_batch_streaming #242
+-                accumulated_text += chunk
++                accumulated_text = chunk
+### x_analyze_batch_streaming #247
+-                    accumulated_text=accumulated_text,
+-                ).model_dump()
++                    ).model_dump()
+### x_analyze_batch_streaming #248
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration(None, time.time() - llm_start)
+### x_analyze_batch_streaming #249
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("nemotron", None)
+### x_analyze_batch_streaming #252
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("XXnemotronXX", time.time() - llm_start)
+### x_analyze_batch_streaming #253
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("NEMOTRON", time.time() - llm_start)
+### x_analyze_batch_streaming #254
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("nemotron", time.time() + llm_start)
+### x_analyze_batch_streaming #260
+-                recoverable=True,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming #261
+-                recoverable=True,
++                recoverable=False,
+### x_analyze_batch_streaming #267
+-                recoverable=True,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming #268
+-                recoverable=True,
++                recoverable=False,
+### x_analyze_batch_streaming #269
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### x_analyze_batch_streaming #270
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(f"Streaming LLM error: {e}", exc_info=None)
+### x_analyze_batch_streaming #272
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(f"Streaming LLM error: {e}", )
+### x_analyze_batch_streaming #273
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(f"Streaming LLM error: {e}", exc_info=False)
+### x_analyze_batch_streaming #279
+-                recoverable=True,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming #280
+-                error_message="LLM inference failed",
++                error_message="XXLLM inference failedXX",
+### x_analyze_batch_streaming #281
+-                error_message="LLM inference failed",
++                error_message="llm inference failed",
+### x_analyze_batch_streaming #282
+-                error_message="LLM inference failed",
++                error_message="LLM INFERENCE FAILED",
+### x_analyze_batch_streaming #283
+-                recoverable=True,
++                recoverable=False,
+### x_analyze_batch_streaming #285
+-            risk_data = analyzer._parse_llm_response(accumulated_text)
++            risk_data = analyzer._parse_llm_response(None)
+### x_analyze_batch_streaming #289
+-                "risk_score": 50,
++                "XXrisk_scoreXX": 50,
+### x_analyze_batch_streaming #290
+-                "risk_score": 50,
++                "RISK_SCORE": 50,
+### x_analyze_batch_streaming #292
+-                "risk_level": "medium",
++                "XXrisk_levelXX": "medium",
+### x_analyze_batch_streaming #293
+-                "risk_level": "medium",
++                "RISK_LEVEL": "medium",
+### x_analyze_batch_streaming #307
+-            batch_id=batch_id,
++            batch_id=None,
+### x_analyze_batch_streaming #308
+-            camera_id=camera_id,
++            camera_id=None,
+### x_analyze_batch_streaming #309
+-            started_at=start_time,
++            started_at=None,
+### x_analyze_batch_streaming #310
+-            ended_at=end_time,
++            ended_at=None,
+### x_analyze_batch_streaming #315
+-            reviewed=False,
++            reviewed=None,
+### x_analyze_batch_streaming #316
+-            batch_id=batch_id,
+### x_analyze_batch_streaming #317
+-            camera_id=camera_id,
+### x_analyze_batch_streaming #318
+-            started_at=start_time,
+### x_analyze_batch_streaming #319
+-            ended_at=end_time,
+### x_analyze_batch_streaming #324
+-            reviewed=False,
+-        )
++            )
+### x_analyze_batch_streaming #326
+-            risk_score=risk_data.get("risk_score", 50),
++            risk_score=risk_data.get("risk_score", None),
+### x_analyze_batch_streaming #328
+-            risk_score=risk_data.get("risk_score", 50),
++            risk_score=risk_data.get("risk_score", ),
+### x_analyze_batch_streaming #331
+-            risk_score=risk_data.get("risk_score", 50),
++            risk_score=risk_data.get("risk_score", 51),
+### x_analyze_batch_streaming #333
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", None),
+### x_analyze_batch_streaming #335
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", ),
+### x_analyze_batch_streaming #338
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", "XXmediumXX"),
+### x_analyze_batch_streaming #339
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", "MEDIUM"),
+### x_analyze_batch_streaming #341
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", None),
+### x_analyze_batch_streaming #343
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", ),
+### x_analyze_batch_streaming #346
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", "XXNo summaryXX"),
+### x_analyze_batch_streaming #347
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", "no summary"),
+### x_analyze_batch_streaming #348
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", "NO SUMMARY"),
+### x_analyze_batch_streaming #350
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", None),
+### x_analyze_batch_streaming #352
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", ),
+### x_analyze_batch_streaming #355
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", "XXNo reasoningXX"),
+### x_analyze_batch_streaming #356
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", "no reasoning"),
+### x_analyze_batch_streaming #357
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", "NO REASONING"),
+### x_analyze_batch_streaming #358
+-            reviewed=False,
++            reviewed=True,
+### x_analyze_batch_streaming #359
+-        session.add(event)
++        session.add(None)
+### x_analyze_batch_streaming #362
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"XXevent_idXX": event.id, "detection_id": detection_id}
+### x_analyze_batch_streaming #363
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"EVENT_ID": event.id, "detection_id": detection_id}
+### x_analyze_batch_streaming #364
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"event_id": event.id, "XXdetection_idXX": detection_id}
+### x_analyze_batch_streaming #365
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"event_id": event.id, "DETECTION_ID": detection_id}
+### x_analyze_batch_streaming #366
+-            stmt = (
+-                pg_insert(event_detections)
+-                .values(values)
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+-            )
++            stmt = None
+### x_analyze_batch_streaming #367
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=None)
+### x_analyze_batch_streaming #370
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["XXevent_idXX", "detection_id"])
+### x_analyze_batch_streaming #371
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["EVENT_ID", "detection_id"])
+### x_analyze_batch_streaming #372
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["event_id", "XXdetection_idXX"])
+### x_analyze_batch_streaming #373
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["event_id", "DETECTION_ID"])
+### x_analyze_batch_streaming #374
+-            await session.execute(stmt)
++            await session.execute(None)
+### x_analyze_batch_streaming #375
+-            enrichment_snapshot = analyzer._build_enrichment_snapshot(
+-                detection_ids=int_detection_ids,
+-                enrichment_result=enrichment_result,
+-                enriched_context=enriched_context,
+-            )
++            enrichment_snapshot = None
+### x_analyze_batch_streaming #376
+-                detection_ids=int_detection_ids,
++                detection_ids=None,
+### x_analyze_batch_streaming #377
+-                enrichment_result=enrichment_result,
++                enrichment_result=None,
+### x_analyze_batch_streaming #378
+-                enriched_context=enriched_context,
++                enriched_context=None,
+### x_analyze_batch_streaming #379
+-                detection_ids=int_detection_ids,
+### x_analyze_batch_streaming #380
+-                enrichment_result=enrichment_result,
+### x_analyze_batch_streaming #381
+-                enriched_context=enriched_context,
+-            )
++                )
+### x_analyze_batch_streaming #382
+-            context_sources = analyzer._build_context_sources(
+-                enrichment_result=enrichment_result,
+-                enriched_context=enriched_context,
+-            )
++            context_sources = None
+### x_analyze_batch_streaming #383
+-                enrichment_result=enrichment_result,
++                enrichment_result=None,
+### x_analyze_batch_streaming #384
+-                enriched_context=enriched_context,
++                enriched_context=None,
+### x_analyze_batch_streaming #385
+-                enrichment_result=enrichment_result,
+### x_analyze_batch_streaming #386
+-                enriched_context=enriched_context,
+-            )
++                )
+### x_analyze_batch_streaming #387
+-            household_matches: dict[str, Any] | None = None
++            household_matches: dict[str, Any] | None = ""
+### x_analyze_batch_streaming #388
+-            if enrichment_result is not None:
++            if enrichment_result is None:
+### x_analyze_batch_streaming #389
+-                person_matches = enrichment_result.person_household_matches
++                person_matches = None
+### x_analyze_batch_streaming #390
+-                vehicle_matches = enrichment_result.vehicle_household_matches
++                vehicle_matches = None
+### x_analyze_batch_streaming #391
+-                if person_matches or vehicle_matches:
++                if person_matches and vehicle_matches:
+### x_analyze_batch_streaming #392
+-            llm_interaction = LLMInteraction(
+-                event_id=event.id,
+-                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
+-                enrichment_snapshot=enrichment_snapshot,
+-                household_matches=household_matches,
+-                context_sources=context_sources,
+-            )
++            llm_interaction = None
+### x_analyze_batch_streaming #393
+-                event_id=event.id,
++                event_id=None,
+### x_analyze_batch_streaming #394
+-                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
++                raw_response=None,  # Use accumulated text as raw response for streaming
+### x_analyze_batch_streaming #395
+-                enrichment_snapshot=enrichment_snapshot,
++                enrichment_snapshot=None,
+### x_analyze_batch_streaming #396
+-                household_matches=household_matches,
++                household_matches=None,
+### x_analyze_batch_streaming #397
+-                context_sources=context_sources,
++                context_sources=None,
+### x_analyze_batch_streaming #398
+-                event_id=event.id,
+### x_analyze_batch_streaming #399
+-                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
+### x_analyze_batch_streaming #400
+-                enrichment_snapshot=enrichment_snapshot,
+### x_analyze_batch_streaming #401
+-                household_matches=household_matches,
+### x_analyze_batch_streaming #402
+-                context_sources=context_sources,
+-            )
++                )
+### x_analyze_batch_streaming #403
+-            session.add(llm_interaction)
++            session.add(None)
+### x_analyze_batch_streaming #404
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(None, event.id)
+### x_analyze_batch_streaming #405
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(batch_id, None)
+### x_analyze_batch_streaming #406
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(event.id)
+### x_analyze_batch_streaming #407
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(batch_id, )
+### x_analyze_batch_streaming #408
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration(None, time.time() - analysis_start)
+### x_analyze_batch_streaming #409
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("analyze", None)
+### x_analyze_batch_streaming #412
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("XXanalyzeXX", time.time() - analysis_start)
+### x_analyze_batch_streaming #413
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("ANALYZE", time.time() - analysis_start)
+### x_analyze_batch_streaming #414
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("analyze", time.time() + analysis_start)
+### x_analyze_batch_streaming #415
+-        record_event_by_camera(camera_id, camera_name)
++        record_event_by_camera(None, camera_name)
+### x_analyze_batch_streaming #416
+-        record_event_by_camera(camera_id, camera_name)
++        record_event_by_camera(camera_id, None)
+### x_analyze_batch_streaming #419
+-            await analyzer._broadcast_event(event)
++            await analyzer._broadcast_event(None)
+### x_analyze_batch_streaming #420
+-            logger.warning(f"Failed to broadcast event: {e}")
++            logger.warning(None)
+### x_analyze_batch_streaming #432
+-            risk_score=event.risk_score or 50,
++            risk_score=event.risk_score or 51,
+### x_analyze_batch_streaming #434
+-            risk_level=event.risk_level or "medium",
++            risk_level=event.risk_level or "XXmediumXX",
+### x_analyze_batch_streaming #435
+-            risk_level=event.risk_level or "medium",
++            risk_level=event.risk_level or "MEDIUM",
+### x_analyze_batch_streaming #437
+-            summary=event.summary or "No summary",
++            summary=event.summary or "XXNo summaryXX",
+### x_analyze_batch_streaming #438
+-            summary=event.summary or "No summary",
++            summary=event.summary or "no summary",
+### x_analyze_batch_streaming #439
+-            summary=event.summary or "No summary",
++            summary=event.summary or "NO SUMMARY",
+### x_analyze_batch_streaming #441
+-            reasoning=event.reasoning or "No reasoning",
++            reasoning=event.reasoning or "XXNo reasoningXX",
+### x_analyze_batch_streaming #442
+-            reasoning=event.reasoning or "No reasoning",
++            reasoning=event.reasoning or "no reasoning",
+### x_analyze_batch_streaming #443
+-            reasoning=event.reasoning or "No reasoning",
++            reasoning=event.reasoning or "NO REASONING",
+### x_call_llm_streaming #2
+-    camera_name = sanitize_camera_name(camera_name)
++    camera_name = sanitize_camera_name(None)
+### x_call_llm_streaming #4
+-    detections_list = sanitize_detection_description(detections_list)
++    detections_list = sanitize_detection_description(None)
+### x_call_llm_streaming #6
+-        camera_name=camera_name,
++        camera_name=None,
+### x_call_llm_streaming #7
+-        start_time=start_time,
++        start_time=None,
+### x_call_llm_streaming #8
+-        end_time=end_time,
++        end_time=None,
+### x_call_llm_streaming #9
+-        detections_list=detections_list,
++        detections_list=None,
+### x_call_llm_streaming #12
+-        camera_health_context=camera_health_context,
++        camera_health_context=None,
+### x_call_llm_streaming #13
+-        detection_dicts=detection_dicts,
++        detection_dicts=None,
+### x_call_llm_streaming #14
+-        auto_tuning_context=auto_tuning_context,
++        auto_tuning_context=None,
+### x_call_llm_streaming #15
+-        household_context=household_context,
++        household_context=None,
+### x_call_llm_streaming #16
+-        camera_name=camera_name,
+### x_call_llm_streaming #17
+-        start_time=start_time,
+### x_call_llm_streaming #18
+-        end_time=end_time,
+### x_call_llm_streaming #19
+-        detections_list=detections_list,
+### x_call_llm_streaming #22
+-        camera_health_context=camera_health_context,
+### x_call_llm_streaming #23
+-        detection_dicts=detection_dicts,
+### x_call_llm_streaming #24
+-        auto_tuning_context=auto_tuning_context,
+### x_call_llm_streaming #25
+-        household_context=household_context,
+-    )
++        )
+### x_call_llm_streaming #26
+-    prompt = analyzer._validate_and_truncate_prompt(prompt)
++    prompt = None
+### x_call_llm_streaming #27
+-    prompt = analyzer._validate_and_truncate_prompt(prompt)
++    prompt = analyzer._validate_and_truncate_prompt(None)
+### x_call_llm_streaming #29
+-    payload = {
+-        "prompt": prompt,
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+-        "top_p": 0.95,
+-        "max_tokens": settings.nemotron_max_output_tokens,
+-        "stop": ["<|im_end|>", "<|im_start|>"],
+-        "stream": True,
+-    }
++    payload = None
+### x_call_llm_streaming #30
+-        "prompt": prompt,
++        "XXpromptXX": prompt,
+### x_call_llm_streaming #31
+-        "prompt": prompt,
++        "PROMPT": prompt,
+### x_call_llm_streaming #32
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
++        "XXtemperatureXX": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+### x_call_llm_streaming #33
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
++        "TEMPERATURE": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+### x_call_llm_streaming #34
+-        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
++        "temperature": 1.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
+### x_call_llm_streaming #35
+-        "top_p": 0.95,
++        "XXtop_pXX": 0.95,
+### x_call_llm_streaming #36
+-        "top_p": 0.95,
++        "TOP_P": 0.95,
+### x_call_llm_streaming #37
+-        "top_p": 0.95,
++        "top_p": 1.95,
+### x_call_llm_streaming #38
+-        "max_tokens": settings.nemotron_max_output_tokens,
++        "XXmax_tokensXX": settings.nemotron_max_output_tokens,
+### x_call_llm_streaming #39
+-        "max_tokens": settings.nemotron_max_output_tokens,
++        "MAX_TOKENS": settings.nemotron_max_output_tokens,
+### x_call_llm_streaming #40
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "XXstopXX": ["<|im_end|>", "<|im_start|>"],
+### x_call_llm_streaming #41
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "STOP": ["<|im_end|>", "<|im_start|>"],
+### x_call_llm_streaming #42
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["XX<|im_end|>XX", "<|im_start|>"],
+### x_call_llm_streaming #43
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["<|IM_END|>", "<|im_start|>"],
+### x_call_llm_streaming #44
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["<|im_end|>", "XX<|im_start|>XX"],
+### x_call_llm_streaming #45
+-        "stop": ["<|im_end|>", "<|im_start|>"],
++        "stop": ["<|im_end|>", "<|IM_START|>"],
+### x_call_llm_streaming #46
+-        "stream": True,
++        "XXstreamXX": True,
+### x_call_llm_streaming #47
+-        "stream": True,
++        "STREAM": True,
+### x_call_llm_streaming #48
+-        "stream": True,
++        "stream": False,
+### x_call_llm_streaming #50
+-    headers = {"Content-Type": "application/json"}
++    headers = {"XXContent-TypeXX": "application/json"}
+### x_call_llm_streaming #51
+-    headers = {"Content-Type": "application/json"}
++    headers = {"content-type": "application/json"}
+### x_call_llm_streaming #52
+-    headers = {"Content-Type": "application/json"}
++    headers = {"CONTENT-TYPE": "application/json"}
+### x_call_llm_streaming #53
+-    headers = {"Content-Type": "application/json"}
++    headers = {"Content-Type": "XXapplication/jsonXX"}
+### x_call_llm_streaming #54
+-    headers = {"Content-Type": "application/json"}
++    headers = {"Content-Type": "APPLICATION/JSON"}
+### x_call_llm_streaming #57
+-    async with inference_semaphore, httpx.AsyncClient(timeout=analyzer._timeout) as client:  # noqa: SIM117
++    async with inference_semaphore, httpx.AsyncClient(timeout=None) as client:  # noqa: SIM117
+### x_call_llm_streaming #58
+-            "POST",
++            None,
+### x_call_llm_streaming #59
+-            f"{analyzer._llm_url}/completion",
++            None,
+### x_call_llm_streaming #60
+-            json=payload,
++            json=None,
+### x_call_llm_streaming #61
+-            headers=headers,
++            headers=None,
+### x_call_llm_streaming #62
+-            "POST",
+### x_call_llm_streaming #63
+-            f"{analyzer._llm_url}/completion",
+### x_call_llm_streaming #64
+-            json=payload,
+### x_call_llm_streaming #65
+-            headers=headers,
+-        ) as response:
++            ) as response:
+### x_call_llm_streaming #66
+-            "POST",
++            "XXPOSTXX",
+### x_call_llm_streaming #67
+-            "POST",
++            "post",
+### x_call_llm_streaming #78
+-                        break
++                        return
+### x_call_llm_streaming #83
+-                        content = data.get("content", "")
++                        content = data.get("content", None)
+### x_call_llm_streaming #85
+-                        content = data.get("content", "")
++                        content = data.get("content", )
+### x_call_llm_streaming #88
+-                        content = data.get("content", "")
++                        content = data.get("content", "XXXX")
+### x_call_llm_streaming #89
+-                        logger.warning(f"Malformed SSE data: {data_str[:100]}")
++                        logger.warning(None)
+### x_call_llm_streaming #90
+-                        logger.warning(f"Malformed SSE data: {data_str[:100]}")
++                        logger.warning(f"Malformed SSE data: {data_str[:101]}")

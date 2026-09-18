@@ -5,7 +5,7 @@ Date: 2026-09-18 · WP4.3 mutation baseline. Status: **UNVERIFIED (read-only tri
 ## Data sources
 
 - Verdicts: `mutants/backend/services/pipeline_workers.py.meta` (`exit_code_by_key`). 1648 keys total: **1110 survived (exit 0)**, 538 killed, 0 unchecked.
-- Mutant diffs: extracted manually by diffing each `__mutmut_N` block in `mutants/backend/services/pipeline_workers.py` against the sibling `__mutmut_orig` block (`mutmut show` could not resolve the `ǁ`-mangled keys: `FileNotFoundError`). All 1110 diffs resolved mechanically; classification is deterministic (per-hunk keyword/anchor rule, 2 manual re-see cases noted below).
+- Mutant diffs: extracted manually by diffing each `__mutmut_N` block in `mutants/backend/services/pipeline_workers.py` against the sibling `__mutmut_orig` block (`mutmut show` could not resolve the `ǁ`-mangled keys: `FileNotFoundError`). All 1110 diffs resolved mechanically; classification is deterministic (per-hunk keyword/anchor rule), with four manual re-see cases noted inline: `broadcast_worker_event__mutmut_27` (appended to GAP_BROADCAST after the map was built), `__mutmut_40` (blank-line no-op → EQ_NOOP), and the two `drain_queues__mutmut_1` signature-default mutants (`timeout: float = 30.0` → `31.0`, EQ_NOOP → LV_TIMING).
 - Coverage: `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`.
 
 ## Covering test files
@@ -255,7 +255,7 @@ async def test_detection_run_loop_stream_mode_consumer_group_args(mock_redis_cli
 
 TDD: on `count=1` → `count=None`/removed, `block=True` → `False`, or `consumer_name,` → `None,`, the `consumed[0]` unpack asserts fail; on `continue` → `break`, the loop exits after the first empty read and `min_count=2` times out; on the delivery-count comparison mutation `move_to_dlq` is never awaited. Passes on original.
 
-### T4 — kills cluster 4 (detector/aggregator arg wiring) for image+video paths
+### T4 — kills clusters 4 + 23 + the detection-path part of 3 (arg wiring, validated fields, latency-recorder labels/values)
 
 Targets the same file (after `test_detection_worker_passes_job_data_to_retry_handler`, L2264ff). Reuses the stub-retry capture pattern already in the file.
 
@@ -268,7 +268,10 @@ async def test_detection_forwards_file_and_video_args_to_detector(
 
     Kills GAP_DETECT_PLUMBING survivors: image_path/camera_id/video_path -> None or
     deleted kwarg, max_frames/interval_seconds deletion, session deletion,
-    add_detection _file_path=video_path mutants, closure current_frame -> None.
+    add_detection _file_path=video_path mutants, closure current_frame -> None;
+    GAP_VALIDATION (camera_id/file_path = None, dispatch positional None);
+    GAP_METRICS detection-path survivors (stage labels, duration*1000 -> /1000/*1001/None,
+    record_stage_latency redis arg -> None).
     """
     captured: dict = {"image": None, "video": [], "extract": None, "add": []}
 
@@ -312,7 +315,14 @@ async def test_detection_forwards_file_and_video_args_to_detector(
         stop_timeout=TEST_STOP_TIMEOUT,
     )
     image_worker._retry_handler.with_retry = AsyncMock(side_effect=passthrough_retry)
-    with patch("backend.services.pipeline_workers.get_session", autospec=True) as gs:
+    with (
+        patch("backend.services.pipeline_workers.get_session", autospec=True) as gs,
+        patch("backend.services.pipeline_workers.observe_stage_duration") as obs,
+        patch("backend.services.pipeline_workers.record_pipeline_stage_latency") as recb,
+        patch(
+            "backend.services.pipeline_workers.record_stage_latency", new_callable=AsyncMock
+        ) as recs,
+    ):
         gs.return_value.__aenter__ = AsyncMock(return_value=AsyncMock())
         gs.return_value.__aexit__ = AsyncMock(return_value=None)
         await image_worker._process_detection_item(
@@ -328,6 +338,19 @@ async def test_detection_forwards_file_and_video_args_to_detector(
     assert captured["image"]["camera_id"] == "cam_a"            # kills camera_id -> None/del + validated _4/_5
     assert captured["image"]["session"] is not None             # kills session= deletion
     assert captured["add"][-1]["_file_path"] == "/data/a.jpg"
+
+    # GAP_METRICS detection-path asserts (cluster 3): both ms recorders receive the
+    # SAME duration * 1000 as observe_stage_duration, so one cross-check kills
+    # label case/None, /1000, *1001, ->None and the redis-arg -> None mutants.
+    obs_stage, obs_dur = obs.call_args.args
+    assert obs_stage == "detect"                                # stage label mutations
+    recb_stage, recb_ms = recb.call_args.args
+    assert recb_stage == "detect_to_batch"
+    assert recb_ms == pytest.approx(obs_dur * 1000, rel=1e-4)   # kills /1000, *1001, None
+    rargs = recs.call_args.args
+    assert rargs[0] is mock_redis_client                        # kills record_stage_latency redis -> None
+    assert rargs[1] == "detect"
+    assert rargs[2] == pytest.approx(obs_dur * 1000, rel=1e-4)
 
     # ---- video item ----
     captured["video"] = []
@@ -363,7 +386,7 @@ async def test_detection_forwards_file_and_video_args_to_detector(
     assert captured["add"][-1]["_file_path"] == "/data/v.mp4"   # video path, not frame path
 ```
 
-TDD: on `image_path=file_path,` → `None`, the `captured["image"]["image_path"]` assert fails; on `max_frames=` deletion the `extract_kwargs["max_frames"]` KeyErrors; on `current_frame = frame_path` → `None`, the frame-path assert fails; on the validated-field (`camera_id = None`) or dispatch-positional (`None, file_path, …`) mutants the camera/path asserts fail downstream. Passes on original. (Routing through `_process_detection_item` — same path `test_detection_worker_processes_video_item` (L1874) already exercises, so the dispatcher's latency-recorder calls are proven-safe under `mock_redis_client`.)
+TDD: on `image_path=file_path,` → `None`, the `captured["image"]["image_path"]` assert fails; on `max_frames=` deletion the `extract_kwargs["max_frames"]` KeyErrors; on `current_frame = frame_path` → `None`, the frame-path assert fails; on the validated-field (`camera_id = None`) or dispatch-positional (`None, file_path, …`) mutants the camera/path asserts fail downstream; on any `duration * 1000` scale mutation the `recb_ms ≈ obs_dur * 1000` cross-check breaks (both recorders read the same `duration` local). Passes on original. (Routing through `_process_detection_item` — same path `test_detection_worker_processes_video_item` (L1874) already exercises, so the dispatcher's latency-recorder calls are proven-safe under `mock_redis_client`.)
 
 ### T5 — kills clusters 8 + 9 (supervisor heartbeat throttling; manager wiring invariants)
 
@@ -452,7 +475,7 @@ async def test_manager_wires_shared_aggregator_and_config_into_workers(mock_redi
 
 TDD: on `batch_aggregator=self._aggregator,` deletion, `det._aggregator is manager._aggregator` fails (each worker constructs its own); on `stop_timeout=worker_stop_timeout` deletion `_stop_timeout` is the class default (10.0 ≠ 0.7). Passes on original.
 
-### T6 — kills clusters 3 + 10/11 (metrics label/value + cumulative error counters) in the detection loop
+### T6 — kills clusters 10 + 11 (labeled error types + cumulative error counters) in the detection loop
 
 ```python
 @pytest.mark.asyncio
@@ -511,6 +534,7 @@ TDD: on the `+= 1` → `= 1` mutant, errors never exceeds 1 → condition wait t
 
 ## Residual notes (what the drafted tests do NOT kill)
 
-- 417 EQ_LOG + 4 EQ_NOOP are permanently unkillable-by-design; WP4.4 should mark them equivalent in the baseline so the survival ratio stops absorbing them.
-- `duration * 1000` → `/ 1000`/`* 1001` mutants in the latency recorders (≈8 of cluster 3) are not killed by T6 (wall-clock duration is unbounded below); would need a clock-patched process-item test — flagged as follow-up, low priority.
+- 417 EQ_LOG + 1 EQ_NOOP + 10 EQ_TRANSIENT_STATE + 4 EQ_FALSY_SWAP (432 total) are recorded EQUIVALENT; WP4.4 should mark them equivalent in the baseline so the survival ratio stops absorbing them.
+- The detection-path `duration * 1000` scale mutants ARE covered — T4 cross-checks the two ms recorders against `observe_stage_duration("detect", duration)` (kills the label case/None, `/1000`, `*1001`, `→None` and redis-arg mutants at those three call sites; ≈25 of cluster 3's 77 are detection-path). The rest (≈52: `BatchTimeoutWorker` stage labels ≈27, analysis-path recorders ≈17, `QueueMetricsWorker` depth-value ≈6, manager ≈2) remain — same cross-check pattern extended to `duration_ms` in `_process_analysis_item` and a depth-value assert on the metrics worker; mechanical follow-up.
 - LV_* clusters (102) are recommended to be recorded as LOW-VALUE in the WP4.4 baseline rather than targeted; the one debatable case is LV_TASKNAMING's `name=` kwarg (tracked-task naming shows up in logs only).
+- Not every survivor in a targeted TEST-GAP cluster is claimed to die: T1/T2 cover the payload/label subset of the 222-strong GAP_BROADCAST (the `worker_type`/`reason`/`camera_id or ""`/key-case families), T3 the streams branch in full-ish, T5a heartbeat + T5b manager wiring. Remaining GAP_BROADCAST survivors in `_process_analysis_item` payload keys are the same assert-pattern extended per-key — listed in the WP4.4 plan as mechanical follow-up.
