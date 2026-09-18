@@ -5093,3 +5093,63 @@ timeout a class of mutants); ci.yml anti-rot list + mutation docs rewritten
 (the 2.x commands documented "how to run it" are now a warning box);
 frontend/stryker.config.mjs keeps its 3-module set on purpose (no baseline ->
 no widening; header records the ruling).
+
+## WP0.5 FOLLOW-THROUGH SLOW-RUNNER RETRY — CANCELLED IS NOT A VERDICT (2026-09-18)
+
+MEASURE (PR #6552, run 35353201418, commit `4805d98d`): API shard 1/2 degraded
+across THREE full attempts of the same commit — attempt 1 (12:17 UTC) passed in
+23m54s, a 20% margin under GitHub's 30m0s per-job cap; attempt 3 (full rerun —
+`--failed` doesn't re-produce junit XMLs from passed jobs, so the audit would
+have re-scored stale artifacts, the same stale-artifact no-op as the WP0.2-era
+TPA lesson) died to per-test 30s pytest-timeouts with ~10s uniform teardowns
+across unrelated tests; attempt 4 didn't even red — the shard was CANCELLED at
+the job cap (30m19s wall). Same tree passed at 12:17 and main hadn't moved:
+environment, not code. THE FINDING IS THE SECOND HALF: on attempt 4 **TPA was
+SUCCESS and CI Gate was SUCCESS** — because integration-tests-summary turned
+red only on the literal string `failure`, so the cancelled shard fell through
+to "All integration tests passed". Branch protection requires exactly ONE
+context (verified live: `required_status_checks` = [CI Gate (Required Checks)])
+— the merge box's 50+ other rows are non-required — so the repo's only gate
+reported green with the integration API tier dead. WP0.6's graph test cannot
+catch this
+class: statically the summary DOES read `needs.<x>.result`; the sever is the
+runtime string comparison — no static test reaches it.
+
+DECIDE (owner ruling 2026-09-18, on the pattern case WP0.5 pre-authorized —
+"if slow-runner reds recur as a pattern, the mitigation is runner-job retry of
+the AUDIT step's inputs, decided then"): retry ONLY `cancelled`, NEVER
+`failure` — retry-masking genuine failures is the class this repo has ruled
+against twice, and a slow-runner FAILURE indistinguishable from a regression
+stays red for the owner. The 30m job cap and the 10s/30s timing ceilings stay
+UNRAISED (raising a ceiling to pass = widening a gate; the new gate test pins
+the cap at 30 so a future edit must be a ruling, not a drift). A retry INSIDE
+the job cannot recover the observed terminal mode — the binding constraint was
+the cap the first attempt exhausted — and Actions has no step-level job retry,
+so recovery is a FRESH JOB with a fresh budget: a caller job calling a REUSABLE
+WORKFLOW, re-invoked by a sibling gated on `result == 'cancelled'`.
+
+IMPLEMENTATION (`feat/ci-shard-retry`, one ci.yml hunk region — a separate PR
+because ci.yml is exactly where #6553 collides, gate-semantics review units
+stay clean): `.github/workflows/integration-shard.yml` (new) is the API shard
+tier moved VERBATIM (pytest cmdline, timeouts, --splits 2, flake-k-filter pre-
+rerun, pg/redis services, coverage+junit uploads) with `inputs.shard` +
+`inputs.artifact-suffix` threaded — caller and retry are ONE definition (WP4.3
+proved N copies of one procedure rot). `-retry` suffix keeps upload-artifact
+names unique per run and preserves the TPA `test-results-*` / coverage-merge
+`coverage-integration-*` glob matches (pin-tested); reusable workflows inherit
+NO top-level env, so UV_VERSION is mirrored inside and pinned equal to ci.yml's
+(a drifting mirror = version skew in the retry tier only). TPA and
+integration-coverage-merge now also `need` the retry so their pattern-
+downloads see the retry's fresh files instead of a cancelled parent's partial
+uploads. The summary forgives a cancelled API shard ONLY against a green retry
+— every other job's non-success stays red exactly as before.
+`scripts/test_shard_retry_wiring.py` (new, red-first 12 fails -> green; wired
+into ci.yml's anti-rot steps) pins all of it; `test_ci_job_graph.py` stays
+green (35 jobs) — the summary reads BOTH api and retry results, so both stay
+GATE-reachable. Collateral honesty: `secrets: inherit` trips detect-secrets'
+Secret Keyword rule (a kwarg with no value) — annotated with the file's own
+line-level pragma precedent, no tree scoped out. NOT done on purpose: no unit-
+tier retry (15-min cap, pattern never observed there — speculative), no
+`failure` retry, no ceiling moves. THE SHARD-STANDING ITSELF: #6552 merges on
+its green CI Gate; this PR gives the next cancelled attempt a machine answer
+instead of an owner escalation.
