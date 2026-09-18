@@ -5178,3 +5178,22 @@ workers; full-G-tier censusing ≈ 35 h vs ~5 h — the parallel lane makes
 closing the whole TEST-GAP tier affordable instead of quietly scoping it out.
 /goal hard-rule sentence to be updated by owner to carry the carve-out (suggested
 wording delivered in-session 2026-09-18).
+
+## WP4.4 RECORD 2026-09-18 — container_discovery kill census (no-deletion record)
+
+MEASURE: full surviving-mutant census of backend/services/container_discovery.py
+against the CURRENT unit suite (all 696 tier-era survivors probed, one
+MUTANT_UNDER_TEST pytest run each — scripts/.wp44-killcount.py, serial lane,
+~2 h): **644 killed / 696 probed = 92.5%; 52 survivors remain**. Projected
+module tier score once kills commit and run7 re-measures: (162+644)/858 =
+**94.0%** (was 18.9%). The 52 survivor keys ARE the surviving-mutant record —
+recorded at .wp25-feed/wp44-kills/container_discovery-survivors.md; nothing in
+this module is deleted or declared covered except against that file.
+Distribution: build_service_configs 18 (regular ~27-index spacing => one
+repeating per-entry pattern — single-insight drafting candidate), discover_all
+16, \_create_managed_service 10, tail 8. First reads: log-cosmetic and
+parser-mock-absorbed families the batch deliberately did not police + a real
+residual tail for the next drafting round.
+Serial-lane note: census was ONE pytest job throughout; the owner-approved
+fan-out lane paused via /tmp/wp25/fanout.pause sentinel for validate.sh, then
+resumes — first production exercise of the carve-out hierarchy.
