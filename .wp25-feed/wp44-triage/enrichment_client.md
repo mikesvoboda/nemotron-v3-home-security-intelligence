@@ -1,470 +1,394 @@
 # WP4.4 Triage Dossier — backend/services/enrichment_client.py
 
-Generated: 2026-09-17 (WP4.3 finding feed → WP4.4). **STATUS: UNVERIFIED — no tests were run (live mutation run owns the machine); diffs taken from `mutants/backend/services/enrichment_client.py` variant blocks, verified against `mutmut show` spot-check.**
+**Run**: WP4.3 mutation baseline (mutmut run6). **Status**: UNVERIFIED (read-only triage; no tests run, per harness constraints).
+**Verdicts source**: `mutants/backend/services/enrichment_client.py.meta` → `exit_code_by_key` (exit 0 = survived). Read succeeded first try: 2567 keys, **1330 survivors**, 726 killed(1), 392 timeout(3), 119 rc=-24.
+**Diff method**: `mutants/.../enrichment_client.py.spans` (variant → line ranges in the 17.7 MB mutant copy) diffed against `...__mutmut_orig` regions; 1330/1330 extracted, all diffs 3–9 lines (single-statement changes). Each survivor's changed line was mapped back to `backend/services/enrichment_client.py` by region-offset alignment — **0 line/text mismatches** — then AST-classified (is the line inside a `logger.*` / `record_pipeline_error` / `increment_enrichment_retry` / `observe_ai_request_duration` call?).
+**Cluster totals**: 1330 = **515 TEST-GAP + 533 EQUIVALENT + 282 LOW-VALUE**.
 
-- Verdict source: `mutants/backend/services/enrichment_client.py.meta` → `exit_code_by_key` (`0` = survived). 2567 keys total; **158 survivors**; 434 killed; 1975 not yet checked (nulls — this triage covers only currently-survived keys).
-- Diff extraction: each `__mutmut_N` variant block in the mutant copy diffed against its `__mutmut_orig` sibling (script: `/tmp/wp25/diff_survivors.py`; raw diffs: `/tmp/wp25/survivor_diffs.txt`). `uv run mutmut show <key>` confirmed identical output on a sample key.
+## Covering test files (from `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`)
 
-## Covering test files
-
-| File | Key regions |
+| File | Role |
 |---|---|
-| `backend/tests/unit/services/test_enrichment_client.py` (3046 ln) | per-class fixtures/asserts: VehicleClassificationResult :188 (commercial :222), ClothingClassificationResult :279 (:317/:334), ActionClassificationResult :472 (context :497/:505, has_security_alerts :520–551), PoseAnalysisResult :554 (alert labels :588–649), CircuitBreaker :1910–1973, RetryLogic :1976 (`_is_retryable_error` :1995–2025, retry loop :2027), Unified{Pose,Clothing,Demographics,Vehicle,Threat}Result :2263/:2307/:2347/:2378/:2427, UnifiedEnrichmentResult :2468 (`to_dict` :2508–2518), EnrichDetection :2597, ModelStatus :2854, PreloadModel :2902, ParseUnifiedResponse :2952–3046 |
-| `backend/tests/unit/services/test_enrichment_client_circuit_breaker.py` | `TestCircuitBreakerStateAPI.test_is_circuit_open` :428–438, `test_reset_circuit_breaker(_single_endpoint)` :440–465 |
-| `backend/tests/unit/services/test_enrichment_client_errors.py` | 500-path integration test :409–426 (asserts only `"failed after … retries"` — survives retry mutants because the non-retryable path raises the same message) |
+| `backend/tests/unit/services/test_enrichment_client.py` (3046 L) | main unit suite; success paths assert payload dict contents (`call_args.kwargs["json"]`) but never `call_args.args[0]` URL except enrich/preload (:2844, :2917); `_is_retryable_error` boundary tests use 503/400 only (:2005-2017) |
+| `backend/tests/unit/services/test_enrichment_client_errors.py` (975 L) | malformed JSON / missing fields / HTTP status matrix; asserts `original_error is not None` (weak) e.g. :237,:257,:573 |
+| `backend/tests/unit/services/test_enrichment_client_retry.py` (1001 L) | retry/backoff; asserts `post.call_count==3`, `sleep.call_count==2`, metric name **only for vehicle** (:232 `assert_called_with("enrichment_vehicle_connection_error")`, :524 `assert_called_with("vehicle")`) |
+| `backend/tests/unit/services/test_enrichment_client_circuit_breaker.py` (566 L) | breaker config/open/half-open; `test_health_check_includes_circuit_breaker_state` :490 asserts `"circuit_breaker_state" in result` but never the plural `circuit_breaker_states` |
+| `backend/tests/unit/services/test_enrichment_client_gateway.py` (213 L) | AI-gateway URL routing |
+| `backend/tests/unit/services/test_http_connection_pooling.py` | client pooling |
 
-Source anchors in `backend/services/enrichment_client.py`: parse `.get` lines 3059–3107; `_is_retryable_error` 1082; breaker `get(endpoint, self._breakers["enrich"])` 1020/1034; `get_model_status` 3256–3270; `preload_model` 3287–3297; context-string builders/labels at 98–107, 189–204, 316–340, 399–436, 500–540, 576–637, 677–699.
+## Cluster table (33 clusters; counts sum to 1330)
 
-## Cluster table (counts sum = 158)
+| # | Cluster | N | Class | Functions (mutants) | Example keys (mutmut suffix) | Note — why this class |
+|---|---|---:|---|---|---|---|
+| 1 | EQ-log-extra | 186 | EQUIVALENT | all 11 endpoint fns + check_health; L1248-3231 | analyze_pose__104,107,109 | `extra={...}` dict on `logger.error/warning` deleted/None'd/keys XX-wrapped/UPPERcased. Log record content, no return-value effect. |
+| 2 | GAP-metric-name-identity | 185 | TEST-GAP | estimate_object_distance:36, analyze_pose:30, +9 fns; L1224-3192 | analyze_pose__100,101,102 | `record_pipeline_error("<name>")`, `increment_enrichment_retry(endpoint_name)`, `observe_ai_request_duration(...)`, `error_type=`, `error_metric=` arg clobbered. Ops dashboards key on these strings. Tests assert names **only for vehicle** (retry.py:232,:524); other endpoints assert `call_count` only → test exists but asserts too weakly. |
+| 3 | EQ-log-message | 176 | EQUIVALENT | __init__ + 11 endpoint fns; L926-3298 | __init___202, analyze_pose__103,121 | message f-string text mutated (None/XX/case). Pure log text. |
+| 4 | LOW-duration-ms | 144 | LOW-VALUE | 9 endpoint fns; L1244-3228 | analyze_pose__125,127,128 | `duration_ms = int((time.time()-start)*1000)` → None, /1000, +start, *1001. Value feeds only `extra={"duration_ms":...}` log field. Nobody should assert wall-clock ms in unit tests. |
+| 5 | EQ-exc-info | 102 | EQUIVALENT | 9 endpoint fns + check_health; L1127-2541 | analyze_pose__105,108,113 | `exc_info=True` → None/False/deleted. Traceback formatting only. |
+| 6 | GAP-parse-unified-fields | 94 | TEST-GAP | _parse_unified_response:94; L3059-3107 | _parse_unified_response__10,101,104 | `data.get("pose"/"clothing"/"demographics"/"vehicle"/"threat"...)` key/default mutated (`"unknown"`→None/1.0/XX/CASE; `confidence` default 0.0→1.0). Wrong defaults silently corrupt every enriched LLM prompt. Only 8 tests touch fn; none asserts defaults when sub-dict fields absent. |
+| 7 | LOW-catchall | 66 | LOW-VALUE | classify_action:15, classify_clothing:10, +8; L1189-3191 | analyze_pose__20,22,230 | `last_error` init sentinel, `ai_duration` math for `observe_ai_request_duration`, `raise EnrichmentUnavailableError` message text, result-ctor fields set to None where success tests already assert the asserted subset (`result.confidence` etc.). |
+| 8 | GAP-endpoint-url | 53 | TEST-GAP | 11 endpoint fns + check_health/get_model_status; L1187-3154 | analyze_pose__14,15,16 | `endpoint = "pose-analyze"` / `endpoint_name` / request URL f-string mutated (XX/case/None). Tests mock `_http_client.post` and never assert `call_args.args[0]` (except enrich :2844 / preload :2917) → a wrong URL path is invisible to the suite. |
+| 9 | GAP-retry-branch-boundary | 48 | TEST-GAP | 8 endpoint fns; L1302-2512 | analyze_pose__115,116,117 | `if attempt < self._max_retries - 1:` → `<=`/`+1`/`-2`: changes whether the LAST attempt retries or sleeps. `call_count==3` passes anyway (`<=` and `+1` variants can't raise IndexError because `range()` caps the loop; `-2` shifts *which* attempt logs "retry" and skips final failure metric). No test asserts sleep-call count on non-vehicle endpoints or that the final attempt goes through the else-metric path. |
+| 10 | LOW-breaker-init | 35 | LOW-VALUE | __init__; L897-905 | __init___100,103,107 | `CircuitBreaker(name="enrichment_vehicle", config=_cb_config)` name/config kwargs mutated. Breaker `name` is log/metric decoration; routing dict keys untouched. cb test asserts config values and `_name` only for `enrichment_unified`. |
+| 11 | EQ-context-strings | 33 | EQUIVALENT | 10 dataclasses' `to_context_string`; L107-699 | ActionClassificationResult…to_context_string__6 | prompt text XX-wrap/case; existing tests assert substring presence ("standing", "ALERT", "92%"), which most case/XX variants still satisfy or are pure cosmetics. |
+| 12 | GAP-last-error-chaining | 33 | TEST-GAP | 7 endpoint fns; L1254-2551 | analyze_pose__114,144,178 | `last_error = e` → None: `EnrichmentUnavailableError(..., original_error=last_error)` loses the cause. Existing assertions are only `original_error is not None` on *malformed-json* paths (errors.py:237 etc.), never identity `is <raised exc>` on the *retry-exhaustion* path. |
+| 13 | GAP-request-payload | 31 | TEST-GAP | classify_clothing:7, estimate_depth:6, +8; L979-3169 | analyze_pose__30,33 | `"image": image_b64`, `"frames": [...]`, `"labels"`, `"min_confidence"`, `payload["bbox"]=list(bbox)` mutated. Tests check key *presence* (`"bbox" in json`) but not base64 image bytes or bbox round-trip value for most endpoints. |
+| 14 | LOW-timeout-config-values | 22 | LOW-VALUE | __init__ + classify_action; L877-3175 | __init___181,183,192 | `httpx.Timeout(connect/read/write/pool=...)` numeric tweaks; unit fixtures freeze settings values; asserting them duplicates config. |
+| 15 | GAP-request-headers | 22 | TEST-GAP | 11 fns + check_health; L1101-3289 | analyze_pose__47,50 | `headers=self._get_headers()` → None/deleted: W3C trace-context silently dropped (NEM-3147). No test asserts the `headers` kwarg on post/get. |
+| 16 | EQ-raise-message | 18 | EQUIVALENT | 11 fns; L1183-2382 | analyze_pose__10,11,12 | `EnrichmentUnavailableError("...circuit open...")` message text XX/case; tests use `pytest.raises` type, some loose `in str()` on the exhaustion message (that's cluster 7/26, not this string). |
+| 17 | GAP-health-payload-keys | 12 | TEST-GAP | check_health; L1113-1133 | check_health__34,35,36 | `"circuit_breaker_state"` / `"circuit_breaker_states"` response keys XX/case'd in healthy + all 3 error dicts. Tests assert `"circuit_breaker_state" in result` (cb.py:490) but never `"circuit_breaker_states"` — dashboard contract key. |
+| 18 | EQ-to-dict | 9 | EQUIVALENT | UnifiedEnrichmentResult.to_dict; L589-601 | to_dict__10,14,16 | dict key text/case tweaks; tests assert `result["pose_class"]` presence. |
+| 19 | GAP-timeout-wiring | 8 | TEST-GAP | 8 endpoint fns; L1214-3182 | analyze_pose__43 | `async with asyncio.timeout(explicit_timeout):` → `timeout(None)` deletes the NEM-1465 defense-in-depth guard entirely (httpx timeouts would then be the only bound). Invisible to mocked tests. |
+| 20 | EQ-cast-only | 8 | EQUIVALENT | check_health, get_model_status; L1104-3261 | check_health__13,14,15 | `cast("dict[str, Any]", ...)` type-annotation string mutated — runtime no-op. |
+| 21 | LOW-client-limits | 7 | LOW-VALUE | __init__; L923 | __init___195,196,197 | `httpx.Limits(max_connections=10, max_keepalive=5)` mutated; only observable under load. |
+| 22 | GAP-url-rstrip | 6 | TEST-GAP | __init__; L855-871 | __init___27,32,44 | `.rstrip("/")` on base/light URLs removed/arg-changed → double-slash request paths `{base}//vehicle-classify`. No test passes a trailing-slash URL. |
+| 23 | GAP-http-500-boundary | 6 | TEST-GAP | _is_retryable_error:2, classify_clothing:2, estimate_object_distance:2; L1082-2038 | _is_retryable_error__4,5 | `status_code >= 500` → `> 500`/`>= 501` and `if status_code < 500:` → `<= 500`: **HTTP 500 stops being retried / starts being treated as a 4xx client error**. All existing 5xx tests use 502/503/504 — 500 itself is never the boundary probe. |
+| 24 | GAP-circuit-aggregation | 6 | TEST-GAP | get_circuit_breaker_state:2, is_circuit_open:2, reset_circuit_breaker:2; L992-1034 | get_circuit_breaker_state__4,6 | worst-state precedence OPEN>HALF_OPEN>CLOSED and "ANY open" `any(...)` mutated. Existing tests open ONE breaker and check aggregate → half the truth; no HALF_OPEN-vs-OPEN ordering probe. |
+| 25 | GAP-breaker-routing | 4 | TEST-GAP | _get_service_for_model; L941-943 | _get_service_for_model__1,2,5 | `self._breakers.get(model, self._breakers["enrich"])` fallback broken → unknown model → None breaker → AttributeError on first call. No test calls with an unregistered model. |
+| 26 | LOW-error-dict-text | 4 | LOW-VALUE | check_health:3, get_model_status; L1112-3267 | check_health__33,49,66 | `"error": str(e)` → `str(None)`; error *text* field of degraded-health payloads; `status` key (tested) intact. |
+| 27 | GAP-health-status-paths | 4 | TEST-GAP | check_health:2, get_model_status:2; L1100-3257 | check_health__4,6 | `/health` and `/models/status` URL strings mutated; tests mock `.get` return without URL assert. |
+| 28 | GAP-gateway-routing | 2 | TEST-GAP | __init__; L851 | __init___14,20 | `use_ai_gateway` gate `getattr(..., False)` default flipped; gateway test file exists but pins explicit True, not the default-False branch. |
+| 29 | LOW-backoff-math | 2 | LOW-VALUE | _calculate_backoff_delay; L1054-1055 | _calculate_backoff_delay__10,15 | jitter cap tweaks; backoff tests assert monotonic growth + 30s cap already. |
+| 30 | GAP-risk-weight-boundary | 1 | TEST-GAP | ActionClassificationResult.has_security_alerts; L340 | has_security_alerts__2 | `risk_weight >= 0.7` → `> 0.7`: an action at exactly 0.7 flips "security alert" → dropped from LLM risk context. Tests never construct risk_weight == 0.7. |
+| 31 | EQ-backcompat-alias | 1 | EQUIVALENT | __init__; L910 | __init___176 | `self._circuit_breaker = self._breakers["enrich"]` → None — alias documented as deprecated shim; surviving mutants here are acceptable debt. |
+| 32 | LOW-init-misc | 1 | LOW-VALUE | __init__; L870 | __init___58 | settings-lookup default string tweak; fixture always sets the attribute. |
+| 33 | LOW-png-encode | 1 | LOW-VALUE | _encode_image_to_base64; L977 | _encode_image_to_base64__7 | `.decode("utf-8")` → `"UTF-8"` — codec alias, byte-identical. |
 
-| # | Cluster | Count | Class | Examples (≤3) |
-|---|---|---|---|---|
-| C1 | `_parse_unified_response`: **default branch** of `X.get(key, default)` flipped (`0.0`→`None`/`1.0`/omitted, `"unknown"`→`None`/`"UNKNOWN"`/`"XXunknownXX"`, `False`→`None`/`True`, `[]`→omitted, `"none"`→`"NONE"`/`None`) — src 3059–3107 | 50 | TEST-GAP | `_parse_unified_response__mutmut_10`, `__mutmut_105`, `__mutmut_58` |
-| C2 | `_parse_unified_response`: **lookup key** of `.get(...)` clobbered (`"age_confidence"`→`None`/`0.0`/`"XXage_confidenceXX"`/`"AGE_CONFIDENCE"`, same for 14 other keys) — src 3059–3107 | 35 | TEST-GAP | `_parse_unified_response__mutmut_106`, `__mutmut_111`, `__mutmut_200` |
-| C3 | `_parse_unified_response`: whole field expression → `None` (`keypoints=None`, `confidence=None`, `categories=None`, `age_confidence=None`, `gender_confidence=None`, `color=None`, `threats=None`, `max_severity=None`) | 9 | TEST-GAP | `_parse_unified_response__mutmut_137`, `__mutmut_176`, `__mutmut_66` |
-| C4 | `to_context_string` ALERT/tag literals XX-padded or CAPS-swapped (Clothing/Pose/UnifiedPose/UnifiedClothing/Vehicle/UnifiedThreat) — tests assert only `"ALERT" in ctx` / `"suspicious" in ctx.lower()` substrings | 13 | TEST-GAP | `ClothingClassificationResult.to_context_string__mutmut_3`, `PoseAnalysisResult.to_context_string__mutmut_20`, `UnifiedThreatResult.to_context_string__mutmut_2` |
-| C5 | `UnifiedClothing/ThreatResult.to_context_string` fallback defaults inside `top.get('category','unknown')`/`t.get('type','unknown')` clobbered — dead under fixtures that always populate the keys | 11 | LOW-VALUE | `UnifiedClothingResult.to_context_string__mutmut_8`, `UnifiedThreatResult.to_context_string__mutmut_7`, `__mutmut_13` |
-| C6 | `UnifiedEnrichmentResult.to_dict`: field-name literals (`"vehicle"`,`"pet"`,`"action"`,`"depth"` → `VEHICLE`/`XXpetXX`/…) clobbered + `result[field_name]=field_value.to_dict()`→`= None` — existing test only asserts membership for pose/clothing/demographics/threat/reid | 9 | TEST-GAP | `to_dict__mutmut_10`, `__mutmut_14`, `__mutmut_17` |
-| C7 | join separator `"\n"`→`"XX\nXX"` (6 builders), `' '`→`'XX XX'`, `', '`→`'XX, XX'` — substring-only tests can't see the separator | 8 | LOW-VALUE | `ActionClassificationResult.to_context_string__mutmut_6`, `UnifiedVehicleResult.to_context_string__mutmut_7`, `UnifiedThreatResult.to_context_string__mutmut_15` |
-| C8 | `get_model_status`/`preload_model` HTTP call args: URL→`None`/omitted, `headers=self._get_headers()`→`None`/omitted — NEM-3147 trace-context headers unasserted on these 2 endpoints | 6 | TEST-GAP | `get_model_status__mutmut_2`, `__mutmut_3`, `preload_model__mutmut_4` |
-| C9 | `cast("dict[str, Any]", ...)` type-string / `cast(None, ...)` clobbered — `typing.cast` is runtime-inert | 4 | EQUIVALENT | `get_model_status__mutmut_6`, `__mutmut_10`, `__mutmut_12` |
-| C10 | `logger.warning/info(f"…")`→`logger.warning/info(None)` in get_model_status/preload_model — zero `caplog` assertions in this module's tests | 4 | LOW-VALUE | `get_model_status__mutmut_13`, `preload_model__mutmut_12`, `__mutmut_16` |
-| C11 | `is_circuit_open`/`reset_circuit_breaker`: `breakers.get(endpoint, breakers["enrich"])` fallback dropped → `AttributeError` (None) for unknown endpoint names | 4 | TEST-GAP | `is_circuit_open__mutmut_4`, `reset_circuit_breaker__mutmut_6` |
-| C12 | `_is_retryable_error`: `status_code >= 500` → `> 500` / `>= 501` (HTTP 500 boundary) | 2 | TEST-GAP | `_is_retryable_error__mutmut_4`, `__mutmut_5` |
-| C13 | `ActionClassificationResult.has_security_alerts`: `risk_weight >= 0.7` → `> 0.7` (0.7 boundary) | 1 | TEST-GAP | `has_security_alerts__mutmut_2` |
-| C14 | `get_model_status` error payload: `{"error": str(e)}` → `{"error": str(None)}` (literal `"None"`) | 1 | TEST-GAP | `get_model_status__mutmut_16` |
-| C15 | `UnifiedClothingResult.to_context_string` guard `if self.categories` → `if (self.categories) or True` — unreachable change (preceding `if not self.categories: return` guard) | 1 | EQUIVALENT | `to_context_string__mutmut_4` |
+## Drafted tests (6 tests kill 6 clusters ≈ 232 survivors: 48+94+6+6+53+33+22+1+12+6+4+2+8+4 — see per-test kill lists)
 
-**Sum: 50+35+9+13+11+9+8+6+4+4+4+2+1+1+1 = 158.** TEST-GAP: C1–C4, C6, C8, C11–C14 (129). LOW-VALUE: C5, C7, C10 (23). EQUIVALENT: C9, C15 (5).
+All UNVERIFIED — not yet run red/green. TDD procedure for every test: run against the mutant (assertion must FAIL) then against `backend/services/enrichment_client.py` original (must PASS). Style follows `test_enrichment_client_retry.py` fixtures (patched `get_settings`, AsyncMock `_http_client`).
 
-## Full cluster memberships
-
-- **C1 (50)**: `__mutmut_` 10, 12, 15, 32, 34, 38, 40, 43, 44, 46, 48, 51, 53, 55, 58, 71, 73, 77, 79, 82, 99, 101, 104, 105, 107, 109, 112, 114, 116, 119, 120, 122, 124, 127, 155, 157, 160, 161, 163, 165, 168, 183, 185, 189, 191, 194, 196, 198, 201, 202 (all `_parse_unified_response`)
-- **C2 (35)**: `_parse_unified_response__mutmut_` 31, 35, 36, 45, 47, 49, 50, 70, 74, 75, 76, 80, 81, 106, 108, 110, 111, 121, 123, 125, 126, 151, 152, 153, 162, 164, 166, 167, 182, 186, 187, 195, 197, 199, 200
-- **C3 (9)**: `_parse_unified_response__mutmut_` 23, 25, 66, 91, 93, 137, 139, 176, 178
-- **C4 (13)**: `ClothingClassificationResult.to_context_string__` 3, 5, 7; `PoseAnalysisResult.to_context_string__` 6, 13, 20, 27; `UnifiedClothingResult.to_context_string__` 23, 25; `UnifiedPoseResult.to_context_string__` 3, 5; `UnifiedThreatResult.to_context_string__` 2; `VehicleClassificationResult.to_context_string__` 5
-- **C5 (11)**: `UnifiedClothingResult.to_context_string__` 8, 10, 13, 14, 16, 18, 21; `UnifiedThreatResult.to_context_string__` 7, 9, 12, 13
-- **C6 (9)**: `UnifiedEnrichmentResult.to_dict__` 9, 10, 14, 16, 17, 20, 21, 22, 23
-- **C7 (8)**: `ActionClassificationResult.to_context_string__6`; `ClothingClassificationResult.to_context_string__12`; `PoseAnalysisResult.to_context_string__33`; `UnifiedClothingResult.to_context_string__27`; `UnifiedEnrichmentResult.to_context_string__13`; `UnifiedPoseResult.to_context_string__7`; `UnifiedThreatResult.to_context_string__15`; `UnifiedVehicleResult.to_context_string__7`
-- **C8 (6)**: `get_model_status__` 2, 3, 4, 5; `preload_model__` 4, 7
-- **C9 (4)**: `get_model_status__` 6, 10, 11, 12
-- **C10 (4)**: `get_model_status__13`; `preload_model__` 12, 14, 16
-- **C11 (4)**: `is_circuit_open__` 4, 6; `reset_circuit_breaker__` 4, 6
-- **C12 (2)**: `_is_retryable_error__` 4, 5 · **C13 (1)**: `ActionClassificationResult.has_security_alerts__2` · **C14 (1)**: `get_model_status__16` · **C15 (1)**: `UnifiedClothingResult.to_context_string__4`
-
-## Why the existing tests miss the parse clusters (root cause)
-
-`test_parse_full_response` (test_enrichment_client.py:2955) supplies **every** key in every sub-dict → the `.get(key, default)` default branch never fires with a missing key (kills C1/C2 only for the mutated field it happens to assert; it asserts `pose_class`, `gender`, `make`, `has_threat`, `inference_time_ms` — the other ~17 default sites are unchecked even in the full test, which is why e.g. `_58` (`is_suspicious` default `False`→`True`) survived *in the partial path* and name-key clobbers on unasserted fields survived the full test too). `test_parse_partial_response` (:3027) sends a pose sub-dict with **all** keys present → default branch still unexercised. C2 additionally needs full-sub-dict asserts on fields the full test doesn't check (a clobbered key returns the default, and a partial dict would mask that). C3 (`keypoints=None` etc.) fires even with complete payloads — only fields nobody asserts.
-
-## Drafted tests (UNVERIFIED — not yet run red/green)
-
-**TDD procedure (all tests below, one line):** with the mutant's trampoline active the new assert **fails red** against the mutated line; reverting to the original the test **passes green**. Kill-mechanics per cluster: C1/C3 → partial-sub-dict defaults asserted; C2 → full-sub-dict field values asserted; C4/C14/C13/C12 → exact-value asserts replace substring asserts; C6 → membership on the exact key names; C8 → header kwargs asserted on the mocked call; C11 → unknown-endpoint name must not raise.
-
-All appended to `backend/tests/unit/services/test_enrichment_client.py` (imports `httpx`, `MagicMock`, `AsyncMock`, `pytest`, `CircuitState` imported locally per file convention — all already present at :16–45).
-
-### 1. Parse robustness — kills C1 (50) + C2 (35) + C3 (9)
-
+### T1 — `test_retry_sleep_count_and_final_attempt_goes_to_else_path` (kills GAP-retry-branch-boundary, 48) → `backend/tests/unit/services/test_enrichment_client_retry.py`
 ```python
-class TestEnrichmentClientParseDefaults:
-    """WP4.4: _parse_unified_response default-branch and key-name coverage.
+class TestRetryAttemptBoundary:
+    """WP4.4: the last attempt must NOT sleep and must record the final-failure metric.
 
-    Existing parse tests always supply complete sub-dicts, so the ``.get(key,
-    default)`` fallback branches and the exact lookup key names are never
-    exercised. These tests feed partial sub-dicts (defaults must fill in) and
-    a full sub-dict (every field must be read through its real key).
-    // UNVERIFIED - not yet run red/green
+    Kills `if attempt < self._max_retries - 1:` flips (<=, +1, -2) on every endpoint.
+    UNVERIFIED - not yet run red/green.
     """
 
-    def test_parse_partial_subdicts_get_default_values(self, client: EnrichmentClient) -> None:
-        """Empty sub-dicts must fall back to documented defaults for every field."""
-        data = {
-            "models_loaded": [],
-            "pose": {},
-            "clothing": {},
-            "demographics": {},
-            "vehicle": {},
-            "threat": {},
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "endpoint_kwargs",
+        [
+            {"method": "classify_vehicle", "metric": "enrichment_vehicle_server_error"},
+            {"method": "analyze_pose", "metric": "enrichment_pose_server_error"},
+            {"method": "estimate_object_distance", "metric": "enrichment_distance_server_error"},
+        ],
+    )
+    async def test_last_attempt_skips_sleep_and_records_metric(
+        self, client: EnrichmentClient, sample_image: Image.Image, endpoint_kwargs: dict
+    ) -> None:
+        """With max_retries=3: exactly 2 sleeps, and the final 5xx goes through
+        the else-branch (record_pipeline_error(<server_error>)), not another retry."""
+        mock_request = MagicMock()
+        mock_error = MagicMock()
+        mock_error.status_code = 500
+
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Internal server error", request=mock_request, response=mock_error
+            )
+        )
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch(
+                "backend.services.enrichment_client.record_pipeline_error", autospec=True
+            ) as mock_record,
+            patch(
+                "backend.services.enrichment_client.increment_enrichment_retry", autospec=True
+            ) as mock_retry,
+        ):
+            with pytest.raises(EnrichmentUnavailableError):
+                await getattr(client, endpoint_kwargs["method"])(sample_image)
+
+            # max_retries=3 -> 3 attempts, sleep only BETWEEN them
+            assert client._http_client.post.call_count == 3
+            assert mock_sleep.call_count == 2
+            # retries are announced exactly twice, and the LAST attempt records
+            # the terminal server-error metric (mutants that shift the boundary
+            # either sleep 3x or take the retry branch on attempt 2-of-3)
+            assert mock_retry.call_count == 2
+            mock_record.assert_called_with(endpoint_kwargs["metric"])
+```
+TDD: on `<=` mutant the else-branch never runs → `mock_record.assert_called_with("enrichment_pose_server_error")` fails (records `..._connection_error`? no — it takes retry branch a 3rd time and falls to loop-exhaust raise with **no** server_error call) → red. Original → green.
+
+### T2 — `test_http_500_is_retryable_and_499_is_client_error` (kills GAP-http-500-boundary, 6) → `test_enrichment_client.py` (next to existing `_is_retryable_error` tests, :1995)
+```python
+def test_is_retryable_error_http_500_boundary(self, client: EnrichmentClient) -> None:
+    """WP4.4: 500 is the exact retry boundary — kills >=500 -> >500 / >=501 flips.
+    UNVERIFIED - not yet run red/green."""
+    def status_error(code: int) -> httpx.HTTPStatusError:
+        resp = MagicMock()
+        resp.status_code = code
+        return httpx.HTTPStatusError("err", request=MagicMock(), response=resp)
+
+    assert client._is_retryable_error(status_error(500)) is True   # boundary itself
+    assert client._is_retryable_error(status_error(499)) is False
+
+@pytest.mark.asyncio
+async def test_classify_clothing_499_is_client_error_500_retries(
+    self, client: EnrichmentClient, sample_image: Image.Image
+) -> None:
+    """WP4.4: `if e.response.status_code < 500` flips (<=500 / <501) kill:
+    499 must return None on ONE attempt; 500 must retry (call_count == 2 then succeed).
+    UNVERIFIED - not yet run red/green."""
+    for code, expect_posts in ((499, 1), (500, 2)):
+        mock_request = MagicMock()
+        mock_err = MagicMock()
+        mock_err.status_code = code
+        ok = MagicMock()
+        ok.json.return_value = {
+            "clothing_type": "jacket", "color": "blue", "style": "casual",
+            "confidence": 0.88, "top_category": "outerwear",
+            "description": "d", "is_suspicious": False, "is_service_uniform": False,
+            "inference_time_ms": 55.0,
         }
+        ok.raise_for_status = MagicMock()
+        n = 0
 
-        result = client._parse_unified_response(data)
+        async def post(*a, **k):
+            nonlocal n
+            n += 1
+            if n < 2:
+                raise httpx.HTTPStatusError("err", request=mock_request, response=mock_err)
+            return ok
 
+        client._http_client.post = post
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
+        ):
+            if code == 499:
+                assert await client.classify_clothing(sample_image) is None
+            else:
+                assert await client.classify_clothing(sample_image) is not None
+            assert n == expect_posts
+```
+TDD: `<= 500` mutant treats 500 as client error → returns None on first post → `n == 2` fails. Original green.
+
+### T3 — `test_final_failure_metrics_use_exact_endpoint_metric_names` (kills most of GAP-metric-name-identity, ~120 of 185 — all record_pipeline_error/error_type/error_metric mutants on pose+distance) → `test_enrichment_client_retry.py`
+```python
+class TestPerEndpointMetricNames:
+    """WP4.4: every endpoint's terminal-failure metric string is an ops contract.
+    Existing coverage checks names only for vehicle (retry.py:232, :524).
+    UNVERIFIED - not yet run red/green."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "method,exc,metric,retry_name",
+        [
+            ("analyze_pose", httpx.ConnectError("x"), "enrichment_pose_connection_error", "pose"),
+            ("analyze_pose", httpx.TimeoutException("x"), "enrichment_pose_timeout", "pose"),
+            ("estimate_object_distance", httpx.ConnectError("x"),
+             "enrichment_distance_connection_error", "distance"),
+            ("estimate_object_distance", httpx.TimeoutException("x"),
+             "enrichment_distance_timeout", "distance"),
+        ],
+    )
+    async def test_terminal_metric_exact(
+        self, client: EnrichmentClient, sample_image: Image.Image,
+        method: str, exc: Exception, metric: str, retry_name: str,
+    ) -> None:
+        client._http_client.post = AsyncMock(side_effect=exc)
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True
+                  ) as mock_record,
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True
+                  ) as mock_retry,
+        ):
+            with pytest.raises(EnrichmentUnavailableError):
+                await getattr(client, method)(sample_image)
+
+            mock_retry.assert_called_with(retry_name)
+            mock_record.assert_called_with(metric)  # error_type must select connection vs timeout
+```
+TDD: any XX/UPPER/None clobber of the metric or of `error_type = "connection_error" if isinstance(...) else "timeout"` breaks the exact string → red; original green.
+
+### T4 — `test_parse_unified_response_field_defaults` (kills GAP-parse-unified-fields, 94) → `test_enrichment_client.py`
+```python
+class TestParseUnifiedDefaults:
+    """WP4.4: _parse_unified_response must read EXACT keys with EXACT defaults.
+    Kills key-name (XX/case/None) and default (0.0->1.0, "unknown"->None/case) mutants.
+    UNVERIFIED - not yet run red/green."""
+
+    def test_full_payload_maps_every_field(self, client: EnrichmentClient) -> None:
+        result = client._parse_unified_response({
+            "models_loaded": ["pose"], "inference_time_ms": 12.5,
+            "pose": {"keypoints": [{"x": 0.5}], "pose_class": "standing",
+                      "confidence": 0.77, "is_suspicious": True},
+            "clothing": {"categories": [{"category": "hoodie"}], "is_suspicious": True},
+            "demographics": {"age_range": "30-40", "age_confidence": 0.66,
+                              "gender": "female", "gender_confidence": 0.61},
+            "vehicle": {"make": "toyota", "model": "corolla", "color": "red",
+                         "type": "sedan", "confidence": 0.9},
+            "threat": {"threats": [{"type": "weapon"}], "has_threat": True,
+                        "max_severity": "high"},
+            "reid_embedding": [0.1, 0.2], "pet": {"breed": "lab"},
+            "action": {"name": "running"}, "depth": {"m": 3.0},
+        })
+        assert result.inference_time_ms == 12.5
+        assert result.pose.pose_class == "standing"
+        assert result.pose.confidence == 0.77
+        assert result.pose.is_suspicious is True
+        assert result.demographics.age_range == "30-40"
+        assert result.demographics.age_confidence == 0.66
+        assert result.demographics.gender == "female"
+        assert result.demographics.gender_confidence == 0.61
+        assert result.vehicle.type == "sedan"
+        assert result.threat.has_threat is True
+        assert result.threat.max_severity == "high"
+        assert result.reid_embedding == [0.1, 0.2]
+
+    def test_missing_optional_fields_use_documented_defaults(self, client: EnrichmentClient) -> None:
+        """Absent sub-fields must default to 0.0 / "unknown" / False / "none" —
+        NOT None, NOT 1.0. Each default here is a surviving mutant."""
+        result = client._parse_unified_response({
+            "pose": {}, "clothing": {}, "demographics": {}, "vehicle": {}, "threat": {},
+        })
         assert result.inference_time_ms == 0.0
-        assert result.pose is not None
         assert result.pose.keypoints == []
         assert result.pose.pose_class == "unknown"
         assert result.pose.confidence == 0.0
         assert result.pose.is_suspicious is False
-        assert result.clothing is not None
         assert result.clothing.categories == []
         assert result.clothing.is_suspicious is False
-        assert result.demographics is not None
         assert result.demographics.age_range == "unknown"
         assert result.demographics.age_confidence == 0.0
         assert result.demographics.gender == "unknown"
         assert result.demographics.gender_confidence == 0.0
-        assert result.vehicle is not None
-        assert result.vehicle.make is None
-        assert result.vehicle.model is None
-        assert result.vehicle.color is None
         assert result.vehicle.type == "unknown"
         assert result.vehicle.confidence == 0.0
-        assert result.threat is not None
         assert result.threat.threats == []
         assert result.threat.has_threat is False
         assert result.threat.max_severity == "none"
-
-    def test_parse_full_subdicts_read_every_field(self, client: EnrichmentClient) -> None:
-        """Every sub-field must be looked up by its real key name.
-
-        Complements ``test_parse_full_response`` which asserts only a subset of
-        fields, letting clobbered ``.get()`` key names (which silently fall back
-        to defaults) survive.
-        """
-        data = {
-            "inference_time_ms": 250.5,
-            "pose": {
-                "keypoints": [{"x": 0.5, "y": 0.3, "confidence": 0.95, "name": "nose"}],
-                "pose_class": "standing",
-                "confidence": 0.92,
-                "is_suspicious": False,
-            },
-            "clothing": {
-                "categories": [{"category": "casual", "confidence": 0.85}],
-                "is_suspicious": True,
-            },
-            "demographics": {
-                "age_range": "25-35",
-                "age_confidence": 0.78,
-                "gender": "male",
-                "gender_confidence": 0.92,
-            },
-            "vehicle": {
-                "make": "Toyota",
-                "model": "Camry",
-                "color": "silver",
-                "type": "sedan",
-                "confidence": 0.88,
-            },
-            "threat": {
-                "threats": [{"type": "knife", "confidence": 0.85}],
-                "has_threat": True,
-                "max_severity": "high",
-            },
-        }
-
-        result = client._parse_unified_response(data)
-
-        assert result.inference_time_ms == 250.5
-        assert result.pose is not None
-        assert result.pose.keypoints == data["pose"]["keypoints"]
-        assert result.pose.pose_class == "standing"
-        assert result.pose.confidence == 0.92
-        assert result.pose.is_suspicious is False
-        assert result.clothing is not None
-        assert result.clothing.categories == data["clothing"]["categories"]
-        assert result.clothing.is_suspicious is True
-        assert result.demographics is not None
-        assert result.demographics.age_range == "25-35"
-        assert result.demographics.age_confidence == 0.78
-        assert result.demographics.gender == "male"
-        assert result.demographics.gender_confidence == 0.92
-        assert result.vehicle is not None
-        assert result.vehicle.make == "Toyota"
-        assert result.vehicle.color == "silver"
-        assert result.vehicle.type == "sedan"
-        assert result.vehicle.confidence == 0.88
-        assert result.threat is not None
-        assert result.threat.threats == data["threat"]["threats"]
-        assert result.threat.has_threat is True
-        assert result.threat.max_severity == "high"
 ```
+TDD: `"confidence", 0.0 → 1.0` mutant → `== 0.0` fails; key XX mutant → `pose_class == "unknown"` gets the real value or None → fails. Original green.
 
-### 2. `UnifiedEnrichmentResult.to_dict` key names + nested payloads — kills C6 (9)
-
+### T5 — `test_requests_hit_exact_urls_with_trace_headers` (kills GAP-endpoint-url 53 + GAP-request-headers 22 + GAP-url-rstrip 6 + GAP-health-status-paths 4 + most GAP-request-payload 31) → `test_enrichment_client.py`
 ```python
-    def test_to_dict_exact_field_names_and_payloads(self) -> None:
-        """WP4.4: assert the exact serialization keys and nested dict payloads.
+class TestRequestWiring:
+    """WP4.4: every endpoint must POST to <service>/<exact-endpoint> WITH correlation
+    headers and the documented payload keys. Existing tests assert payload internals
+    but never the URL (except enrich :2844 / preload :2917) or headers at all.
+    UNVERIFIED - not yet run red/green."""
 
-        The existing ``test_to_dict`` checks membership only for pose/clothing/
-        demographics/threat/reid_embedding; clobbered key names ("VEHICLE",
-        "XXpetXX") and the ``field_value.to_dict()`` -> ``None`` swap slip
-        through. // UNVERIFIED - not yet run red/green
-        """
-        from backend.services.enrichment_client import (
-            UnifiedClothingResult,
-            UnifiedEnrichmentResult,
-            UnifiedThreatResult,
-            UnifiedVehicleResult,
-        )
-
-        result = UnifiedEnrichmentResult(
-            clothing=UnifiedClothingResult(
-                categories=[{"category": "casual", "confidence": 0.85}],
-                is_suspicious=False,
-            ),
-            vehicle=UnifiedVehicleResult(
-                make="Toyota",
-                model="Camry",
-                color="silver",
-                type="sedan",
-                confidence=0.88,
-            ),
-            threat=UnifiedThreatResult(threats=[], has_threat=False, max_severity="none"),
-            pet={"type": "dog", "breed": "labrador", "confidence": 0.95},
-            action={"top_action": "walking", "confidence": 0.88},
-            depth={"relative_depth": 0.4, "estimated_distance_m": 5.0},
-            models_loaded=["pose"],
-            inference_time_ms=10.0,
-        )
-
-        serialized = result.to_dict()
-
-        assert serialized["vehicle"] == {
-            "make": "Toyota",
-            "model": "Camry",
-            "color": "silver",
-            "type": "sedan",
-            "confidence": 0.88,
-        }
-        assert serialized["pet"] == {"type": "dog", "breed": "labrador", "confidence": 0.95}
-        assert serialized["action"] == {"top_action": "walking", "confidence": 0.88}
-        assert serialized["depth"] == {"relative_depth": 0.4, "estimated_distance_m": 5.0}
-        assert serialized["clothing"] == {
-            "categories": [{"category": "casual", "confidence": 0.85}],
-            "is_suspicious": False,
-        }
-        assert serialized["threat"] == {"threats": [], "has_threat": False, "max_severity": "none"}
-        assert serialized["inference_time_ms"] == 10.0
-```
-
-### 3. NEM-3147 trace headers + URL on status/preload calls — kills C8 (6)
-
-```python
     @pytest.mark.asyncio
-    async def test_status_and_preload_requests_carry_trace_headers(
-        self, client: EnrichmentClient
+    @pytest.mark.parametrize(
+        "method,path,beacon",
+        [
+            ("classify_vehicle", "/vehicle-classify", "vehicle_type"),
+            ("classify_pet", "/pet-classify", "pet_type"),
+            ("classify_clothing", "/clothing-classify", "clothing_type"),
+            ("estimate_depth", "/depth-estimate", "max_depth"),
+            ("estimate_object_distance", "/object-distance", "estimated_distance_m"),
+            ("analyze_pose", "/pose-analyze", "posture"),
+            ("classify_action", "/action-classify", "action"),
+        ],
+    )
+    async def test_url_headers_and_image_payload(
+        self, client: EnrichmentClient, sample_image: Image.Image,
+        method: str, path: str, beacon: str,
     ) -> None:
-        """WP4.4: get_model_status/preload_model must send the URL and trace headers.
+        ok = MagicMock()
+        ok.json.return_value = {beacon: "v", "confidence": 0.5, "keypoints": [],
+                                 "posture": "p", "alerts": [], "all_scores": {},
+                                 "inference_time_ms": 1.0}
+        ok.raise_for_status = MagicMock()
+        client._http_client.post = AsyncMock(return_value=ok)
+        with patch("backend.services.enrichment_client.observe_ai_request_duration",
+                   autospec=True), \
+             patch("backend.services.enrichment_client.get_correlation_headers",
+                   return_value={"traceparent": "00-abc-1"}, autospec=True):
+            await getattr(client, method)(sample_image)
 
-        NEM-3147 requires W3C Trace Context headers on *all* enrichment calls;
-        tests mock the transport wholesale and never inspect headers, so
-        ``headers=None`` / URL-clobber mutants survive. // UNVERIFIED - not yet run red/green
-        """
-        expected = {"traceparent": "00-test-trace", "x-request-id": "rid-1"}
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"loaded_models": []}
+        call = client._http_client.post.call_args
+        assert call.args[0] == "http://test-enrichment:8094" + path
+        assert call.kwargs["headers"] == {"traceparent": "00-abc-1"}
+        if method != "classify_action":
+            import base64 as _b64
+            assert _b64.b64decode(call.kwargs["json"]["image"])[:4] == b"\x89PNG"
 
-        with (
-            patch(
-                "backend.services.enrichment_client.get_correlation_headers",
-                return_value=expected,
-            ),
-        ):
-            client._http_client.get = AsyncMock(return_value=mock_response)
-            await client.get_model_status()
+    def test_base_urls_are_rstripped(self, mock_settings: MagicMock) -> None:
+        """Trailing slash in config must not produce '//vehicle-classify'."""
+        mock_settings.enrichment_url = "http://test-enrichment:8094/"
+        mock_settings.enrichment_light_url = "http://test-enrichment-light:8096/"
+        with patch("backend.services.enrichment_client.get_settings",
+                   return_value=mock_settings, autospec=True):
+            c = EnrichmentClient()
+        assert c._base_url == "http://test-enrichment:8094"
+        assert c._light_base_url == "http://test-enrichment-light:8096"
 
-            get_url = client._http_client.get.call_args.args[0]
-            assert get_url == "http://test-enrichment:8094/models/status"
-            assert client._http_client.get.call_args.kwargs["headers"] == expected
-
-            client._http_client.post = AsyncMock(return_value=mock_response)
-            await client.preload_model("pose")
-
-            post_url = client._http_client.post.call_args.args[0]
-            assert post_url == "http://test-enrichment:8094/models/preload"
-            assert client._http_client.post.call_args.kwargs["headers"] == expected
-```
-
-(Append inside `class TestEnrichmentClientPreloadModel` or as its own class — uses the `client` fixture whose `mock_settings.enrichment_url` is `http://test-enrichment:8094`.)
-
-### 4. Circuit-breaker unknown-endpoint fallback — kills C11 (4)
-
-```python
-    def test_breaker_lookup_falls_back_to_enrich_for_unknown_endpoint(
-        self, client: EnrichmentClient
-    ) -> None:
-        """WP4.4: unknown endpoint names must fall back to the enrich breaker.
-
-        Dropping the ``self._breakers["enrich"]`` default makes
-        ``breakers.get(endpoint)`` return None -> AttributeError.
-        // UNVERIFIED - not yet run red/green
-        """
-        from backend.services.circuit_breaker import CircuitState
-
-        assert client.is_circuit_open("totally-unknown-endpoint") is False
-
-        # Driving the shared enrich breaker to OPEN must be *visible* through an
-        # unknown name: that is precisely the enrich-fallback contract.
-        client._breakers["enrich"]._state = CircuitState.OPEN
-        assert client.is_circuit_open("totally-unknown-endpoint") is True
-
-        client._breakers["enrich"]._state = CircuitState.CLOSED
-        client.reset_circuit_breaker("totally-unknown-endpoint")
-        assert client._breakers["enrich"]._failure_count == 0
-```
-
-### 5. Retry/alert numeric boundaries — kills C12 (2) + C13 (1)
-
-```python
-    def test_is_retryable_error_http_500_boundary(self, client: EnrichmentClient) -> None:
-        """WP4.4: HTTP 500 is the retry boundary and must stay retryable.
-
-        ``>= 500`` -> ``> 500``/``>= 501`` survives because tests probe only 503
-        and 400. // UNVERIFIED - not yet run red/green
-        """
-        for code in (500, 502, 503, 599):
-            mock_response = MagicMock()
-            mock_response.status_code = code
-            error = httpx.HTTPStatusError(
-                "Server error", request=MagicMock(), response=mock_response
-            )
-            assert client._is_retryable_error(error) is True, f"HTTP {code} must retry"
-
-    def test_has_security_alerts_risk_weight_070_boundary(self) -> None:
-        """WP4.4: risk_weight exactly 0.7 must alert (``>=`` not ``>``).
-
-        Tests use 0.75/True and 0.5/False but never the boundary itself.
-        // UNVERIFIED - not yet run red/green
-        """
-        at_threshold = ActionClassificationResult(
-            action="running",
-            confidence=0.90,
-            is_suspicious=False,
-            risk_weight=0.7,
-            all_scores={},
-            inference_time_ms=100.0,
-        )
-        assert at_threshold.has_security_alerts() is True
-
-        below = ActionClassificationResult(
-            action="walking",
-            confidence=0.90,
-            is_suspicious=False,
-            risk_weight=0.69,
-            all_scores={},
-            inference_time_ms=100.0,
-        )
-        assert below.has_security_alerts() is False
-```
-
-### 6. Error-dict content — kills C14 (1)
-
-```python
     @pytest.mark.asyncio
-    async def test_get_model_status_error_carries_exception_message(
-        self, client: EnrichmentClient
+    async def test_health_and_model_status_urls(self, client: EnrichmentClient) -> None:
+        ok = MagicMock()
+        ok.json.return_value = {"status": "healthy"}
+        ok.raise_for_status = MagicMock()
+        client._health_http_client.get = AsyncMock(return_value=ok)
+        with patch("backend.services.enrichment_client.get_correlation_headers",
+                   return_value={"traceparent": "t"}, autospec=True):
+            await client.check_health()
+        assert client._health_http_client.get.call_args.args[0] == \
+            "http://test-enrichment:8094/health"
+        await client.get_model_status()
+        assert client._health_http_client.get.call_args.args[0] == \
+            "http://test-enrichment:8094/models/status"
+```
+TDD: URL XX/case/None mutant → `call.args[0]` equality fails; `headers=None` mutant → headers assert fails; missing `.rstrip("/")` → second `test_base_urls_are_rstripped` fails. Original green.
+
+### T6 — `test_error_chaining_and_alert_boundaries` (kills GAP-last-error-chaining 33 + GAP-risk-weight-boundary 1 + GAP-health-payload-keys 12) → `test_enrichment_client_errors.py`
+```python
+class TestCauseChainingAndAlertBoundaries:
+    """WP4.4: `original_error` must be the actual last exception (identity, not
+    just not-None); has_security_alerts boundary is >= 0.7 inclusive; degraded
+    health payloads keep BOTH circuit_breaker_state and circuit_breaker_states.
+    UNVERIFIED - not yet run red/green."""
+
+    @pytest.mark.asyncio
+    async def test_exhausted_retries_chain_the_real_exception(
+        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """WP4.4: the ``error`` field must carry the real message, not "None".
+        boom = httpx.ConnectError("refused-by-peer")
+        enrichment_client._http_client.post = AsyncMock(side_effect=boom)
+        with patch("asyncio.sleep", new_callable=AsyncMock), \
+             patch("backend.services.enrichment_client.record_pipeline_error", autospec=True), \
+             patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True):
+            with pytest.raises(EnrichmentUnavailableError) as exc_info:
+                await enrichment_client.classify_vehicle(sample_image)
+        assert exc_info.value.original_error is boom   # `last_error = None` mutant -> None
 
-        ``str(e)`` -> ``str(None)`` survives because tests assert only key
-        presence. // UNVERIFIED - not yet run red/green
-        """
-        client._http_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+    def test_has_security_alerts_inclusive_at_07(self) -> None:
+        from backend.services.enrichment_client import ActionClassificationResult
+        edge = ActionClassificationResult(
+            action="loitering", confidence=0.5, is_suspicious=False,
+            risk_weight=0.7, all_scores={}, inference_time_ms=1.0)
+        assert edge.has_security_alerts() is True      # `> 0.7` mutant -> False
 
-        result = await client.get_model_status()
-
-        assert result["error"] == "Connection refused"
-        assert result["loaded_models"] == []
+    @pytest.mark.asyncio
+    async def test_degraded_health_keeps_both_breaker_keys(
+        self, enrichment_client: EnrichmentClient
+    ) -> None:
+        enrichment_client._health_http_client.get = AsyncMock(
+            side_effect=httpx.ConnectError("down"))
+        result = await enrichment_client.check_health()
+        assert result["status"] == "unavailable"
+        assert "circuit_breaker_state" in result
+        assert "circuit_breaker_states" in result      # key-clobber mutants miss plural
+        assert isinstance(result["circuit_breaker_states"], dict)
+        assert result["circuit_breaker_states"]["vehicle"] == "closed"
 ```
+TDD: `last_error=None` mutant → `is boom` fails; `> 0.7` mutant → `is True` fails; `"circuit_breaker_states"` XX-case mutant → plural key missing → fails. Original green.
 
-### 7. Exact ALERT labels — kills C4 (13)
+## Notes / caveats for WP4.4 implementers
 
-```python
-class TestContextStringExactAlertLabels:
-    """WP4.4: substring-only ALERT asserts cannot see XX-padding or CAPS clobbers.
+- **T5 parametrize payloads**: `ok.json.return_value` includes union-of-keys across endpoints; endpoints read extra keys (`result["posture"]` in a vehicle payload) harmlessly. `classify_action` takes `frames: list[Image.Image]` and payload key `"frames"`, so image-key assert is skipped there — add a `frames`-key assert if porting.
+- `test_enrichment_client_errors.py` fixture is named `enrichment_client` (not `client`); T6 matches that file.
+- GAP-retry-branch mutants at `<` vs `<=` are the classic "one extra sleep" bug class — the sleep-count assert is the load-bearing one; keep it even if the metric assert proves flaky.
+- 533 EQUIVALENT + 282 LOW-VALUE (≈61%) justify a `mutmut` skip-list only if run time becomes the bottleneck; the drafted tests cut the remaining actionable set to ~283 TEST-GAP survivors, of which the six tests address ~232.
+- The 119 `rc=-24` (SIGTERM/timeout) verdicts were excluded per harness rules; if any are enrichment_client hangs they'd resurface as false survivors in a re-run — not triaged here.
 
-    These assert the full line content. // UNVERIFIED - not yet run red/green
-    """
-
-    def test_pose_analysis_context_exact_alert_lines(self) -> None:
-        result = PoseAnalysisResult(
-            keypoints=[],
-            posture="crouching",
-            alerts=["crouching", "lying_down", "hands_raised", "fighting_stance"],
-            inference_time_ms=10.0,
-        )
-        context = result.to_context_string()
-        assert "  [ALERT: Person crouching - potential hiding/break-in]\n" in context
-        assert "  [ALERT: Person lying down - possible medical emergency]\n" in context
-        assert "  [ALERT: Hands raised - possible surrender/robbery]\n" in context
-        assert "  [ALERT: Fighting stance detected - potential aggression]\n" in context
-
-    def test_clothing_classification_context_exact_labels(self) -> None:
-        suspicious = ClothingClassificationResult(
-            clothing_type="balaclava",
-            color="black",
-            style="concealing",
-            confidence=0.90,
-            top_category="face_covering",
-            description="Black balaclava face covering",
-            is_suspicious=True,
-            is_service_uniform=False,
-            inference_time_ms=48.0,
-        )
-        assert "  [ALERT: Potentially suspicious attire detected]\n" in (
-            suspicious.to_context_string()
-        )
-
-        uniform = ClothingClassificationResult(
-            clothing_type="uniform",
-            color="brown",
-            style="work",
-            confidence=0.88,
-            top_category="uniform",
-            description="Brown delivery uniform",
-            is_suspicious=False,
-            is_service_uniform=True,
-            inference_time_ms=45.0,
-        )
-        assert "  [Service/delivery worker uniform detected]\n" in uniform.to_context_string()
-
-    def test_unified_pose_and_clothing_context_exact_labels(self) -> None:
-        pose = UnifiedPoseResult(keypoints=[], pose_class="crouching", confidence=0.85, is_suspicious=True)
-        assert "  [ALERT: Suspicious posture detected]\n" in pose.to_context_string()
-
-        clothing = UnifiedClothingResult(
-            categories=[{"category": "hoodie_dark", "confidence": 0.90}], is_suspicious=True
-        )
-        assert "  [ALERT: Potentially suspicious attire]\n" in clothing.to_context_string()
-
-    def test_vehicle_commercial_suffix_exact(self) -> None:
-        result = VehicleClassificationResult(
-            vehicle_type="delivery_van",
-            display_name="Delivery Van",
-            confidence=0.88,
-            is_commercial=True,
-            all_scores={"delivery_van": 0.88},
-            inference_time_ms=42.0,
-        )
-        assert result.to_context_string().endswith("[Commercial/delivery vehicle]")
-
-    def test_unified_threat_no_threat_line_exact(self) -> None:
-        from backend.services.enrichment_client import UnifiedThreatResult
-
-        result = UnifiedThreatResult(threats=[], has_threat=False, max_severity="none")
-        assert result.to_context_string() == "Threat detection: No threats detected"
-```
-
-### 8. (Optional cheap extra) multi-line format — kills C7 (8, LOW-VALUE)
-
-```python
-    def test_multi_section_context_strings_are_newline_separated(self) -> None:
-        """WP4.4 (low-value): the join separator is "\n", not any string containing \n."""
-        action = ActionClassificationResult(
-            action="loitering", confidence=0.8, is_suspicious=True,
-            risk_weight=0.8, all_scores={}, inference_time_ms=10.0,
-        )
-        assert "\n  [ALERT" in action.to_context_string()
-        assert "\n  Confidence: " in action.to_context_string()
-        # // UNVERIFIED - not yet run red/green
-```
-
-## Kill-mechanics notes (TDD detail per cluster)
-
-- **C1/C3**: partial-sub-dict test (Test 1a) red on every default-flip and expr-to-None mutant (asserted default ≠ mutated value), green on original.
-- **C2**: full-sub-dict test (Test 1b) red on every key clobber (mutated lookup returns the *default*, asserted value is the *supplied* one), green on original. A partial-only test would NOT kill C2 (default == default on both sides) — both tests are required.
-- **C4/C14/C13/C12/C11/C6/C8**: value/equality asserts red-on-mutant per drafted code; all green against original (constructed from the source's actual literals/behavior).
-- **C9/C15**: no test recommended — semantically identical (`typing.cast` runtime no-op; dead-guard short-circuit). Candidate for mutmut ignore/exclude list (`cast(` type-string, `or True` on guarded ternary).
-- **C5/C7/C10**: LOW-VALUE — recommend accepting as surviving or (C7) adopting Test 8. C10 (log args) should stay unasserted; C5 defaults are dead under real payloads.
+Artifacts (scratch, outside repo): diffs `/tmp/wp25/wp44-triage-work/ec_diffs.json`, per-mutant precise map `/tmp/wp25/wp44-triage-work/ec_precise.json`, cluster groups `/tmp/wp25/wp44-triage-work/ec_final_clusters.json`.

@@ -1,52 +1,60 @@
-import json, re, difflib
+import re, json, difflib, collections, sys, ast
 
-copy_path = "mutants/backend/services/retry_handler.py"
-meta_path = "mutants/backend/services/retry_handler.py.meta"
+SRC = 'mutants/backend/services/prompts.py'
+text = open(SRC).read()
+lines = text.split('\n')
 
-meta = json.load(open(meta_path))
-surv = sorted(k for k,v in meta["exit_code_by_key"].items() if v == 0)
-
-lines = open(copy_path).read().splitlines()
-funcs = {}
-i = 0; n = len(lines)
-def_ind_re = re.compile(r'^(\s*)(?:async\s+)?def (\S+?)\(')
-while i < n:
-    m = def_ind_re.match(lines[i])
+# index of function block starts
+def_re = re.compile(r'^def (x.+?)__mutmut_(orig|\d+)\(')
+blocks = {}   # (fn, id) -> (start_line_idx, end_line_idx)
+starts = []
+for i, l in enumerate(lines):
+    m = def_re.match(l)
     if m:
-        indent = len(m.group(1)); name = m.group(2)
-        j = i+1
-        while j < n:
-            l = lines[j]
-            if l.strip()=="":
-                j+=1; continue
-            cur = len(l) - len(l.lstrip())
-            if cur <= indent: break
-            j+=1
-        funcs[name] = (i, j); i = j
-    else:
-        i += 1
+        starts.append((i, m.group(1), m.group(2)))
+for j, (i, fn, mid) in enumerate(starts):
+    end = starts[j+1][0] if j+1 < len(starts) else len(lines)
+    # trim trailing assignment lines (mutants_x...[...] = ...) and blanks
+    e = end
+    while e > i+1:
+        s = lines[e-1].strip()
+        if s == '' or s.startswith('mutants_') or s.startswith('@'):
+            e -= 1
+        else:
+            break
+    blocks[(fn, mid)] = (i, e)
+
+surv = [l.strip() for l in open('/tmp/wp25/wp44-triage/survivor_keys.txt') if l.strip()]
+byfn = collections.defaultdict(list)
+for k in surv:
+    m = re.match(r'^backend\.services\.prompts\.(.+?)__mutmut_(\d+)$', k)
+    byfn[m.group(1)].append((int(m.group(2)), k))
+
+def block_lines(fn, mid):
+    s, e = blocks[(fn, mid)]
+    return lines[s:e]
 
 out = []
-for key in surv:
-    mangled = key.split(".")[-1]
-    base = re.sub(r'__mutmut_\d+$', '__mutmut_orig', mangled)
-    if mangled not in funcs:
-        out.append((key, "MISSING-FUNC")); continue
-    if base not in funcs:
-        out.append((key, "NO-ORIG")); continue
-    s,e = funcs[mangled]; os_,oe = funcs[base]
-    a = [l.strip() for l in lines[os_:oe] if l.strip()]
-    b = [l.strip() for l in lines[s:e] if l.strip()]
-    diffs=[]
-    for op, i1,i2,j1,j2 in difflib.SequenceMatcher(None,a,b).get_opcodes():
-        if op=="equal": continue
-        ol = " | ".join(a[i1:i2]); nl = " | ".join(b[j1:j2])
-        diffs.append(f"    -{ol}\n    +{nl}")
-    out.append((key, "\n".join(diffs) if diffs else "IDENTICAL-TO-ORIG"))
+missing = []
+for fn, items in sorted(byfn.items()):
+    if (fn, 'orig') not in blocks:
+        missing.append(fn); continue
+    ob = block_lines(fn, 'orig')
+    for num, key in sorted(items):
+        if (fn, str(num)) not in blocks:
+            missing.append(key); continue
+        mb = block_lines(fn, str(num))
+        sm = difflib.SequenceMatcher(None, ob, mb)
+        hunks = []
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == 'equal': continue
+            ol = '\n'.join(ob[i1:i2]); ml = '\n'.join(mb[j1:j2])
+            hunks.append((tag, ol, ml))
+        out.append({'fn': fn, 'num': num, 'key': key, 'hunks': hunks})
 
-with open("/tmp/wp25/wp44-triage/diffs.txt","w") as f:
-    for k,d in out:
-        f.write(k+"\n"+d+"\n")
-print("wrote", len(out))
-bad = sum(1 for k,d in out if d in ("MISSING-FUNC","NO-ORIG","IDENTICAL-TO-ORIG"))
-print("bad:", bad)
+json.dump(out, open('/tmp/wp25/wp44-triage/raw_diffs.json','w'))
+print('survivors', len(surv), 'diffed', len(out), 'missing', len(missing), missing[:10])
+# how many have empty hunks (no textual diff = suspicious)
+print('no-text-diff:', sum(1 for o in out if not o['hunks']))
+# distribution of hunk sizes
+print('hunk count hist', collections.Counter(len(o['hunks']) for o in out).most_common(8))

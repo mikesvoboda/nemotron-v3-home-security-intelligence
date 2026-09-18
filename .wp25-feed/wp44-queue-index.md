@@ -934,3 +934,31 @@ counts are now known LOWER BOUNDS; the FINAL counts stand:
 Queue rebuild from this JSON (same detector/wave machinery) is the first
 WP4.4 action after close-out; the 122-row table above remains the QUALITATIVE
 map (patterns, defect finds, drafted tests) — only its arithmetic is superseded.
+
+## WAVE 55 (GEN-2 RE-TALLY) — FOLD 2026-09-18
+
+First gen-2 wave: the 8 heaviest modules (all gen-1-triaged against run5's
+PARTIAL cache) re-tallied against the FINAL cache/arbiter JSON. Survivors
+per the arbiter, dossiers re-extracted from final metas:
+
+| Module | Surv | TEST-GAP | EQUIV | LOW-VALUE | Drafted |
+|---|---:|---:|---:|---:|---:|
+| enrichment_pipeline | 2879 | 1495 | 743 | 641 | 12 |
+| nemotron_analyzer | 2545 | 1737 | 525 | 283 | 9 |
+| enrichment_client | 1330 | 515 | 533 | 282 | 12 |
+| pipeline_workers | 1110 | 576 | 432 | 102 | 7 |
+| gpu_monitor | 1069 | 792 | 173 | 104 | 9 |
+| prompts | 888 | 499 | 26 | 363 | 20 |
+| detector_client | 839 | 160 | 313 | 366 | 12 |
+| batch_aggregator | 710 | 237 | 448 | 25 | 9 |
+| **TOTAL** | **11,370** | **6,011** | **3,193** | **2,166** | **90** |
+
+Shares 52.9 / 28.1 / 19.1 vs the gen-1 sample's 62/23/15 (survivor-weighted
+~64/21/13): the heavy tail is LOG/TELEMETRY-heavy — nemotron_analyzer's
+single biggest cluster is 520 log-only string-constant mutants (C-STR-OBS)
+and enrichment_pipeline's biggest is 707 log-text/extra-dict — so the
+EQUIVALENT share SWELLS with module weight. Per-module shape again, not the
+aggregate: gpu_monitor/pipeline_workers/prompts sit at 71–74% TEST-GAP
+(the kill-test list is real), batch_aggregator at 63% EQUIVALENT. Dossiers:
+.wp25-feed/wp44-triage/*.md (UNVERIFIED — drafting only; verification is the
+serial lane).

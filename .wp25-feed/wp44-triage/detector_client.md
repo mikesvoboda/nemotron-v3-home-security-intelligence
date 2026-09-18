@@ -1,362 +1,422 @@
 # WP4.4 Triage Dossier — backend/services/detector_client.py
 
-**Run snapshot (this session):** 1376 mutant keys in `mutants/backend/services/detector_client.py.meta` —
-**167 survived (exit 0)**, 30 killed (exit 1), 42 timeout (exit -24), 1137 unchecked (null).
-The live `mutmut run --max-children 12` (started 14:15) is still checking; all 167 survivors so far live in
-five functions: `segment_image` 89, `warmup` 45, `model_readiness_probe` 24, `get_warmth_state` 8, `is_cold` 1.
+Surviving mutants: **839** of 1376 (killed 537). Verdict source:
+`mutants/backend/services/detector_client.py.meta` (`exit_code_by_key`, 0 = survived).
+Mutant diffs reconstructed from `mutants/backend/services/detector_client.py` + `.spans`
+(`mutmut show` could not resolve the `ǁ`-mangled keys — FileNotFoundError; manual span-diff used).
 
-**Diff source:** the on-disk mutant copy was COLLAPSED to byte-identity with the source mid-session
-(the 14:15 rerun's rewrite raced generation). After the live run re-expanded the copy (14:25, 19MB,
-2786 `__mutmut_` names) `uv run mutmut show <key>` worked for **all 167** survivors — no manual diffing,
-no numbering guesswork. Raw per-key diffs: `/tmp/wp25/wp44-triage/dc-diffs/<key>.diff` (167 files);
-compact change summary: `/tmp/wp25/wp44-triage/dc_changes.json`. Meta snapshot: `dc-meta-snapshot.json`.
+## Covering test files (from mutants/mutmut-stats.json tests_by_mangled_function_name)
 
-**Cluster census:** 29 clusters, counts sum to **167** = TEST-GAP 74 + LOW-VALUE 58 + EQUIVALENT 35.
-(Partition validated programmatically against `dc_changes.json`: no dupes, no orphans.)
+- `backend/tests/unit/services/test_detector_client.py` (2485 lines; 55 tests cover
+  `detect_objects`, 45 cover `_send_detection_request`, 13 cover `_validate_image_for_detection`)
+- `backend/tests/unit/services/test_model_warmup.py` (all coverage for `get_warmth_state`,
+  `is_cold`, `warmup`, `model_readiness_probe`; the only DetectorClient warmth test is
+  `test_get_warmth_state_returns_correct_structure` at line 340)
+- `backend/tests/unit/services/test_detector_client_segmentation.py` (sole coverage for `segment_image`)
+- `backend/tests/unit/api/middleware/test_correlation_propagation.py` (header tests; uses **str** api key, line 233)
+- `backend/tests/unit/services/test_ai_inference_semaphore.py`,
+  `test_frame_buffer_pipeline_integration.py`, `test_detector_client_gateway.py`,
+  `test_http_connection_pooling.py` (construction-path coverage)
 
-## Covering tests (from `mutants/mutmut-stats.json` → tests_by_mangled_function_name)
+## Cluster table (counts sum to 839)
 
-| Function | Covering test(s) | file:line |
-|---|---|---|
-| `get_warmth_state` | `TestDetectorClientWarmup::test_get_warmth_state_returns_correct_structure` | `backend/tests/unit/services/test_model_warmup.py:340` |
-| `is_cold` | `test_is_cold_when_never_used` :322, `test_is_cold_after_threshold_exceeded` :328, `test_is_warm_within_threshold` :334, `test_warmup_failure` :311, `test_warmup_with_test_image_success` :297 | same file |
-| `model_readiness_probe` | `test_model_readiness_probe_success` :271, `test_model_readiness_probe_failure` :283 | same file |
-| `warmup` | `test_warmup_with_test_image_success` :297, `test_warmup_failure` :311 | same file |
-| `segment_image` | 6 tests in `TestDetectorClientSegmentation` (`test_segment_image_success` :37, `_calls_segment_endpoint` :70, `_retries_on_connection_error` :84, `_raises_on_all_retries_exhausted` :106, `_raises_value_error_on_4xx` :120, `_empty_detections` :133) | `backend/tests/unit/services/test_detector_client_segmentation.py` |
+| # | Cluster (function / concern) | N | Class | Example keys (≤3) |
+|---|---|---|---|---|
+| C-LOG-SEND | `_send_detection_request` log messages/extra-payload text (case, XX-clobber, None msg, exc_info removal counted separately) | 184 | EQUIVALENT | m97, m98, m100 |
+| C-SPAN | telemetry span attrs / AIModelAttributes / set_detection_/set_inference_result attrs in send+segment (model_provider, device, batch_size, retry_attempt, status="success", inference_time_ms math feeding only span attrs, `detections = result.get("detections", [])` result-key mutants) | 102 | LOW-VALUE | send m6, send m7, seg m6 |
+| C-METRIC | `record_pipeline_error` / `record_detection_by_class` / `observe_detection_confidence` label-text mutations | 72 | LOW-VALUE | det m29, det m30, send m122 |
+| C-LOG-DET | `detect_objects` log message/extra text | 56 | EQUIVALENT | m18, m22, m154 |
+| **C-BBOX** | `detect_objects` **bbox clamp / out-of-bounds geometry**: `>=`→`>` on image-size tests, `<=0`→`<0`/`<=1`, `or`→`and` in the 4-way outside-image disjunct, `max(0,..)`→`max(1,..)` clamps, `int(x2-x1)`→`int(x2+x1)`, `<1`→`<=1`/`<2` small-box tests, dims-guard `and`→`or`/`is`→`is not`, bbox-dict key set mutations | 40 | **TEST-GAP** | det m267, m282, m325 |
+| C-WARMM | `warmup` metric labels ("yolo26","warm"/"cold") + completed-log text | 40 | LOW-VALUE | warmup m5, m9, m25 |
+| C-EXCINFO | `exc_info=True`→False/None on error logs (traceback dropped) | 30 | LOW-VALUE | send m143, hc m19, det m418 |
+| C-INITLOG | `__init__` log extra dict / `_model_version` / `_max_concurrent` (consumed only by log line) | 27 | LOW-VALUE | init m6, m110, m124 |
+| C-LOG-VAL | `_validate_image_for_detection` log text | 27 | EQUIVALENT | m5, m9, m11 |
+| C-LOG-HC | `health_check` log text (all 3 except branches) | 27 | EQUIVALENT | m7, m13, m27 |
+| C-PROBE | `model_readiness_probe` test-image size/color + probe kwargs (mocked at `_send_detection_request` boundary; result ignored by design) | 24 | LOW-VALUE | m4, m10, m31 |
+| **C-4XX** | `_send_detection_request` 4xx error-detail extraction: `if status_code == 400`→`!=`/`401`, `error_response.get("detail", str(e))` default/key mutants, raised ValueError message `{error_detail or e}`→`and e` — tests assert only that the list is empty, never the message/detail | 22 | **TEST-GAP** | m263, m264, m293 |
+| **C-WARM** | warmth state machine: `get_warmth_state` `is None`→`is not None`, `>`→`>=` cold threshold, `"cold" if (is_cold) and False/or True`, string clobbers; `warmup` `_is_warming` set/reset (True→False start-state, finally `=True`), `was_cold=None`; `is_cold` `>`→`>=` boundary; `__init__` `_is_warming=False→True/None` | 16 | **TEST-GAP** | gws m1, gws m9, warmup m4/m61, init m105 |
+| C-DUR | duration math (`-`→`+`, `*1000`→`/1000`/`*1001`) feeding only metrics/span/log | 16 | LOW-VALUE | send m61, det m452, seg m50 |
+| **C-SEG-RT** | `segment_image` retry loop: `last_exception = e`→None, `attempt < max_retries-1` flips (`<=`,`+1`,`-2`), `delay=min(2**attempt,30)`→None/`2*attempt`/`3**attempt`/cap 31, `asyncio.sleep(delay)`→sleep(None), **`if status_code >= 500`→`> 500`/`>= 501` boundary**, `error_msg=None`, `original_error=None` | 16 | **TEST-GAP** | seg m75, m98, m116 |
+| C-DEFALT | `detect_objects` missing class/bbox `.get(...)` default text/None ("unknown"→"UNKNOWN"/None, `bbox {}`→None) | 15 | LOW-VALUE | m212, m217, m227 |
+| C-CBCFG | `__init__` CircuitBreakerConfig tuning (`failure_threshold` removed, `half_open_max_calls`/`success_threshold` None/+1) — open-threshold IS asserted (test_detector_client.py:1859); half-open/recovery tuning is not | 12 | LOW-VALUE | init m91, m94, m101 |
+| **C-SEND-RT** | `_send_detection_request` backoff on branches with **no timing assertion**: `min(2**attempt,30)` cap→31 in TimeoutError/JSON/OSError handlers, `attempt < max_retries-1`→`<=`/`+1`/`-2` (OSError handler), `sleep(None)` — existing tests assert delays only for ConnectError/httpx-timeout/500 (test_detector_client.py:1437,1403,1468) | 11 | **TEST-GAP** | send m96, m306, m347 |
+| **C-BASE** | `detect_objects` baseline update + session wiring: `session.add(None)`, `update_baseline(camera_id=.../detection_class=.../timestamp=...)` kwargs →None/removed, `detection.object_type is not None`→`is None` | 7 | **TEST-GAP** | m392, m440, m443 |
+| **C-VIDEO** | `detect_objects` video branch: `video_path is not None and video_metadata is not None`→`or`, `file_type` default "video/mp4" text mutants, `is_video=False→True/None` | 10 | **TEST-GAP** | m174, m185, m199 |
+| **C-SEG-PAY** | `segment_image` request payload: `files={"file":(name,data,"image/jpeg")}` key/mime mutants, `files=None`, `headers=self._get_auth_headers()`→None/removed — the only segment test asserts `"/segment" in url` | 9 | **TEST-GAP** | seg m37, m39, m44 |
+| C-HTTPTO | `__init__` httpx.Timeout wiring →None/arg-removal (detect + health clients constructed but their timeout never exercised) | 9 | LOW-VALUE | init m41, m47, m74 |
+| C-LIMITS | `httpx.Limits(max_connections=10, max_keepalive_connections=5)` tuning values | 7 | LOW-VALUE | init m78, m80, m83 |
+| **C-SEND-PAY** | `_send_detection_request` multipart payload key/mime (`"file"`→"FILE"/clobber, `"image/jpeg"` case, `files=None`) + URL `f"{url}/detect"`→None — `httpx.AsyncClient.post` call args (url/files) are **never asserted anywhere** in test_detector_client.py | 8 | **TEST-GAP** | send m47, m48, m49 |
+| C-SEG-LOG | `segment_image` log message text | 7 | EQUIVALENT | m62, m86, m92 |
+| C-LOGCLOSE | `close()` log message text | 8 | EQUIVALENT | m1, m5, m7 |
+| C-TIMEOUT | send/segment `explicit_timeout = read + connect` → None/subtraction and `asyncio.timeout(None)` — defense-in-depth disabled; the httpx-level timeout still fires under mocks, so behavior is indistinguishable in tests | 7 | LOW-VALUE | send m4, send m46, seg m35 |
+| C-FREETHR | `_is_free_threaded` detection mutations (`hasattr(sys,...)`→None/case; `not` removed) — consumers are the dead preprocess executor + one log field | 4 | LOW-VALUE | m1, m6, m7 |
+| **C-SEM** | `_get_semaphore` recreate condition `is None or != limit` flips (`and`, `is not`, `==`) — only `_semaphore_limit==4` after first call is asserted (test_detector_client.py:1328); identity/recreate-across-limit-change never asserted | 3 | **TEST-GAP** | m3, m4, m5 |
+| **C-GW** | `__init__` gateway routing: `getattr(settings,"use_ai_gateway",False)` default→True/None, `gw_url.rstrip('/')` char clobber — gateway tests exercise only explicit True + clean URL | 3 | **TEST-GAP** | init m20, m26, m32 |
+| **C-AUTH** | `_get_auth_headers` `hasattr(self._api_key,"get_secret_value")`→`hasattr(None,...)`/case/clobber — falls back to `str(SecretStr)` = masked repr; correlation test uses a plain **str** key so the SecretStr branch never discriminates | 3 | **TEST-GAP** | m4, m8, m9 |
+| **C-CONFDEF** | `detect_objects` missing-confidence default `0.0`→**`1.0`**/None (`1.0` makes a detection with no confidence field pass every threshold) | 3 | **TEST-GAP** | m204, m206, m209 |
+| **C-BRK** | per-detection `continue`→`break` (invalid detection silently drops the **rest of the batch** instead of just itself) | 3 | **TEST-GAP** | m244, m261, m422 |
+| C-SEND-KW | `detect_objects` `_send_detection_request(image_name=image_file.name / image_path=... / camera_id=...)` kwargs→None (feeds payload only) | 5 | **TEST-GAP** | m114, m115, m116 |
+| C-LOGSEM | `_get_semaphore` `logger.debug("Created new semaphore...")`→None (log text only; the recreate-condition mutants stay in C-SEM) | 1 | EQUIVALENT | m9 |
+| C-PREPROC | `_get_preprocess_worker_count` `return 2`→3 — `_get_preprocess_executor` has **zero callers** repo-wide ⇒ dead code | 1 | EQUIVALENT | m1 |
+| C-LASTEXC | send/segment `last_exception: Exception | None = None`→`""` — post-loop every except sets it, so falsy-vs-None is unreachable | 1 | EQUIVALENT | send m1 |
+| **C-MINSZ** | `_validate_image_for_detection` `file_size < MIN_DETECTION_IMAGE_SIZE`→`<=` (an image exactly 10240 bytes flips valid→invalid); tests use sizes far from the boundary | 1 | **TEST-GAP** | m4 |
+| C-ASVAL | async validate wrapper `camera_id`→None (log-context only) | 1 | EQUIVALENT | m3 |
+| C-HURL | `health_check` URL→None (no assert; call still fails → False) | 1 | LOW-VALUE | m2 |
 
-**Why so much survives (verified in the test sources):**
-- `test_model_readiness_probe_success` patches `_send_detection_request` bare `AsyncMock` and asserts only
-  `result is True` — every probe kwarg (`image_data`, `image_name`, `camera_id`, `image_path`) and the
-  generated image's shape/color/format are never inspected.
-- `test_warmup_*` patch `model_readiness_probe` and assert only the return bool + `_last_inference_time`.
-  The `set_model_warmth_state` / `observe_model_warmup_duration` / `record_model_cold_start` calls (labels
-  `"yolo26"`, states `"warming"/"warm"/"cold"`) are never observed.
-- `test_get_warmth_state_returns_correct_structure` asserts only key presence and
-  `state in ("cold","warm","warming")` — a membership assert, so case/mark variants pass and the
-  cold↔warm branch flip only passes when it lands inside the allowed set. `last_inference_seconds_ago`
-  value never checked (Nemotron's twin test at :177 checks `< 60`; DetectorClient's does not).
-- `segment_image` tests mock `_get_semaphore` + `_http_client`, patch `asyncio.sleep` BARE, and never assert:
-  the multipart `files` dict, the `headers` kwarg, sleep *delays* or *counts*, `original_error`, the error
-  message, `record_pipeline_error` labels, or status-500 retry behavior (existing tests use 400/ConnectError only).
+Totals: TEST-GAP 160, LOW-VALUE 366, EQUIVALENT 313 — sum 839 (40 clusters).
 
-**Facts used in classification (verified against source / PIL / httpx this session):**
-- PIL `Image.new("RGB", (32, 32))` without `color=` defaults to black — omitting the kwarg is equivalent.
-- PIL JPEG save is format-case-insensitive — `"jpeg"` == `"JPEG"` output → equivalent.
-- `"XXliteralXX"` / `"UPPERCASE"` string mutants: no consumer parses these fields (metrics labels, span
-  attributes, log text, `/dev/null` placeholder path never opened — `_send_detection_request` is mocked in
-  every covering test; segment path goes to a mocked httpx post) → EQUIVALENT.
-- `Exception | None = ""` vs `= None`: both falsy, overwritten in every except path, guard is `if last_exception:`
-  → EQUIVALENT.
-- `if isinstance(...)`-free booleans: `_is_warming = None` is falsy ≡ `False` for the `if self._is_warming:`
-  consumer (only killable by a strict `is False` identity assert) → EQUIVALENT (behavior-preserving).
-- Backoff `min(2**attempt, 30)`: for attempts 0..4 (any r ≤ 6) `2**attempt ≤ 16 < 30`, so the 30→31 cap
-  mutation is only killable with `max_retries ≥ 10` (attempt 5..8 sleeps: 30 vs 31). Drafted T5 uses r=10.
-- `metrics` are function-local imports in `warmup` (`from backend.core.metrics import ...` at
-  detector_client.py:556) → patch targets are `backend.core.metrics.<fn>`.
-- `DetectorUnavailableError.original_error` stored verbatim (`backend/core/exceptions.py:395`).
+## Why the big clusters are not test gaps
 
-## Cluster table (key numbers are `__mutmut_N` within the function)
+- **C-LOG-* / C-SPAN / C-METRIC / C-DUR / C-EXCINFO / C-INITLOG / C-WARMM / C-DEFALT** (~460 of the 839):
+  every mutation lands in `logger.*(message, extra=...)` text, Prometheus label strings, or OTel
+  span-attribute values. No test (and arguably no test *should*) assert log/message text; the
+  observable function contracts (return values, raised exceptions, DB writes) are unchanged.
+  C-SPAN is LOW-VALUE rather than EQUIVALENT because the attributes are a real behavior surface,
+  just one this codebase deliberately does not assert (NEM-3797 tests assert only
+  `add_span_event` event names + camera.id — see test_detector_client.py:2175-2325).
+- **C-PROBE**: the probe image is a sentinel; `model_readiness_probe` discards the inference
+  result and only maps exception→False (test_model_warmup.py:271-294 patches
+  `_send_detection_request`, so payload mutations cannot be observed at that boundary).
+- **C-PREPROC / C-LASTEXC / C-ASVAL**: dead code / unreachable-state changes.
 
-### `get_warmth_state` (8 survivors)
+## Drafted tests for the 6 highest-value TEST-GAP clusters
 
-| # | Cluster | N | Keys | Class | Note / kill vector |
-|---|---|---|---|---|---|
-| G-A | warm/cold decision flipped or short-circuited: `is None`→`is not None`; `is_cold = None`; `if (is_cold) and False`; `if (is_cold) or True` | 4 | 1, 4, 8, 9 | **TEST-GAP** | Structure test's membership assert can't see a wrong-but-valid state. T-G3 below (tighten :340). |
-| G-B | `seconds_ago = monotonic() - t` → `+` | 1 | 3 | LOW-VALUE | Only poisons `last_inference_seconds_ago` numeric value; `state` key unaffected. Killable only by value assert (T-G3 would incidentally kill). |
-| G-C | cold threshold `>` → `>=` | 1 | 5 | LOW-VALUE | Single-point boundary; no test sits exactly at threshold. |
-| G-D | `"cold"` → `"XXcoldXX"` / `"COLD"` | 2 | 10, 11 | EQUIVALENT | Membership assert passes; no consumer compares exact string within this method's outputs. |
+> **UNVERIFIED - not yet run red/green** (task constraint: no test execution).
+> TDD procedure for each: run the test against the mutant copy → expect FAIL (assert named below);
+> run against original `backend/services/detector_client.py` → expect PASS.
 
-Kill vector for G-A/G-B (`test_model_warmup.py::TestDetectorClientWarmup`, extend the :340 test or add):
-set `_last_inference_time = monotonic() - 600` → `state == "cold"` and
-`599 < last_inference_seconds_ago < 601`; set `- 60` → `state == "warm"`; set `_is_warming=True` → `"warming"`.
-
-### `is_cold` (1)
-
-| # | Cluster | N | Keys | Class | Note |
-|---|---|---|---|---|---|
-| I-A | `seconds_since_last > threshold` → `>=` | 1 | 5 | LOW-VALUE | Same single-point boundary as G-C (fixture uses 60s/600s vs 300s threshold, never ==300). |
-
-### `model_readiness_probe` (24)
-
-| # | Cluster | N | Keys | Class | Note / kill vector |
-|---|---|---|---|---|---|
-| P-A | test-image geometry/color mutated: `(32,32)`→`(33,32)`/`(32,33)`; `color=(0,0,0)`→`(1,0,0)`/`(0,1,0)`/`(0,0,1)` | 5 | 10, 11, 12, 13, 14 | **TEST-GAP** | T1 decodes the sent JPEG and asserts 32×32 black. |
-| P-B | probe call kwargs dropped/None'd: `image_data=None` (assign + kwarg), `image_name`, `camera_id`, `image_path` → None/dropped | 9 | 22, 23, 24, 25, 26, 27, 28, 29, 30 | **TEST-GAP** | T1 asserts the exact kwargs on the `_send_detection_request` mock. |
-| P-D | string case/mark mutations of `image_name`/`camera_id`/`image_path` literals | 6 | 31–36 | EQUIVALENT | Names never asserted; `/dev/null` path never opened (send is mocked). |
-| P-E | `logger.warning(f"...{e}")` → `logger.warning(None)` | 1 | 38 | EQUIVALENT | Log text only; exception still swallowed → False. |
-| P-F | `color=None` / `color=` kwarg dropped / `format="jpeg"` | 3 | 4, 7, 21 | EQUIVALENT | **Verified on Pillow 12.3.0 (this env):** `Image.new(..., color=None)` yields pixel `(0,0,0)` — identical to black; omitting `color=` is PIL's black default; `"jpeg"` and `"JPEG"` emit byte-identical JPEG bytes. |
-
-### `segment_image` (89)
-
-| # | Cluster | N | Keys | Class | Note / kill vector |
-|---|---|---|---|---|---|
-| S-A | `last_exception = None` init → `""` | 1 | 1 | EQUIVALENT | Falsy-init only. |
-| S-B | timeout composition: `+`→`None`/`-`; `asyncio.timeout(explicit_timeout)`→`timeout(None)` | 3 | 4, 5, 35 | **TEST-GAP** | No test bounds the request deadline. Kill vector (not drafted): monkeypatch `asyncio.timeout` wrapper capturing the arg; assert `== client._read_timeout + settings.ai_connect_timeout`; `timeout(None)` waits forever → hang/`pytest-timeout` red. |
-| S-C | trace-span plumbing: span name → None, `image_size_bytes` None/dropped (#9 drops the `image_size_bytes=` kwarg from `trace_span`), `AIModelAttributes.set_on_span` kwargs → None/dropped | 13 | 6, 7, 9, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21 | LOW-VALUE | Telemetry attributes; behavior identical. Tests would only be worth it if a trace-contract test class existed. |
-| S-D | telemetry label case/mark (`"huggingface"`, `"cuda:0"`, `batch_size=1→2`) | 5 | 22–26 | EQUIVALENT | OTel attribute values, no reader. |
-| S-E | `span.set_attribute("retry_attempt", …)` key/value mutations | 4 | 28, 29, 32, 33 | LOW-VALUE | Span attribute only. |
-| S-F | observability payload mutations: `inference_time_ms=None`, `detections` key case/mark, `set_detection_attributes`/`set_inference_result_attributes` kwarg None/drop, `status` case | 14 | 49, 53, 58, 59, 61, 62, 64, 65, 67, 68, 70, 71, 72, 73 | LOW-VALUE | Span/metrics payload; returned dict untouched (`result` returned as-is). |
-| S-G | multipart payload mutated at the httpx boundary: `files=None` (assign + kwarg + drop), `headers=None`/dropped, dict key `"file"`→`"XXfileXX"`/`"FILE"`, MIME `"image/jpeg"`→`"XXimage/jpegXX"`/`"IMAGE/JPEG"` | 9 | 36, 37, 38, 39, 40, 43, 44, 46, 47 | **TEST-GAP** | T4 asserts `post` kwargs `files == {"file": (name, bytes, "image/jpeg")}` and `headers == _get_auth_headers()`. |
-| S-H | `inference_time_ms` arithmetic (`*1000`→`/1000`, `+start_time`, `*1001`, None) | 3 | 50, 51, 52 | LOW-VALUE | Feeds only span duration attrs. |
-| S-I | `result.get("detections", …)` key/None-default mutations | 3 | 54, 55, 57 | LOW-VALUE | Value feeds only `set_detection_attributes`; return payload unaffected. |
-| S-Ja | retry machinery: `last_exception=e`→None; retry gate `<`→`<=`/`+1`/`-2`; `delay=None`, `2**`→`2*`, `2`→`3`, cap 30→31; `sleep(delay)`→`sleep(None)`; `record_pipeline_error` label→None | 10 | 74, 75, 76, 77, 78, 83, 84, 85, 90, 91 | **TEST-GAP** | Existing retry test patches `asyncio.sleep` BARE and only counts post calls; the settings fixture (`detector_max_retries=1`) never exercises backoff. T5 asserts post-call count + full sleep-delay sequence at r=10 (kills 75–78, 83–85, 90); T6 asserts `record_pipeline_error("yolo26_segmentation_error")` (91) and `original_error is conn_err` (74). |
-| S-Jb | retry-path LOG text only: warning message→None, `attempt+1`→`attempt±1`, `sanitize_error(e)`→None, final-error log msg→None, `exc_info=True`→None/False | 8 | 86, 87, 88, 89, 92, 93, 95, 96 | LOW-VALUE | Real string/kwargs changes on the warning/error calls; no observable behavior (all paths still raise/return identically). Would need a `caplog`/logging-args contract test; noted, not drafted. |
-| S-K | 5xx boundary `>= 500` → `> 500` / `>= 501` | 2 | 98, 99 | **TEST-GAP** | No test uses a 500/501 status; mutants silently reroute 500→ValueError (fast-fail instead of retry). T6b (500 + 501 cases) kills both. |
-| S-L | final error payload: message `None`/dropped/default, `original_error=None`/dropped | 5 | 101, 115, 116, 117, 118 | **TEST-GAP** | Exhaustion test asserts only exception class. T6 asserts message match + `exc.original_error is conn_err`. |
-| S-M | error span attributes (`"error"`, `"error.message"` key/value mutations) | 9 | 102, 103, 106, 107, 108, 109, 110, 113, 114 | LOW-VALUE | Telemetry only. |
-
-### `warmup` (45)
-
-| # | Cluster | N | Keys | Class | Note / kill vector |
-|---|---|---|---|---|---|
-| W-A | warming-flag lifecycle + `was_cold`: `_is_warming=True`→`False` (during); `finally False`→`True` (after); `was_cold=is_cold()`→`None` (suppresses cold-start metric) | 3 | 4, 61, 2 | **TEST-GAP** | T3: probe spy reads `get_warmth_state()` mid-warmup (→"warming") + `assert client._is_warming is False` after; T2 asserts `record_model_cold_start("yolo26")` fires. |
-| W-B | metric/state call labels & state strings: `set_model_warmth_state`/`observe_model_warmup_duration`/`record_model_cold_start` model→None/`"XXyolo26XX"`/`"YOLO26"`; state→None/`"XXwarmingXX"`/`"WARMING"`/`"XXwarmXX"`/`"WARM"`/`"XXcoldXX"`/`"COLD"` | 24 | 5, 6, 9, 10, 11, 12, 21, 25, 26, 27, 28, 29, 30, 31, 34, 35, 36, 37, 47, 48, 51, 52, 53, 54 | **TEST-GAP** | T2 patches `backend.core.metrics.*` and asserts exact call sequence `("yolo26","warming") → ("yolo26","warm")` + label `"yolo26"` on duration/cold-start; failure path (probe→False) asserts final `("yolo26","cold")`. These are the Prometheus dimensions the ops dashboards key on. |
-| W-C | log message text/`extra` payload mutations (`logger.info`/`logger.warning` None/case; `extra={"duration","was_cold"}` key mutations) | 15 | 13, 14, 15, 16, 38, 39, 41, 42, 43, 44, 45, 55, 56, 57, 58 | EQUIVALENT | Log text only; no behavior consumer. |
-| W-D | `duration = monotonic() - start_time` → `+` | 1 | 20 | LOW-VALUE | Poisoned duration only reaches the metrics histogram; T2's `0 <= duration < 60` bound kills it incidentally. |
-| W-E | `_is_warming` assign → `None` (before / in finally) | 2 | 3, 60 | EQUIVALENT | `None` falsy ≡ `False` for the only consumer (`if self._is_warming:`); T3's strict `is False` would kill via identity, semantically inert. |
-
-## Drafted tests (UNVERIFIED — not run red/green; no test execution permitted this session)
-
-TDD procedure (same for all): apply the drafted test, run the covering file → green on original
-`backend/services/detector_client.py`; activate the cluster's mutant (mutmut trampoline / one-line swap
-from `dc-diffs/`) → the listed assertion fails (red). Then green the whole file again.
-
-### T1 — probe payload + image shape → kills P-A (5) + P-B (9)
-File: `backend/tests/unit/services/test_model_warmup.py` (add `import io` at top; add to
-`TestDetectorClientWarmup`; reuses its `detector_client` fixture at :259):
+### 1. C-BBOX (40 mutants) — `test_detect_objects_bbox_clamp_geometry`
+Target: `backend/tests/unit/services/test_detector_client.py` (style: `test_detect_objects_stores_image_dimensions_for_bbox_scaling`, line 2328).
+Kills m262/m263/m264 (dims-guard flips), m265-m267 (or→and), m268/m269/m271/m272/m274/m275 (boundary), m282/m292/m302/m313 (`max(0→1`), m325/m328 (`-`→`+`), m329-m333 (small-box), m232-m242 (bbox-dict keys).
 
 ```python
-    @pytest.mark.asyncio
-    async def test_model_readiness_probe_sends_warmup_image_payload(self, detector_client):
-        """Probe must upload a 32x32 black JPEG as warmup_test.jpg via the warmup camera."""
-        import io
+@pytest.mark.asyncio
+async def test_detect_objects_bbox_clamp_geometry(detector_client, mock_session):
+    """Exact clamped/skipped outcomes for the bbox geometry rules (WP4.4 mutant kill).
 
-        from PIL import Image
+    image is 640x480; detections:
+      A [100, 150, 300, 400]  -> in bounds, unchanged
+      B [-10, 10, 50, 50]     -> clamped x to 0 (kills max(1,...))
+      C [-100, 10, 101, 10]   -> x+w == 1 > 0 stays (kills <=0-><0 / <=1 and <1-><=1/<2 flips)
+      D [640, 100, 50, 50]    -> x >= width: completely outside -> skipped
+      E [100, 600, 50, 50]    -> y >= height: completely outside -> skipped
+      F [100, 150, 600, 400]  -> clamped to (100,150,540,330) (kills x2_clamped + x1 flips)
+    """
+    image_path = "/export/foscam/front_door/geom.jpg"
+    response = {
+        "detections": [
+            {"class": "person", "confidence": 0.95, "bbox": [100, 150, 300, 400]},
+            {"class": "person", "confidence": 0.95, "bbox": [-10, 10, 50, 50]},
+            {"class": "person", "confidence": 0.95, "bbox": [-100, 10, 101, 10]},
+            {"class": "person", "confidence": 0.95, "bbox": [640, 100, 50, 50]},
+            {"class": "person", "confidence": 0.95, "bbox": [100, 600, 50, 50]},
+            {"class": "car", "confidence": 0.95, "bbox": [100, 150, 600, 400]},
+        ],
+        "image_width": 640,
+        "image_height": 480,
+    }
+    with (
+        patch("pathlib.Path.exists", return_value=True, autospec=True),
+        patch("pathlib.Path.read_bytes", return_value=b"fake", autospec=True),
+        patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        patch.object(
+            detector_client, "_validate_image_for_detection_async", return_value=True, autospec=True
+        ),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
 
-        with patch.object(
-            detector_client, "_send_detection_request", new_callable=AsyncMock
-        ) as mock_send:
-            mock_send.return_value = {"detections": []}
+        detections = await detector_client.detect_objects(image_path, "front_door", mock_session)
 
-            result = await detector_client.model_readiness_probe()
+    assert [(d.bbox_x, d.bbox_y, d.bbox_width, d.bbox_height) for d in detections] == [
+        (100, 150, 300, 400),  # A untouched
+        (0, 10, 40, 50),       # B clamped at 0
+        (0, 10, 1, 10),        # C 1px sliver survives
+        (100, 150, 540, 330),  # F clamped to image bounds (D, E dropped)
+    ]
 
-        assert result is True
-        kwargs = mock_send.call_args.kwargs
-        assert kwargs["image_name"] == "warmup_test.jpg"
-        assert kwargs["camera_id"] == "warmup"
-        assert kwargs["image_path"] == "/dev/null"
-        assert isinstance(kwargs["image_data"], bytes)
-        assert kwargs["image_data"][:2] == b"\xff\xd8"  # JPEG magic
 
-        sent_image = Image.open(io.BytesIO(kwargs["image_data"]))
-        assert sent_image.size == (32, 32)
-        assert sent_image.convert("RGB").getpixel((16, 16)) == (0, 0, 0)
+@pytest.mark.asyncio
+async def test_detect_objects_partial_dimensions_skip_clamping(detector_client, mock_session):
+    """width present but height absent -> clamp block is skipped entirely, raw bbox stored."""
+    response = {
+        "detections": [
+            {"class": "car", "confidence": 0.95, "bbox": [100, 150, 600, 400]},
+        ],
+        "image_width": 640,
+        # no image_height
+    }
+    with (
+        patch("pathlib.Path.exists", return_value=True, autospec=True),
+        patch("pathlib.Path.read_bytes", return_value=b"fake", autospec=True),
+        patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        patch.object(
+            detector_client, "_validate_image_for_detection_async", return_value=True, autospec=True
+        ),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(
+            "/export/foscam/front_door/partial.jpg", "cam", mock_session
+        )
+
+    # and->or flip would enter the clamp block, hit min(150, None) TypeError and drop the detection
+    assert len(detections) == 1
+    assert (detections[0].bbox_x, detections[0].bbox_width) == (100, 600)
 ```
-Red behavior: every P-A/P-B key either changes a `call_args.kwargs` value, drops a key (KeyError), or
-makes `Image.new`/probe raise so `result is True` fails / `call_args` is None.
 
-### T2 — warmup metric labels + state sequence → kills W-B (24, +W-D incidentally)
-Same file/class:
-
-```python
-    @pytest.mark.asyncio
-    async def test_warmup_records_metric_labels_and_warmth_states(self, detector_client):
-        """Success path must emit warming->warm with the exact 'yolo26' label."""
-        with (
-            patch.object(
-                detector_client,
-                "model_readiness_probe",
-                new_callable=AsyncMock,
-                return_value=True,
-            ),
-            patch("backend.core.metrics.observe_model_warmup_duration") as mock_duration,
-            patch("backend.core.metrics.record_model_cold_start") as mock_cold,
-            patch("backend.core.metrics.set_model_warmth_state") as mock_state,
-        ):
-            result = await detector_client.warmup()
-
-        assert result is True
-        assert [c.args for c in mock_state.call_args_list] == [
-            ("yolo26", "warming"),
-            ("yolo26", "warm"),
-        ]
-        mock_cold.assert_called_once_with("yolo26")
-        name, duration = mock_duration.call_args.args
-        assert name == "yolo26"
-        assert 0 <= duration < 60
-
-    @pytest.mark.asyncio
-    async def test_warmup_failure_sets_cold_state(self, detector_client):
-        """Failed warmup must set (yolo26, cold), not a mutated label."""
-        with (
-            patch.object(
-                detector_client,
-                "model_readiness_probe",
-                new_callable=AsyncMock,
-                return_value=False,
-            ),
-            patch("backend.core.metrics.set_model_warmth_state") as mock_state,
-        ):
-            result = await detector_client.warmup()
-
-        assert result is False
-        assert [c.args for c in mock_state.call_args_list] == [
-            ("yolo26", "warming"),
-            ("yolo26", "cold"),
-        ]
-```
-(warmup re-imports the metric fns per call at detector_client.py:556, so patching
-`backend.core.metrics.*` is the correct target.)
-
-### T3 — warming-flag lifecycle → kills W-A #4/#61 (W-A #2 by T2)
-Same file/class:
+### 2. C-WARM (16 mutants) — warmth state machine
+Target: `backend/tests/unit/services/test_model_warmup.py::TestDetectorClientWarmup`
+(current coverage `test_get_warmth_state_returns_correct_structure`, line 340, accepts *any* of the
+three strings — too weak to kill anything).
+Kills get_warmth_state m1/m3/m4/m5/m8-m11, is_cold m5, warmup m4/m60/m61, __init__ m104/m105.
 
 ```python
+    def test_get_warmth_state_warm_exact(self, detector_client, mock_settings):
+        """Warm model reports 'warm' with measured seconds since last inference."""
+        detector_client._is_warming = False
+        detector_client._last_inference_time = time.monotonic() - 30
+
+        state = detector_client.get_warmth_state()
+
+        assert state["state"] == "warm"
+        assert 29.0 < state["last_inference_seconds_ago"] < 40.0
+
+    def test_get_warmth_state_cold_exact(self, detector_client, mock_settings):
+        detector_client._is_warming = False
+        detector_client._last_inference_time = time.monotonic() - 600  # threshold is 300
+
+        state = detector_client.get_warmth_state()
+
+        assert state["state"] == "cold"
+        assert state["last_inference_seconds_ago"] > 590
+
+    def test_is_cold_boundary_is_strict(self, detector_client):
+        """Exactly at the threshold the model is still warm (comparison is strict >)."""
+        threshold = detector_client._cold_start_threshold
+        detector_client._last_inference_time = time.monotonic() - (threshold - 0.05)
+        assert detector_client.is_cold() is False
+
+    def test_warming_flag_overrides_and_resets(self, detector_client):
+        detector_client._is_warming = True
+        detector_client._last_inference_time = None
+        assert detector_client.get_warmth_state()["state"] == "warming"
+
     @pytest.mark.asyncio
-    async def test_warmup_sets_warming_flag_only_during_probe(self, detector_client):
-        """_is_warming is True only while the probe runs; warm afterwards."""
+    async def test_warmup_sets_and_clears_is_warming(self, detector_client):
+        """_is_warming is True *during* the probe and False after (finally clause)."""
         seen = {}
 
-        async def probe_spy():
-            seen["during"] = detector_client.get_warmth_state()["state"]
+        async def probe_side_effect():
+            seen["during"] = detector_client._is_warming
             return True
 
-        with patch.object(detector_client, "model_readiness_probe", side_effect=probe_spy):
+        with patch.object(
+            detector_client, "model_readiness_probe", side_effect=probe_side_effect
+        ):
             result = await detector_client.warmup()
 
         assert result is True
-        assert seen["during"] == "warming"           # kills _is_warming=False-at-start (#4)
-        assert detector_client._is_warming is False  # kills finally=True (#61), strict-identity also kills #3/#60
+        assert seen["during"] is True
+        assert detector_client._is_warming is False
 ```
 
-### T4 — segment multipart payload + headers → kills S-G (9)
-File: `backend/tests/unit/services/test_detector_client_segmentation.py` (class
-`TestDetectorClientSegmentation`, reuses its fixtures):
+### 3. C-SEG-RT (16 mutants) — segment retry semantics
+Target: `backend/tests/unit/services/test_detector_client_segmentation.py::TestDetectorClientSegmentation`.
+Kills m75/m76/m77 (attempt bound), m78/m83/m84/m85/m90 (delay math), m98/m99 (HTTP-500 boundary),
+m101 (error_msg None), m116 (original_error dropped), m74 (last_exception dropped).
 
 ```python
     @pytest.mark.asyncio
-    async def test_segment_image_sends_multipart_payload_and_headers(
+    async def test_segment_image_500_is_retried_and_preserves_error(
         self, detector_client, mock_http_client
     ):
-        """The POST must carry the file part under 'file' and the auth headers."""
+        """HTTP 500 (exactly) must be retried with backoff 1s,2s and preserved as original_error."""
+        from backend.core.exceptions import DetectorUnavailableError
+
+        def make_500(*args, **kwargs):
+            response = MagicMock(spec=httpx.Response)
+            response.status_code = 500
+            raise httpx.HTTPStatusError(
+                "Server Error", request=MagicMock(spec=httpx.Request), response=response
+            )
+
+        mock_http_client.post.side_effect = make_500
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            with pytest.raises(DetectorUnavailableError) as exc_info:
+                await detector_client.segment_image(b"fake")
+
+        # exactly max_retries attempts, exactly max_retries-1 backoff sleeps
+        assert mock_http_client.post.call_count == 3
+        assert [c[0][0] for c in mock_sleep.call_args_list] == [1, 2]
+        assert isinstance(exc_info.value.original_error, httpx.HTTPStatusError)
+        assert "failed after 3 attempts" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_segment_image_500_then_success(self, detector_client, mock_http_client):
+        """Boundary: status_code == 500 takes the retry branch, not the 4xx ValueError branch."""
+        ok = MagicMock()
+        ok.json.return_value = {"detections": []}
+        ok.raise_for_status = MagicMock()
+        err500 = MagicMock(spec=httpx.Response)
+        err500.status_code = 500
+        mock_http_client.post.side_effect = [
+            httpx.HTTPStatusError("err", request=MagicMock(), response=err500),
+            ok,
+        ]
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            result = await detector_client.segment_image(b"fake")
+        assert result == {"detections": []}
+        assert mock_sleep.call_args_list[0][0][0] == 1  # 2**0, kills 2*attempt mutant
+```
+
+### 4. C-SEND-RT (11) + C-SEND-PAY (8) + C-SEND-KW (5, partial: m114/m116) — unasserted backoff branches and request payload
+Target: `backend/tests/unit/services/test_detector_client.py` (style of `test_send_detection_request_connect_error_backoff_timing`, line 1437 — which asserts timing *only* for the ConnectError branch).
+Kills send m96/m155/m217/m304/m305/m306 (backoff math on TimeoutError/5xx/JSON/OSError handlers), m328/m347-m349 (sleep(None), OSError attempt-bound flips), m47-m57/m64 (payload), det m114/m116 (image_name/image_path kwargs).
+
+```python
+@pytest.mark.asyncio
+async def test_send_detection_request_payload_and_backoff_branches(mock_session):
+    """Assert the /detect payload every send test ignores, and the backoff schedule on the
+    asyncio-TimeoutError + OSError branches (existing timing tests cover only
+    ConnectError/httpx-timeout/500)."""
+    detector_client = DetectorClient(max_retries=7)
+    image_path = "/export/foscam/front_door/payload.jpg"
+
+    # --- payload shape on the success path (capture idiom from
+    #     test_correlation_propagation.py::capture_post — autospec call_args would include self) ---
+    captured = {}
+
+    async def capture_post(*args, **kwargs):
+        # autospec binding may or may not pass the client as args[0]; pick the first string
+        captured["url"] = next((a for a in args if isinstance(a, str)), kwargs.get("url"))
+        captured["files"] = kwargs.get("files")
+        response = MagicMock(spec=httpx.Response)
+        response.status_code = 200
+        response.json.return_value = {"detections": []}
+        response.raise_for_status = MagicMock()
+        return response
+
+    with (
+        patch("pathlib.Path.exists", return_value=True, autospec=True),
+        patch("pathlib.Path.read_bytes", return_value=b"imgbytes", autospec=True),
+        patch("httpx.AsyncClient.post", side_effect=capture_post, autospec=True),
+        patch.object(
+            detector_client, "_validate_image_for_detection_async", return_value=True, autospec=True
+        ),
+    ):
+        await detector_client.detect_objects(image_path, "front_door", mock_session)
+
+        assert captured["url"].endswith("/detect")
+        assert captured["files"] == {"file": ("payload.jpg", b"imgbytes", "image/jpeg")}
+
+    # --- asyncio.TimeoutError branch: full exponential schedule incl. 30s cap ---
+    detector_client2 = DetectorClient(max_retries=7)
+    with (
+        patch("pathlib.Path.exists", return_value=True, autospec=True),
+        patch("pathlib.Path.read_bytes", return_value=b"fake", autospec=True),
+        patch("httpx.AsyncClient.post", side_effect=TimeoutError("asyncio"), autospec=True),
+        patch.object(
+            detector_client2, "_validate_image_for_detection_async", return_value=True, autospec=True
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock) as sleep_timeout,
+    ):
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client2.detect_objects(image_path, "front_door", mock_session)
+        assert [c[0][0] for c in sleep_timeout.call_args_list] == [1, 2, 4, 8, 16, 30]
+        assert isinstance(exc_info.value.original_error, TimeoutError)
+
+    # --- OSError branch: same schedule, exactly max_retries-1 sleeps ---
+    detector_client3 = DetectorClient(max_retries=7)
+    with (
+        patch("pathlib.Path.exists", return_value=True, autospec=True),
+        patch("pathlib.Path.read_bytes", return_value=b"fake", autospec=True),
+        patch("httpx.AsyncClient.post", side_effect=OSError("disk"), autospec=True),
+        patch.object(
+            detector_client3, "_validate_image_for_detection_async", return_value=True, autospec=True
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock) as sleep_os,
+    ):
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client3.detect_objects(image_path, "front_door", mock_session)
+        assert [c[0][0] for c in sleep_os.call_args_list] == [1, 2, 4, 8, 16, 30]
+        assert isinstance(exc_info.value.original_error, OSError)
+```
+
+### 5. C-SEG-PAY (9) — segment request payload + auth header
+Target: `backend/tests/unit/services/test_detector_client_segmentation.py`.
+Kills seg m36-m47 (files key/mime, files=None, headers=None/removed).
+
+```python
+    @pytest.mark.asyncio
+    async def test_segment_image_sends_multipart_payload_and_auth_header(
+        self, detector_client, mock_http_client
+    ):
         mock_response = MagicMock()
         mock_response.json.return_value = {"detections": []}
         mock_response.raise_for_status = MagicMock()
         mock_http_client.post.return_value = mock_response
 
-        with patch.object(
-            DetectorClient, "_get_auth_headers", return_value={"X-API-Key": "k"}
-        ):
-            await detector_client.segment_image(b"segment_me", image_name="frame.jpg")
+        detector_client._api_key = "segment-secret"
+        await detector_client.segment_image(b"segbytes", image_name="frame7.jpg")
 
-        args, kwargs = mock_http_client.post.call_args
-        assert args[0].endswith("/segment")
-        assert kwargs["files"]["file"] == ("frame.jpg", b"segment_me", "image/jpeg")
-        assert kwargs["headers"] == {"X-API-Key": "k"}
+        call = mock_http_client.post.call_args
+        assert call[0][0].endswith("/segment")
+        assert call[1]["files"] == {"file": ("frame7.jpg", b"segbytes", "image/jpeg")}
+        assert call[1]["headers"].get("X-API-Key") == "segment-secret"
 ```
-Red: `files=None`/dropped, `headers=None`/dropped fail the kwargs asserts (KeyError counts as red).
 
-### T5 — retry backoff sequence + attempt count → kills S-Ja gate/delay keys (8 of 10: 75–78, 83–85, 90)
-Same file/class (add `from backend.core.exceptions import DetectorUnavailableError` at top):
+### 6. C-AUTH (3) — SecretStr branch of `_get_auth_headers`
+Target: `backend/tests/unit/services/test_detector_client.py`. Existing header test
+(test_correlation_propagation.py:233) uses a plain str key, so the `hasattr(..., "get_secret_value")`
+branch is never discriminated — `hasattr(None, ...)` mutants fall through to the *masked* str().
 
 ```python
-    @pytest.mark.asyncio
-    async def test_segment_image_backoff_sequence_and_attempt_count(
-        self, detector_client, mock_http_client
-    ):
-        """r retries => exactly r posts, r-1 sleeps, exponential delays capped at 30."""
-        detector_client._max_retries = 10
-        mock_http_client.post.side_effect = httpx.ConnectError("boom")
+def test_get_auth_headers_unwraps_secretstr_key():
+    """SecretStr keys must be unwrapped via get_secret_value(), not str()-masked."""
+    from pydantic import SecretStr
 
-        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            with pytest.raises(DetectorUnavailableError):
-                await detector_client.segment_image(b"x")
+    with patch("backend.services.detector_client.get_settings") as mock_get_settings:
+        settings = MagicMock()
+        settings.yolo26_url = "http://localhost:8095"
+        settings.yolo26_api_key = SecretStr("super-secret")
+        mock_get_settings.return_value = settings
+        client = DetectorClient(max_retries=1)
 
-        assert mock_http_client.post.call_count == 10
-        assert [c.args[0] for c in mock_sleep.call_args_list] == [
-            1, 2, 4, 8, 16, 30, 30, 30, 30
-        ]
+    headers = client._get_auth_headers()
+
+    assert headers["X-API-Key"] == "super-secret"
+    assert "secret*" not in headers["X-API-Key"].lower()  # str(SecretStr) masks the value
 ```
-Red: gate mutations change sleep count (10 or 8); `delay=None`/`sleep(None)`/`2*attempt`/`3**attempt`/
-cap 31 change the delay list. (Cap mutation #85 needs r>=10 — hence 10.)
 
-### T6 — exhaustion payload + 5xx routing → kills S-L (5), S-K (2), S-Ja remainder (74, 91)
-Same file/class:
+## Remaining TEST-GAP clusters worth a follow-up pass (not drafted)
 
-```python
-    @pytest.mark.asyncio
-    async def test_segment_image_exhaustion_error_payload(self, detector_client, mock_http_client):
-        """Exhausted retries must report the attempt count and chain the original error."""
-        detector_client._max_retries = 1
-        conn_err = httpx.ConnectError("connection refused")
-        mock_http_client.post.side_effect = conn_err
+- **C-4XX (22)** — `_send_detection_request` raises `ValueError(f"Detector client error {code}: {detail}")`; a direct unit test on `_send_detection_request` asserting the message contains the 400 JSON `detail` kills m263-m274/m293. Existing test test_detector_client.py:899 only asserts the empty return.
+- **C-BASE (7)** — assert `update_baseline` called with `camera_id`/`detection_class`/`timestamp` kwargs and `session.add` receives `Detection` instances (`mock_session.add.call_args[0][0].object_type == "person"`). Mock baseline service exists already (fixture line 16).
+- **C-VIDEO (10)** — pass `video_path` with `video_metadata=None` (and vice versa) and assert the image branch is taken (kills `and`→`or` at m174); assert stored `file_type == "video/mp4"` default.
+- **C-SEM (3)** — assert `DetectorClient._get_semaphore()` identity is stable across calls, and *changes* when `settings.ai_max_concurrent_inferences` changes (kills `==`/`and`/`is not` flips; the 4th original member, the `logger.debug`→None mutant, was reclassified EQUIVALENT as C-LOGSEM in the final pass).
+- **C-SEND-KW (5)** — `_send_detection_request` kwargs `image_name`/`image_path`/`camera_id`→None: assert the call kwargs once (`assert_called_once` with expected kwargs, or inspect `call_args.kwargs`) — pairs naturally with the payload test drafted above.
+- **C-BRK (3)** — response with [bad-bbox detection, good detection] must still store the good one (kills `continue`→`break`).
+- **C-CONFDEF (3)** — detection without a `confidence` key must be filtered (default 0.0), not stored (m209 default→1.0).
+- **C-MINSZ (1)** — file sized exactly `MIN_DETECTION_IMAGE_SIZE` (10240 B) must validate.
+- **C-GW (3)** — settings object lacking `use_ai_gateway` must NOT route through gateway (kills default→True); `ai_gateway_url="http://gw:8000/"` (trailing slash) must produce `"http://gw:8000/yolo26"`.
 
-        with (
-            patch("backend.services.detector_client.record_pipeline_error") as mock_metric,
-            pytest.raises(DetectorUnavailableError, match="failed after 1 attempts") as ei,
-        ):
-            await detector_client.segment_image(b"x")
+## Notes for WP4.4
 
-        assert ei.value.original_error is conn_err
-        mock_metric.assert_called_once_with("yolo26_segmentation_error")
+- The `ǁ`-mangled mutant keys are unresolvable by `mutmut show` (FileNotFoundError in
+  `find_mutant`) — dossier diffs come from the spans file; WP4.4 tooling should reuse the
+  span-diff path, not `mutmut show`.
+- `test_model_warmup.py::TestDetectorClientWarmup::test_get_warmth_state_returns_correct_structure`
+  is the archetypal weak assertion in this module (accepts any of 3 states); strengthening it is
+  the single cheapest kill-rate win (cluster C-WARM).
+- ~55% of survivors (C-LOG-*/C-SPAN/C-METRIC) are log/telemetry text. If the team wants a higher
+  baseline kill ratio without new tests, that is a mutation-config conversation (skip logging
+  statements), not a test-gap one.
 
-    @pytest.mark.asyncio
-    async def test_segment_image_retries_500_and_marks_server_error(
-        self, detector_client, mock_http_client
-    ):
-        """HTTP 500 must RETRY (not fast-fail as ValueError) and mark server-error metric."""
-        detector_client._max_retries = 2
-        resp = MagicMock()
-        resp.status_code = 500
-        mock_http_client.post.side_effect = httpx.HTTPStatusError(
-            "Server Error", request=MagicMock(), response=resp
-        )
-
-        with (
-            patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.detector_client.record_pipeline_error") as mock_metric,
-            pytest.raises(DetectorUnavailableError),
-        ):
-            await detector_client.segment_image(b"x")
-
-        assert mock_http_client.post.call_count == 2
-        mock_metric.assert_called_once_with("yolo26_segmentation_server_error")
-
-    @pytest.mark.asyncio
-    async def test_segment_image_retries_501(self, detector_client, mock_http_client):
-        """HTTP 501 must also take the retry path (>= 500 boundary)."""
-        detector_client._max_retries = 2
-        resp = MagicMock()
-        resp.status_code = 501
-        mock_http_client.post.side_effect = httpx.HTTPStatusError(
-            "Not Implemented", request=MagicMock(), response=resp
-        )
-
-        with (
-            patch("asyncio.sleep", new_callable=AsyncMock),
-            pytest.raises(DetectorUnavailableError),
-        ):
-            await detector_client.segment_image(b"x")
-
-        assert mock_http_client.post.call_count == 2
-```
-Red: `>=500`→`>500`/`>=501` reroute these statuses into `raise ValueError` → wrong exception type fails
-`pytest.raises(DetectorUnavailableError)`.
-
-### T-G3 (small, not counted in the six above) — warmth-state exactness → kills G-A (4, +G-B)
-Extend `test_get_warmth_state_returns_correct_structure` (test_model_warmup.py:340):
-after `state = detector_client.get_warmth_state()` add
-`assert state["state"] == "warm"` and `assert 29 < state["last_inference_seconds_ago"] < 31`;
-then also set `_last_inference_time = time.monotonic() - 600` and assert `state == {"state": "cold", ...}`
-exact key; `_is_warming=True` → `"warming"`.
-
-## Verification queue for the serial pytest lane (WP4.4)
-1. `test_model_warmup.py` T1–T3 + T-G3 → expect red on mutants {P-A,P-B,W-A,W-B,G-A[,G-B]}, green on original.
-2. `test_detector_client_segmentation.py` T4–T6 → expect red on all of {S-G (9), S-K (2), S-L (5), S-Ja (10)}, green on original. S-Jb (8 log-text keys) stays surviving by design — log-plumbing tail.
-3. Note for the ledger: T5's r=10 run costs 10 mocked posts — <100ms; no timing flake risk
-   (delays are asserted from patched `asyncio.sleep`, never slept).
-
-## Raw evidence
-- Per-mutant diffs: `/tmp/wp25/wp44-triage/dc-diffs/` (167 files, `mutmut show` output)
-- Change summary JSON: `/tmp/wp25/wp44-triage/dc_changes.json`
-- Meta snapshot at triage time: `/tmp/wp25/wp44-triage/dc-meta-snapshot.json`
+Generated 2026-09-18 by WP4.3 triage (detector_client). All draft tests UNVERIFIED.

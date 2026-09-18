@@ -1,0 +1,262 @@
+EQ-logsend      191  send_detection_request log message / extra-payload text  | e.g. detector_client.m53, detector_client.m64, detector_client.m65
+      - f"{self._detector_url}/detect",
+        + None,
+      - detections = result.get("detections", [])
+        + detections = None
+      - "Detector connection error, retrying",
+        + None,
+      - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt +
+        + extra=None,
+LV-span          96  telemetry span attributes / model metadata never asserted  | e.g. detector_client.m6, detector_client.m6, detector_client.m7
+      - f"{self._detector_type}_detection_request",
+        + None,
+      - f"{self._detector_type}_segmentation_request",
+        + None,
+      - camera_id=camera_id,
+        + camera_id=None,
+      - image_size_bytes=len(image_data),
+        + image_size_bytes=None,
+LV-metric        72  metric/pipeline-error label text mutations  | e.g. detector_client.m13, detector_client.m14, detector_client.m19
+      - "detector.type": self._detector_type,
+        + "XXdetector.typeXX": self._detector_type,
+      - extra={"camera_id": camera_id, "file_path": image_path},
+        + extra=None,
+      - extra={"camera_id": camera_id, "file_path": image_path}, )
+        + )
+      - record_pipeline_error("file_not_found")
+        + record_pipeline_error(None)
+EQ-logdetect     56  detect_objects log message / extra-payload text  | e.g. detector_client.m18, detector_client.m22, detector_client.m23
+      - "Image file not found",
+        + None,
+      - if not await self._validate_image_for_detection_async(image_path, camera_id):
+        + if not await self._validate_image_for_detection_async(image_path, None):
+      - f"Sending detection request for {image_path}",
+        + None,
+      - f"Circuit breaker open for {self._detector_type}, rejecting detection request",
+        + None,
+TG1              40  detect_objects bbox clamp/out-of-bounds geometry (comparison + and/or flips)  | e.g. detector_client.m232, detector_client.m233, detector_client.m234
+      - if not all(k in bbox for k in ("x", "y", "width", "height")):
+        + if all(k in bbox for k in ("x", "y", "width", "height")):
+      - if response_image_width is not None and response_image_height is not None:
+        + if response_image_width is not None or response_image_height is not None:
+      - or bbox_x + bbox_width <= 0 or bbox_y + bbox_height <= 0
+        + or bbox_x + bbox_width <= 0 and bbox_y + bbox_height <= 0
+      - or bbox_y >= response_image_height or bbox_x + bbox_width <= 0
+        + or bbox_y >= response_image_height and bbox_x + bbox_width <= 0
+LV-warmmetric    40  warmup metric labels + warm-completed log text  | e.g. detector_client.m5, detector_client.m6, detector_client.m9
+      - set_model_warmth_state("yolo26", "warming")
+        + set_model_warmth_state(None, "warming")
+      - logger.info("Starting YOLO26 model warmup...")
+        + logger.info(None)
+      - duration = time.monotonic() - start_time
+        + duration = time.monotonic() + start_time
+      - observe_model_warmup_duration("yolo26", duration)
+        + observe_model_warmup_duration(None, duration)
+LV-excinfo       30  logger exc_info True -> False/None (traceback dropped)  | e.g. detector_client.m9, detector_client.m12, detector_client.m19
+      - exc_info=True,
+        + exc_info=None,
+      - exc_info=True, )
+        + )
+LV-initlog       27  __init__ log extra/model_version/_max_concurrent text (observability-only)  | e.g. detector_client.m6, detector_client.m7, detector_client.m8
+      - self._model_version = "yolo26m"  # YOLO26 medium model
+        + self._model_version = None  # YOLO26 medium model
+      - self._max_concurrent = settings.ai_max_concurrent_inferences
+        + self._max_concurrent = None
+      - preprocess_workers = _get_preprocess_worker_count()
+        + preprocess_workers = None
+      - free_threading = _is_free_threaded()
+        + free_threading = None
+EQ-logvalidate   27  _validate_image_for_detection log text  | e.g. detector_client.m5, detector_client.m6, detector_client.m8
+      - "Image too small for detection",
+        + None,
+      - extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size, "min_size": MIN_DETECTION_IMAGE_SI
+        + extra=None,
+      - "camera_id": camera_id,
+        + "XXcamera_idXX": camera_id,
+      - "file_path": image_path,
+        + "XXfile_pathXX": image_path,
+EQ-loghealth     27  health_check log message text  | e.g. detector_client.m7, detector_client.m8, detector_client.m11
+      - "Detector health check failed",
+        + None,
+      - extra={"error": str(e)},
+        + extra=None,
+      - "Detector health check returned error status",
+        + None,
+      - "Unexpected error during detector health check",
+        + None,
+LV-probe         24  readiness-probe test image/params (sentinel probe; boundary mocked)  | e.g. detector_client.m4, detector_client.m7, detector_client.m10
+      - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+        + test_image = Image.new("RGB", (32, 32), color=None)
+      - test_image.save(buffer, format="JPEG")
+        + test_image.save(buffer, format="jpeg")
+      - image_data = buffer.getvalue()
+        + image_data = None
+      - image_data=image_data,
+        + image_data=None,
+TG7              22  send 4xx error-detail extraction (400 gate + detail in raised message)  | e.g. detector_client.m263, detector_client.m264, detector_client.m265
+      - error_detail = None
+        + error_detail = ""
+      - if status_code == 400:
+        + if status_code != 400:
+      - error_response = e.response.json()
+        + error_response = None
+      - error_detail = error_response.get("detail", str(e))
+        + error_detail = None
+TG11             16  warmth state machine (_is_warming init/lifecycle + get_warmth_state/is_cold)  | e.g. detector_client.m1, detector_client.m2, detector_client.m3
+      - if self._last_inference_time is None:
+        + if self._last_inference_time is not None:
+      - was_cold = self.is_cold()
+        + was_cold = None
+      - seconds_ago = time.monotonic() - self._last_inference_time
+        + seconds_ago = time.monotonic() + self._last_inference_time
+      - self._is_warming = True
+        + self._is_warming = None
+LV-durmath       16  duration math (s/ms/unit flips) feeding only metrics/log  | e.g. detector_client.m1, detector_client.m123, detector_client.m124
+      - trace_id = get_trace_id()
+        + trace_id = None
+      - ai_duration = time.time() - ai_start_time
+        + ai_duration = time.time() + ai_start_time
+      - observe_ai_request_duration(self._detector_type, ai_duration)
+        + observe_ai_request_duration(None, ai_duration)
+      - "inference.duration_ms": int(ai_duration * 1000),
+        + "inference.duration_ms": int(ai_duration / 1000),
+TG9              16  segment_image retry/backoff + HTTP-500 boundary + original_error preserved  | e.g. detector_client.m74, detector_client.m75, detector_client.m76
+      - last_exception = e
+        + last_exception = None
+      - if attempt < self._max_retries - 1:
+        + if attempt <= self._max_retries - 1:
+      - delay = min(2**attempt, 30)
+        + delay = None
+      - await asyncio.sleep(delay)
+        + await asyncio.sleep(None)
+LV-defaults      15  detect_objects missing class/bbox default text/None  | e.g. detector_client.m212, detector_client.m214, detector_client.m217
+      - object_class = detection_data.get("class", "unknown")
+        + object_class = detection_data.get("class", None)
+      - bbox = detection_data.get("bbox", {})
+        + bbox = detection_data.get("bbox", None)
+LV-cbconfig      12  CircuitBreakerConfig tuning constants  | e.g. detector_client.m91, detector_client.m92, detector_client.m94
+      - half_open_max_calls=3,
+        + half_open_max_calls=None,
+      - success_threshold=2,
+        + success_threshold=None,
+      - failure_threshold=5,
+        + 
+      - extra={ "detector_type": self._detector_type, "detector_url": self._detector_url, "free_threading": free_threading,
+        + extra=None,
+TG6              11  send_detection_request retry/backoff timing on unasserted branches  | e.g. detector_client.m96, detector_client.m155, detector_client.m217
+      - delay = min(2**attempt, 30)  # Cap at 30 seconds
+        + delay = min(2**attempt, 31)  # Cap at 30 seconds
+      - await asyncio.sleep(delay)
+        + await asyncio.sleep(None)
+      - if attempt < self._max_retries - 1:
+        + if attempt <= self._max_retries - 1:
+TG4              10  detect_objects baseline update kwargs + session wiring  | e.g. detector_client.m115, detector_client.m392, detector_client.m440
+      - camera_id=camera_id,
+        + camera_id=None,
+      - session.add(detection)
+        + session.add(None)
+      - baseline_timestamp = detections[0].detected_at
+        + baseline_timestamp = None
+      - detection_class=object_type,
+        + detection_class=None,
+TG3b             10  detect_objects video-branch condition + file_type default  | e.g. detector_client.m174, detector_client.m179, detector_client.m180
+      - if video_path is not None and video_metadata is not None:
+        + if video_path is not None or video_metadata is not None:
+      - file_type = video_metadata.get("file_type", "video/mp4")
+        + file_type = video_metadata.get(None, "video/mp4")
+      - is_video = False
+        + is_video = None
+LV-httpxto        9  httpx.Timeout wiring -> None/removal (client built, never exercised)  | e.g. detector_client.m41, detector_client.m42, detector_client.m47
+      - write=read_timeout,
+        + write=None,
+      - pool=settings.ai_connect_timeout,
+        + pool=None,
+      - self._health_timeout = httpx.Timeout( connect=settings.ai_health_timeout, read=settings.ai_health_timeout, write=se
+        + self._health_timeout = None
+      - connect=settings.ai_health_timeout,
+        + connect=None,
+TG8               9  segment_image multipart payload + auth headers unasserted  | e.g. detector_client.m36, detector_client.m37, detector_client.m38
+      - files = {"file": (image_name, image_data, "image/jpeg")}
+        + files = None
+      - files=files,
+        + files=None,
+      - headers=self._get_auth_headers(),
+        + headers=None,
+      - headers=self._get_auth_headers(), )
+        + )
+EQ-logclose       8  close() log text  | e.g. detector_client.m1, detector_client.m2, detector_client.m4
+      - "DetectorClient HTTP connections closed",
+        + None,
+      - extra={"detector_type": self._detector_type},
+        + extra=None,
+      - extra={"detector_type": self._detector_type}, )
+        + )
+LV-limits         7  httpx.Limits pool tuning values  | e.g. detector_client.m77, detector_client.m78, detector_client.m79
+      - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), )
+        + )
+LV-timeout        7  explicit asyncio.timeout defense-in-depth disabled (None/sub)  | e.g. detector_client.m1, detector_client.m4, detector_client.m4
+      - last_exception: Exception | None = None
+        + last_exception: Exception | None = ""
+      - explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+        + explicit_timeout = None
+      - async with asyncio.timeout(explicit_timeout):
+        + async with asyncio.timeout(None):
+TG5b              7  HTTP request payload/kwargs (multipart filename/image_path) unasserted  | e.g. detector_client.m47, detector_client.m48, detector_client.m49
+      - files = {"file": (image_name, image_data, "image/jpeg")}
+        + files = None
+      - files=files,
+        + files=None,
+EQ-logseg         7  segment_image log message text  | e.g. detector_client.m62, detector_client.m65, detector_client.m86
+      - inference_time_ms=inference_time_ms,
+        + inference_time_ms=None,
+      - inference_time_ms=inference_time_ms, )
+        + )
+      - f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), " f"retrying in {delay}s: {sanitize_erro
+        + None,
+      - f"retrying in {delay}s: {sanitize_error(e)}",
+        + f"retrying in {delay}s: {sanitize_error(None)}",
+LV-freethread     4  _is_free_threaded detection mutations (consumers: dead executor + log only)  | e.g. detector_client.m1, detector_client.m5, detector_client.m6
+      - if hasattr(sys, "_is_gil_enabled"):
+        + if hasattr(None, "_is_gil_enabled"):
+      - return not sys._is_gil_enabled()
+        + return sys._is_gil_enabled()
+TG12              4  _get_semaphore recreate-on-limit-change condition flips  | e.g. detector_client.m3, detector_client.m4, detector_client.m5
+      - if cls._request_semaphore is None or cls._semaphore_limit != limit:
+        + if cls._request_semaphore is None and cls._semaphore_limit != limit:
+      - logger.debug(f"Created DetectorClient semaphore with limit={limit}")
+        + logger.debug(None)
+TG10              3  __init__ AI-gateway routing (getattr default, rstrip) URL construction  | e.g. detector_client.m20, detector_client.m26, detector_client.m32
+      - if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str):
+        + if getattr(settings, "use_ai_gateway", None) is True and isinstance(gw_url, str):
+      - self._detector_url = f"{gw_url.rstrip('/')}/yolo26"
+        + self._detector_url = f"{gw_url.rstrip('XX/XX')}/yolo26"
+TG13              3  _get_auth_headers SecretStr get_secret_value hasattr mutations  | e.g. detector_client.m4, detector_client.m8, detector_client.m9
+      - if hasattr(self._api_key, "get_secret_value")
+        + if hasattr(None, "get_secret_value")
+TG3a              3  detect_objects missing-confidence default 0.0 -> 1.0/None  | e.g. detector_client.m204, detector_client.m206, detector_client.m209
+      - confidence = detection_data.get("confidence", 0.0)
+        + confidence = detection_data.get("confidence", None)
+TG2               3  detect_objects per-detection continue -> break (stops processing rest of list)  | e.g. detector_client.m244, detector_client.m261, detector_client.m422
+      - continue
+        + break
+TG5a              2  HTTP request payload/kwargs (multipart filename/image_path) unasserted  | e.g. detector_client.m114, detector_client.m116
+      - image_name=image_file.name,
+        + image_name=None,
+      - image_path=image_path,
+        + image_path=None,
+EQ-preproc        1  _get_preprocess_worker_count (executor never called => dead code)  | e.g. detector_client.m1
+      - return 2  # Fewer workers with GIL (limited parallelism benefit)
+        + return 3  # Fewer workers with GIL (limited parallelism benefit)
+EQ-lastexc        1  last_exception init -> "" (post-loop always set => dead change)  | e.g. detector_client.m1
+      - last_exception: Exception | None = None
+        + last_exception: Exception | None = ""
+TG14              1  _validate_image size boundary < vs <= at MIN_DETECTION_IMAGE_SIZE  | e.g. detector_client.m4
+      - if file_size < MIN_DETECTION_IMAGE_SIZE:
+        + if file_size <= MIN_DETECTION_IMAGE_SIZE:
+EQ-asyncval       1  async validate camera_id -> None (log-only field)  | e.g. detector_client.m3
+      - return await asyncio.to_thread(self._validate_image_for_detection, image_path, camera_id)
+        + return await asyncio.to_thread(self._validate_image_for_detection, image_path, None)
+LV-healthurl      1  health_check URL string -> None (unasserted; still returns False)  | e.g. detector_client.m2
+      - f"{self._detector_url}/health",
+        + None,
+TOTAL 839 clusters 39

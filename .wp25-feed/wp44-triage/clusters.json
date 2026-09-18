@@ -1,417 +1,1368 @@
-[
- {
-  "cluster": "A1",
-  "keys": [
-   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_23",
-   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_23"
-  ],
-  "detail": "A1 IoU/overlap or->and sign bug"
- },
- {
-  "cluster": "A10",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_84",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_85"
-  ],
-  "detail": "A10 is_uncertain boundary at 0.50/0.80"
- },
- {
-  "cluster": "A11",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_79",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_80",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_81",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_82",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_83",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_84",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_85",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_86",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_87",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_88",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_89",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_90",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_97",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_98",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_99",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_100",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_101",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_102",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_103",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_104",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_105",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_106",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_107",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_108",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_109",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_110",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_111",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_112",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_113",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_114",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_115",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_116",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_117",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_118",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_119",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_120"
-  ],
-  "detail": "A11 region-map side entries + tokens untested"
- },
- {
-  "cluster": "A12",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_93",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_34"
-  ],
-  "detail": "A12 0.50-equal confidence now excluded"
- },
- {
-  "cluster": "A13",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_107",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_49"
-  ],
-  "detail": "A13 quad-bbox reduction disabled"
- },
- {
-  "cluster": "A14",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_88",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_89",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_67",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_69",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_71"
-  ],
-  "detail": "A14 scene-text result field construction"
- },
- {
-  "cluster": "A15",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_5",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_7",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_10",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_11",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_12",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_1",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_2"
-  ],
-  "detail": "A15 florence_url settings-fallback / timeout contract"
- },
- {
-  "cluster": "A16",
-  "keys": [
-   "backend.services.scene_ocr_service.x__classify_text_type__mutmut_4",
-   "backend.services.scene_ocr_service.x__classify_text_type__mutmut_5",
-   "backend.services.scene_ocr_service.x__classify_text_type__mutmut_15"
-  ],
-  "detail": "A16 classify boundary: 5-digit limit / sign substring"
- },
- {
-  "cluster": "A17",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_17",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_149",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_17",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_84",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_85",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_86",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_87",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_62"
-  ],
-  "detail": "A17 log message text/None"
- },
- {
-  "cluster": "A18",
-  "keys": [
-   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_43",
-   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_36",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_3",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_4",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_5",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_6",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_7",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_8",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_9",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_10",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_11",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_12",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_23",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_29",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_30",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_31",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_125",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_126",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_130",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_131",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_139",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_140",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_142",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_143",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_147",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_148",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_1",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_2",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_3",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_77",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_78",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_82",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_83",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_41",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_45",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_46",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_47",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_48",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_52",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_53",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_54",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_55",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_57",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_58",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_60"
-  ],
-  "detail": "A18 one-pixel guard tweak"
- },
- {
-  "cluster": "A19",
-  "keys": [
-   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_24",
-   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_25",
-   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_42",
-   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_24",
-   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_25",
-   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_35",
-   "backend.services.scene_ocr_service.x__image_to_base64__mutmut_7",
-   "backend.services.scene_ocr_service.x__image_to_base64__mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_1",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_2",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_16",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_23",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_25",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_26",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_27",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_28",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_29",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_35",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_44",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_50",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_52",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_53",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_75",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_76",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_78",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_79",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_80",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_81",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_82",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_63",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_122",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_124",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_125",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_126",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_7",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_9",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_11",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_15",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_80",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_82",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_21",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_23",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_58",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_59"
-  ],
-  "detail": "A19 degenerate/falsy-equivalent guard tweak"
- },
- {
-  "cluster": "A2",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_1",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_2",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_3",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_4",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_6",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_7",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_17",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_18",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_21",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_27"
-  ],
-  "detail": "A2 region guard degenerate / arithmetic index swaps"
- },
- {
-  "cluster": "A20",
-  "keys": [
-   "backend.services.scene_ocr_service.x__image_to_base64__mutmut_9"
-  ],
-  "detail": "A20 seek(1) truncates PNG bytes (helper mocked out)"
- },
- {
-  "cluster": "A3",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_26",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_28",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_64",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_65",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_69",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_70",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_71",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_72",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_73",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_74",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_86",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_87",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_89",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_90",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_91",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_92",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_97",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_99",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_102",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_103",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_104",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_105",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_122",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_132",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_133",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_134",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_135",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_136",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_137",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_138"
-  ],
-  "detail": "A3 crop request payload / response parse unasserted"
- },
- {
-  "cluster": "A4",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_6",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_9",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_10",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_12",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_14",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_28",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_30",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_33",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_38",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_39",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_41",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_42",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_43",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_44",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_45",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_46",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_47",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_60",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_62",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_65"
-  ],
-  "detail": "A4 full-frame request payload / response parse unasserted"
- },
- {
-  "cluster": "A5",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_6",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_8",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_10",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_12",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_14",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_39",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_46",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_60",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_61",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_62"
-  ],
-  "detail": "A5 crop class filter XX-token untested"
- },
- {
-  "cluster": "A7",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_4",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_5",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_6",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_7",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_8",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_12",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_14",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_15",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_16",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_17",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_22",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_31",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_64",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_65",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_66",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_67",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_68",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_69",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_70"
-  ],
-  "detail": "A7 dedup det_id/output schema unasserted"
- },
- {
-  "cluster": "A8",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_41",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_47",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_52",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_54",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_55",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_56",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_58",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_60",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_61",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_62"
-  ],
-  "detail": "A8 region 33/66 boundary tokens"
- },
- {
-  "cluster": "A9",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_42",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_45",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_46",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_60",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_62",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_63"
-  ],
-  "detail": "A9 dedup IoU boundary >= -> >"
- },
- {
-  "cluster": "B3",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_13",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_16",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_17"
-  ],
-  "detail": "B3 return_exceptions contract"
- },
- {
-  "cluster": "B4",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_6",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_7",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_8",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_9"
-  ],
-  "detail": "B4 process_frame call-arg mangling"
- },
- {
-  "cluster": "B5",
-  "keys": [
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_30",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_31",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_32",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_33",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_37",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_39",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_40",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_42",
-   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_43"
-  ],
-  "detail": "B5 service-matcher wiring unasserted"
- }
+{
+"x_get_memory_pressure_level|CODE:if _gpu_monitor is None:|OTHER|": [
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_1"
+],
+"x_get_memory_pressure_level|LOG|NONE|": [
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_2"
+],
+"x_get_memory_pressure_level|LOG|NONE|error": [
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_3",
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_8",
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_11"
+],
+"x_get_memory_pressure_level|LOG|OTHER|error": [
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_5"
+],
+"x_get_memory_pressure_level|LOG|STR|error": [
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_6",
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_7",
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_9",
+"backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_10"
+],
+"x_recover_orphaned_detections|CALL:batch_aggregator.add_detection|ARG-DEL|_file_path": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_47"
+],
+"x_recover_orphaned_detections|CALL:batch_aggregator.add_detection|ARG-DEL|confidence": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_48"
+],
+"x_recover_orphaned_detections|CALL:batch_aggregator.add_detection|NONE|_file_path": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_42"
+],
+"x_recover_orphaned_detections|CALL:batch_aggregator.add_detection|NONE|confidence": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_43"
+],
+"x_recover_orphaned_detections|CALL:batch_aggregator.add_detection|NONE|object_type": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_44"
+],
+"x_recover_orphaned_detections|CALL:batch_aggregator.add_detection|OTHER|object_type": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_49"
+],
+"x_recover_orphaned_detections|CODE:cutoff_time = datetime.now(UTC|NONE|cutoff_time": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_3"
+],
+"x_recover_orphaned_detections|CODE:cutoff_time = datetime.now(UTC|OTHER|cutoff_time": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_2"
+],
+"x_recover_orphaned_detections|CODE:result = await session.execute|NONE|result": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_31"
+],
+"x_recover_orphaned_detections|CODE:stmt = (|ARG-DEL|": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_11",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_25",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_26",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_27",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_28"
+],
+"x_recover_orphaned_detections|CODE:stmt = (|NONE|": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_6",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_7",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_10",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_17"
+],
+"x_recover_orphaned_detections|CODE:stmt = (|NONE|id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_14"
+],
+"x_recover_orphaned_detections|CODE:stmt = (|OPFLIP|id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_18"
+],
+"x_recover_orphaned_detections|CODE:stmt = (|OTHER|": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_9",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_12",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_19",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_29"
+],
+"x_recover_orphaned_detections|CODE:stmt = (|OTHER|id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_5",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_16"
+],
+"x_recover_orphaned_detections|LOG|ARG-DEL|error": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_93"
+],
+"x_recover_orphaned_detections|LOG|NONE|": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_53",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_67",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_78",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_89"
+],
+"x_recover_orphaned_detections|LOG|NONE|camera_count": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_79"
+],
+"x_recover_orphaned_detections|LOG|NONE|camera_id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_54",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_68"
+],
+"x_recover_orphaned_detections|LOG|NONE|error": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_66",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_90",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_100"
+],
+"x_recover_orphaned_detections|LOG|NONE|exc_info": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_91"
+],
+"x_recover_orphaned_detections|LOG|OTHER|camera_count": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_81"
+],
+"x_recover_orphaned_detections|LOG|OTHER|camera_id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_56",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_70"
+],
+"x_recover_orphaned_detections|LOG|OTHER|exc_info": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_94",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_101"
+],
+"x_recover_orphaned_detections|LOG|STR|": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_57",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_58",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_59",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_71",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_72",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_73",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_82",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_83",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_84",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_95",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_96",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_97"
+],
+"x_recover_orphaned_detections|LOG|STR|camera_count": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_87",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_88"
+],
+"x_recover_orphaned_detections|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_62",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_63",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_74",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_75"
+],
+"x_recover_orphaned_detections|LOG|STR|detection_count": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_76",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_77"
+],
+"x_recover_orphaned_detections|LOG|STR|detection_id": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_60",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_61"
+],
+"x_recover_orphaned_detections|LOG|STR|error": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_64",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_65",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_98",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_99"
+],
+"x_recover_orphaned_detections|LOG|STR|total_recovered": [
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_85",
+"backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_86"
+],
+"x_set_gpu_monitor|CODE:_gpu_monitor = monitor|NONE|_gpu_monitor": [
+"backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_1"
+],
+"x_set_gpu_monitor|LOG|NONE|": [
+"backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_2"
+],
+"x_set_gpu_monitor|LOG|STR|": [
+"backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_3",
+"backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_4",
+"backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_5"
+],
+"x\u01c1BatchAggregator\u01c1__init__|CODE:self._analyzer = analyzer|NONE|_analyzer": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1__init____mutmut_2"
+],
+"x\u01c1BatchAggregator\u01c1__init__|CODE:self._use_redis_streams: bool |NONE|bool": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1__init____mutmut_13"
+],
+"x\u01c1BatchAggregator\u01c1__init__|CODE:self._use_redis_streams: bool |OTHER|bool": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1__init____mutmut_16",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1__init____mutmut_19"
+],
+"x\u01c1BatchAggregator\u01c1_atomic_list_append|RAISE|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_atomic_list_append__mutmut_5"
+],
+"x\u01c1BatchAggregator\u01c1_atomic_list_get_all|MULTI:['LOG', 'UNK']|MIX|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_atomic_list_get_all__mutmut_23"
+],
+"x\u01c1BatchAggregator\u01c1_atomic_list_get_all|RAISE|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_atomic_list_get_all__mutmut_5"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|CODE:broadcaster = await get_broadc|NONE|broadcaster": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_2",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_3"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|CODE:if not self._redis:|NOTDEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_1"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|MULTI:['CALL:broadcaster.broadcast_detection_batch', 'UNK']|MIX|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_27"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|NONE|batch_data": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_4"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|NONE|closed_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_21",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_22"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|NONE|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_15",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_16"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|OTHER|closed_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_23",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_24"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|OTHER|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_17",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_18"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_5",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_6"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_7",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_8"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_25",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_26"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|closed_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_19",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_20"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_11",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_12"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|detection_ids": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_10"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_batch|PAYLOAD:batch_data|STR|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_13",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_batch__mutmut_14"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|CALL:broadcaster.broadcast_detection_new|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_25"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|CODE:broadcaster = await get_broadc|NONE|broadcaster": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_2",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_3"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|CODE:if not self._redis:|NOTDEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_1"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_26"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|LOG|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_27"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|LOG|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_29"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|LOG|STR|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_32",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_33"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_34"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|LOG|STR|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_30",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_31"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|MULTI:['LOG', 'UNK']|MIX|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_35"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|CONST|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_21"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|NONE|timestamp": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_24"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|NOTDEL|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_4"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|OPFLIP|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_20"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|OPFLIP|label": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_13"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|OTHER|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_18",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_19"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|STR|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_7",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_8"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_10"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|STR|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_16",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_17"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|STR|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_5",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_6"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|STR|label": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_11",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_15"
+],
+"x\u01c1BatchAggregator\u01c1_broadcast_detection_new|PAYLOAD:detection_data|STR|timestamp": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_22",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_broadcast_detection_new__mutmut_23"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:detections.append|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_41"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_136"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_137"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|NONE|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_141"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|NONE|closed_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_140"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|NONE|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_139"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|OTHER|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_147"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._broadcast_detection_batch|STR|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_148"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._redis._client.set|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_22"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._redis._client.set|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_19"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._redis._client.set|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_24"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._redis.delete|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_125",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_126",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_127",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_128",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_129",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_130"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._redis.delete|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_118",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_119",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_120",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_121",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_122",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_123",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_124"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CALL:self._redis.delete|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_131"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:batch_duration_ms = (ended_at |CONST|batch_duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_98"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:batch_duration_ms = (ended_at |NONE|batch_duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_95"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:batch_duration_ms = (ended_at |OTHER|batch_duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_96",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_97"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:detections_key = f\"batch:{batc|NONE|detections_key": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_25"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:raw_detections: list[bytes | s|CONST|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_33",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_35"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:raw_detections: list[bytes | s|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_27",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_28",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_29"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:raw_detections: list[bytes | s|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_30",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_31",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_32",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_34"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:result = await self._redis.add|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_72"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:result = await self._redis.add|NONE|overflow_policy": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_74"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:result = await self._redis.add|OTHER|overflow_policy": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_77"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:started_at: float = float(star|OTHER|float": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_49",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_50"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:started_at_str = await self._r|NONE|started_at_str": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_44",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_45"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:with log_context(batch_id=batc|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_15"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|CODE:with log_context(batch_id=batc|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_16",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_17"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_5",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_99",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_114",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_132"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_6"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|NONE|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_100"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|NONE|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_79"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_8"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|OTHER|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_102"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|OTHER|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_81"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_10",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_11",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_82",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_83",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_84",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_103",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_104",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_105",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_115",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_116",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_117",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_133",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_134",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_135"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_13"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_110",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_111",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_112",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_113"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_85",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_86",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_106",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_107"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_108",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_109"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|moved_to_dlq": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_91",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_92"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|queue_length": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_89",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_90"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|queue_name": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_87",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_88"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|LOG|STR|warning": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_93",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_94"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|MULTI:['CALL:self._broadcast_detection_batch', 'UNK']|MIX|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_149"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|PAYLOAD:summary|STR|ended_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_62",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_63"
+],
+"x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit|PAYLOAD:summary|STR|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_60",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_61"
+],
+"x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic|CALL:pipe.set|NONE|ex": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_13",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_15",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_20",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_21",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_25",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_26",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_27",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_28",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_32",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_35"
+],
+"x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic|CALL:pipe.set|OTHER|ex": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_18",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_24",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_31"
+],
+"x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic|CODE:if not self._redis or not self|OPFLIP|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_1"
+],
+"x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic|MULTI:['CALL:pipe.set', 'UNK']|MIX|ex": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_create_batch_metadata_atomic__mutmut_38"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_10"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|ARG-DEL|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_23"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_8",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_19"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_20",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_34"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|NONE|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_21"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|OTHER|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_11"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|OTHER|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_24"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_13",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_25",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_26",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_27"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_15",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_16",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_17",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_18",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_28",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_29",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_30",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_31",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_32",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_33"
+],
+"x\u01c1BatchAggregator\u01c1_process_fast_path|MULTI:['LOG', 'UNK']|MIX|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_fast_path__mutmut_35"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|CALL:service.process_smoke_fire_detection|CONST|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_30"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|CALL:service.process_smoke_fire_detection|STR|smoke_fire_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_27",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_28"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|CODE:service = SmokeFireConsecutive|NONE|redis_client": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_17"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_33"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|ARG-DEL|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_48"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_1",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_31",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_44"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_2",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_32",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_45"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|NONE|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_61"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|NONE|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_46"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|OTHER|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_4",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_34"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|OTHER|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_49"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_5",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_6",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_7",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_35",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_36",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_37",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_50",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_51",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_52"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_8",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_38",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_39",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_53",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_54"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|STR|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_15"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|STR|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_10",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_11",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_40",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_41",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_55",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_56"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|STR|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_59",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_60"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|LOG|STR|smoke_fire_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_13",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_42",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_43",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_57",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_58"
+],
+"x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path|MULTI:['CODE:', 'LOG']|MIX|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_smoke_fire_fast_path__mutmut_62"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|CALL:service.process_threat_detection|ARG-DEL|threat_detection": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_20"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|CALL:service.process_threat_detection|OTHER|event": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_21"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|CODE:service = ThreatMonitorService|NONE|redis_client": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_17"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|CODE:service = ThreatMonitorService|OTHER|redis_client": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_19"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_24"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|ARG-DEL|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_39"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_1",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_22",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_35"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_2",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_23",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_36"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|NONE|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_52"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|NONE|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_37"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|OTHER|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_4",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_25"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|OTHER|exc_info": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_40"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_5",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_6",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_7",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_26",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_27",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_28",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_41",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_42",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_43"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_8",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_29",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_30",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_44",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_45"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|STR|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_15"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|STR|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_10",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_11",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_31",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_32",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_46",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_47"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|STR|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_50",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_51"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|LOG|STR|threat_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_13",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_33",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_34",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_48",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_49"
+],
+"x\u01c1BatchAggregator\u01c1_process_threat_fast_path|MULTI:['LOG', 'UNK']|MIX|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1_process_threat_fast_path__mutmut_53"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._broadcast_detection_new|ARG-DEL|label": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_183"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._broadcast_detection_new|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_176"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._broadcast_detection_new|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_177"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._broadcast_detection_new|NONE|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_179"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._broadcast_detection_new|NONE|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_175"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._broadcast_detection_new|NONE|label": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_178"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._create_batch_metadata_atomic|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_137"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._create_batch_metadata_atomic|NONE|current_time": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_138"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._create_batch_metadata_atomic|NONE|ttl": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_139"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|ARG-DEL|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_63"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|ARG-DEL|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_64"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|ARG-DEL|smoke_fire_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_65"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_59"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|NONE|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_62"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|NONE|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_60"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|NONE|smoke_fire_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_61"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_smoke_fire_fast_path|OTHER|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_66"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|ARG-DEL|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_34"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|ARG-DEL|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_35"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|ARG-DEL|threat_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_36"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_30"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|NONE|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_33"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|NONE|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_31"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|NONE|threat_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_32"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._process_threat_fast_path|OTHER|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_37"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._redis.set|NONE|expire": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_157",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_158",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_162"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CALL:self._redis.set|OTHER|expire": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_160",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_161"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:batch_id = None|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_117"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:camera_lock = await self._get_|NONE|camera_lock": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_91"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:current_size: int = await self|NONE|int": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_98"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:current_time = time.time()|NONE|current_time": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_92"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:detection_count = await self._|NONE|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_150",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_152"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:detections_key = f\"batch:{batc|NONE|detections_key": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_96",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_147"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:if await self.should_bypass_ba|ARG-DEL|object_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_41"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:if await self.should_bypass_ba|NONE|object_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_38"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|CODE:ttl = self.BATCH_KEY_TTL_SECON|NONE|ttl": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_134",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_148"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|CONST|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_133"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_15",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_44",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_71",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_120",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_163"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_101",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_121",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_164"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_16",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_45",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_72"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_103",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_123",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_166"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|OTHER|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_18",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_47",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_74"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_19",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_20",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_21",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_48",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_49",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_50",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_75",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_76",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_77",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_104",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_105",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_106",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_124",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_125",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_126"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_109",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_110",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_127",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_128",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_129",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_130",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_131",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_132",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_169",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_170"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_22",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_23",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_51",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_52",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_78",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_79",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_107",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_108",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_167",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_168"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_26",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_27",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_55",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_56",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_82",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_83"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|current_size": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_111",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_112"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_173",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_174"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|detection_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_24",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_25",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_53",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_54",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_80",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_81",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_171",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_172"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|max_size": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_113",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_114"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|object_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_84",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_85"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|smoke_fire_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_57",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_58"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|LOG|STR|threat_type": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_28",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_29"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|MULTI:['CALL:self._broadcast_detection_new', 'UNK']|MIX|confidence": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_184"
+],
+"x\u01c1BatchAggregator\u01c1add_detection|RAISE|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1add_detection__mutmut_3"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CALL:batch_id_pipe.get|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_25"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CALL:batch_keys.append|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_22"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CALL:metadata_pipe.get|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_46",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_47"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:batch_key_str = batch_key.deco|NONE|batch_key_str": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_38"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:batch_key_str = batch_key.deco|OTHER|batch_key_str": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_39"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:camera_id_for_log = await self|NONE|camera_id_for_log": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_104",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_105"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:close_reason = \"\"|NONE|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_94"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:close_reason = \"\"|STR|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_95"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:close_reason = (|NONE|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_99",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_103"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:continue|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_69"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:elif idle_time >= self._idle_t|OPFLIP|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_100"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:for batch_key, batch_id in zip|NONE|strict": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_30"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:for batch_key, batch_id in zip|OTHER|strict": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_33",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_34"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:idle_time = current_time - las|OTHER|idle_time": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_91"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:if window_elapsed >= self._bat|OPFLIP|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_96"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity = float(last_act|OTHER|last_activity": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_85",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_86"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity_raw = metadata_r|CONST|last_activity_raw": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_56"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity_raw = metadata_r|NONE|last_activity_raw": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_53"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity_raw = metadata_r|OTHER|last_activity_raw": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_54"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity_str = (|NONE|last_activity_str": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_73"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity_str = (|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_74"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:last_activity_str = json.loads|OTHER|last_activity_str": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_78",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_79",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_80"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:should_close = False|NONE|should_close": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_92"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:should_close = False|OTHER|should_close": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_93"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:started_at_raw = metadata_resu|CONST|started_at_raw": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_52"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:started_at_str = (|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_71"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|CODE:window_elapsed = current_time |OTHER|window_elapsed": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_89"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_61"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_59",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_106",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_121"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|NONE|batch_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_122"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_60",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_68",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_107"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|OTHER|batch_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_124"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_62",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_109"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_63",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_64",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_65",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_110",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_111",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_112",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_125",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_126",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_127"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|STR|batch_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_128"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|STR|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_66",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_67",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_115",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_116"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|STR|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_113",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_114"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|LOG|STR|reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_117",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_118"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|MULTI:['LOG', 'UNK']|MIX|batch_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_129"
+],
+"x\u01c1BatchAggregator\u01c1check_batch_timeouts|RAISE|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_3",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1check_batch_timeouts__mutmut_11"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_181"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|NONE|camera_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_182"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|NONE|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_186"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|NONE|closed_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_185"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|NONE|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_184"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|OTHER|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_192"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._broadcast_detection_batch|STR|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_195"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._redis._client.set|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_20"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._redis._client.set|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_17"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._redis._client.set|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_22"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._redis.delete|ARG-DEL|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_170",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_171",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_172",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_173",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_174"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CALL:self._redis.delete|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_163",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_164",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_165",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_166",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_167"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:batch_duration_ms = (closed_at|CONST|batch_duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_143"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:batch_duration_ms = (closed_at|NONE|batch_duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_140"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:batch_duration_ms = (closed_at|OTHER|batch_duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_141",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_142"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:camera_lock = await self._get_|NONE|camera_lock": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_15"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:detections = await self._atomi|NONE|detections": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_50"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:detections: list[int] = []|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_46"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:pipeline_start_time: str | Non|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_48"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:return {|STR|closed_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_41",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_42"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:return {|STR|detections": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_37",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_38"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:return {|STR|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_39",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_40"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:started_at = float(started_at_|OTHER|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_70"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:started_at_str: str | None = N|OTHER|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_47"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:with log_context(batch_id=batc|NONE|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_10",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_11"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|CODE:with log_context(batch_id=batc|OTHER|batch_id": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_12",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_13"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_26",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_61",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_107",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_144",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_159",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_177"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|NONE|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_145"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|NONE|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_108",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_124"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|NONE|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_62",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_67"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|OTHER|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_147"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|OTHER|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_110",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_126"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|OTHER|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_64"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_27",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_28",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_29",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_111",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_112",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_113",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_127",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_128",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_129",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_148",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_149",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_150",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_160",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_161",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_162",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_178",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_179",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_180"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_155",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_156",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_157",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_158"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|detection_count": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_114",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_115",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_130",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_131",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_151",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_152"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|duration_ms": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_153",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_154"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_65",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_66",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_120",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_121"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|moved_to_dlq": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_136",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_137"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|queue_length": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_118",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_119",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_134",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_135"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|queue_name": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_116",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_117",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_132",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_133"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|LOG|STR|warning": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_138",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_139"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|MULTI:['CALL:self._broadcast_detection_batch', 'UNK']|MIX|close_reason": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_196"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|PAYLOAD:summary|STR|started_at": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_83",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_84"
+],
+"x\u01c1BatchAggregator\u01c1close_batch|RAISE|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1close_batch__mutmut_3"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|NONE|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_4",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_13"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|NONE|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_14",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_19",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_22"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|NONE|extra": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_5"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|OTHER|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_16"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|OTHER|extra": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_7"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|STR|": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_8",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_9",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_10"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|STR|error": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_17",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_18",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_20",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_21"
+],
+"x\u01c1BatchAggregator\u01c1should_apply_backpressure|LOG|STR|extra": [
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_11",
+"backend.services.batch_aggregator.x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_12"
 ]
+}

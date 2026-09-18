@@ -1,260 +1,532 @@
-# WP4.4 Triage Dossier — backend/services/nemotron_analyzer.py
+# WP4.4 Triage Dossier — backend/services/nemotron_analyzer.py (WP4.3 survivor feed)
 
-- **Survivors:** 125 of 3511 mutants (meta: `mutants/backend/services/nemotron_analyzer.py.meta`, exit_code 0)
-- **Functions involved:** `_extract_json_objects` (43), `NemotronAnalyzer.warmup` (49), `NemotronAnalyzer._get_enrichment_result` (21), `NemotronAnalyzer.analyze_batch_streaming` (6), `NemotronAnalyzer.get_warmth_state` (5), `NemotronAnalyzer.record_rollout_feedback` (1)
-- **Verdict split:** TEST-GAP 80 · EQUIVALENT 25 · LOW-VALUE 20
-- Diff source: `uv run mutmut show <key>` for all 125 keys (re-collected after a `/tmp` collision with a sibling agent clobbered the first `all-diffs.txt`; verified zero foreign-module lines in the final capture, with `warmup__mutmut_9` fetched individually).
+Date: 2026-09-18. Status: **UNVERIFIED** — no pytest/mutmut executed; drafts are not red/green-proven.
+Inputs: `mutants/backend/services/nemotron_analyzer.py.meta` (exit_code 0 = survived),
+`...py.spans` (per-variant line ranges), `mutants/mutmut-stats.json` (`tests_by_mangled_function_name`).
 
-## Covering tests (from `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`)
+## Method + data-hygiene notes
 
-| Function | Covering tests |
-|---|---|
-| `_extract_json_objects` | `test_nemotron_analyzer.py:291 test_parse_llm_response_with_extra_text`, `:312 ..._no_json`, `:320 ..._invalid_json`, `:333 ..._missing_required_fields`, `:1625 ..._multiple_json_objects`, `:1757-1806` region (`test_call_llm_invalid_json_in_response`), `test_nemotron_guided_json.py::TestFallbackParsing::test_parse_llm_response_raises_on_no_json` |
-| `warmup` | `test_nemotron_analyzer.py:3803 test_warmup_success`, `:3820 test_warmup_failure`, `:3833 test_warmup_disabled`; `test_model_warmup.py:141 test_warmup_on_startup_success`, `:154 ..._failure` |
-| `get_warmth_state` | `test_nemotron_analyzer.py:3724/:3731/:3740` (cold/warm/warming); `test_model_warmup.py:184/:193/:203` |
-| `_get_enrichment_result` | `test_nemotron_analyzer.py:2342 test_get_enrichment_result_returns_failed_tracking_on_failure`, `:2386 ..._none_when_disabled` |
-| `analyze_batch_streaming` | `test_nemotron_analyzer.py:4397 test_analyze_batch_streaming_delegates_to_streaming_module` |
-| `record_rollout_feedback` | `test_nemotron_analyzer.py:4909 ..._no_rollout_manager`, `:4918 ..._control_group` |
+- All 2545 survivors decoded mechanically: variant block vs `__mutmut_orig` block (def-name rename
+  `__mutmut_N` normalized before diffing). Exactly **one** real change-hunk per survivor; 0 missing,
+  0 identical. No `mutmut show` calls were needed (mutmut cache untouched).
+- Each mutation site was classified by (a) operator pattern and (b) **enclosing bracket-chain**
+  (scanner `sinkscan.py` under /tmp/wp25/wp44-triage) to separate string/data changes landing in
+  log/telemetry sinks (logger.*, extra={...}, record_exception, add_span_attributes, observe_*/record_*)
+  from ones landing in functional sinks (dicts flowing to `httpx.post(json=...)`, persisted records,
+  control flow, return values).
+- CONCURRENCY TRAP hit and worked around: a sibling triage agent overwrote the shared
+  `/tmp/wp25/wp44-triage/final.json` mid-run (it now holds *prompts.py* data). All my artifacts use
+  the `nemo_*` prefix: `nemo_rows.json`, `nemo_final.json`, `nemo_clusters.json`, `sinks.json`;
+  scripts `nemo_final.py`, `nemo_clusters.py`, `sinkscan.py`. Counts re-verified to 2545.
 
-## Why the extractor survivors are the big fish
+## Covering test files (from tests_by_mangled_function_name)
 
-`_extract_json_objects` (backend/services/nemotron_analyzer.py:159-198) is only reached from `_parse_llm_response` (:4257-4346) **after** the fast-path `json.loads` fails, and its failure is masked by TWO further fallbacks: truncation recovery (:4321-4335) and the legacy `_JSON_PATTERN` regex (:4338-4344). Every surviving test either hits the fast path or gets rescued by the regex, so no test ever makes the balanced-brace scanner load-bearing. 37 of the 43 survivors are real scanner breakage; a single direct unit test of the helper kills them all.
+- `backend/tests/unit/services/test_nemotron_analyzer.py` — primary (fixtures mock_settings:55,
+  analyzer:104; parse tests 272-360, 1625, 4232; retry tests 4297/4317/4340; broadcast 591; guided
+  4762-4870; build_prompt_basic 4382)
+- `backend/tests/unit/services/test_nemotron_guided_json.py`, `test_ai_inference_semaphore.py`,
+  `test_correlation_propagation.py` — secondary for _call_llm/_build_prompt/_parse/_validate/_check_guided
+- `backend/tests/unit/services/test_prompt_experiment_integration.py` — shadow funcs
+- `backend/tests/unit/services/test_prompt_ab_rollout_integration.py` — rollout funcs
+- `backend/tests/unit/services/test_model_warmup.py` — warmup/cold funcs
+- Gap files: NO unit test anywhere calls `_build_context_sources`, `_extract_json_objects` directly,
+  `calculate_batch_priority`, or `_trigger_event_created_webhook` (grep-verified 2026-09-18).
+  Integration `test_ai_pipeline_smoke.py:169-191` only checks context_sources presence rate.
 
-## Cluster table (counts sum to 125)
+## Cluster table (20 clusters, counts sum to 2545)
 
-| # | Pattern | Fn | Count | Class | Example keys | Note |
-|---|---|---|---|---|---|---|
-| C1 | Brace-depth arithmetic/comparison flipped (`depth=0→1`, `+=1→-=1/+=2/=1`, `-=1→+=1/-=2/=1`, `depth==0→!=0/==1`) | extract_json_objects | 9 | **TEST-GAP** | `x__extract_json_objects__mutmut_13`, `_38`, `_45` | Tests never observe the extracted candidate strings directly |
-| C2 | Char-comparison branch flips on quote/brace tests (`==`→`!=`, `==`→never-matching `"XX{XX"` literal) | extract_json_objects | 8 | **TEST-GAP** | `_27`, `_31`, `_35` | String-literal/depth state machine corrupted; only observable at helper level |
-| C3 | `in_string` state assignments + escape-skip condition clobbered (init `False→True`, close→`True`, open→`None/False`, `c=="\\"`→`!=`/`or`/XX-const) | extract_json_objects | 7 | **TEST-GAP** | `_15`, `_22`, `_34` | Escaped-quote/brace-in-string inputs never supplied |
-| C4 | Outer scan / cursor advance broken (start `i=1`, `text[i]!="{ "` flips, `i+=2`, `continue→break`, `c=None`, `j+=2`) | extract_json_objects | 7 | **TEST-GAP** | `_3`, `_6`, `_58` | Scanner misses or skips object starts |
-| C5 | Emitted slice / resume point wrong (`text[i:j+1]→j-1/j+2`, resume `i=j+1→j-1/j+2`, `found_end=True→False/None`) | extract_json_objects | 6 | **TEST-GAP** | `_48`, `_49`, `_51` | `_51`/`_50` return only the first object; `_53` (resume `j-1`) infinite-loops on standalone `{}` input — kill depends on the mutmut run timeout, note for WP4.4 |
-| C6 | Truthiness-preserving `False→None` inits and end-of-input guard tweaks (`j+1<n`→`j-1<n`/`j+2<n`/`j+1<=n`) | extract_json_objects | 6 | EQUIVALENT | `_14`, `_17`, `_24` | `None` falsy == `False` (14/17/29); guard only differs when backslash is the last char, where no object can close anyway (24/25/26) |
-| C7 | warmup metrics call args not asserted: `set_model_warmth_state`/`observe_model_warmup_duration`/`record_model_cold_start` get wrong model label (`None`/`"NEMOTRON"`/`"XXnemotronXX"`) or wrong state (casing/None → gauge falls through to 0), `duration = monotic()-start → +start`, `was_cold=None` (skips cold-start counter) | warmup | 23 | **TEST-GAP** | `warmup__mutmut_7`, `_10`, `_42` | Existing tests only assert return value + `is_cold()`. Prometheus label/value IS a real contract (dashboards). Killable via patched-boundary call-args test (D2) |
-| C8 | Pure log-message text mutations (`logger.debug/info/warning` message → None / XX-wrapped / lower / UPPER) | warmup | 13 | EQUIVALENT | `_2`, `_19`, `_60` | Per rubric: message text is not asserted behavior; `caplog` would kill them but shouldn't be required |
-| C9 | Structured-log `extra=` payload of "warmup completed" mutated (dropped, `None`, key renames `duration→DURATION` etc.) | warmup | 6 | LOW-VALUE | `_44`, `_46`, `_47` | Real change, but log-field shape nobody asserts |
-| C10 | Failed-warmup branch `set_model_warmth_state("nemotron", "cold")` → `(…, None/"XXcoldXX"/"COLD")` | warmup | 3 | EQUIVALENT | `_53`, `_58`, `_59` | `{"cold":0,…}.get(state, 0)` → gauge 0 either way (call-args tests still kill these, but gauge semantics preserved) |
-| C11 | `_is_warming` lifecycle: `True→None/False` before probe (warmup no longer reports "warming") and finally `False→True` (stuck "warming" forever) | warmup | 3 | **TEST-GAP** | `_8`, `_9`, `_66` | No test observes `get_warmth_state()` DURING warmup or asserts the post-warmup state string. Killed by D2 |
-| C12 | `_is_warming = False → None` in finally | warmup | 1 | EQUIVALENT | `_65` | Sole consumer is truthiness (`get_warmth_state` :1403); falsy→falsy |
-| C13 | get_warmth_state time-based cold branch never exercised: `is_cold=None` (always "warm"), `>`→`>=` boundary, `and False`, `"cold"`→`"XXcoldXX"/"COLD"` | get_warmth_state | 5 | **TEST-GAP** | `_17`, `_20`, `_23` | `test_get_warmth_state_cold` hits the `_last_inference_time is None` early-return (:1409), never line 1416-1418; warm test asserts "warm" but threshold crossing / `"cold"`-on-line-1418 never asserted |
-| C14 | `_run_enrichment_pipeline(detections, camera_id=camera_id)` forwarding mutated (detections→None, camera_id→None, either dropped) | _get_enrichment_result | 4 | **TEST-GAP** | `__mutmut_3`, `_4`, `_5` | `_5` raises TypeError caught by the broad `except Exception` at :2111 → returns FAILED result, which the only covering failure-path test asserts — survives by accident. Success path never stubs the pipeline. Killed by D4 |
-| C15 | Failure-path logger call payload (message text, `extra`, `exc_info=True→False/None/dropped`, `str(e)→str(None)`) | _get_enrichment_result | 14 | LOW-VALUE | `_8`, `_13`, `_21` | Diagnostics only |
-| C16 | FAILED fallback result `successful_models=[]→None` | _get_enrichment_result | 1 | **TEST-GAP** | `_23` | Test asserts status/data/failed_models/errors but not successful_models; downstream `len(result.successful_models)` (success_rate) TypeErrors on consumer. Killed by D4b one-liner |
-| C17 | Fallback result construction drops args that equal dataclass defaults (`successful_models=[]` omitted, `data=None` omitted) | _get_enrichment_result | 2 | EQUIVALENT | `_27`, `_30` | `EnrichmentTrackingResult` (backend/services/enrichment_pipeline.py:472-476) has `default_factory=list` / `default=None` — identical object |
-| C18 | `analyze_batch_streaming` delegates with kwargs zeroed/dropped (`analyzer=None`, `batch_id=None`, `camera_id=None/omitted`, `detection_ids=None/omitted`) | analyze_batch_streaming | 6 | **TEST-GAP** | `__mutmut_1`, `_7`, `_8` | Existing test (:4397) does `assert_called_once()` — no arg assertion; autospec tolerates None kwargs. Killed by D5 |
-| C19 | `record_rollout_feedback`: camera_id not forwarded to `get_group_for_camera` (`camera_id→None`) | record_rollout_feedback | 1 | **TEST-GAP** | `__mutmut_3` | Control-group test asserts feedback routing but never the lookup arg. Killed by D6 |
+Example keys are full meta keys; module prefix abbreviated as `NS.` = `backend.services.nemotron_analyzer.`
 
-## Drafted tests (highest-value TEST-GAP clusters)
+| # | Cluster | Count | Pattern (rep diff) | Class | Example keys | Notes |
+|---|---------|-------|--------------------|-------|--------------|-------|
+| 1 | C-DATA-FUNC | 643 | data-flow null/deletion in functional context: `self._llm_url = settings.nemotron_url` -> `= None`; kwargs removed from calls; `.get("k", default)` loses default | TEST-GAP | `NS.xǁNemotronAnalyzerǁ__init____mutmut_6` (`limits=httpx.Limits(max_connections=10,...)` -> None); `NS.xǁNemotronAnalyzerǁ_call_llm__mutmut_272` (`completion_text = llm_result.get("content","")` -> None); `NS.xǁNemotronAnalyzerǁanalyze_detection_fast_path__mutmut_46` (`select(Detection).where(Detection.id == id)` -> `(None)`) | Real behavior change (crash/raise/silently-wrong prompt or persisted record); suites execute these paths but assert only happy outcomes, never wiring (timeouts, enrichment kwargs, DB filters, persisted fields). Killable with functional-path assertions; not drafted (needs 3-5 broad contract tests, list in notes) |
+| 2 | C-STR-OBS | 520 | string literal clobber (`"XX...XX"` / `"UPPER"` / lower) inside log messages / `extra={...}` / span attributes | EQUIVALENT | `NS.xǁNemotronAnalyzerǁ_check_guided_json_support__mutmut_54/55/56` | Human text + observability dims only; no functional consumer reads them; no test should assert log wording |
+| 3 | C-STR-FUNC | 318 | string clobber in functional data: `test_schema {"XXtypeXX"...}`, `_validate_risk_data` fallback summary/reasoning defaults, `.get("risk_score")` keys, `set_model_warmth_state("nemotron"...)`, `"stop": ["<XX|im_endXX>"]` | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_check_guided_json_support__mutmut_3/4/5` | Mixed: payload-key members killed by draft T1; validate-fallback-defaults + warmth-state + stop-token members need small key/value asserts (e.g. `result["summary"] == "Risk analysis completed"`, `analyzer._warmth_state == "warm"`) |
+| 4 | C-OBS-DATA | 263 | data-flow changes inside log/telemetry sinks: `last_exception = None`, `str(e)` -> `str(None)`, `camera_id=None`, metric labels -> None in `extra={...}` | LOW-VALUE | `NS.xǁNemotronAnalyzerǁ__init____mutmut_78`; `NS.xǁNemotronAnalyzerǁ_check_guided_json_support__mutmut_50/51` | Debug-context degradation only; asserting log extras is low ROI. Exceptions still propagate (message/raise asserted elsewhere) |
+| 5 | C-PROMPT-GATES | 192 | _build_prompt enrichment gating: `has_enriched_context` -> None, `if enrichment_result is not None` -> `and False` / `or True` / `is None`, reid/pose/action gates flipped | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_build_prompt__mutmut_1` (`has_enriched_context = (` -> `= None`); `NS.xǁNemotronAnalyzerǁ_build_prompt__mutmut_35` (`if enrichment_result is not None` -> `and False`); `NS.xǁNemotronAnalyzerǁ_build_prompt__mutmut_16` (time_of_day -> None) | Prompt body composition is exactly what the LLM consumes. Only `test_build_prompt_basic` (test_nemotron_analyzer.py:4382) exists and it covers the *basic* path; enrichment path never built in tests. -> draft T2 |
+| 6 | C-CTX-FLAGS | 150 | _build_context_sources: `sources["has_weather"] = ... is not None` -> `is None`, empty-branch `= False` -> `True`, keys clobbered, -> None | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_build_context_sources__mutmut_4` (`enrichment_available: ... is not None` -> `is None`); `NS.xǁNemotronAnalyzerǁ_build_context_sources__mutmut_18` (`has_weather ... is not None` -> `is None`); `NS.xǁNemotronAnalyzerǁ_build_context_sources__mutmut_2` (dict keys XX-wrapped) | Function has ZERO direct tests; its dict is persisted on LLMInteraction.context_sources for calibration/debug. -> draft T3 |
+| 7 | C-LOGIC-FLIP | 140 | scattered control/logic flips in analyze_batch/fast-path/shadow/enrichment: `or` -> `and` in `d.object_type or "unknown"`, `if not camera:` -> `if camera:`, coalesce-id `!=` -> `==`, scene-change `.where(acknowledged == False)` -> `!=`, `types_lower & ...` -> `|` | TEST-GAP | `NS.xǁNemotronAnalyzerǁanalyze_batch__mutmut_275` (`"class_name": d.object_type or "unknown"` -> `and "unknown"`); `NS.xǁNemotronAnalyzerǁanalyze_batch__mutmut_68`; `NS.xǁNemotronAnalyzerǁ__init____mutmut_29` (`max_retries if ... is not None` -> `and False`) | Real branches changed; analyze_batch tests exercise happy paths only. Killable with targeted DB-mock contract tests; priority subset drafted (T6) |
+| 8 | C-PARSE | 59 | _parse_llm_response extraction/selection: `isinstance(data, dict) and "risk_score" in data` -> `or` / `not in`, candidate loop `continue` -> `break`, `find` -> `rfind`, think-tag arithmetic | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_parse_llm_response__mutmut_74` (`and` -> `or`); `NS.xǁNemotronAnalyzerǁ_parse_llm_response__mutmut_83` (`continue` -> `break`); `NS.xǁNemotronAnalyzerǁ_parse_llm_response__mutmut_34` (`first_brace = find("{")` -> `rfind`) | Existing parse tests (272/1625/4232) all use single-candidate, no-braces-in-strings text. -> draft T5; note: `startswith` fast-path guards (62/63) and `first_brace > 0` <-> `>= 0` (36/59) are near-equivalent toggles - do not chase |
+| 9 | C-EXTRACT | 43 | _extract_json_objects scanner: `i = 0` -> `1`, `i += 1` -> `+= 2/3`, comparison flips on brace/quote/escape checks (`elif c == "}"` -> `!=`), `depth == 0` -> `!=`, `continue` -> `break`, `in_string = False` -> `True` | TEST-GAP | `NS.x__extract_json_objects__mutmut_3` (`i = 0` -> `i = 1`); `NS.x__extract_json_objects__mutmut_6` (`text[i] != "{"` -> `==`); `NS.x__extract_json_objects__mutmut_45` (`depth == 0` -> `!=`) | Function never called directly by tests (grep-verified); its only caller path uses trivially-nested JSON. -> draft T4 |
+| 10 | C-RETRY | 38 | _call_llm retry/backoff: `attempt < max_retries-1` -> `<=`/`+1`/`-2`/`==`, `min(2**attempt, 30)` -> `2 * attempt` / `3**attempt` / cap 31/1000, `last_exception = e` -> None, retry-count in message | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_call_llm__mutmut_285` (`<` -> `<=`); `NS.xǁNemotronAnalyzerǁ_call_llm__mutmut_293` (`min(2**attempt,30)` -> `2 * attempt`); `NS.xǁNemotronAnalyzerǁ_call_llm__mutmut_294` (-> `3**attempt`; sibling copies of the same line: 344/345/395/396/455/456/529/530, cap-31 members 295/346/397/457/531 are near-equivalents) | Tests 4297/4317/4340 assert raise + call_count only; NO test asserts sleep delays or error-cause chain anywhere in repo. -> draft T1 |
+| 11 | C-HTTP-KEYS | 32 | payload-dict KEY string clobbers in outbound HTTP: webhook payload (`"XXevent_idXX"`), guided-json probe (`"XXmax_tokensXX"`), readiness probe | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_check_guided_json_support__mutmut_36/37/39`; `NS.xǁNemotronAnalyzerǁ_trigger_event_created_webhook__mutmut_11` (`"event_id"` -> `"XXevent_idXX"`) | Outbound request bodies are contracts. Webhook members killed by T6; probe members killed by T1's payload assert |
+| 12 | C-WEBHOOK | 31 | webhook/broadcast payload build + soft-delete guard: `if event.deleted_at is not None` -> `is None`, `isoformat() if event.started_at` -> `and False`/`or True`, arg deletions | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_trigger_event_created_webhook__mutmut_1`; `NS.xǁNemotronAnalyzerǁ_broadcast_event__mutmut_36` (started_at ternary `and False`) | `test_broadcast_event:591` asserts 4 data keys but not started_at/ternary/deleted_at guard; webhook fn untested -> draft T6 |
+| 13 | C-MISC | 27 | leftovers: `Limits(max_connections=10, ...)` arg deletions, `except ValueError, TypeError` (syntax-invalid variant -> import-error kill noise), Z-rest odds | TEST-GAP | `NS.xǁNemotronAnalyzerǁ__init____mutmut_63/74` | Mostly the Limits members -> T1 payload/client-arg assert would also kill limits mutants; rest = scratchpad |
+| 14 | C-EXCINFO | 20 | `exc_info=True` -> `exc_info=None` / `False` in logger.error | LOW-VALUE | `NS.xǁNemotronAnalyzerǁ_get_enriched_context__mutmut_15/27` | Only changes whether a traceback rides on the log record |
+| 15 | C-SHADOW | 18 | shadow-compare metric labels / `.get("risk_score")` keys XX/UPPER-clobbered in run_shadow_analysis/_log_shadow_result | TEST-GAP | `NS.xǁNemotronAnalyzerǁrun_shadow_analysis__mutmut_32` (`v1_result.get("XXrisk_scoreXX", 0)`) | test_prompt_experiment_integration.py drives the path but never asserts returned shadow dict / persisted metrics |
+| 16 | C-GUIDED-BOUND | 15 | status/retry boundary probes: `status_code < 300` -> `<= 300`, `400 <= sc < 500` -> `400 <` / `< = 500`, `attempt < max_retries-1` -> `<=`, retry_delays tweaks | TEST-GAP | `NS.xǁNemotronAnalyzerǁ_check_guided_json_support__mutmut_46` (`<300` -> `<=300`); `NS.xǁNemotronAnalyzerǁ_check_guided_json_support__mutmut_85/86` | Existing tests (4762-4842) use only 400/500 - boundary 300 and 500-membership never probed. Small contract test: sc=300 -> not-supported; sc=500 -> retried 3x |
+| 17 | C-ROLLOUT | 13 | `if group == ExperimentGroup.CONTROL:` -> `!=` + control/treatment metric kwargs nulled | TEST-GAP | `NS.xǁNemotronAnalyzerǁrecord_rollout_analysis__mutmut_4` | Swap would misroute ALL A/B rollout metrics. Test file exists (test_prompt_ab_rollout_integration.py) but never asserts which recorder fn fired. Tiny fake-manager test would kill all 13 |
+| 18 | C-PRIORITY | 12 | priority labels: `label.lower()` -> `upper`, `types_lower & self._priority_high_labels` -> `|`, label-init nulls | TEST-GAP | `NS.xǁNemotronAnalyzerǁcalculate_batch_priority__mutmut_3` (`&` -> `|`: matches for EVERY batch); `NS.xǁNemotronAnalyzerǁ__init____mutmut_52` | calculate_batch_priority has ZERO tests. -> draft T6 |
+| 19 | C-COLD | 6 | warmth boundary `seconds_since_last > threshold` -> `>=`, state-string clobbers, `"cold" if is_cold` -> `and False` | TEST-GAP | `NS.xǁNemotronAnalyzerǁis_cold__mutmut_5`; `NS.xǁNemotronAnalyzerǁget_warmth_state__mutmut_20` | Boundary = exactly one timestamp; test_model_warmup.py exists but pins non-boundary values. 3-line test |
+| 20 | C-SENTINEL | 5 | sentinel swap `= None` -> `= ""` (`_ab_config`, `household_matches`, `last_exception`) | EQUIVALENT | `NS.xǁNemotronAnalyzerǁ__init____mutmut_39/41`; `NS.xǁNemotronAnalyzerǁ_call_llm__mutmut_71` | Guarded by truthiness only (`if x:`, `if last_exception:`) - "" and None behave identically; type annotation not enforced at runtime. Do not chase |
 
-TDD procedure (same for all six): add test against current source → run → **green**; apply the cluster's mutant diff → run → **assert fails (red)**; revert → green. All are **UNVERIFIED — not yet run red/green** (test execution forbidden during the live mutation run).
+Totals: EQUIVALENT 525 (C-STR-OBS 520 + C-SENTINEL 5), LOW-VALUE 283 (C-OBS-DATA 263 + C-EXCINFO 20), TEST-GAP 1737 across 16 clusters. Sum = 2545.
 
-### D1 — kills C1–C5 (37 mutants) · `backend/tests/unit/services/test_nemotron_analyzer.py` (module-level, matches style at :291)
+Notable non-killable members kept in honest clusters (flag in the report, not separate clusters):
+`..._call_llm__mutmut_295/346` (backoff cap 30 -> 31 — unreachable until delay > 30 with default retries),
+`..._parse_llm_response__mutmut_36/59/62/63` (fast-path/toggle near-equivalents),
+`..._call_llm__mutmut_105-110` (`max_retries` in log `extra=` — observability).
+
+## Drafted tests - UNVERIFIED: not yet run red/green
+
+TDD procedure for each: run the test against the mutant tree (red - assertion fails on the
+mutant diff), then against the original backend/services/nemotron_analyzer.py (green). The
+serial WP4.4 lane owns red-on-mutant -> green-on-original -> killed verification.
+
+### T1 test_call_llm_backoff_schedule_and_retry_exhaustion
+Kills: C-RETRY (38: delay-formula 2**attempt variants, `attempt < self._max_retries - 1`
+boundary flips, retry-count in message, `last_exception` nulling via original_error) plus
+payload-key members of C-STR-FUNC / C-HTTP-KEYS.
+Target: backend/tests/unit/services/test_nemotron_analyzer.py (append after
+test_call_llm_unexpected_error_with_retry, ~line 4395).
 
 ```python
-def test_extract_json_objects_balanced_scanner_contract():
-    """_extract_json_objects is the only parser for LLM text that defeats the
-    fast-path and the _JSON_PATTERN regex — pin its contract directly.
+@pytest.mark.asyncio
+async def test_call_llm_backoff_schedule_and_retry_exhaustion(analyzer):
+    """NEM-1343/NEM-1465: retry budget, exponential backoff, error causality.
 
-    UNVERIFIED - not yet run red/green.
+    Existing retry tests (test_call_llm_asyncio_timeout / _client_error_no_retry /
+    _unexpected_error_with_retry) only assert raise + call count; nothing asserts
+    sleep delays, the completion payload contract, or exception chaining.
+    """
+    # NOTE: built without the literal ChatML marker sequence so this dossier can be
+    # round-tripped through tool channels that reserve "<|...|>" token forms.
+    im_end = "<" + "|im_end|>"
+    im_start = "<" + "|im_start|>"
+
+    analyzer._max_retries = 3  # two sleep gaps, then the final attempt raises
+    post_kwargs: list[dict] = []
+
+    async def always_fail(*args, **kwargs):
+        post_kwargs.append(kwargs)
+        raise httpx.ConnectError("boom")
+
+    slept: list[float] = []
+
+    async def fake_sleep(delay):
+        slept.append(delay)
+
+    with (
+        patch("httpx.AsyncClient.post", side_effect=always_fail, autospec=True),
+        patch("backend.services.nemotron_analyzer.asyncio.sleep", new=fake_sleep),
+    ):
+        with pytest.raises(AnalyzerUnavailableError) as excinfo:
+            await analyzer._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+    assert len(post_kwargs) == 3
+    assert slept == [1, 2]  # min(2**attempt, 30): 2**0 then 2**1
+    err = excinfo.value
+    assert "after 3 attempts" in str(err)
+    assert isinstance(err.original_error, httpx.ConnectError)
+    assert err.__cause__ is err.original_error
+
+    body = post_kwargs[0]["json"]
+    assert body["temperature"] == 0.3
+    assert body["top_p"] == 0.95
+    assert body["stop"] == [im_end, im_start]
+    assert body["cache_prompt"] is True
+    assert "prompt" in body and "max_tokens" in body
+```
+
+Kill logic (T1): `attempt <= max_retries-1` / `+1` mutants add a third sleep
+(slept == [1,2,4] != [1,2]); `-2` / `==` mutants suppress the first sleep ([] != [1,2]);
+`2 * attempt` gives [0,2]; `3**attempt` gives [1,3]; `last_exception=None` mutants fail the
+original_error / __cause__ asserts; clobbered payload keys (temperature/top_p/stop/
+cache_prompt/prompt/max_tokens) fail the body contract; the retry-count message mutants fail
+`after 3 attempts`. Red on mutant, green on original.
+
+### T2 test_build_prompt_enrichment_gating_contract
+Kills: C-PROMPT-GATES members around `has_enriched_context or enrichment_result is not None`,
+the `if enrichment_result is not None [and ...]` reid/pose/action/scene/ondemand gates, and the
+`x if enriched_context else None` cross-camera ternaries (andFalse/orTrue/is-flip/and-or flips).
+Target: same file, after test_build_prompt_basic (~line 4395).
+
+```python
+@pytest.mark.asyncio
+async def test_build_prompt_enrichment_gating_contract(analyzer):
+    """_build_prompt must include every enrichment section when data exists and
+    fall back to defaults when it does not. Only test_build_prompt_basic exists
+    today, and it covers the *basic* template - the enriched branch is untested.
+
+    // UNVERIFIED - not yet run red/green
+    """
+    from contextlib import ExitStack
+
+    fmt_names = [
+        "format_cross_camera_person_tracking", "format_weather_context",
+        "format_image_quality_context", "format_confidence_quality_summary",
+        "format_pose_analysis_context", "format_action_recognition_context",
+        "format_trajectory_context", "format_vehicle_classification_context",
+        "format_vehicle_damage_context", "format_clothing_analysis_context",
+        "format_pet_classification_context", "format_depth_context",
+        "format_clip_analysis_context", "format_detections_with_all_enrichment",
+        "format_violence_context",
+    ]
+
+    def marker(name):
+        return lambda *args, **kwargs: f"<<{name}>>"
+
+    enricher = MagicMock()
+    enricher.format_zone_analysis.return_value = "<<ZONE>>"
+    enricher.format_baseline_comparison.return_value = "<<BASELINE>>"
+    enricher.format_cross_camera_summary.return_value = "<<XCSUM>>"
+
+    ctx = MagicMock()
+    ctx.camera_id = "cam-7"
+    ctx.zones = ["zone-a"]
+    ctx.cross_camera = ["cam-b"]
+    ctx.baselines = MagicMock()
+    ctx.baselines.day_of_week = "Tuesday"
+    ctx.baselines.deviation_score = 1.23
+
+    er = MagicMock()
+    er.vision_extraction = MagicMock()
+    er.vision_extraction.environment_context.time_of_day = "night"
+    er.vision_extraction.scene_analysis = None
+    er.person_reid_matches = [MagicMock()]
+    er.vehicle_reid_matches = []
+    er.pose_results = {}
+    er.action_results = None
+    er.weather_classification = None
+    er.trajectory_analyses = None
+    er.vehicle_classifications = {}
+    er.vehicle_damage = {}
+    er.clothing_classifications = {}
+    er.clothing_segmentation = None
+    er.pet_classifications = {}
+    er.depth_analysis = None
+
+    with ExitStack() as stack:
+        for name in fmt_names:
+            stack.enter_context(
+                patch(f"backend.services.nemotron_analyzer.{name}", new=marker(name))
+            )
+        stack.enter_context(
+            patch("backend.services.reid_service.format_full_reid_context",
+                  new=lambda p, v: f"<<REID:{bool(p)}/{bool(v)}>>")
+        )
+        stack.enter_context(
+            patch("backend.services.vision_extractor.format_scene_analysis",
+                  new=marker("SCENE"))
+        )
+        stack.enter_context(patch.object(analyzer, "_get_context_enricher", return_value=enricher))
+        stack.enter_context(
+            patch.object(analyzer, "_build_ondemand_enrichment_context",
+                         new=lambda *_a, **_k: "<<ONDEMAND>>")
+        )
+
+        prompt = analyzer._build_prompt(
+            camera_name="Front Door",
+            start_time="2025-12-23T14:30:00",
+            end_time="2025-12-23T14:31:00",
+            detections_list="1. 14:30:00 - person",
+            enriched_context=ctx,
+            enrichment_result=er,
+        )
+        for token in ("<<ZONE>>", "<<BASELINE>>", "<<XCSUM>>", "<<REID:True/False>>",
+                      "<<ONDEMAND>>", "Tuesday", "night", "1.23"):
+            assert token in prompt, token
+
+        # context WITHOUT baselines: enriched path via `or`, baseline defaults must appear
+        ctx.baselines = None
+        prompt_nb = analyzer._build_prompt(
+            camera_name="Front Door", start_time="t0", end_time="t1",
+            detections_list="d", enriched_context=ctx, enrichment_result=er,
+        )
+        assert "Baseline comparison: Not available" in prompt_nb
+        assert "<<REID:True/False>>" in prompt_nb
+
+        # no context at all: cross-camera kwargs fall back to None (or-True mutants crash here)
+        prompt_nc = analyzer._build_prompt(
+            camera_name="Front Door", start_time="t0", end_time="t1",
+            detections_list="d", enriched_context=None, enrichment_result=er,
+        )
+        assert "<<REID:True/False>>" in prompt_nc
+        assert "Zone analysis: Not available" in prompt_nc
+```
+
+Kill logic (T2): `has_enriched_context = ... and enrichment_result is not None` (mutmut_67)
+collapses call 2 to the basic template -> "<<REID:True/False>>" absent -> red; `if enrichment_result
+is not None` -> `and False` (35/38/40/43) drops <<ONDEMAND>>/pose/action sections -> red; `or True`
+members (36/27/29/64/66) crash (AttributeError on None) on call 3 or bypass the None-ternary
+default on call 2 -> red; reid ternaries fed `None` instead of the match lists fail the exact
+`<<REID:True/False>>` marker. Green on original.
+### T3 test_build_context_sources_populated_and_empty
+Kills: C-CTX-FLAGS (150; `is not None` -> `is None` value flips, empty-branch `False` -> `True`,
+`-> None` nulls, and XX/UPPER-clobbered dict keys) - the function has ZERO direct tests; its dict
+is persisted as LLMInteraction.context_sources (analyze_batch ~line 2992/3019).
+Target: same file (new section near test_run_enrichment_pipeline tests).
+
+```python
+def test_build_context_sources_populated_and_empty(analyzer):
+    """NEM-4234: context_sources flags record which enrichment fields had data.
+
+    // UNVERIFIED - not yet run red/green
+    """
+    from backend.services.context_enricher import EnrichedContext
+
+    er = MagicMock()
+    er.has_license_plates = True
+    er.has_faces = False
+    er.weather_classification = None
+    er.pose_results = {}
+    er.action_results = None
+    er.has_violence = False
+    er.has_clothing_classifications = False
+    er.has_vehicle_classifications = False
+    er.has_vehicle_damage = False
+    er.has_pet_classifications = False
+    er.has_image_quality = False
+    er.has_vision_extraction = False
+    er.person_reid_matches = []
+    er.vehicle_reid_matches = []
+    er.person_household_matches = []
+    er.vehicle_household_matches = []
+
+    ctx = MagicMock()
+    ctx.baselines = None
+    ctx.zones = []
+    ctx.cross_camera = []
+
+    sources = analyzer._build_context_sources(enrichment_result=er, enriched_context=ctx)
+
+    assert sources["enrichment_available"] is True
+    assert sources["context_available"] is True
+    assert sources["has_license_plates"] is True
+    assert sources["has_faces"] is False
+    assert sources["has_weather"] is False
+    assert sources["has_pose"] is False
+    assert sources["has_action"] is False
+    assert sources["has_baselines"] is False
+    assert sources["has_zones"] is False
+    assert sources["has_cross_camera"] is False
+
+    # fully-empty call: every has_* flag must be False (empty branches + availability)
+    empty = analyzer._build_context_sources(enrichment_result=None, enriched_context=None)
+    assert empty["enrichment_available"] is False
+    assert empty["context_available"] is False
+    assert all(v is False for k, v in empty.items() if k.startswith("has_")), empty
+
+    # baselines present -> has_baselines True
+    ctx.baselines = MagicMock()
+    assert analyzer._build_context_sources(er, ctx)["has_baselines"] is True
+
+
+def test_build_context_sources_keys_are_stable_contract(analyzer):
+    """Keys of context_sources are persisted to LLMInteraction and consumed by
+    calibration/debug tooling - renaming one (XX/UPPER clobber) is a breaking change.
+
+    // UNVERIFIED - not yet run red/green
+    """
+    expected = {
+        "enrichment_available", "context_available", "has_license_plates", "has_faces",
+        "has_weather", "has_pose", "has_action", "has_violence", "has_clothing",
+        "has_vehicle_classification", "has_vehicle_damage", "has_pet_classification",
+        "has_image_quality", "has_vision_extraction", "has_person_reid", "has_vehicle_reid",
+        "has_household_person_matches", "has_household_vehicle_matches",
+        "has_baselines", "has_zones", "has_cross_camera",
+    }
+    out = analyzer._build_context_sources(enrichment_result=None, enriched_context=None)
+    assert set(out) == expected
+```
+
+Kill logic (T3): `sources["has_weather"] = ... is not None` -> `is None` (mutmut_18) flips
+False->True -> red; empty-branch `= False` -> `= True` flips `all(v is False ...)` -> red;
+`has_baselines ... is not None` -> `is None` (132) flips the last assert -> red; XX/UPPER key
+clobbers fail the exact-key set assert -> red. Green on original.
+
+### T4 test_extract_json_objects_balanced_scanner
+Kills: C-EXTRACT (43; `i = 0` -> `1`, `i += 1` -> `+= 2/3`, `continue` -> `break`, all
+brace/quote/escape comparison flips, `depth == 0` -> `!=`, `in_string = False` -> `True`).
+The module-level scanner has no direct tests (grep 2026-09-18).
+Target: same file, near the parse tests (~line 1660).
+
+```python
+def test_extract_json_objects_balanced_scanner():
+    """Balanced-brace extraction: nesting depth, braces inside strings, escapes,
+    multiple top-level objects, and unterminated fragments.
+
+    // UNVERIFIED - not yet run red/green
     """
     from backend.services.nemotron_analyzer import _extract_json_objects
 
-    # flat object at position 0 (kills i=1 start, != flips, c=None, j+=2)
-    assert _extract_json_objects('{"a": 1}') == ['{"a": 1}']
-    # leading text at odd offset (kills i+=2 skip, continue->break)
-    assert _extract_json_objects('X{"a": 1}') == ['{"a": 1}']
-    # arbitrary nesting (kills depth arithmetic / depth==0 flips)
-    nested = '{"a": {"b": {"c": 1}}}'
-    assert _extract_json_objects(nested) == [nested]
-    # escaped quote + brace inside string (kills escape/state-machine mutants)
-    esc = '{"s": "a\\"b {x} c"}'
+    assert _extract_json_objects('no braces here') == []
+
+    # nested + string-embedded braces + escapes
+    text = '{"a": "x{y}z", "b": {"c": 1}} tail {"d": 2}'
+    assert _extract_json_objects(text) == ['{"a": "x{y}z", "b": {"c": 1}}', '{"d": 2}']
+
+    # escaped quote inside a string keeps in_string true past the \"
+    esc = '{"k": "he said \\"{\\" done", "n": {"x": 1}}}'
     assert _extract_json_objects(esc) == [esc]
-    # two adjacent objects (kills slice/reume off-by-one + found_end falsy)
-    assert _extract_json_objects('{"a": 1}{"b": 2}') == ['{"a": 1}', '{"b": 2}']
-    # empty standalone object (kills mutmut_53 resume->j-1 via its rescan loop;
-    # NOTE: that mutant loops forever here, kill relies on the mutmut timeout)
-    assert _extract_json_objects('{}') == ['{}']
-    # no object closes => nothing extracted
-    assert _extract_json_objects('{"a": 1') == []
-    assert _extract_json_objects('plain text') == []
-```
 
-Assertions compare the **raw extracted strings**, so slice mutants (48/49) that merely make `json.loads` fail in the caller are still caught — the caller-level tests could never see them.
+    # unterminated trailing object is dropped (found_end guard)
+    assert _extract_json_objects('{"ok": 1} {"broken": ') == ['{"ok": 1}']
 
-### D2 — kills C7 + C11 (26 mutants) · `backend/tests/unit/services/test_model_warmup.py` (into `TestNemotronAnalyzerWarmup`, style matches :141)
-
-```python
-@pytest.mark.asyncio
-async def test_warmup_emits_nemotron_labeled_metrics_and_warming_lifecycle(self, analyzer):
-    """Warmup must label every metric 'nemotron', record the cold start,
-    report 'warming' while in flight and leave the flag cleared after.
-
-    UNVERIFIED - not yet run red/green.
-    """
-    from unittest.mock import call
-
-    with (
-        patch.object(analyzer, "model_readiness_probe", new_callable=AsyncMock) as mock_probe,
-        patch("backend.core.metrics.set_model_warmth_state") as mock_state,
-        patch("backend.core.metrics.observe_model_warmup_duration") as mock_observe,
-        patch("backend.core.metrics.record_model_cold_start") as mock_cold,
-    ):
-        def probe_checks_warming():
-            # during warmup the analyzer must report 'warming'
-            assert analyzer.get_warmth_state()["state"] == "warming"
-            return True
-
-        mock_probe.side_effect = probe_checks_warming
-        result = await analyzer.warmup()
-
-    assert result is True
-    mock_state.assert_has_calls([call("nemotron", "warming"), call("nemotron", "warm")])
-    mock_cold.assert_called_once_with("nemotron")          # kills was_cold=None + counter label mutants
-    (model, duration), _ = mock_observe.call_args
-    assert model == "nemotron"
-    assert 0.0 <= duration < 60.0                          # kills duration = monotonic() + start_time
-    assert analyzer.get_warmth_state()["state"] == "warm"  # kills _is_warming stuck-True in finally
-```
-
-Fresh analyzer is cold (`_last_inference_time None`), so the cold-start counter must fire. `patch("backend.core.metrics.*")` works because `warmup()` imports the helpers from the module at call time (:1479-1483).
-
-### D3 — kills C13 (5 mutants) · `test_model_warmup.py` (`TestNemotronAnalyzerWarmup`; threshold = 300 s from its fixture :54)
-
-```python
-def test_get_warmth_state_cold_after_threshold(self, analyzer):
-    """The time-based cold branch (nemotron_analyzer.py:1416-1418) is never
-    exercised today: the existing 'cold' test takes the None early-return.
-
-    UNVERIFIED - not yet run red/green.
-    """
-    analyzer._last_inference_time = time.monotonic() - 600.0  # threshold is 300s
-
-    state = analyzer.get_warmth_state()
-
-    assert state["state"] == "cold"
-    assert state["last_inference_seconds_ago"] > 300.0
-
-
-def test_get_warmth_state_exactly_at_threshold_is_warm(self, analyzer):
-    """Boundary: cold requires seconds_ago > threshold (strict >).
-
-    UNVERIFIED - not yet run red/green.
-    """
-    import backend.services.nemotron_analyzer as na
-
-    analyzer._cold_start_threshold = 100.0
-    analyzer._last_inference_time = 1000.0
-    with patch.object(na.time, "monotonic", return_value=1100.0):  # exactly 100s ago
-        state = analyzer.get_warmth_state()
-
-    assert state["state"] == "warm"  # >= mutant reports 'cold' here
-    assert state["last_inference_seconds_ago"] == 100.0
-```
-
-### D4 / D4b — kill C14 + C16 (5 mutants) · `backend/tests/unit/services/test_nemotron_analyzer.py` (next to :2342; fixture at :104)
-
-```python
-@pytest.mark.asyncio
-async def test_get_enrichment_result_forwards_detections_and_camera_id(analyzer):
-    """_get_enrichment_result must forward the real detections and camera_id
-    to the pipeline (camera_id drives scene-change/re-id).
-
-    UNVERIFIED - not yet run red/green.
-    """
-    from datetime import UTC
-
-    from backend.models.detection import Detection
-    from backend.services.enrichment_pipeline import (
-        EnrichmentResult,
-        EnrichmentStatus,
-        EnrichmentTrackingResult,
-    )
-
-    detections = [
-        Detection(
-            id=4101,
-            camera_id="test",
-            file_path="/export/foscam/test/img1.jpg",
-            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
-            object_type="person",
-            confidence=0.95,
-        ),
+    # text that starts inside ... i must start at 0
+    assert _extract_json_objects('{"first": {"nested": 2}}{"second": 3}') == [
+        '{"first": {"nested": 2}}', '{"second": 3}'
     ]
-    sentinel = EnrichmentTrackingResult(
-        status=EnrichmentStatus.FULL,
-        successful_models=["face"],
-        data=EnrichmentResult(),
-    )
-    analyzer._run_enrichment_pipeline = AsyncMock(return_value=sentinel)
-
-    result = await analyzer._get_enrichment_result(
-        batch_id="b1", detections=detections, camera_id="cam9",
-    )
-
-    call = analyzer._run_enrichment_pipeline.await_args
-    assert call.args[0] is detections                      # kills detections->None / dropped
-    assert call.kwargs["camera_id"] == "cam9"              # kills camera_id->None / dropped
-    assert result is sentinel                              # kills TypeError-swallow variant (mutmut_5)
 ```
 
-D4b — one line appended to the existing `test_get_enrichment_result_returns_failed_tracking_on_failure` (:2342): `assert result.successful_models == []` (kills `_23`: None ≠ []; `_27` stays green — dataclass default is `[]`).
+Kill logic (T4): `i = 1` mutant shifts the scan origin -> misses/mis-slices the object starting
+at index 0 (mutmut_3 red on case 3); `i += 3` skips a char after non-braces -> misses `{"d": 2}`
+at its true offset (case 2); `continue` -> `break` (11) stops after the first top-level object ->
+case 2/4 return only the first (red); quote/escape comparison flips (22/26/27/31) break
+string-skip on `"x{y}z"` -> depth tracked wrong -> wrong slice (case 2/3); `elif c == "{"` /
+`"}"` flips (35/40) destroy depth accounting (case 4 `depth == 0` -> `!=` returns nothing);
+`in_string = True` (init) treats the whole doc as inside a string -> [] (case 1-style text red
+via case 2). Green on original.
 
-### D5 — kills C18 (6 mutants) · `test_nemotron_analyzer.py` (replace/augments :4397)
+### T5 test_parse_llm_response_candidate_and_brace_selection
+Kills: C-PARSE members around candidate gating and brace selection: `isinstance(data, dict) and
+"risk_score" in data` -> `or` / `not in` (74/77), candidate loop `continue` -> `break` (83),
+`first_brace = find("{")` -> `rfind` (34) and `first_brace >= 0` trunc-gate flips.
+Existing parse tests (lines 272-360, 1625, 4232) only feed single-candidate text without
+braces-after-the-risk-object.
+Target: same file, after test_parse_llm_response_nested_json (~line 1660).
+
+```python
+def test_parse_llm_response_selects_first_candidate_with_risk_score(analyzer):
+    """When the completion contains decoy objects and a trailing fragment, the
+    parser must pick the first object that actually carries risk_score.
+
+    // UNVERIFIED - not yet run red/green
+    """
+    text = (
+        '{"oops": ,} {"note": 1} '
+        '{"risk_score": 60, "risk_level": "medium", "summary": "s", "reasoning": "r",'
+        ' "meta": {"deep": {"x": 1}}} {"dangling": '
+    )
+    result = analyzer._parse_llm_response(text)
+    assert result["risk_score"] == 60
+    assert result["risk_level"] == "medium"
+
+
+def test_parse_llm_response_preamble_and_nested_only(analyzer):
+    """Preamble is stripped at the FIRST brace; nested-2-deep objects force the
+    balanced-extraction path (legacy single-nesting regex cannot recover them).
+
+    // UNVERIFIED - not yet run red/green
+    """
+    text = (
+        'preamble noise {"risk_score": 42, "risk_level": "low", "summary": "s",'
+        ' "reasoning": "r", "meta": {"deep": {"x": 1}}} {"tail": '
+    )
+    assert analyzer._parse_llm_response(text)["risk_score"] == 42
+```
+
+Kill logic (T5): `and` -> `or` (74) and `and "risk_score" not in data` (77) make the decoy
+`{"note": 1}` return first -> risk_score 1->KeyError/60-mismatch red; `continue` -> `break` (83)
+abandons extraction at the unparseable `{"oops": ,}` and the nested risk object is invisible to
+the single-nesting regex fallback -> ValueError red; `find("{")` -> `rfind` (34) anchors the
+preamble strip / truncation fragment at the trailing dangling brace -> red in both tests.
+Residual near-equivalents intentionally not chased: fastpath `startswith` guards (62/63,
+fast-path toggle when cleaned is a single object), `json_start` find/rfind (18/26) where no
+brace follows the JSON, `first_brace > 0` <-> `>= 0` (36/59). Green on original.
+
+### T6 test_event_created_webhook_payload_contract
+Kills: C-WEBHOOK (31: soft-delete guard `is not None` -> `is None`, `isoformat() if event.started_at`
+andFalse/orTrue, key/value nulling, arg deletion) + C-HTTP-KEYS webhook members (18 key clobbers).
+`_trigger_event_created_webhook` has zero tests today. Target: same file, near test_broadcast_event
+(~line 591). Requires `from contextlib import asynccontextmanager` added to the import block.
 
 ```python
 @pytest.mark.asyncio
-async def test_analyze_batch_streaming_forwards_all_kwargs(analyzer, mock_redis_client):
-    """The streaming delegation must pass every identity kwarg, not None-filled.
+async def test_event_created_webhook_payload_contract(analyzer):
+    """NEM-3624: EVENT_CREATED payload keys/values are an external contract, and
+    soft-deleted events must not fire webhooks.
 
-    UNVERIFIED - not yet run red/green.
+    // UNVERIFIED - not yet run red/green
     """
-
-    async def gen():
-        yield {"type": "progress", "data": {"status": "analyzing"}}
-
-    with patch(
-        "backend.services.nemotron_streaming.analyze_batch_streaming",
-        return_value=gen(),
-        autospec=True,
-    ) as mock_streaming:
-        updates = []
-        async for update in analyzer.analyze_batch_streaming(
-            batch_id="b7", camera_id="front_door", detection_ids=[9, 8],
-        ):
-            updates.append(update)
-
-    assert len(updates) == 1
-    mock_streaming.assert_called_once_with(
-        analyzer=analyzer,
-        batch_id="b7",
-        camera_id="front_door",
-        detection_ids=[9, 8],
+    event = Event(
+        id=7, batch_id="b7", camera_id="cam7",
+        started_at=datetime(2025, 12, 23, 14, 30, 0),
+        ended_at=None, risk_score=61, risk_level="medium",
+        summary="s", reasoning="r", is_fast_path=True,
     )
+
+    trigger = AsyncMock()
+
+    @asynccontextmanager
+    async def fake_session():
+        yield MagicMock()
+
+    svc = MagicMock()
+    svc.trigger_webhooks_for_event = trigger
+    with (
+        patch("backend.services.nemotron_analyzer.get_webhook_service", return_value=svc),
+        patch("backend.services.nemotron_analyzer.get_session", new=fake_session),
+    ):
+        await analyzer._trigger_event_created_webhook(event)
+
+    trigger.assert_awaited_once()
+    payload = trigger.await_args.args[2]
+    assert payload == {
+        "event_id": 7, "batch_id": "b7", "camera_id": "cam7",
+        "risk_score": 61, "risk_level": "medium", "summary": "s",
+        "started_at": "2025-12-23T14:30:00", "ended_at": None,
+        "is_fast_path": True,
+    }
+    assert trigger.await_args.kwargs == {"event_id": "7"}
+
+    # soft-deleted events must not fire webhooks (guard flip fails both halves)
+    event.deleted_at = datetime(2025, 12, 24, 0, 0)
+    svc2 = MagicMock()
+    svc2.trigger_webhooks_for_event = AsyncMock()
+    with (
+        patch("backend.services.nemotron_analyzer.get_webhook_service", return_value=svc2),
+        patch("backend.services.nemotron_analyzer.get_session", new=fake_session),
+    ):
+        await analyzer._trigger_event_created_webhook(event)
+    svc2.trigger_webhooks_for_event.assert_not_awaited()
 ```
 
-### D6 — kills C19 (1 mutant) · `test_nemotron_analyzer.py` (treatment-routing sibling of :4918)
+Kill logic (T6): key clobbers (`"XXevent_idXX"` etc, webhook mutmut_11/13/15) fail dict equality;
+`started_at` `and False` -> payload None fails equality, `or True` -> AttributeError on
+`ended_at=None` swallowed by the fn's try/except -> trigger never awaited -> red; guard
+`is not None` -> `is None` (mutmut_1) early-returns the live event (first half red) and fires the
+deleted event (second half red). Green on original.
+
+### T7 test_calculate_batch_priority_label_matching (small, 12 survivors in C-PRIORITY)
+Target: same file. `calculate_batch_priority` has ZERO tests.
 
 ```python
-@pytest.mark.asyncio
-async def test_record_rollout_feedback_routes_by_camera_id(analyzer):
-    """Feedback routing must look up the group for the ACTUAL camera_id.
+def test_calculate_batch_priority_label_matching(analyzer):
+    """Configured high-priority labels are matched case-insensitively via set
+    intersection; everything else defers to the batch coalescer.
 
-    UNVERIFIED - not yet run red/green.
+    // UNVERIFIED - not yet run red/green
     """
-    from backend.config.prompt_ab_rollout import ExperimentGroup
+    from backend.services.batch_coalescer import Priority
 
-    mock_rollout = MagicMock(spec=ABRolloutManager)
-    mock_rollout.get_group_for_camera.return_value = ExperimentGroup.TREATMENT
-    analyzer._rollout_manager = mock_rollout
+    assert analyzer._priority_high_labels == frozenset({"weapon", "intruder", "fire"})
 
-    analyzer.record_rollout_feedback("cam-42", is_false_positive=False)
-
-    mock_rollout.get_group_for_camera.assert_called_once_with("cam-42")  # kills camera_id->None
-    mock_rollout.record_treatment_feedback.assert_called_once_with(False)
+    coalescer = MagicMock()
+    coalescer.calculate_priority.return_value = Priority.P2_NORMAL
+    with patch.object(analyzer, "_get_batch_coalescer", return_value=coalescer):
+        assert analyzer.calculate_batch_priority(["Weapon"]) == Priority.P0_CRITICAL
+        assert analyzer.calculate_batch_priority(["car"]) == Priority.P2_NORMAL
+        assert analyzer.calculate_batch_priority(["person"], is_known_face=True) == Priority.P3_LOW
 ```
 
-## Notes for WP4.4
+Kill logic (T7): `label.lower()` -> `upper` in __init__ breaks the frozenset assert; `t.lower()`
+-> `t.upper()` makes ["Weapon"] miss the high set -> P2 != P0 red; `types_lower & labels` -> `|`
+matches for every input -> ["car"] == P0 red. Green on original.
 
-- C8/C15 (log text + payload) and C6/C10/C12/C17 (true equivalences): recommend suppress/mark rather than test.
-- `_extract_json_objects` C5's `mutmut_53` is a latent infinite-loop bug on standalone `{}` input; the drafted assert exposes it only via mutmut timeout — consider `pytest-timeout` or replacing the resume with `i = j + 1` guarded to always advance.
-- Coverage after D1–D6: 80/80 TEST-GAP survivors killed by 6 tests (7 if D4b counted separately).
+## Draft coverage summary (of the 16 TEST-GAP clusters)
+
+Drafted: C-RETRY (T1), C-PROMPT-GATES (T2), C-CTX-FLAGS (T3), C-EXTRACT (T4), C-PARSE (T5),
+C-WEBHOOK + C-HTTP-KEYS webhook members (T6), C-PRIORITY members (T7). Also listed as
+not-drafted small wins for the serial lane: C-GUIDED-BOUND (status-code boundary probe
+sc=300 -> unsupported, sc=500 -> retried), C-ROLLOUT (fake rollout manager: group==CONTROL
+routes to record_control_analysis), C-COLD (threshold-boundary timestamp test), C-SHADOW
+(returns-dict key assert), C-STR-FUNC residual fallback-default members (two-line value
+asserts on _validate_risk_data defaults), C-MISC Limits members (assert on
+analyzer._http_client timeout/limits config).
+

@@ -1,0 +1,452 @@
+{
+ "C-DATA-FUNC": {
+  "count": 643,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_3",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_5",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_6"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.analyze_batch": 155,
+   "NemotronAnalyzer.analyze_detection_fast_path": 141,
+   "NemotronAnalyzer._call_llm": 88,
+   "NemotronAnalyzer.__init__": 33,
+   "NemotronAnalyzer.run_shadow_analysis": 28,
+   "NemotronAnalyzer._validate_risk_data": 18
+  },
+  "fams": {
+   "DATA-to-None-other": 286,
+   "MULTI-arg-or-block-deleted": 208,
+   "DATA-call-to-None": 71,
+   "DATA-arg-to-None": 40,
+   "DATA-default-removed": 35,
+   "DATA-kwarg-to-None": 2,
+   "DATA-None-to-expr": 1
+  },
+  "rep_old": "self._llm_url = settings.nemotron_url",
+  "rep_new": "self._llm_url = None"
+ },
+ "C-STR-OBS": {
+  "count": 520,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_54",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_55",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_56"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.analyze_batch": 176,
+   "NemotronAnalyzer._call_llm": 114,
+   "NemotronAnalyzer._check_guided_json_support": 71,
+   "NemotronAnalyzer.analyze_detection_fast_path": 44,
+   "NemotronAnalyzer._log_shadow_result": 17,
+   "NemotronAnalyzer._record_experiment_result": 11
+  },
+  "fams": {
+   "STR-XXwrap": 178,
+   "STR-UPPER": 177,
+   "STR-XXwrap/UPPER-multi": 121,
+   "STR-lower": 33,
+   "STR-other": 11
+  },
+  "rep_old": "\"Nemotron endpoint supports guided_json structured generation\",",
+  "rep_new": "\"XXNemotron endpoint supports guided_json structured generationXX\","
+ },
+ "C-STR-FUNC": {
+  "count": 318,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_3",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_4",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_5"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.analyze_batch": 91,
+   "NemotronAnalyzer.analyze_detection_fast_path": 74,
+   "NemotronAnalyzer._call_llm": 47,
+   "NemotronAnalyzer.warmup": 25,
+   "NemotronAnalyzer._validate_risk_data": 18,
+   "NemotronAnalyzer._check_guided_json_support": 12
+  },
+  "fams": {
+   "STR-XXwrap/UPPER-multi": 132,
+   "STR-XXwrap": 94,
+   "STR-UPPER": 82,
+   "STR-lower": 9,
+   "STR-other": 1
+  },
+  "rep_old": "test_schema = {\"type\": \"object\", \"properties\": {\"test\": {\"type\": \"string\"}}}",
+  "rep_new": "test_schema = {\"XXtypeXX\": \"object\", \"properties\": {\"test\": {\"type\": \"string\"}}}"
+ },
+ "C-OBS-DATA": {
+  "count": 263,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_78",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_50",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_51"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._call_llm": 109,
+   "NemotronAnalyzer.analyze_batch": 61,
+   "NemotronAnalyzer._check_guided_json_support": 27,
+   "NemotronAnalyzer.analyze_detection_fast_path": 15,
+   "NemotronAnalyzer._check_idempotency": 5,
+   "NemotronAnalyzer._get_enriched_context": 4
+  },
+  "fams": {
+   "DATA-to-None-other": 132,
+   "MULTI-arg-or-block-deleted": 52,
+   "NUM-tweak": 23,
+   "OP-arith-flip": 18,
+   "DATA-arg-to-None": 16,
+   "Z-rest": 7,
+   "DATA-default-removed": 3,
+   "OP-and-or-flip": 3
+  },
+  "rep_old": "f\"NemotronAnalyzer initialized with max_retries={self._max_retries}, \"",
+  "rep_new": "None"
+ },
+ "C-PROMPT-GATES": {
+  "count": 192,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_build_prompt__mutmut_1",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_build_prompt__mutmut_4",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_build_prompt__mutmut_5"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._build_prompt": 192
+  },
+  "fams": {
+   "MULTI-arg-or-block-deleted": 61,
+   "COND-andFalse-orTrue": 36,
+   "DATA-to-None-other": 28,
+   "COND-isNotNone-flip": 11,
+   "DATA-call-to-None": 9,
+   "STR-XXwrap": 8,
+   "DATA-arg-to-None": 8,
+   "Z-rest": 7
+  },
+  "rep_old": "has_enriched_context = (",
+  "rep_new": "has_enriched_context = None"
+ },
+ "C-CTX-FLAGS": {
+  "count": 150,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_build_context_sources__mutmut_2",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_build_context_sources__mutmut_3",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_build_context_sources__mutmut_4"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._build_context_sources": 150
+  },
+  "fams": {
+   "STR-XXwrap": 40,
+   "STR-UPPER": 40,
+   "DATA-to-None-other": 24,
+   "BOOL-False-to-True": 19,
+   "DATA-arg-to-None": 16,
+   "COND-isNotNone-flip": 6,
+   "Z-rest": 3,
+   "MULTI-arg-or-block-deleted": 2
+  },
+  "rep_old": "\"enrichment_available\": enrichment_result is not None,",
+  "rep_new": "\"XXenrichment_availableXX\": enrichment_result is not None,"
+ },
+ "C-LOGIC-FLIP": {
+  "count": 140,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_29",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_65",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_66"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.analyze_batch": 32,
+   "NemotronAnalyzer.analyze_detection_fast_path": 27,
+   "NemotronAnalyzer._call_llm": 17,
+   "NemotronAnalyzer.run_shadow_analysis": 11,
+   "NemotronAnalyzer._run_enrichment_pipeline_from_data": 6,
+   "NemotronAnalyzer._run_enrichment_pipeline": 6
+  },
+  "fams": {
+   "NUM-tweak": 34,
+   "OP-arith-flip": 34,
+   "OP-and-or-flip": 16,
+   "COND-isNotNone-flip": 15,
+   "COND-andFalse-orTrue": 14,
+   "OP-comparison-flip": 9,
+   "COND-not-added-removed": 9,
+   "BOOL-True-to-False": 3
+  },
+  "rep_old": "max_retries if max_retries is not None else settings.nemotron_max_retries",
+  "rep_new": "max_retries if (max_retries is not None) and False else settings.nemotron_max_re"
+ },
+ "C-PARSE": {
+  "count": 59,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_parse_llm_response__mutmut_6",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_parse_llm_response__mutmut_7",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_parse_llm_response__mutmut_8"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._parse_llm_response": 59
+  },
+  "fams": {
+   "STR-XXwrap": 13,
+   "STR-UPPER": 8,
+   "DATA-call-to-None": 7,
+   "STR-XXwrap/UPPER-multi": 5,
+   "DATA-to-None-other": 4,
+   "OP-comparison-flip": 4,
+   "NUM-tweak": 4,
+   "TOK-other:cleaned_text.find->cleaned_text.rfind": 3
+  },
+  "rep_old": "cleaned_text = _THINK_PATTERN.sub(\"\", text).strip()",
+  "rep_new": "cleaned_text = _THINK_PATTERN.sub(\"XXXX\", text).strip()"
+ },
+ "C-EXTRACT": {
+  "count": 43,
+  "examples": [
+   "backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_3",
+   "backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_6",
+   "backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_7"
+  ],
+  "funcs": {
+   "x__extract_json_objects": 43
+  },
+  "fams": {
+   "NUM-tweak": 10,
+   "OP-comparison-flip": 8,
+   "STR-XXwrap": 6,
+   "DATA-call-to-None": 6,
+   "OP-arith-flip": 5,
+   "BOOL-False-to-True": 2,
+   "BOOL-True-to-False": 2,
+   "Z-rest": 2
+  },
+  "rep_old": "i = 0",
+  "rep_new": "i = 1"
+ },
+ "C-RETRY": {
+  "count": 38,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_call_llm__mutmut_71",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_call_llm__mutmut_272",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_call_llm__mutmut_285"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._call_llm": 38
+  },
+  "fams": {
+   "NUM-tweak": 15,
+   "DATA-call-to-None": 5,
+   "OP-comparison-flip": 5,
+   "OP-arith-flip": 5,
+   "Z-rest": 5,
+   "TOK-other:None->\"\"": 1,
+   "DATA-to-None-other": 1,
+   "MULTI-arg-or-block-deleted": 1
+  },
+  "rep_old": "last_exception: Exception | None = None",
+  "rep_new": "last_exception: Exception | None = \"\""
+ },
+ "C-HTTP-KEYS": {
+  "count": 32,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_36",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_37",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_39"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._trigger_event_created_webhook": 18,
+   "NemotronAnalyzer._check_guided_json_support": 8,
+   "NemotronAnalyzer.model_readiness_probe": 6
+  },
+  "fams": {
+   "STR-XXwrap": 14,
+   "STR-UPPER": 14,
+   "STR-XXwrap/UPPER-multi": 4
+  },
+  "rep_old": "\"max_tokens\": 10,",
+  "rep_new": "\"XXmax_tokensXX\": 10,"
+ },
+ "C-WEBHOOK": {
+  "count": 31,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_broadcast_event__mutmut_6",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_broadcast_event__mutmut_22",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_broadcast_event__mutmut_23"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._trigger_event_created_webhook": 16,
+   "NemotronAnalyzer._broadcast_event": 15
+  },
+  "fams": {
+   "MULTI-arg-or-block-deleted": 7,
+   "COND-andFalse-orTrue": 6,
+   "STR-XXwrap": 5,
+   "STR-UPPER": 5,
+   "DATA-arg-to-None": 3,
+   "DATA-to-None-other": 3,
+   "COND-isNotNone-flip": 1,
+   "DATA-call-to-None": 1
+  },
+  "rep_old": "extra={\"event_id\": event.id, \"deleted_at\": event.deleted_at.isoformat()},",
+  "rep_new": ")"
+ },
+ "C-MISC": {
+  "count": 27,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_63",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_74",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1run_shadow_analysis__mutmut_6"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.analyze_detection_fast_path": 6,
+   "NemotronAnalyzer.analyze_batch": 5,
+   "NemotronAnalyzer._validate_risk_data": 4,
+   "NemotronAnalyzer.__init__": 2,
+   "NemotronAnalyzer.run_shadow_analysis": 2,
+   "NemotronAnalyzer._call_llm": 2
+  },
+  "fams": {
+   "Z-rest": 26,
+   "TOK-other:\"track_id\"->None": 1
+  },
+  "rep_old": "limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),",
+  "rep_new": "limits=httpx.Limits(max_keepalive_connections=5),"
+ },
+ "C-EXCINFO": {
+  "count": 20,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_get_enriched_context__mutmut_15",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_get_enriched_context__mutmut_27",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_get_enrichment_result__mutmut_9"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._call_llm": 8,
+   "NemotronAnalyzer._get_enriched_context": 2,
+   "NemotronAnalyzer._get_enrichment_result": 2,
+   "NemotronAnalyzer._get_enrichment_result_from_data": 2,
+   "NemotronAnalyzer.analyze_batch": 2,
+   "NemotronAnalyzer.analyze_detection_fast_path": 2
+  },
+  "fams": {
+   "LOG-exc_info-killed": 20
+  },
+  "rep_old": "exc_info=True,",
+  "rep_new": "exc_info=None,"
+ },
+ "C-SHADOW": {
+  "count": 18,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1run_shadow_analysis__mutmut_32",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1run_shadow_analysis__mutmut_33",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1run_shadow_analysis__mutmut_40"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.run_shadow_analysis": 12,
+   "NemotronAnalyzer._log_shadow_result": 6
+  },
+  "fams": {
+   "STR-XXwrap": 9,
+   "STR-UPPER": 9
+  },
+  "rep_old": "v1_score = v1_result.get(\"risk_score\", 0)",
+  "rep_new": "v1_score = v1_result.get(\"XXrisk_scoreXX\", 0)"
+ },
+ "C-GUIDED-BOUND": {
+  "count": 15,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_22",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_38",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1_check_guided_json_support__mutmut_41"
+  ],
+  "funcs": {
+   "NemotronAnalyzer._check_guided_json_support": 15
+  },
+  "fams": {
+   "NUM-tweak": 8,
+   "OP-comparison-flip": 5,
+   "OP-arith-flip": 2
+  },
+  "rep_old": "retry_delays = [1.0, 2.0, 4.0]  # Exponential backoff: 1s, 2s, 4s",
+  "rep_new": "retry_delays = [1.0, 2.0, 5.0]  # Exponential backoff: 1s, 2s, 4s"
+ },
+ "C-ROLLOUT": {
+  "count": 13,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1record_rollout_analysis__mutmut_4",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1record_rollout_analysis__mutmut_5",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1record_rollout_analysis__mutmut_6"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.record_rollout_analysis": 13
+  },
+  "fams": {
+   "DATA-to-None-other": 6,
+   "MULTI-arg-or-block-deleted": 6,
+   "OP-comparison-flip": 1
+  },
+  "rep_old": "if group == ExperimentGroup.CONTROL:",
+  "rep_new": "if group != ExperimentGroup.CONTROL:"
+ },
+ "C-PRIORITY": {
+  "count": 12,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_49",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_52",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_53"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.calculate_batch_priority": 8,
+   "NemotronAnalyzer.__init__": 4
+  },
+  "fams": {
+   "MULTI-arg-or-block-deleted": 3,
+   "DATA-to-None-other": 3,
+   "TOK-other:label.lower->label.upper": 2,
+   "DATA-call-to-None": 1,
+   "TOK-other:t.lower->t.upper": 1,
+   "TOK-other:&->|": 1,
+   "NUM-tweak": 1
+  },
+  "rep_old": "self._priority_queue_enabled = settings.priority_queue_enabled",
+  "rep_new": "self._priority_queue_enabled = None"
+ },
+ "C-COLD": {
+  "count": 6,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1is_cold__mutmut_5",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1get_warmth_state__mutmut_16",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1get_warmth_state__mutmut_17"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.get_warmth_state": 5,
+   "NemotronAnalyzer.is_cold": 1
+  },
+  "fams": {
+   "OP-comparison-flip": 2,
+   "STR-XXwrap/UPPER-multi": 2,
+   "DATA-call-to-None": 1,
+   "COND-andFalse-orTrue": 1
+  },
+  "rep_old": "return seconds_since_last > self._cold_start_threshold",
+  "rep_new": "return seconds_since_last >= self._cold_start_threshold"
+ },
+ "C-SENTINEL": {
+  "count": 5,
+  "examples": [
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_39",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1__init____mutmut_41",
+   "backend.services.nemotron_analyzer.x\u01c1NemotronAnalyzer\u01c1analyze_batch__mutmut_565"
+  ],
+  "funcs": {
+   "NemotronAnalyzer.__init__": 2,
+   "NemotronAnalyzer.analyze_detection_fast_path": 2,
+   "NemotronAnalyzer.analyze_batch": 1
+  },
+  "fams": {
+   "TOK-other:None->\"\"": 5
+  },
+  "rep_old": "self._ab_config: Any | None = None  # ABTestConfig when configured",
+  "rep_new": "self._ab_config: Any | None = \"\"  # ABTestConfig when configured"
+ }
+}
