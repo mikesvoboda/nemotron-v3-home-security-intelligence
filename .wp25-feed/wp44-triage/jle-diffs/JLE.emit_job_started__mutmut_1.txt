@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_started__mutmut_1: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -15,7 +15,7 @@
+             True if the event was successfully emitted, False otherwise.
+         """
+     return await self.emit_log(
+-        job_id=job_id,
++        job_id=None,
+         level="INFO",
+         message=f"Job started: {job_type}",
+         context={"job_type": job_type, "metadata": metadata},

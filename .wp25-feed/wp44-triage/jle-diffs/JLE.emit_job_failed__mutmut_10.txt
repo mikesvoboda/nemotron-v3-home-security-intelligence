@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_failed__mutmut_10: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -18,7 +18,7 @@
+         """
+     return await self.emit_log(
+         job_id=job_id,
+-        level="ERROR",
++        level="error",
+         message=f"Job failed: {error}",
+         context={
+             "status": "failed",

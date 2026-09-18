@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_completed__mutmut_3: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -14,7 +14,7 @@
+         Returns:
+             True if the event was successfully emitted, False otherwise.
+         """
+-    message = "Job completed successfully"
++    message = "job completed successfully"
+     if duration_seconds is not None:
+         message = f"Job completed successfully in {duration_seconds:.1f}s"
+ 

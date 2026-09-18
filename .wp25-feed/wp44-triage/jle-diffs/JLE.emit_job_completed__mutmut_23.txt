@@ -1,0 +1,10 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_completed__mutmut_23: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -22,5 +22,5 @@
+         job_id=job_id,
+         level="INFO",
+         message=message,
+-        context={"status": "completed", "result": result, "duration_seconds": duration_seconds},
++        context={"status": "completed", "result": result, "XXduration_secondsXX": duration_seconds},
+     )

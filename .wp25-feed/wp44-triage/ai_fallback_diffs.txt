@@ -1,0 +1,777 @@
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_13 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -35,7 +35,7 @@
+ 
+     # Background task for health checks
+     self._running = False
+-    self._health_check_task: asyncio.Task[None] | None = None
++    self._health_check_task: asyncio.Task[None] | None = ""
+     self._lock = asyncio.Lock()
+ 
+     # Status change callbacks for WebSocket broadcasting
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_14 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -36,7 +36,7 @@
+     # Background task for health checks
+     self._running = False
+     self._health_check_task: asyncio.Task[None] | None = None
+-    self._lock = asyncio.Lock()
++    self._lock = None
+ 
+     # Status change callbacks for WebSocket broadcasting
+     self._status_callbacks: list[Any] = []
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_16 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -42,6 +42,6 @@
+     self._status_callbacks: list[Any] = []
+ 
+     logger.info(
+-        "AIFallbackService initialized",
++        None,
+         extra={"health_check_interval": health_check_interval},
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_17 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -43,5 +43,5 @@
+ 
+     logger.info(
+         "AIFallbackService initialized",
+-        extra={"health_check_interval": health_check_interval},
++        extra=None,
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_19 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -43,5 +43,4 @@
+ 
+     logger.info(
+         "AIFallbackService initialized",
+-        extra={"health_check_interval": health_check_interval},
+-    )
++        )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_20 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -42,6 +42,6 @@
+     self._status_callbacks: list[Any] = []
+ 
+     logger.info(
+-        "AIFallbackService initialized",
++        "XXAIFallbackService initializedXX",
+         extra={"health_check_interval": health_check_interval},
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_21 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -42,6 +42,6 @@
+     self._status_callbacks: list[Any] = []
+ 
+     logger.info(
+-        "AIFallbackService initialized",
++        "aifallbackservice initialized",
+         extra={"health_check_interval": health_check_interval},
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_22 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -42,6 +42,6 @@
+     self._status_callbacks: list[Any] = []
+ 
+     logger.info(
+-        "AIFallbackService initialized",
++        "AIFALLBACKSERVICE INITIALIZED",
+         extra={"health_check_interval": health_check_interval},
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_23 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -43,5 +43,5 @@
+ 
+     logger.info(
+         "AIFallbackService initialized",
+-        extra={"health_check_interval": health_check_interval},
++        extra={"XXhealth_check_intervalXX": health_check_interval},
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ__init____mutmut_24 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -43,5 +43,5 @@
+ 
+     logger.info(
+         "AIFallbackService initialized",
+-        extra={"health_check_interval": health_check_interval},
++        extra={"HEALTH_CHECK_INTERVAL": health_check_interval},
+     )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_all_services__mutmut_1 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,6 +1,6 @@
+ async def _check_all_services(self) -> None:
+     """Check health of all AI services."""
+-    status_changed = False
++    status_changed = None
+ 
+     for service in AIService:
+         old_status = self._service_states[service].status
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_all_services__mutmut_2 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,6 +1,6 @@
+ async def _check_all_services(self) -> None:
+     """Check health of all AI services."""
+-    status_changed = False
++    status_changed = True
+ 
+     for service in AIService:
+         old_status = self._service_states[service].status
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_all_services__mutmut_6 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -7,7 +7,7 @@
+         await self._check_service_health(service)
+         new_status = self._service_states[service].status
+ 
+-        if old_status != new_status:
++        if old_status == new_status:
+             status_changed = True
+             logger.info(
+                 f"AI service {service.value} status changed: {old_status.value} -> {new_status.value}"
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_all_services__mutmut_9 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -10,7 +10,7 @@
+         if old_status != new_status:
+             status_changed = True
+             logger.info(
+-                f"AI service {service.value} status changed: {old_status.value} -> {new_status.value}"
++                None
+             )
+ 
+     if status_changed:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_service_health__mutmut_16 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -27,7 +27,7 @@
+         healthy = await self._perform_health_check(service)
+         if healthy:
+             state.status = ServiceStatus.HEALTHY
+-            state.last_success = datetime.now(UTC)
++            state.last_success = None
+             state.failure_count = 0
+             state.error_message = None
+         else:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_service_health__mutmut_17 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -27,7 +27,7 @@
+         healthy = await self._perform_health_check(service)
+         if healthy:
+             state.status = ServiceStatus.HEALTHY
+-            state.last_success = datetime.now(UTC)
++            state.last_success = datetime.now(None)
+             state.failure_count = 0
+             state.error_message = None
+         else:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_service_health__mutmut_20 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -29,7 +29,7 @@
+             state.status = ServiceStatus.HEALTHY
+             state.last_success = datetime.now(UTC)
+             state.failure_count = 0
+-            state.error_message = None
++            state.error_message = ""
+         else:
+             state.failure_count += 1
+             if state.failure_count >= 3:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_service_health__mutmut_28 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -37,6 +37,6 @@
+             else:
+                 state.status = ServiceStatus.DEGRADED
+     except Exception as e:
+-        state.failure_count += 1
++        state.failure_count = 1
+         state.error_message = str(e)
+         state.status = ServiceStatus.UNAVAILABLE
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_service_health__mutmut_3 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -5,7 +5,7 @@
+             service: Service to check
+         """
+     state = self._service_states[service]
+-    state.last_check = datetime.now(UTC)
++    state.last_check = datetime.now(None)
+ 
+     # Get circuit breaker state if registered
+     cb = self._circuit_breakers.get(service)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_check_service_health__mutmut_8 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -11,7 +11,7 @@
+     cb = self._circuit_breakers.get(service)
+     if cb is not None:
+         state.circuit_state = cb.get_state()
+-        state.failure_count = cb.failure_count
++        state.failure_count = None
+ 
+         # Determine status from circuit state
+         if state.circuit_state == CircuitState.OPEN:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_health_check_loop__mutmut_1 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -3,7 +3,7 @@
+     while self._running:
+         try:
+             await self._check_all_services()
+-            await asyncio.sleep(self._health_check_interval)
++            await asyncio.sleep(None)
+         except asyncio.CancelledError:
+             break
+         except Exception as e:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_health_check_loop__mutmut_2 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -5,7 +5,7 @@
+             await self._check_all_services()
+             await asyncio.sleep(self._health_check_interval)
+         except asyncio.CancelledError:
+-            break
++            return
+         except Exception as e:
+             logger.error(f"Health check loop error: {e}", exc_info=True)
+             await asyncio.sleep(self._health_check_interval)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_notify_status_change__mutmut_1 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,6 +1,6 @@
+ async def _notify_status_change(self) -> None:
+     """Notify all registered callbacks of status change."""
+-    status = self.get_degradation_status()
++    status = None
+ 
+     for callback in self._status_callbacks:
+         try:
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_notify_status_change__mutmut_2 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -4,6 +4,6 @@
+ 
+     for callback in self._status_callbacks:
+         try:
+-            await callback(status)
++            await callback(None)
+         except Exception as e:
+             logger.error(f"Status callback error: {e}", exc_info=True)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_notify_status_change__mutmut_3 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -6,4 +6,4 @@
+         try:
+             await callback(status)
+         except Exception as e:
+-            logger.error(f"Status callback error: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_notify_status_change__mutmut_4 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -6,4 +6,4 @@
+         try:
+             await callback(status)
+         except Exception as e:
+-            logger.error(f"Status callback error: {e}", exc_info=True)
++            logger.error(f"Status callback error: {e}", exc_info=None)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_notify_status_change__mutmut_6 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -6,4 +6,4 @@
+         try:
+             await callback(status)
+         except Exception as e:
+-            logger.error(f"Status callback error: {e}", exc_info=True)
++            logger.error(f"Status callback error: {e}", )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_notify_status_change__mutmut_7 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -6,4 +6,4 @@
+         try:
+             await callback(status)
+         except Exception as e:
+-            logger.error(f"Status callback error: {e}", exc_info=True)
++            logger.error(f"Status callback error: {e}", exc_info=False)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_perform_health_check__mutmut_3 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -9,7 +9,7 @@
+         """
+     if service == AIService.YOLO26 and self._detector_client:
+         return await self._detector_client.health_check()
+-    elif service == AIService.NEMOTRON and self._nemotron_analyzer:
++    elif service == AIService.NEMOTRON or self._nemotron_analyzer:
+         return await self._nemotron_analyzer.health_check()
+     elif service == AIService.FLORENCE and self._florence_client:
+         return await self._florence_client.check_health()
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_perform_health_check__mutmut_4 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -9,7 +9,7 @@
+         """
+     if service == AIService.YOLO26 and self._detector_client:
+         return await self._detector_client.health_check()
+-    elif service == AIService.NEMOTRON and self._nemotron_analyzer:
++    elif service != AIService.NEMOTRON and self._nemotron_analyzer:
+         return await self._nemotron_analyzer.health_check()
+     elif service == AIService.FLORENCE and self._florence_client:
+         return await self._florence_client.check_health()
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_perform_health_check__mutmut_5 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -11,7 +11,7 @@
+         return await self._detector_client.health_check()
+     elif service == AIService.NEMOTRON and self._nemotron_analyzer:
+         return await self._nemotron_analyzer.health_check()
+-    elif service == AIService.FLORENCE and self._florence_client:
++    elif service == AIService.FLORENCE or self._florence_client:
+         return await self._florence_client.check_health()
+     elif service == AIService.CLIP and self._clip_client:
+         return await self._clip_client.check_health()
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_perform_health_check__mutmut_6 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -11,7 +11,7 @@
+         return await self._detector_client.health_check()
+     elif service == AIService.NEMOTRON and self._nemotron_analyzer:
+         return await self._nemotron_analyzer.health_check()
+-    elif service == AIService.FLORENCE and self._florence_client:
++    elif service != AIService.FLORENCE and self._florence_client:
+         return await self._florence_client.check_health()
+     elif service == AIService.CLIP and self._clip_client:
+         return await self._clip_client.check_health()
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_perform_health_check__mutmut_7 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -13,7 +13,7 @@
+         return await self._nemotron_analyzer.health_check()
+     elif service == AIService.FLORENCE and self._florence_client:
+         return await self._florence_client.check_health()
+-    elif service == AIService.CLIP and self._clip_client:
++    elif service == AIService.CLIP or self._clip_client:
+         return await self._clip_client.check_health()
+ 
+     # No client registered, assume healthy
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁ_perform_health_check__mutmut_8 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -13,7 +13,7 @@
+         return await self._nemotron_analyzer.health_check()
+     elif service == AIService.FLORENCE and self._florence_client:
+         return await self._florence_client.check_health()
+-    elif service == AIService.CLIP and self._clip_client:
++    elif service != AIService.CLIP and self._clip_client:
+         return await self._clip_client.check_health()
+ 
+     # No client registered, assume healthy
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_available_features__mutmut_20 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -16,7 +16,7 @@
+ 
+     # Caption features (requires Florence-2)
+     if self.is_service_available(AIService.FLORENCE):
+-        features.extend(["image_captioning", "ocr", "dense_captioning"])
++        features.extend(["image_captioning", "ocr", "XXdense_captioningXX"])
+ 
+     # Re-identification features (requires CLIP)
+     if self.is_service_available(AIService.CLIP):
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_available_features__mutmut_21 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -16,7 +16,7 @@
+ 
+     # Caption features (requires Florence-2)
+     if self.is_service_available(AIService.FLORENCE):
+-        features.extend(["image_captioning", "ocr", "dense_captioning"])
++        features.extend(["image_captioning", "ocr", "DENSE_CAPTIONING"])
+ 
+     # Re-identification features (requires CLIP)
+     if self.is_service_available(AIService.CLIP):
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_available_features__mutmut_28 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -20,7 +20,7 @@
+ 
+     # Re-identification features (requires CLIP)
+     if self.is_service_available(AIService.CLIP):
+-        features.extend(["entity_tracking", "re_identification", "anomaly_detection"])
++        features.extend(["entity_tracking", "re_identification", "XXanomaly_detectionXX"])
+ 
+     # Basic features always available
+     features.extend(["event_history", "camera_feeds", "system_monitoring"])
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_available_features__mutmut_29 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -20,7 +20,7 @@
+ 
+     # Re-identification features (requires CLIP)
+     if self.is_service_available(AIService.CLIP):
+-        features.extend(["entity_tracking", "re_identification", "anomaly_detection"])
++        features.extend(["entity_tracking", "re_identification", "ANOMALY_DETECTION"])
+ 
+     # Basic features always available
+     features.extend(["event_history", "camera_feeds", "system_monitoring"])
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_degradation_level__mutmut_10 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -12,7 +12,7 @@
+             if service in CRITICAL_SERVICES:
+                 critical_unavailable += 1
+             else:
+-                non_critical_unavailable += 1
++                non_critical_unavailable = 1
+ 
+     # Determine level
+     if critical_unavailable == len(CRITICAL_SERVICES):
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_degradation_level__mutmut_12 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -12,7 +12,7 @@
+             if service in CRITICAL_SERVICES:
+                 critical_unavailable += 1
+             else:
+-                non_critical_unavailable += 1
++                non_critical_unavailable += 2
+ 
+     # Determine level
+     if critical_unavailable == len(CRITICAL_SERVICES):
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_degradation_status__mutmut_3 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -5,7 +5,7 @@
+             Dictionary with all degradation information
+         """
+     return {
+-        "timestamp": datetime.now(UTC).isoformat(),
++        "timestamp": datetime.now(None).isoformat(),
+         "degradation_mode": self.get_degradation_level().value,
+         "services": {
+             service.value: state.to_dict() for service, state in self._service_states.items()
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_caption__mutmut_7 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -18,7 +18,7 @@
+         return "Activity detected"
+ 
+     # Build caption from object types
+-    objects_str = ", ".join(object_types)
++    objects_str = "XX, XX".join(object_types)
+     if camera_name:
+         return f"{objects_str.capitalize()} detected at {camera_name}"
+     return f"{objects_str.capitalize()} detected"
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_16 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -34,7 +34,7 @@
+     # Calculate from object types
+     if object_types:
+         scores = [self._risk_cache.get_object_type_score(obj) for obj in object_types]
+-        avg_score = int(sum(scores) / len(scores)) if scores else 50
++        avg_score = int(sum(scores) / len(scores)) if (scores) or True else 50
+ 
+         return FallbackRiskAnalysis(
+             risk_score=avg_score,
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_20 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -34,7 +34,7 @@
+     # Calculate from object types
+     if object_types:
+         scores = [self._risk_cache.get_object_type_score(obj) for obj in object_types]
+-        avg_score = int(sum(scores) / len(scores)) if scores else 50
++        avg_score = int(sum(scores) / len(scores)) if scores else 51
+ 
+         return FallbackRiskAnalysis(
+             risk_score=avg_score,
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_28 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -39,7 +39,7 @@
+         return FallbackRiskAnalysis(
+             risk_score=avg_score,
+             reasoning=(
+-                f"Estimated risk score based on detected objects: {', '.join(object_types)}. "
++                f"Estimated risk score based on detected objects: {'XX, XX'.join(object_types)}. "
+                 "Nemotron analyzer is currently unavailable."
+             ),
+             source="object_type_estimate",
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_36 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -52,5 +52,4 @@
+             "Using default medium risk score. "
+             "Nemotron analyzer is currently unavailable for detailed analysis."
+         ),
+-        source="default",
+-    )
++        )
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_38 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -49,7 +49,7 @@
+     return FallbackRiskAnalysis(
+         risk_score=50,
+         reasoning=(
+-            "Using default medium risk score. "
++            "XXUsing default medium risk score. XX"
+             "Nemotron analyzer is currently unavailable for detailed analysis."
+         ),
+         source="default",
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_39 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -49,7 +49,7 @@
+     return FallbackRiskAnalysis(
+         risk_score=50,
+         reasoning=(
+-            "Using default medium risk score. "
++            "using default medium risk score. "
+             "Nemotron analyzer is currently unavailable for detailed analysis."
+         ),
+         source="default",
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁget_fallback_risk_analysis__mutmut_40 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -49,7 +49,7 @@
+     return FallbackRiskAnalysis(
+         risk_score=50,
+         reasoning=(
+-            "Using default medium risk score. "
++            "USING DEFAULT MEDIUM RISK SCORE. "
+             "Nemotron analyzer is currently unavailable for detailed analysis."
+         ),
+         source="default",
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁregister_circuit_breaker__mutmut_2 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -10,4 +10,4 @@
+             circuit_breaker: Circuit breaker instance to register
+         """
+     self._circuit_breakers[service] = circuit_breaker
+-    logger.debug(f"Registered circuit breaker for {service.value}")
++    logger.debug(None)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_1 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the health check background task."""
+     if self._running:
+-        logger.warning("AIFallbackService already running")
++        logger.warning(None)
+         return
+ 
+     self._running = True
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_11 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -7,6 +7,5 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._health_check_task = asyncio.create_task(
+-        self._health_check_loop(), name="ai-fallback-health-check"
+-    )
++        self._health_check_loop(), )
+     logger.info("AIFallbackService started")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_12 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -7,6 +7,6 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._health_check_task = asyncio.create_task(
+-        self._health_check_loop(), name="ai-fallback-health-check"
++        self._health_check_loop(), name="XXai-fallback-health-checkXX"
+     )
+     logger.info("AIFallbackService started")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_13 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -7,6 +7,6 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._health_check_task = asyncio.create_task(
+-        self._health_check_loop(), name="ai-fallback-health-check"
++        self._health_check_loop(), name="AI-FALLBACK-HEALTH-CHECK"
+     )
+     logger.info("AIFallbackService started")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_14 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -9,4 +9,4 @@
+     self._health_check_task = asyncio.create_task(
+         self._health_check_loop(), name="ai-fallback-health-check"
+     )
+-    logger.info("AIFallbackService started")
++    logger.info(None)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_15 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -9,4 +9,4 @@
+     self._health_check_task = asyncio.create_task(
+         self._health_check_loop(), name="ai-fallback-health-check"
+     )
+-    logger.info("AIFallbackService started")
++    logger.info("XXAIFallbackService startedXX")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_16 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -9,4 +9,4 @@
+     self._health_check_task = asyncio.create_task(
+         self._health_check_loop(), name="ai-fallback-health-check"
+     )
+-    logger.info("AIFallbackService started")
++    logger.info("aifallbackservice started")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_17 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -9,4 +9,4 @@
+     self._health_check_task = asyncio.create_task(
+         self._health_check_loop(), name="ai-fallback-health-check"
+     )
+-    logger.info("AIFallbackService started")
++    logger.info("AIFALLBACKSERVICE STARTED")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_2 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the health check background task."""
+     if self._running:
+-        logger.warning("AIFallbackService already running")
++        logger.warning("XXAIFallbackService already runningXX")
+         return
+ 
+     self._running = True
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_3 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the health check background task."""
+     if self._running:
+-        logger.warning("AIFallbackService already running")
++        logger.warning("aifallbackservice already running")
+         return
+ 
+     self._running = True
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_4 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the health check background task."""
+     if self._running:
+-        logger.warning("AIFallbackService already running")
++        logger.warning("AIFALLBACKSERVICE ALREADY RUNNING")
+         return
+ 
+     self._running = True
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstart__mutmut_9 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -7,6 +7,6 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._health_check_task = asyncio.create_task(
+-        self._health_check_loop(), name="ai-fallback-health-check"
++        self._health_check_loop(), name=None
+     )
+     logger.info("AIFallbackService started")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstop__mutmut_5 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -15,4 +15,4 @@
+             pass
+         self._health_check_task = None
+ 
+-    logger.info("AIFallbackService stopped")
++    logger.info(None)
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstop__mutmut_6 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -15,4 +15,4 @@
+             pass
+         self._health_check_task = None
+ 
+-    logger.info("AIFallbackService stopped")
++    logger.info("XXAIFallbackService stoppedXX")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstop__mutmut_7 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -15,4 +15,4 @@
+             pass
+         self._health_check_task = None
+ 
+-    logger.info("AIFallbackService stopped")
++    logger.info("aifallbackservice stopped")
+===== backend.services.ai_fallback.xǁAIFallbackServiceǁstop__mutmut_8 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -15,4 +15,4 @@
+             pass
+         self._health_check_task = None
+ 
+-    logger.info("AIFallbackService stopped")
++    logger.info("AIFALLBACKSERVICE STOPPED")
+===== backend.services.ai_fallback.xǁRiskScoreCacheǁget_cached_score__mutmut_4 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -2,7 +2,7 @@
+     """Get cached score if still valid."""
+     if camera_name not in self.camera_scores:
+         return None
+-    timestamp = self._timestamps.get(camera_name, 0)
++    timestamp = self._timestamps.get(camera_name, None)
+     if time.monotonic() - timestamp > self.ttl_seconds:
+         return None
+     return self.camera_scores[camera_name]
+===== backend.services.ai_fallback.xǁRiskScoreCacheǁget_cached_score__mutmut_6 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -2,7 +2,7 @@
+     """Get cached score if still valid."""
+     if camera_name not in self.camera_scores:
+         return None
+-    timestamp = self._timestamps.get(camera_name, 0)
++    timestamp = self._timestamps.get(camera_name, )
+     if time.monotonic() - timestamp > self.ttl_seconds:
+         return None
+     return self.camera_scores[camera_name]
+===== backend.services.ai_fallback.xǁRiskScoreCacheǁget_cached_score__mutmut_7 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -2,7 +2,7 @@
+     """Get cached score if still valid."""
+     if camera_name not in self.camera_scores:
+         return None
+-    timestamp = self._timestamps.get(camera_name, 0)
++    timestamp = self._timestamps.get(camera_name, 1)
+     if time.monotonic() - timestamp > self.ttl_seconds:
+         return None
+     return self.camera_scores[camera_name]
+===== backend.services.ai_fallback.xǁRiskScoreCacheǁget_cached_score__mutmut_9 =====
+--- backend/services/ai_fallback.py
++++ backend/services/ai_fallback.py
+@@ -3,6 +3,6 @@
+     if camera_name not in self.camera_scores:
+         return None
+     timestamp = self._timestamps.get(camera_name, 0)
+-    if time.monotonic() - timestamp > self.ttl_seconds:
++    if time.monotonic() - timestamp >= self.ttl_seconds:
+         return None
+     return self.camera_scores[camera_name]

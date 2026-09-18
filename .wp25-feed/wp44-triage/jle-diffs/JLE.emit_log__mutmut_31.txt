@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_log__mutmut_31: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -37,7 +37,7 @@
+         self._emit_count += 1
+ 
+         logger.debug(
+-            f"Emitted job log: {message[:50]}...",
++            None,
+             extra={
+                 "job_id": str(job_id),
+                 "level": level.upper(),

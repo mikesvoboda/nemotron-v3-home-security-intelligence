@@ -1,0 +1,709 @@
+# backend.services.zone_service.x_point_in_zone__mutmut_4: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -16,7 +16,7 @@
+         return False
+ 
+     coordinates = zone.coordinates
+-    if not coordinates or len(coordinates) < 3:
++    if not coordinates and len(coordinates) < 3:
+         return False
+ 
+     # Ray casting algorithm
+# backend.services.zone_service.x_point_in_zone__mutmut_13: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -23,7 +23,7 @@
+     n = len(coordinates)
+     inside = False
+ 
+-    p1x, p1y = coordinates[0]
++    p1x, p1y = coordinates[1]
+     for i in range(1, n + 1):
+         p2x, p2y = coordinates[i % n]
+ 
+# backend.services.zone_service.x_point_in_zone__mutmut_16: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -24,7 +24,7 @@
+     inside = False
+ 
+     p1x, p1y = coordinates[0]
+-    for i in range(1, n + 1):
++    for i in range(n + 1):
+         p2x, p2y = coordinates[i % n]
+ 
+         if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
+# backend.services.zone_service.x_point_in_zone__mutmut_20: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -24,7 +24,7 @@
+     inside = False
+ 
+     p1x, p1y = coordinates[0]
+-    for i in range(1, n + 1):
++    for i in range(1, n + 2):
+         p2x, p2y = coordinates[i % n]
+ 
+         if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
+# backend.services.zone_service.x_point_in_zone__mutmut_35: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -27,7 +27,7 @@
+     for i in range(1, n + 1):
+         p2x, p2y = coordinates[i % n]
+ 
+-        if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
++        if y > min(p1y, p2y) and y <= max(p1y, p2y) and x < max(p1x, p2x):
+             if p1y != p2y:
+                 xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+             if p1x == p2x or x <= xinters:
+# backend.services.zone_service.x_point_in_zone__mutmut_43: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -29,7 +29,7 @@
+ 
+         if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
+             if p1y != p2y:
+-                xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
++                xinters = (y - p1y) * (p2x - p1x) * (p2y - p1y) + p1x
+             if p1x == p2x or x <= xinters:
+                 inside = not inside
+ 
+# backend.services.zone_service.x_point_in_zone__mutmut_50: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -30,7 +30,7 @@
+         if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
+             if p1y != p2y:
+                 xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+-            if p1x == p2x or x <= xinters:
++            if p1x == p2x or x < xinters:
+                 inside = not inside
+ 
+         p1x, p1y = p2x, p2y
+# backend.services.zone_service.x_bbox_center__mutmut_3: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -23,7 +23,7 @@
+         ValueError: If image dimensions are not positive, or if bbox
+             coordinates are negative, or if bbox dimensions are not positive.
+     """
+-    if image_width <= 0 or image_height <= 0:
++    if image_width <= 1 or image_height <= 0:
+         raise ValueError("Image dimensions must be positive")
+ 
+     if bbox_x < 0 or bbox_y < 0:
+# backend.services.zone_service.x_bbox_center__mutmut_5: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -23,7 +23,7 @@
+         ValueError: If image dimensions are not positive, or if bbox
+             coordinates are negative, or if bbox dimensions are not positive.
+     """
+-    if image_width <= 0 or image_height <= 0:
++    if image_width <= 0 or image_height <= 1:
+         raise ValueError("Image dimensions must be positive")
+ 
+     if bbox_x < 0 or bbox_y < 0:
+# backend.services.zone_service.x_bbox_center__mutmut_7: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -24,7 +24,7 @@
+             coordinates are negative, or if bbox dimensions are not positive.
+     """
+     if image_width <= 0 or image_height <= 0:
+-        raise ValueError("Image dimensions must be positive")
++        raise ValueError("XXImage dimensions must be positiveXX")
+ 
+     if bbox_x < 0 or bbox_y < 0:
+         raise ValueError("Bounding box coordinates must be non-negative")
+# backend.services.zone_service.x_bbox_center__mutmut_16: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -27,7 +27,7 @@
+         raise ValueError("Image dimensions must be positive")
+ 
+     if bbox_x < 0 or bbox_y < 0:
+-        raise ValueError("Bounding box coordinates must be non-negative")
++        raise ValueError("XXBounding box coordinates must be non-negativeXX")
+ 
+     if bbox_width <= 0 or bbox_height <= 0:
+         raise ValueError("Bounding box dimensions must be positive")
+# backend.services.zone_service.x_bbox_center__mutmut_25: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -30,7 +30,7 @@
+         raise ValueError("Bounding box coordinates must be non-negative")
+ 
+     if bbox_width <= 0 or bbox_height <= 0:
+-        raise ValueError("Bounding box dimensions must be positive")
++        raise ValueError("XXBounding box dimensions must be positiveXX")
+ 
+     center_x = bbox_x + bbox_width / 2
+     center_y = bbox_y + bbox_height / 2
+# backend.services.zone_service.x__get_detection_center__mutmut_1: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -19,8 +19,7 @@
+     if (
+         detection.bbox_x is None
+         or detection.bbox_y is None
+-        or detection.bbox_width is None
+-        or detection.bbox_height is None
++        or detection.bbox_width is None and detection.bbox_height is None
+     ):
+         return None
+ 
+# backend.services.zone_service.x__get_detection_center__mutmut_2: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -18,8 +18,7 @@
+     """
+     if (
+         detection.bbox_x is None
+-        or detection.bbox_y is None
+-        or detection.bbox_width is None
++        or detection.bbox_y is None and detection.bbox_width is None
+         or detection.bbox_height is None
+     ):
+         return None
+# backend.services.zone_service.x__get_zone_centroid__mutmut_2: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -8,7 +8,7 @@
+         Tuple of (centroid_x, centroid_y) or None if zone has no coordinates
+     """
+     coordinates = zone.coordinates
+-    if not coordinates or len(coordinates) < 3:
++    if not coordinates and len(coordinates) < 3:
+         return None
+ 
+     # Calculate centroid as average of all vertices
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_2: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -12,7 +12,7 @@
+         Minimum distance to zone boundary (0 if point is inside zone)
+     """
+     coordinates = zone.coordinates
+-    if not coordinates or len(coordinates) < 3:
++    if not coordinates and len(coordinates) < 3:
+         return float("inf")
+ 
+     # If point is inside zone, distance is 0
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_4: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -12,7 +12,7 @@
+         Minimum distance to zone boundary (0 if point is inside zone)
+     """
+     coordinates = zone.coordinates
+-    if not coordinates or len(coordinates) < 3:
++    if not coordinates or len(coordinates) <= 3:
+         return float("inf")
+ 
+     # If point is inside zone, distance is 0
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_5: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -12,7 +12,7 @@
+         Minimum distance to zone boundary (0 if point is inside zone)
+     """
+     coordinates = zone.coordinates
+-    if not coordinates or len(coordinates) < 3:
++    if not coordinates or len(coordinates) < 4:
+         return float("inf")
+ 
+     # If point is inside zone, distance is 0
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_8: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -13,7 +13,7 @@
+     """
+     coordinates = zone.coordinates
+     if not coordinates or len(coordinates) < 3:
+-        return float("inf")
++        return float("INF")
+ 
+     # If point is inside zone, distance is 0
+     if point_in_zone(x, y, zone):
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_19: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -19,7 +19,7 @@
+     if point_in_zone(x, y, zone):
+         return 0.0
+ 
+-    min_distance = float("inf")
++    min_distance = float("INF")
+     n = len(coordinates)
+ 
+     for i in range(n):
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_25: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -25,7 +25,7 @@
+     for i in range(n):
+         # Get edge from vertex i to vertex (i+1) % n
+         x1, y1 = coordinates[i]
+-        x2, y2 = coordinates[(i + 1) % n]
++        x2, y2 = coordinates[(i - 1) % n]
+ 
+         # Calculate distance from point to line segment
+         dist = _point_to_segment_distance(x, y, x1, y1, x2, y2)
+# backend.services.zone_service.x__distance_to_zone_boundary__mutmut_26: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -25,7 +25,7 @@
+     for i in range(n):
+         # Get edge from vertex i to vertex (i+1) % n
+         x1, y1 = coordinates[i]
+-        x2, y2 = coordinates[(i + 1) % n]
++        x2, y2 = coordinates[(i + 2) % n]
+ 
+         # Calculate distance from point to line segment
+         dist = _point_to_segment_distance(x, y, x1, y1, x2, y2)
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_4: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -13,7 +13,7 @@
+     """
+     # Vector from segment start to point
+     dx = x2 - x1
+-    dy = y2 - y1
++    dy = y2 + y1
+ 
+     # Handle degenerate segment (single point)
+     if dx == 0 and dy == 0:
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_25: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -20,7 +20,7 @@
+         return _distance((px, py), (x1, y1))
+ 
+     # Calculate projection parameter t
+-    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
++    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) * (dx * dx + dy * dy)))
+ 
+     # Find closest point on segment
+     closest_x = x1 + t * dx
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_26: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -20,7 +20,7 @@
+         return _distance((px, py), (x1, y1))
+ 
+     # Calculate projection parameter t
+-    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
++    t = max(0, min(1, ((px - x1) * dx - (py - y1) * dy) / (dx * dx + dy * dy)))
+ 
+     # Find closest point on segment
+     closest_x = x1 + t * dx
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_28: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -20,7 +20,7 @@
+         return _distance((px, py), (x1, y1))
+ 
+     # Calculate projection parameter t
+-    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
++    t = max(0, min(1, ((px + x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+ 
+     # Find closest point on segment
+     closest_x = x1 + t * dx
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_30: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -20,7 +20,7 @@
+         return _distance((px, py), (x1, y1))
+ 
+     # Calculate projection parameter t
+-    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
++    t = max(0, min(1, ((px - x1) * dx + (py + y1) * dy) / (dx * dx + dy * dy)))
+ 
+     # Find closest point on segment
+     closest_x = x1 + t * dx
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_31: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -20,7 +20,7 @@
+         return _distance((px, py), (x1, y1))
+ 
+     # Calculate projection parameter t
+-    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
++    t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx - dy * dy)))
+ 
+     # Find closest point on segment
+     closest_x = x1 + t * dx
+# backend.services.zone_service.x__point_to_segment_distance__mutmut_38: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -24,6 +24,6 @@
+ 
+     # Find closest point on segment
+     closest_x = x1 + t * dx
+-    closest_y = y1 + t * dy
++    closest_y = y1 - t * dy
+ 
+     return _distance((px, py), (closest_x, closest_y))
+# backend.services.zone_service.x_calculate_dwell_time__mutmut_1: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -25,7 +25,7 @@
+         - Detections have no valid bounding boxes
+     """
+     # Early returns for invalid inputs
+-    if not detections or not zone.enabled:
++    if not detections and not zone.enabled:
+         return 0.0
+ 
+     # Need at least 2 detections to calculate time difference
+# backend.services.zone_service.x_calculate_dwell_time__mutmut_5: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -29,7 +29,7 @@
+         return 0.0
+ 
+     # Need at least 2 detections to calculate time difference
+-    if len(detections) < 2:
++    if len(detections) <= 2:
+         return 0.0
+ 
+     # Track dwell periods in zone
+# backend.services.zone_service.x_calculate_dwell_time__mutmut_6: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -29,7 +29,7 @@
+         return 0.0
+ 
+     # Need at least 2 detections to calculate time difference
+-    if len(detections) < 2:
++    if len(detections) < 3:
+         return 0.0
+ 
+     # Track dwell periods in zone
+# backend.services.zone_service.x_calculate_dwell_time__mutmut_19: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -39,7 +39,7 @@
+     for detection in detections:
+         center = _get_detection_center(detection, image_width, image_height)
+         if center is None:
+-            continue
++            break
+ 
+         is_in_zone = point_in_zone(center[0], center[1], zone)
+ 
+# backend.services.zone_service.x_calculate_dwell_time__mutmut_27: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -41,7 +41,7 @@
+         if center is None:
+             continue
+ 
+-        is_in_zone = point_in_zone(center[0], center[1], zone)
++        is_in_zone = point_in_zone(center[1], center[1], zone)
+ 
+         # Handle zone entry: start tracking dwell time
+         if is_in_zone and dwell_start is None:
+# backend.services.zone_service.x_calculate_dwell_time__mutmut_38: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -51,7 +51,7 @@
+         # Handle zone exit: accumulate dwell time and reset
+         if not is_in_zone and dwell_start is not None:
+             dwell_seconds = (detection.detected_at - dwell_start).total_seconds()
+-            total_dwell += dwell_seconds
++            total_dwell = dwell_seconds
+             dwell_start = None
+ 
+     # Add remaining dwell time if still in zone at end
+# backend.services.zone_service.x_detect_line_crossing__mutmut_28: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -35,7 +35,7 @@
+     if prev_center is None or curr_center is None:
+         return False
+ 
+-    prev_in_zone = point_in_zone(prev_center[0], prev_center[1], zone)
++    prev_in_zone = point_in_zone(prev_center[1], prev_center[1], zone)
+     curr_in_zone = point_in_zone(curr_center[0], curr_center[1], zone)
+ 
+     # Line crossing occurs when: was outside, now inside
+# backend.services.zone_service.x_detect_line_crossing__mutmut_37: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -36,7 +36,7 @@
+         return False
+ 
+     prev_in_zone = point_in_zone(prev_center[0], prev_center[1], zone)
+-    curr_in_zone = point_in_zone(curr_center[0], curr_center[1], zone)
++    curr_in_zone = point_in_zone(curr_center[1], curr_center[1], zone)
+ 
+     # Line crossing occurs when: was outside, now inside
+     return not prev_in_zone and curr_in_zone
+# backend.services.zone_service.x_detect_line_exit__mutmut_17: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -27,7 +27,7 @@
+     prev_center = _get_detection_center(prev_detection, image_width, image_height)
+     curr_center = _get_detection_center(curr_detection, image_width, image_height)
+ 
+-    if prev_center is None or curr_center is None:
++    if prev_center is None and curr_center is None:
+         return False
+ 
+     prev_in_zone = point_in_zone(prev_center[0], prev_center[1], zone)
+# backend.services.zone_service.x_detect_line_exit__mutmut_27: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -30,7 +30,7 @@
+     if prev_center is None or curr_center is None:
+         return False
+ 
+-    prev_in_zone = point_in_zone(prev_center[0], prev_center[1], zone)
++    prev_in_zone = point_in_zone(prev_center[1], prev_center[1], zone)
+     curr_in_zone = point_in_zone(curr_center[0], curr_center[1], zone)
+ 
+     # Line exit occurs when: was inside, now outside
+# backend.services.zone_service.x_detect_line_exit__mutmut_29: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -31,7 +31,7 @@
+         return False
+ 
+     prev_in_zone = point_in_zone(prev_center[0], prev_center[1], zone)
+-    curr_in_zone = point_in_zone(curr_center[0], curr_center[1], zone)
++    curr_in_zone = None
+ 
+     # Line exit occurs when: was inside, now outside
+     return prev_in_zone and not curr_in_zone
+# backend.services.zone_service.x_detect_line_exit__mutmut_36: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -31,7 +31,7 @@
+         return False
+ 
+     prev_in_zone = point_in_zone(prev_center[0], prev_center[1], zone)
+-    curr_in_zone = point_in_zone(curr_center[0], curr_center[1], zone)
++    curr_in_zone = point_in_zone(curr_center[1], curr_center[1], zone)
+ 
+     # Line exit occurs when: was inside, now outside
+     return prev_in_zone and not curr_in_zone
+# backend.services.zone_service.x_detect_line_exit__mutmut_38: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -34,4 +34,4 @@
+     curr_in_zone = point_in_zone(curr_center[0], curr_center[1], zone)
+ 
+     # Line exit occurs when: was inside, now outside
+-    return prev_in_zone and not curr_in_zone
++    return prev_in_zone or not curr_in_zone
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_9: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -32,7 +32,7 @@
+ 
+     # Find first and last valid detections with centers
+     first_detection = None
+-    first_center = None
++    first_center = ""
+     last_detection = None
+     last_center = None
+ 
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_10: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -33,7 +33,7 @@
+     # Find first and last valid detections with centers
+     first_detection = None
+     first_center = None
+-    last_detection = None
++    last_detection = ""
+     last_center = None
+ 
+     for detection in detections:
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_11: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -34,7 +34,7 @@
+     first_detection = None
+     first_center = None
+     last_detection = None
+-    last_center = None
++    last_center = ""
+ 
+     for detection in detections:
+         center = _get_detection_center(detection, image_width, image_height)
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_25: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -48,8 +48,7 @@
+     if (
+         first_center is None
+         or last_center is None
+-        or first_detection is None
+-        or last_detection is None
++        or first_detection is None and last_detection is None
+     ):
+         return None
+ 
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_26: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -47,8 +47,7 @@
+ 
+     if (
+         first_center is None
+-        or last_center is None
+-        or first_detection is None
++        or last_center is None and first_detection is None
+         or last_detection is None
+     ):
+         return None
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_27: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -46,8 +46,7 @@
+             last_center = center
+ 
+     if (
+-        first_center is None
+-        or last_center is None
++        first_center is None and last_center is None
+         or first_detection is None
+         or last_detection is None
+     ):
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_35: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -55,7 +55,7 @@
+ 
+     # Calculate time difference
+     time_delta = (last_detection.detected_at - first_detection.detected_at).total_seconds()
+-    if time_delta <= 0:
++    if time_delta <= 1:
+         return None
+ 
+     # Calculate movement vector
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_50: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -66,7 +66,7 @@
+     distance_moved = math.sqrt(dx * dx + dy * dy)
+ 
+     # Calculate speed (normalized units per second)
+-    speed = distance_moved / time_delta
++    speed = distance_moved * time_delta
+ 
+     # Calculate direction (degrees, 0=up, 90=right, 180=down, 270=left)
+     # Note: In image coordinates, y increases downward
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_59: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -72,7 +72,7 @@
+     # Note: In image coordinates, y increases downward
+     direction_rad = math.atan2(dx, -dy)  # -dy because y is inverted
+     direction_deg = math.degrees(direction_rad)
+-    if direction_deg < 0:
++    if direction_deg <= 0:
+         direction_deg += 360
+ 
+     # Calculate current distance to zone
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_60: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -72,7 +72,7 @@
+     # Note: In image coordinates, y increases downward
+     direction_rad = math.atan2(dx, -dy)  # -dy because y is inverted
+     direction_deg = math.degrees(direction_rad)
+-    if direction_deg < 0:
++    if direction_deg < 1:
+         direction_deg += 360
+ 
+     # Calculate current distance to zone
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_61: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -73,7 +73,7 @@
+     direction_rad = math.atan2(dx, -dy)  # -dy because y is inverted
+     direction_deg = math.degrees(direction_rad)
+     if direction_deg < 0:
+-        direction_deg += 360
++        direction_deg = 360
+ 
+     # Calculate current distance to zone
+     # Use distance to boundary if outside, 0 if inside
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_62: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -73,7 +73,7 @@
+     direction_rad = math.atan2(dx, -dy)  # -dy because y is inverted
+     direction_deg = math.degrees(direction_rad)
+     if direction_deg < 0:
+-        direction_deg += 360
++        direction_deg -= 360
+ 
+     # Calculate current distance to zone
+     # Use distance to boundary if outside, 0 if inside
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_63: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -73,7 +73,7 @@
+     direction_rad = math.atan2(dx, -dy)  # -dy because y is inverted
+     direction_deg = math.degrees(direction_rad)
+     if direction_deg < 0:
+-        direction_deg += 360
++        direction_deg += 361
+ 
+     # Calculate current distance to zone
+     # Use distance to boundary if outside, 0 if inside
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_71: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -77,7 +77,7 @@
+ 
+     # Calculate current distance to zone
+     # Use distance to boundary if outside, 0 if inside
+-    current_distance = _distance_to_zone_boundary(last_center[0], last_center[1], zone)
++    current_distance = _distance_to_zone_boundary(last_center[1], last_center[1], zone)
+ 
+     # Determine if approaching
+     # Compare distance from first position to zone vs last position to zone
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_87: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -86,7 +86,7 @@
+ 
+     # Estimate arrival time if approaching
+     estimated_arrival: float | None = None
+-    if is_approaching and speed > 0 and current_distance > 0:
++    if is_approaching and speed >= 0 and current_distance > 0:
+         # Simple linear estimate
+         estimated_arrival = current_distance / speed
+     elif current_distance == 0:
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_89: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -86,7 +86,7 @@
+ 
+     # Estimate arrival time if approaching
+     estimated_arrival: float | None = None
+-    if is_approaching and speed > 0 and current_distance > 0:
++    if is_approaching and speed > 0 and current_distance >= 0:
+         # Simple linear estimate
+         estimated_arrival = current_distance / speed
+     elif current_distance == 0:
+# backend.services.zone_service.x_calculate_approach_vector__mutmut_92: survived
+--- backend/services/zone_service.py
++++ backend/services/zone_service.py
+@@ -88,7 +88,7 @@
+     estimated_arrival: float | None = None
+     if is_approaching and speed > 0 and current_distance > 0:
+         # Simple linear estimate
+-        estimated_arrival = current_distance / speed
++        estimated_arrival = current_distance * speed
+     elif current_distance == 0:
+         # Already in zone
+         estimated_arrival = 0.0

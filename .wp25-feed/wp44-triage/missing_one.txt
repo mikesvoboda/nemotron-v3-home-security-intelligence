@@ -1,0 +1,12 @@
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_9: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -16,7 +16,7 @@
+     depth = await self._redis.get_queue_length(queue_name)
+ 
+     # Get oldest job info (peek first item)
+-    oldest_job = await self._get_oldest_job_info(queue_name)
++    oldest_job = await self._get_oldest_job_info(None)
+ 
+     # Calculate health status
+     wait_seconds = oldest_job.wait_seconds if oldest_job else None

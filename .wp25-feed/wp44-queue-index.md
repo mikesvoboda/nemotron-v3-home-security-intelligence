@@ -1099,3 +1099,33 @@ MEASURE — gen-2 cumulative: 20,771 + 77 = **20,848 survivors** across 48
 modules; G 11,636 (55.8%) / E 5,271 (25.3%) / L 3,925 (18.8%); **343 drafted
 kill-tests**. NEW tier remaining after wave 61 dispatch: ~65 modules /
 ~1,800 survivors.
+
+## WAVE 61a (GEN-2 NEW TIER) — FOLD 2026-09-18
+
+Seven of eight dispatched modules (zone_service's agent died without output —
+re-dispatched as a DIRECT dossier-first agent with arbiter numbers pinned, the
+nemotron_streaming precedent; its fold lands as 61b).
+
+| module | surv | G | E | L | drafts |
+|---|---|---|---|---|---|
+| pet_classifier_loader | 72 | 34 | 2 | 36 | 5 |
+| ai_fallback | 70 | 32 | 35 | 3 | 6 |
+| queue_status_service | 69 | 50 | 12 | 7 | 6 |
+| websocket_service | 69 | 9 | 19 | 41 | 5 |
+| routes/logs | 62 | 57 | 2 | 3 | 6 |
+| job_log_emitter | 60 | 21 | 31 | 8 | 6 |
+| line_zone_service | 59 | 25 | 34 | 0 | 6 |
+| **W61a TOTAL** | **461** | **228** | **135** | **98** | **34** |
+
+Reconciliation: routes/logs journal cluster math said G58 with sum 63 (+1 vs
+arbiter 62); the dossier's OWN programmatic partition gives 57/2/3 = 62 ✔ —
+fold takes the dossier. All other 6: journal == dossier == arbiter.
+
+MEASURE — gen-2 cumulative through 61a: 20,848 + 461 = **21,309 survivors**
+across 55 modules; G 11,864 (55.7%) / E 5,406 (25.4%) / L 4,023 (18.9%)
+[16-row residual = the program's honest unclassified remainder, carried since
+wave 58's +1 n/c and the count-vs-classification channel splits — recorded,
+never re-typed]; **377 drafted kill-tests** (343 + 34). Shape: routes/logs
+57/62 G — a whole FastAPI route module essentially untested; websocket_service
+inverts to 41/69 L (log-heavy broadcaster twin). Serial-lane live: census past
+half, kill-test commits (container_discovery batch first) land on completion.

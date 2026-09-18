@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁ_create_log_message__mutmut_9: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -17,7 +17,7 @@
+     return {
+         "type": "log",
+         "data": {
+-            "timestamp": datetime.now(UTC).isoformat(),
++            "timestamp": datetime.now(None).isoformat(),
+             "level": level.upper(),
+             "message": message,
+             "context": context,

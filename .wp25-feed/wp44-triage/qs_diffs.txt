@@ -1,0 +1,803 @@
+# backend.services.queue_status_service.x_get_queue_status_service__mutmut_3: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,5 +9,5 @@
+     """
+     global _queue_status_service  # noqa: PLW0603
+     if _queue_status_service is None:
+-        _queue_status_service = QueueStatusService(redis)
++        _queue_status_service = QueueStatusService(None)
+     return _queue_status_service
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ__init____mutmut_2: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -6,5 +6,5 @@
+         """
+     self._redis = redis
+     # Throughput tracking (in-memory, resets on restart)
+-    self._job_counts: dict[str, int] = {}
++    self._job_counts: dict[str, int] = None
+     self._last_sample_time: datetime | None = None
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ__init____mutmut_3: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -7,4 +7,4 @@
+     self._redis = redis
+     # Throughput tracking (in-memory, resets on restart)
+     self._job_counts: dict[str, int] = {}
+-    self._last_sample_time: datetime | None = None
++    self._last_sample_time: datetime | None = ""
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_13: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -14,7 +14,7 @@
+             return None
+ 
+         oldest = items[0]
+-        job_id = None
++        job_id = ""
+         queued_at = None
+         wait_seconds = 0.0
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_2: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(None, start=0, end=0)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_20: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+ 
+         # Try to extract timestamp from job data
+         if isinstance(oldest, dict):
+-            job_id = oldest.get("id") or oldest.get("batch_id") or oldest.get("file_path")
++            job_id = oldest.get(None) or oldest.get("batch_id") or oldest.get("file_path")
+             timestamp_str = oldest.get("timestamp") or oldest.get("queued_at")
+             pipeline_start = oldest.get("pipeline_start_time")
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_21: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+ 
+         # Try to extract timestamp from job data
+         if isinstance(oldest, dict):
+-            job_id = oldest.get("id") or oldest.get("batch_id") or oldest.get("file_path")
++            job_id = oldest.get("XXidXX") or oldest.get("batch_id") or oldest.get("file_path")
+             timestamp_str = oldest.get("timestamp") or oldest.get("queued_at")
+             pipeline_start = oldest.get("pipeline_start_time")
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_22: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+ 
+         # Try to extract timestamp from job data
+         if isinstance(oldest, dict):
+-            job_id = oldest.get("id") or oldest.get("batch_id") or oldest.get("file_path")
++            job_id = oldest.get("ID") or oldest.get("batch_id") or oldest.get("file_path")
+             timestamp_str = oldest.get("timestamp") or oldest.get("queued_at")
+             pipeline_start = oldest.get("pipeline_start_time")
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_3: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(prefixed_queue_name, start=None, end=0)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_34: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -21,7 +21,7 @@
+         # Try to extract timestamp from job data
+         if isinstance(oldest, dict):
+             job_id = oldest.get("id") or oldest.get("batch_id") or oldest.get("file_path")
+-            timestamp_str = oldest.get("timestamp") or oldest.get("queued_at")
++            timestamp_str = oldest.get("timestamp") or oldest.get(None)
+             pipeline_start = oldest.get("pipeline_start_time")
+ 
+             # Use pipeline_start_time if available (more accurate for latency)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_35: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -21,7 +21,7 @@
+         # Try to extract timestamp from job data
+         if isinstance(oldest, dict):
+             job_id = oldest.get("id") or oldest.get("batch_id") or oldest.get("file_path")
+-            timestamp_str = oldest.get("timestamp") or oldest.get("queued_at")
++            timestamp_str = oldest.get("timestamp") or oldest.get("XXqueued_atXX")
+             pipeline_start = oldest.get("pipeline_start_time")
+ 
+             # Use pipeline_start_time if available (more accurate for latency)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_36: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -21,7 +21,7 @@
+         # Try to extract timestamp from job data
+         if isinstance(oldest, dict):
+             job_id = oldest.get("id") or oldest.get("batch_id") or oldest.get("file_path")
+-            timestamp_str = oldest.get("timestamp") or oldest.get("queued_at")
++            timestamp_str = oldest.get("timestamp") or oldest.get("QUEUED_AT")
+             pipeline_start = oldest.get("pipeline_start_time")
+ 
+             # Use pipeline_start_time if available (more accurate for latency)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_4: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=None)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_48: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -30,7 +30,7 @@
+ 
+             if timestamp_str:
+                 try:
+-                    queued_at = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
++                    queued_at = datetime.fromisoformat(timestamp_str.replace("XXZXX", "+00:00"))
+                     now = datetime.now(UTC)
+                     if queued_at.tzinfo is None:
+                         # Assume UTC if no timezone
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_49: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -30,7 +30,7 @@
+ 
+             if timestamp_str:
+                 try:
+-                    queued_at = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
++                    queued_at = datetime.fromisoformat(timestamp_str.replace("z", "+00:00"))
+                     now = datetime.now(UTC)
+                     if queued_at.tzinfo is None:
+                         # Assume UTC if no timezone
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_5: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(start=0, end=0)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_50: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -30,7 +30,7 @@
+ 
+             if timestamp_str:
+                 try:
+-                    queued_at = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
++                    queued_at = datetime.fromisoformat(timestamp_str.replace("Z", "XX+00:00XX"))
+                     now = datetime.now(UTC)
+                     if queued_at.tzinfo is None:
+                         # Assume UTC if no timezone
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_53: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -32,7 +32,7 @@
+                 try:
+                     queued_at = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                     now = datetime.now(UTC)
+-                    if queued_at.tzinfo is None:
++                    if queued_at.tzinfo is not None:
+                         # Assume UTC if no timezone
+                         queued_at = queued_at.replace(tzinfo=UTC)
+                     wait_seconds = (now - queued_at).total_seconds()
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_57: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -44,7 +44,7 @@
+ 
+         return OldestJobInfo(
+             id=str(job_id) if job_id else None,
+-            queued_at=queued_at,
++            queued_at=None,
+             wait_seconds=max(0.0, wait_seconds),
+         )
+     except Exception as e:
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_6: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(prefixed_queue_name, end=0)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_60: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -44,7 +44,6 @@
+ 
+         return OldestJobInfo(
+             id=str(job_id) if job_id else None,
+-            queued_at=queued_at,
+             wait_seconds=max(0.0, wait_seconds),
+         )
+     except Exception as e:
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_7: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(prefixed_queue_name, start=0, )
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_70: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -48,5 +48,5 @@
+             wait_seconds=max(0.0, wait_seconds),
+         )
+     except Exception as e:
+-        logger.debug(f"Failed to get oldest job info: {e}")
++        logger.debug(None)
+         return None
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_8: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(prefixed_queue_name, start=1, end=0)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_oldest_job_info__mutmut_9: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -9,7 +9,7 @@
+         """
+     try:
+         # Peek at the first item (oldest) without removing
+-        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=0)
++        items = await self._redis.peek_queue(prefixed_queue_name, start=0, end=1)
+         if not items:
+             return None
+ 
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_12: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+     }
+ 
+-    jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 0.0))
++    jobs_per_min, avg_seconds = default_throughput.get(queue_name, None)
+ 
+     return ThroughputMetrics(
+         jobs_per_minute=jobs_per_min,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_14: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+     }
+ 
+-    jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 0.0))
++    jobs_per_min, avg_seconds = default_throughput.get(queue_name, )
+ 
+     return ThroughputMetrics(
+         jobs_per_minute=jobs_per_min,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_15: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+     }
+ 
+-    jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 0.0))
++    jobs_per_min, avg_seconds = default_throughput.get(queue_name, (1.0, 0.0))
+ 
+     return ThroughputMetrics(
+         jobs_per_minute=jobs_per_min,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_16: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+     }
+ 
+-    jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 0.0))
++    jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 1.0))
+ 
+     return ThroughputMetrics(
+         jobs_per_minute=jobs_per_min,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_2: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -14,7 +14,7 @@
+     # Default throughput values by queue type
+     # In production, these would be calculated from actual metrics
+     default_throughput: dict[str, tuple[float, float]] = {
+-        DETECTION_QUEUE: (10.0, 2.5),  # 10 jobs/min, 2.5s avg
++        DETECTION_QUEUE: (11.0, 2.5),  # 10 jobs/min, 2.5s avg
+         ANALYSIS_QUEUE: (5.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
+         DLQ_DETECTION_QUEUE: (0.0, 0.0),  # DLQ doesn't auto-process
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_3: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -14,7 +14,7 @@
+     # Default throughput values by queue type
+     # In production, these would be calculated from actual metrics
+     default_throughput: dict[str, tuple[float, float]] = {
+-        DETECTION_QUEUE: (10.0, 2.5),  # 10 jobs/min, 2.5s avg
++        DETECTION_QUEUE: (10.0, 3.5),  # 10 jobs/min, 2.5s avg
+         ANALYSIS_QUEUE: (5.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
+         DLQ_DETECTION_QUEUE: (0.0, 0.0),  # DLQ doesn't auto-process
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_4: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -15,7 +15,7 @@
+     # In production, these would be calculated from actual metrics
+     default_throughput: dict[str, tuple[float, float]] = {
+         DETECTION_QUEUE: (10.0, 2.5),  # 10 jobs/min, 2.5s avg
+-        ANALYSIS_QUEUE: (5.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
++        ANALYSIS_QUEUE: (6.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
+         DLQ_DETECTION_QUEUE: (0.0, 0.0),  # DLQ doesn't auto-process
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+     }
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_5: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -15,7 +15,7 @@
+     # In production, these would be calculated from actual metrics
+     default_throughput: dict[str, tuple[float, float]] = {
+         DETECTION_QUEUE: (10.0, 2.5),  # 10 jobs/min, 2.5s avg
+-        ANALYSIS_QUEUE: (5.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
++        ANALYSIS_QUEUE: (5.0, 9.0),  # 5 jobs/min, 8s avg (LLM is slower)
+         DLQ_DETECTION_QUEUE: (0.0, 0.0),  # DLQ doesn't auto-process
+         DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+     }
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_8: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -17,7 +17,7 @@
+         DETECTION_QUEUE: (10.0, 2.5),  # 10 jobs/min, 2.5s avg
+         ANALYSIS_QUEUE: (5.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
+         DLQ_DETECTION_QUEUE: (0.0, 0.0),  # DLQ doesn't auto-process
+-        DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
++        DLQ_ANALYSIS_QUEUE: (1.0, 0.0),
+     }
+ 
+     jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 0.0))
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_throughput_metrics__mutmut_9: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -17,7 +17,7 @@
+         DETECTION_QUEUE: (10.0, 2.5),  # 10 jobs/min, 2.5s avg
+         ANALYSIS_QUEUE: (5.0, 8.0),  # 5 jobs/min, 8s avg (LLM is slower)
+         DLQ_DETECTION_QUEUE: (0.0, 0.0),  # DLQ doesn't auto-process
+-        DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
++        DLQ_ANALYSIS_QUEUE: (0.0, 1.0),
+     }
+ 
+     jobs_per_min, avg_seconds = default_throughput.get(queue_name, (0.0, 0.0))
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_10: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: 0,
+     }
+ 
+-    workers = worker_counts.get(queue_name, 1)
++    workers = worker_counts.get(queue_name, 2)
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_12: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -24,6 +24,6 @@
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+-    running = min(workers, 1) if workers > 0 else 0
++    running = min(workers, 1) if (workers > 0) and False else 0
+ 
+     return workers, running
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_13: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -24,6 +24,6 @@
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+-    running = min(workers, 1) if workers > 0 else 0
++    running = min(workers, 1) if (workers > 0) or True else 0
+ 
+     return workers, running
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_18: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -24,6 +24,6 @@
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+-    running = min(workers, 1) if workers > 0 else 0
++    running = min(workers, 2) if workers > 0 else 0
+ 
+     return workers, running
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_19: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -24,6 +24,6 @@
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+-    running = min(workers, 1) if workers > 0 else 0
++    running = min(workers, 1) if workers >= 0 else 0
+ 
+     return workers, running
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_20: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -24,6 +24,6 @@
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+-    running = min(workers, 1) if workers > 0 else 0
++    running = min(workers, 1) if workers > 1 else 0
+ 
+     return workers, running
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_4: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -17,7 +17,7 @@
+         DETECTION_QUEUE: settings.detection_worker_count,
+         ANALYSIS_QUEUE: settings.analysis_worker_count,
+         DLQ_DETECTION_QUEUE: 0,  # DLQ doesn't have workers
+-        DLQ_ANALYSIS_QUEUE: 0,
++        DLQ_ANALYSIS_QUEUE: 1,
+     }
+ 
+     workers = worker_counts.get(queue_name, 1)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_7: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: 0,
+     }
+ 
+-    workers = worker_counts.get(queue_name, 1)
++    workers = worker_counts.get(queue_name, None)
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+# backend.services.queue_status_service.xǁQueueStatusServiceǁ_get_worker_info__mutmut_9: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         DLQ_ANALYSIS_QUEUE: 0,
+     }
+ 
+-    workers = worker_counts.get(queue_name, 1)
++    workers = worker_counts.get(queue_name, )
+ 
+     # Running jobs would be tracked by the workers themselves
+     # For now, estimate based on queue activity
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_10: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
++                extra={"XXqueue_nameXX": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_11: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
++                extra={"QUEUE_NAME": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_12: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
++                extra={"queue_name": queue_name, "XXerrorXX": str(e)},
+             )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_13: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
++                extra={"queue_name": queue_name, "ERROR": str(e)},
+             )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_14: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
++                extra={"queue_name": queue_name, "error": str(None)},
+             )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_16: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -23,7 +23,7 @@
+                 extra={"queue_name": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+-            display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++            display_name = QUEUE_NAME_MAP.get(None, queue_name)
+             statuses.append(
+                 QueueStatus(
+                     name=display_name,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_17: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -23,7 +23,7 @@
+                 extra={"queue_name": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+-            display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++            display_name = QUEUE_NAME_MAP.get(queue_name, None)
+             statuses.append(
+                 QueueStatus(
+                     name=display_name,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_18: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -23,7 +23,7 @@
+                 extra={"queue_name": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+-            display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++            display_name = QUEUE_NAME_MAP.get(queue_name)
+             statuses.append(
+                 QueueStatus(
+                     name=display_name,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_19: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -23,7 +23,7 @@
+                 extra={"queue_name": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+-            display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++            display_name = QUEUE_NAME_MAP.get(queue_name, )
+             statuses.append(
+                 QueueStatus(
+                     name=display_name,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_33: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -35,8 +35,7 @@
+                         jobs_per_minute=0.0,
+                         avg_processing_seconds=0.0,
+                     ),
+-                    oldest_job=None,
+-                )
++                    )
+             )
+ 
+     return statuses
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_34: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -28,7 +28,7 @@
+                 QueueStatus(
+                     name=display_name,
+                     status=QueueHealthStatus.CRITICAL,
+-                    depth=0,
++                    depth=1,
+                     running=0,
+                     workers=0,
+                     throughput=ThroughputMetrics(
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_35: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -29,7 +29,7 @@
+                     name=display_name,
+                     status=QueueHealthStatus.CRITICAL,
+                     depth=0,
+-                    running=0,
++                    running=1,
+                     workers=0,
+                     throughput=ThroughputMetrics(
+                         jobs_per_minute=0.0,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_36: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -30,7 +30,7 @@
+                     status=QueueHealthStatus.CRITICAL,
+                     depth=0,
+                     running=0,
+-                    workers=0,
++                    workers=1,
+                     throughput=ThroughputMetrics(
+                         jobs_per_minute=0.0,
+                         avg_processing_seconds=0.0,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_41: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -32,7 +32,7 @@
+                     running=0,
+                     workers=0,
+                     throughput=ThroughputMetrics(
+-                        jobs_per_minute=0.0,
++                        jobs_per_minute=1.0,
+                         avg_processing_seconds=0.0,
+                     ),
+                     oldest_job=None,
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_42: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -33,7 +33,7 @@
+                     workers=0,
+                     throughput=ThroughputMetrics(
+                         jobs_per_minute=0.0,
+-                        avg_processing_seconds=0.0,
++                        avg_processing_seconds=1.0,
+                     ),
+                     oldest_job=None,
+                 )
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_6: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -19,7 +19,7 @@
+             statuses.append(status)
+         except Exception as e:
+             logger.warning(
+-                f"Failed to get status for queue {queue_name}: {e}",
++                None,
+                 extra={"queue_name": queue_name, "error": str(e)},
+             )
+             # Include degraded status for failed queues
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_7: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
++                extra=None,
+             )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_all_queues_status__mutmut_9: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,8 +20,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Failed to get status for queue {queue_name}: {e}",
+-                extra={"queue_name": queue_name, "error": str(e)},
+-            )
++                )
+             # Include degraded status for failed queues
+             display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
+             statuses.append(
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_14: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -20,7 +20,7 @@
+ 
+     # Calculate health status
+     wait_seconds = oldest_job.wait_seconds if oldest_job else None
+-    health_status = calculate_health(display_name, depth, wait_seconds)
++    health_status = calculate_health(None, depth, wait_seconds)
+ 
+     # Get throughput metrics (currently estimated/mock)
+     throughput = await self._get_throughput_metrics(queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_21: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -23,7 +23,7 @@
+     health_status = calculate_health(display_name, depth, wait_seconds)
+ 
+     # Get throughput metrics (currently estimated/mock)
+-    throughput = await self._get_throughput_metrics(queue_name)
++    throughput = await self._get_throughput_metrics(None)
+ 
+     # Get worker count (from pipeline workers if available)
+     workers, running = await self._get_worker_info(queue_name)
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_3: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             QueueStatus with current metrics
+         """
+-    display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++    display_name = QUEUE_NAME_MAP.get(queue_name, None)
+     # Note: Workers use unprefixed queue names, so we must too for accurate monitoring
+     # The get_prefixed_queue_name() was incorrectly used here - workers add/consume
+     # from raw queue names like "detection_queue", not "hsi:queue:detection_queue"
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_4: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             QueueStatus with current metrics
+         """
+-    display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++    display_name = QUEUE_NAME_MAP.get(queue_name)
+     # Note: Workers use unprefixed queue names, so we must too for accurate monitoring
+     # The get_prefixed_queue_name() was incorrectly used here - workers add/consume
+     # from raw queue names like "detection_queue", not "hsi:queue:detection_queue"
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_5: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             QueueStatus with current metrics
+         """
+-    display_name = QUEUE_NAME_MAP.get(queue_name, queue_name)
++    display_name = QUEUE_NAME_MAP.get(queue_name, )
+     # Note: Workers use unprefixed queue names, so we must too for accurate monitoring
+     # The get_prefixed_queue_name() was incorrectly used here - workers add/consume
+     # from raw queue names like "detection_queue", not "hsi:queue:detection_queue"
+# backend.services.queue_status_service.xǁQueueStatusServiceǁget_queue_status__mutmut_7: survived
+--- backend/services/queue_status_service.py
++++ backend/services/queue_status_service.py
+@@ -13,7 +13,7 @@
+     # from raw queue names like "detection_queue", not "hsi:queue:detection_queue"
+ 
+     # Get queue depth
+-    depth = await self._redis.get_queue_length(queue_name)
++    depth = await self._redis.get_queue_length(None)
+ 
+     # Get oldest job info (peek first item)
+     oldest_job = await self._get_oldest_job_info(queue_name)

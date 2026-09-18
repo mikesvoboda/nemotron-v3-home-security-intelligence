@@ -1,0 +1,793 @@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_2: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -11,7 +11,7 @@
+     try:
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+-            "source": "frontend",
++            "XXsourceXX": "frontend",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+             else "unknown",
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_3: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -11,7 +11,7 @@
+     try:
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+-            "source": "frontend",
++            "SOURCE": "frontend",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+             else "unknown",
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_4: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -11,7 +11,7 @@
+     try:
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+-            "source": "frontend",
++            "source": "XXfrontendXX",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+             else "unknown",
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_5: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -11,7 +11,7 @@
+     try:
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+-            "source": "frontend",
++            "source": "FRONTEND",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+             else "unknown",
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_6: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -12,7 +12,7 @@
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+-            "frontend_component": sanitize_log_value(entry.component, max_length=100)
++            "XXfrontend_componentXX": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+             else "unknown",
+         }
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_7: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -12,7 +12,7 @@
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+-            "frontend_component": sanitize_log_value(entry.component, max_length=100)
++            "FRONTEND_COMPONENT": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+             else "unknown",
+         }
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_8: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -13,7 +13,7 @@
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+-            if entry.component
++            if (entry.component) and False
+             else "unknown",
+         }
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_9: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -13,7 +13,7 @@
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+-            if entry.component
++            if (entry.component) or True
+             else "unknown",
+         }
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_10: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -12,7 +12,7 @@
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+-            "frontend_component": sanitize_log_value(entry.component, max_length=100)
++            "frontend_component": sanitize_log_value(None, max_length=100)
+             if entry.component
+             else "unknown",
+         }
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_13: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -12,7 +12,7 @@
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+-            "frontend_component": sanitize_log_value(entry.component, max_length=100)
++            "frontend_component": sanitize_log_value(entry.component, )
+             if entry.component
+             else "unknown",
+         }
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_14: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -12,7 +12,7 @@
+         # Build extra context for the log record
+         extra: dict[str, str | None] = {
+             "source": "frontend",
+-            "frontend_component": sanitize_log_value(entry.component, max_length=100)
++            "frontend_component": sanitize_log_value(entry.component, max_length=101)
+             if entry.component
+             else "unknown",
+         }
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_15: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -14,7 +14,7 @@
+             "source": "frontend",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+-            else "unknown",
++            else "XXunknownXX",
+         }
+ 
+         # Add URL if provided (with stricter length limit)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_16: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -14,7 +14,7 @@
+             "source": "frontend",
+             "frontend_component": sanitize_log_value(entry.component, max_length=100)
+             if entry.component
+-            else "unknown",
++            else "UNKNOWN",
+         }
+ 
+         # Add URL if provided (with stricter length limit)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_17: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -19,7 +19,7 @@
+ 
+         # Add URL if provided (with stricter length limit)
+         if entry.url:
+-            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
++            extra["frontend_url"] = None
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_18: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -19,7 +19,7 @@
+ 
+         # Add URL if provided (with stricter length limit)
+         if entry.url:
+-            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
++            extra["XXfrontend_urlXX"] = sanitize_log_value(entry.url, max_length=500)
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_19: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -19,7 +19,7 @@
+ 
+         # Add URL if provided (with stricter length limit)
+         if entry.url:
+-            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
++            extra["FRONTEND_URL"] = sanitize_log_value(entry.url, max_length=500)
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_20: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -19,7 +19,7 @@
+ 
+         # Add URL if provided (with stricter length limit)
+         if entry.url:
+-            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
++            extra["frontend_url"] = sanitize_log_value(None, max_length=500)
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_23: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -19,7 +19,7 @@
+ 
+         # Add URL if provided (with stricter length limit)
+         if entry.url:
+-            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
++            extra["frontend_url"] = sanitize_log_value(entry.url, )
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_24: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -19,7 +19,7 @@
+ 
+         # Add URL if provided (with stricter length limit)
+         if entry.url:
+-            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
++            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=501)
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_31: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -23,7 +23,7 @@
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+-            extra["frontend_user_agent"] = sanitize_log_value(entry.user_agent, max_length=500)
++            extra["frontend_user_agent"] = sanitize_log_value(entry.user_agent, )
+         elif request:
+             user_agent = request.headers.get("user-agent")
+             if user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_32: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -23,7 +23,7 @@
+ 
+         # Add user agent from request or entry (with length limit)
+         if entry.user_agent:
+-            extra["frontend_user_agent"] = sanitize_log_value(entry.user_agent, max_length=500)
++            extra["frontend_user_agent"] = sanitize_log_value(entry.user_agent, max_length=501)
+         elif request:
+             user_agent = request.headers.get("user-agent")
+             if user_agent:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_43: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -27,7 +27,7 @@
+         elif request:
+             user_agent = request.headers.get("user-agent")
+             if user_agent:
+-                extra["frontend_user_agent"] = sanitize_log_value(user_agent, max_length=500)
++                extra["frontend_user_agent"] = sanitize_log_value(user_agent, )
+ 
+         # Add timestamp if provided (as ISO string for structured logging)
+         if entry.timestamp:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_44: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -27,7 +27,7 @@
+         elif request:
+             user_agent = request.headers.get("user-agent")
+             if user_agent:
+-                extra["frontend_user_agent"] = sanitize_log_value(user_agent, max_length=500)
++                extra["frontend_user_agent"] = sanitize_log_value(user_agent, max_length=501)
+ 
+         # Add timestamp if provided (as ISO string for structured logging)
+         if entry.timestamp:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_45: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -31,7 +31,7 @@
+ 
+         # Add timestamp if provided (as ISO string for structured logging)
+         if entry.timestamp:
+-            extra["frontend_timestamp"] = entry.timestamp.isoformat()
++            extra["frontend_timestamp"] = None
+         else:
+             extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_46: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -31,7 +31,7 @@
+ 
+         # Add timestamp if provided (as ISO string for structured logging)
+         if entry.timestamp:
+-            extra["frontend_timestamp"] = entry.timestamp.isoformat()
++            extra["XXfrontend_timestampXX"] = entry.timestamp.isoformat()
+         else:
+             extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_47: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -31,7 +31,7 @@
+ 
+         # Add timestamp if provided (as ISO string for structured logging)
+         if entry.timestamp:
+-            extra["frontend_timestamp"] = entry.timestamp.isoformat()
++            extra["FRONTEND_TIMESTAMP"] = entry.timestamp.isoformat()
+         else:
+             extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_48: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -33,7 +33,7 @@
+         if entry.timestamp:
+             extra["frontend_timestamp"] = entry.timestamp.isoformat()
+         else:
+-            extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
++            extra["frontend_timestamp"] = None
+ 
+         # Add any additional context from the entry with size limits
+         if entry.context:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_49: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -33,7 +33,7 @@
+         if entry.timestamp:
+             extra["frontend_timestamp"] = entry.timestamp.isoformat()
+         else:
+-            extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
++            extra["XXfrontend_timestampXX"] = datetime.now(UTC).isoformat()
+ 
+         # Add any additional context from the entry with size limits
+         if entry.context:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_50: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -33,7 +33,7 @@
+         if entry.timestamp:
+             extra["frontend_timestamp"] = entry.timestamp.isoformat()
+         else:
+-            extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
++            extra["FRONTEND_TIMESTAMP"] = datetime.now(UTC).isoformat()
+ 
+         # Add any additional context from the entry with size limits
+         if entry.context:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_51: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -33,7 +33,7 @@
+         if entry.timestamp:
+             extra["frontend_timestamp"] = entry.timestamp.isoformat()
+         else:
+-            extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
++            extra["frontend_timestamp"] = datetime.now(None).isoformat()
+ 
+         # Add any additional context from the entry with size limits
+         if entry.context:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_53: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -38,7 +38,7 @@
+         # Add any additional context from the entry with size limits
+         if entry.context:
+             # Limit total context size to prevent memory exhaustion
+-            context_size = 0
++            context_size = 1
+             max_context_size = 10000  # 10KB max for context
+             max_context_items = 20  # Maximum number of context items
+             item_count = 0
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_55: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -39,7 +39,7 @@
+         if entry.context:
+             # Limit total context size to prevent memory exhaustion
+             context_size = 0
+-            max_context_size = 10000  # 10KB max for context
++            max_context_size = 10001  # 10KB max for context
+             max_context_items = 20  # Maximum number of context items
+             item_count = 0
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_57: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -40,7 +40,7 @@
+             # Limit total context size to prevent memory exhaustion
+             context_size = 0
+             max_context_size = 10000  # 10KB max for context
+-            max_context_items = 20  # Maximum number of context items
++            max_context_items = 21  # Maximum number of context items
+             item_count = 0
+ 
+             # Flatten context into extra with prefix to avoid collisions
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_59: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -41,7 +41,7 @@
+             context_size = 0
+             max_context_size = 10000  # 10KB max for context
+             max_context_items = 20  # Maximum number of context items
+-            item_count = 0
++            item_count = 1
+ 
+             # Flatten context into extra with prefix to avoid collisions
+             for key, value in entry.context.items():
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_60: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -46,7 +46,7 @@
+             # Flatten context into extra with prefix to avoid collisions
+             for key, value in entry.context.items():
+                 # Skip None values and limit key length
+-                if value is not None and len(key) <= 50:
++                if value is not None or len(key) <= 50:
+                     # Enforce limits
+                     if item_count >= max_context_items:
+                         logger.debug("Context item limit reached, skipping remaining items")
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_62: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -46,7 +46,7 @@
+             # Flatten context into extra with prefix to avoid collisions
+             for key, value in entry.context.items():
+                 # Skip None values and limit key length
+-                if value is not None and len(key) <= 50:
++                if value is not None and len(key) < 50:
+                     # Enforce limits
+                     if item_count >= max_context_items:
+                         logger.debug("Context item limit reached, skipping remaining items")
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_63: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -46,7 +46,7 @@
+             # Flatten context into extra with prefix to avoid collisions
+             for key, value in entry.context.items():
+                 # Skip None values and limit key length
+-                if value is not None and len(key) <= 50:
++                if value is not None and len(key) <= 51:
+                     # Enforce limits
+                     if item_count >= max_context_items:
+                         logger.debug("Context item limit reached, skipping remaining items")
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_64: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -48,7 +48,7 @@
+                 # Skip None values and limit key length
+                 if value is not None and len(key) <= 50:
+                     # Enforce limits
+-                    if item_count >= max_context_items:
++                    if item_count > max_context_items:
+                         logger.debug("Context item limit reached, skipping remaining items")
+                         break
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_66: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -52,7 +52,7 @@
+                         logger.debug("Context item limit reached, skipping remaining items")
+                         break
+ 
+-                    value_str = str(value)
++                    value_str = str(None)
+                     item_size = len(key) + len(value_str)
+ 
+                     if context_size + item_size > max_context_size:
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_68: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -53,7 +53,7 @@
+                         break
+ 
+                     value_str = str(value)
+-                    item_size = len(key) + len(value_str)
++                    item_size = len(key) - len(value_str)
+ 
+                     if context_size + item_size > max_context_size:
+                         logger.debug("Context size limit reached, skipping remaining items")
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_69: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -55,7 +55,7 @@
+                     value_str = str(value)
+                     item_size = len(key) + len(value_str)
+ 
+-                    if context_size + item_size > max_context_size:
++                    if context_size - item_size > max_context_size:
+                         logger.debug("Context size limit reached, skipping remaining items")
+                         break
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_70: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -55,7 +55,7 @@
+                     value_str = str(value)
+                     item_size = len(key) + len(value_str)
+ 
+-                    if context_size + item_size > max_context_size:
++                    if context_size + item_size >= max_context_size:
+                         logger.debug("Context size limit reached, skipping remaining items")
+                         break
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_75: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -59,7 +59,7 @@
+                         logger.debug("Context size limit reached, skipping remaining items")
+                         break
+ 
+-                    sanitized_key = sanitize_log_value(key, max_length=50)
++                    sanitized_key = sanitize_log_value(key, )
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_76: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -59,7 +59,7 @@
+                         logger.debug("Context size limit reached, skipping remaining items")
+                         break
+ 
+-                    sanitized_key = sanitize_log_value(key, max_length=50)
++                    sanitized_key = sanitize_log_value(key, max_length=51)
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_77: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -62,7 +62,7 @@
+                     sanitized_key = sanitize_log_value(key, max_length=50)
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+-                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
++                    extra[f"ctx_{sanitized_key}"] = None
+                     context_size += item_size
+                     item_count += 1
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_78: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -62,7 +62,7 @@
+                     sanitized_key = sanitize_log_value(key, max_length=50)
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+-                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
++                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(None, max_length=1000)
+                     context_size += item_size
+                     item_count += 1
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_81: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -62,7 +62,7 @@
+                     sanitized_key = sanitize_log_value(key, max_length=50)
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+-                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
++                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, )
+                     context_size += item_size
+                     item_count += 1
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_82: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -62,7 +62,7 @@
+                     sanitized_key = sanitize_log_value(key, max_length=50)
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+-                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
++                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1001)
+                     context_size += item_size
+                     item_count += 1
+ 
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_83: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -63,7 +63,7 @@
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+-                    context_size += item_size
++                    context_size = item_size
+                     item_count += 1
+ 
+         # Get the Python log level
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_84: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -63,7 +63,7 @@
+                     # Prefix context keys to distinguish from system fields
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+-                    context_size += item_size
++                    context_size -= item_size
+                     item_count += 1
+ 
+         # Get the Python log level
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_85: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -64,7 +64,7 @@
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+                     context_size += item_size
+-                    item_count += 1
++                    item_count = 1
+ 
+         # Get the Python log level
+         log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_86: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -64,7 +64,7 @@
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+                     context_size += item_size
+-                    item_count += 1
++                    item_count -= 1
+ 
+         # Get the Python log level
+         log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_87: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -64,7 +64,7 @@
+                     # Limit individual value length
+                     extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+                     context_size += item_size
+-                    item_count += 1
++                    item_count += 2
+ 
+         # Get the Python log level
+         log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_90: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -67,7 +67,7 @@
+                     item_count += 1
+ 
+         # Get the Python log level
+-        log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
++        log_level = _LOG_LEVEL_MAP.get(entry.level.value, None)
+ 
+         # Sanitize the message to prevent log injection (with enforced max length)
+         sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_92: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -67,7 +67,7 @@
+                     item_count += 1
+ 
+         # Get the Python log level
+-        log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
++        log_level = _LOG_LEVEL_MAP.get(entry.level.value, )
+ 
+         # Sanitize the message to prevent log injection (with enforced max length)
+         sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_97: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -70,7 +70,7 @@
+         log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
+ 
+         # Sanitize the message to prevent log injection (with enforced max length)
+-        sanitized_message = sanitize_log_value(entry.message, max_length=5000)
++        sanitized_message = sanitize_log_value(entry.message, )
+ 
+         # Sanitize component name for log message
+         sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_98: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -70,7 +70,7 @@
+         log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
+ 
+         # Sanitize the message to prevent log injection (with enforced max length)
+-        sanitized_message = sanitize_log_value(entry.message, max_length=5000)
++        sanitized_message = sanitize_log_value(entry.message, max_length=5001)
+ 
+         # Sanitize component name for log message
+         sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_103: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -73,7 +73,7 @@
+         sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+ 
+         # Sanitize component name for log message
+-        sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
++        sanitized_component = sanitize_log_value(entry.component or "frontend", )
+ 
+         # Log with the frontend logger
+         frontend_logger.log(
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_105: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -73,7 +73,7 @@
+         sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+ 
+         # Sanitize component name for log message
+-        sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
++        sanitized_component = sanitize_log_value(entry.component or "XXfrontendXX", max_length=100)
+ 
+         # Log with the frontend logger
+         frontend_logger.log(
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_106: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -73,7 +73,7 @@
+         sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+ 
+         # Sanitize component name for log message
+-        sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
++        sanitized_component = sanitize_log_value(entry.component or "FRONTEND", max_length=100)
+ 
+         # Log with the frontend logger
+         frontend_logger.log(
+@@@@@
+KEY: backend.api.routes.logs.x__log_frontend_entry__mutmut_107: survived
+--- backend/api/routes/logs.py
++++ backend/api/routes/logs.py
+@@ -73,7 +73,7 @@
+         sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+ 
+         # Sanitize component name for log message
+-        sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
++        sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=101)
+ 
+         # Log with the frontend logger
+         frontend_logger.log(
+@@@@@

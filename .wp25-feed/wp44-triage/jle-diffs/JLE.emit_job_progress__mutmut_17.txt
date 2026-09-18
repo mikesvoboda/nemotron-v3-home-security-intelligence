@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_progress__mutmut_17: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -31,7 +31,7 @@
+         context["items_total"] = items_total
+ 
+     return await self.emit_log(
+-        job_id=job_id,
++        job_id=None,
+         level="INFO",
+         message=message,
+         context=context,

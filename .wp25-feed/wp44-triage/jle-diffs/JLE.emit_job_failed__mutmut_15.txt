@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_failed__mutmut_15: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -22,7 +22,7 @@
+         message=f"Job failed: {error}",
+         context={
+             "status": "failed",
+-            "error": error,
++            "XXerrorXX": error,
+             "error_code": error_code,
+             "retryable": retryable,
+         },

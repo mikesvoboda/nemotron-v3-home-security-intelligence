@@ -1,0 +1,10 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_started__mutmut_14: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -18,5 +18,5 @@
+         job_id=job_id,
+         level="INFO",
+         message=f"Job started: {job_type}",
+-        context={"job_type": job_type, "metadata": metadata},
++        context={"job_type": job_type, "METADATA": metadata},
+     )

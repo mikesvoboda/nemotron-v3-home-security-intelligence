@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.x_get_job_log_emitter__mutmut_9: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -42,7 +42,7 @@
+         # Double-check after acquiring lock
+         if _emitter is None:
+             _emitter = JobLogEmitter(redis_client=redis_client)
+-            logger.info("Global job log emitter initialized")
++            logger.info("XXGlobal job log emitter initializedXX")
+         elif redis_client is not None:
+             _emitter.set_redis_client(redis_client)
+ 

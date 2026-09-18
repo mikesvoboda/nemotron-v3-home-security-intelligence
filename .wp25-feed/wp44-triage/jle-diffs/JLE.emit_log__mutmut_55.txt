@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_log__mutmut_55: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -51,7 +51,7 @@
+         self._emit_errors += 1
+         logger.error(
+             f"Failed to emit job log: {e}",
+-            extra={"job_id": str(job_id)},
++            extra={"JOB_ID": str(job_id)},
+             exc_info=True,
+         )
+         return False
