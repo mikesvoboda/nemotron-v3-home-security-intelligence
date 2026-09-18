@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_log__mutmut_7: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -21,7 +21,7 @@
+         """
+     if self._redis_client is None:
+         logger.debug(
+-            "Redis client not available, skipping job log emission",
++            "redis client not available, skipping job log emission",
+             extra={"job_id": str(job_id)},
+         )
+         return False

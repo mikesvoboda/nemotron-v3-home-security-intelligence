@@ -1,0 +1,319 @@
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_11: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -34,8 +34,7 @@
+         if _system_broadcaster is None:
+             _system_broadcaster = SystemBroadcaster(
+                 redis_client=redis_client,
+-                redis_getter=redis_getter,
+-            )
++                )
+         elif redis_client is not None:
+             _system_broadcaster.set_redis_client(redis_client)
+ 
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_11
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_13: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -41,7 +41,7 @@
+ 
+         # Start if not running
+         if not _system_broadcaster._running:
+-            await _system_broadcaster.start_broadcasting(interval)
++            await _system_broadcaster.start_broadcasting(None)
+             logger.info("Global system broadcaster initialized and started")
+ 
+     return _system_broadcaster
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_13
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_14: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -42,6 +42,6 @@
+         # Start if not running
+         if not _system_broadcaster._running:
+             await _system_broadcaster.start_broadcasting(interval)
+-            logger.info("Global system broadcaster initialized and started")
++            logger.info(None)
+ 
+     return _system_broadcaster
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_14
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_15: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -42,6 +42,6 @@
+         # Start if not running
+         if not _system_broadcaster._running:
+             await _system_broadcaster.start_broadcasting(interval)
+-            logger.info("Global system broadcaster initialized and started")
++            logger.info("XXGlobal system broadcaster initialized and startedXX")
+ 
+     return _system_broadcaster
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_15
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_16: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -42,6 +42,6 @@
+         # Start if not running
+         if not _system_broadcaster._running:
+             await _system_broadcaster.start_broadcasting(interval)
+-            logger.info("Global system broadcaster initialized and started")
++            logger.info("global system broadcaster initialized and started")
+ 
+     return _system_broadcaster
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_16
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_17: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -42,6 +42,6 @@
+         # Start if not running
+         if not _system_broadcaster._running:
+             await _system_broadcaster.start_broadcasting(interval)
+-            logger.info("Global system broadcaster initialized and started")
++            logger.info("GLOBAL SYSTEM BROADCASTER INITIALIZED AND STARTED")
+ 
+     return _system_broadcaster
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_17
+# backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_9: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -34,7 +34,7 @@
+         if _system_broadcaster is None:
+             _system_broadcaster = SystemBroadcaster(
+                 redis_client=redis_client,
+-                redis_getter=redis_getter,
++                redis_getter=None,
+             )
+         elif redis_client is not None:
+             _system_broadcaster.set_redis_client(redis_client)
+RC=0 backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_9
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_12: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -21,7 +21,7 @@
+     self._redis_getter = redis_getter
+     self._pubsub: PubSub | None = None
+     self._pubsub_listening = False
+-    self._recovery_attempts = 0
++    self._recovery_attempts = 1
+     self._performance_collector: PerformanceCollector | None = None
+     # Unique instance ID to filter out messages from self in pub/sub
+     self._instance_id = str(uuid.uuid4())
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_12
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_15: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -24,7 +24,7 @@
+     self._recovery_attempts = 0
+     self._performance_collector: PerformanceCollector | None = None
+     # Unique instance ID to filter out messages from self in pub/sub
+-    self._instance_id = str(uuid.uuid4())
++    self._instance_id = str(None)
+ 
+     # Circuit breaker for WebSocket connection resilience
+     self._circuit_breaker = WebSocketCircuitBreaker(
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_15
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_18: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -29,7 +29,7 @@
+     # Circuit breaker for WebSocket connection resilience
+     self._circuit_breaker = WebSocketCircuitBreaker(
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+-        recovery_timeout=30.0,
++        recovery_timeout=None,
+         half_open_max_calls=1,
+         success_threshold=1,
+         name="system_broadcaster",
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_18
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_19: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -30,7 +30,7 @@
+     self._circuit_breaker = WebSocketCircuitBreaker(
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+-        half_open_max_calls=1,
++        half_open_max_calls=None,
+         success_threshold=1,
+         name="system_broadcaster",
+     )
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_19
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_20: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -31,7 +31,7 @@
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+-        success_threshold=1,
++        success_threshold=None,
+         name="system_broadcaster",
+     )
+ 
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_20
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_21: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -32,7 +32,7 @@
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+-        name="system_broadcaster",
++        name=None,
+     )
+ 
+     # Degraded mode flag - set when all recovery attempts have been exhausted
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_21
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_22: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -28,7 +28,6 @@
+ 
+     # Circuit breaker for WebSocket connection resilience
+     self._circuit_breaker = WebSocketCircuitBreaker(
+-        failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_22
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_23: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -29,7 +29,6 @@
+     # Circuit breaker for WebSocket connection resilience
+     self._circuit_breaker = WebSocketCircuitBreaker(
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+-        recovery_timeout=30.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+         name="system_broadcaster",
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_23
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_24: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -30,7 +30,6 @@
+     self._circuit_breaker = WebSocketCircuitBreaker(
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+-        half_open_max_calls=1,
+         success_threshold=1,
+         name="system_broadcaster",
+     )
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_24
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_25: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -31,7 +31,6 @@
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+-        success_threshold=1,
+         name="system_broadcaster",
+     )
+ 
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_25
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_26: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -32,8 +32,7 @@
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+-        name="system_broadcaster",
+-    )
++        )
+ 
+     # Degraded mode flag - set when all recovery attempts have been exhausted
+     self._is_degraded = False
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_26
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_27: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -29,7 +29,7 @@
+     # Circuit breaker for WebSocket connection resilience
+     self._circuit_breaker = WebSocketCircuitBreaker(
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+-        recovery_timeout=30.0,
++        recovery_timeout=31.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+         name="system_broadcaster",
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_27
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_28: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -30,7 +30,7 @@
+     self._circuit_breaker = WebSocketCircuitBreaker(
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+-        half_open_max_calls=1,
++        half_open_max_calls=2,
+         success_threshold=1,
+         name="system_broadcaster",
+     )
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_28
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_29: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -31,7 +31,7 @@
+         failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+-        success_threshold=1,
++        success_threshold=2,
+         name="system_broadcaster",
+     )
+ 
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_29
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_3: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -15,7 +15,7 @@
+ 
+     self.connections: set[WebSocket] = set()
+     self._broadcast_task: asyncio.Task[None] | None = None
+-    self._listener_task: asyncio.Task[None] | None = None
++    self._listener_task: asyncio.Task[None] | None = ""
+     self._running = False
+     self._redis_client = redis_client
+     self._redis_getter = redis_getter
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_3
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_30: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -32,7 +32,7 @@
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+-        name="system_broadcaster",
++        name="XXsystem_broadcasterXX",
+     )
+ 
+     # Degraded mode flag - set when all recovery attempts have been exhausted
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_30
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_31: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -32,7 +32,7 @@
+         recovery_timeout=30.0,
+         half_open_max_calls=1,
+         success_threshold=1,
+-        name="system_broadcaster",
++        name="SYSTEM_BROADCASTER",
+     )
+ 
+     # Degraded mode flag - set when all recovery attempts have been exhausted
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_31
+# backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_8: survived
+--- backend/services/system_broadcaster.py
++++ backend/services/system_broadcaster.py
+@@ -19,7 +19,7 @@
+     self._running = False
+     self._redis_client = redis_client
+     self._redis_getter = redis_getter
+-    self._pubsub: PubSub | None = None
++    self._pubsub: PubSub | None = ""
+     self._pubsub_listening = False
+     self._recovery_attempts = 0
+     self._performance_collector: PerformanceCollector | None = None
+RC=0 backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_8

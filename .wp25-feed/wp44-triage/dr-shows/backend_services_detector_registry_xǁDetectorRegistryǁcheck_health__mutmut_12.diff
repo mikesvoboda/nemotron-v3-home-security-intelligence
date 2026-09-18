@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -24,7 +24,7 @@
+         async with httpx.AsyncClient(timeout=5.0) as client:
+             response = await client.get(health_url)
+ 
+-        latency_ms = (time.monotonic() - start_time) * 1000
++        latency_ms = (time.monotonic() - start_time) * 1001
+ 
+         if response.status_code == 200:
+             data = response.json()

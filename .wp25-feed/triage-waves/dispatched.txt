@@ -120,3 +120,11 @@ backend/services/worker_supervisor.py
 backend/services/dedupe.py
 backend/services/health_monitor.py
 backend/services/bbox_validation.py
+backend/services/evaluation_queue.py
+backend/services/face_detector.py
+backend/services/job_progress_reporter.py
+backend/services/summary_parser.py
+backend/services/orphan_scanner_service.py
+backend/services/plate_detector.py
+backend/services/rtsp_test_service.py
+backend/services/audit.py

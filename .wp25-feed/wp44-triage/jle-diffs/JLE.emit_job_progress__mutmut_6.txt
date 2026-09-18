@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_progress__mutmut_6: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -24,7 +24,7 @@
+ 
+     context: dict[str, Any] = {"progress_percent": progress_percent}
+     if current_step:
+-        context["current_step"] = current_step
++        context["current_step"] = None
+     if items_processed is not None:
+         context["items_processed"] = items_processed
+     if items_total is not None:

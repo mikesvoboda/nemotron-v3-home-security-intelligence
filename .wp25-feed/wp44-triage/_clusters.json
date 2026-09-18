@@ -1,373 +1,802 @@
-[
- {
-  "name": "set_gpu_monitor: global assignment not asserted",
-  "fn": "set_gpu_monitor",
-  "count": 1,
-  "keys": [
-   "x_set_gpu_monitor__mutmut_1"
+{
+ "C02-RSTRIP-CHARSET-EQUIV": {
+  "classification": "EQUIVALENT",
+  "count": 3,
+  "fns": {
+   "__init__": 3
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_14",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_30",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_34"
   ],
-  "cls": "TEST-GAP"
+  "sample_changes": [
+   [
+    {
+     "old": "self._base_url = base_url.rstrip(\"/\")",
+     "new": "self._base_url = base_url.rstrip(\"XX/XX\")",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "self._base_url = f\"{gw_url.rstrip('/')}/clip\"",
+     "new": "self._base_url = f\"{gw_url.rstrip('XX/XX')}/clip\"",
+     "ctx": "?"
+    }
+   ]
+  ]
  },
- {
-  "name": "set_gpu_monitor: log message text",
-  "fn": "set_gpu_monitor",
-  "count": 4,
-  "keys": [
-   "x_set_gpu_monitor__mutmut_2",
-   "x_set_gpu_monitor__mutmut_3",
-   "x_set_gpu_monitor__mutmut_4",
-   "x_set_gpu_monitor__mutmut_5"
+ "C03-GATEWAY-DEFAULT-EQUIV": {
+  "classification": "EQUIVALENT",
+  "count": 2,
+  "fns": {
+   "__init__": 2
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_18",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_24"
   ],
-  "cls": "EQUIVALENT"
+  "sample_changes": [
+   [
+    {
+     "old": "elif getattr(settings, \"use_ai_gateway\", False) is True and isinstance(gw_url, str):",
+     "new": "elif getattr(settings, \"use_ai_gateway\", None) is True and isinstance(gw_url, str):",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "elif getattr(settings, \"use_ai_gateway\", False) is True and isinstance(gw_url, str):",
+     "new": "elif getattr(settings, \"use_ai_gateway\", True) is True and isinstance(gw_url, str):",
+     "ctx": "?"
+    }
+   ]
+  ]
  },
- {
-  "name": "get_memory_pressure_level: monitor-is-None guard inverted (happy path untested)",
-  "fn": "get_memory_pressure_level",
-  "count": 1,
-  "keys": [
-   "x_get_memory_pressure_level__mutmut_1"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "get_memory_pressure_level: except-block debug-log payload text",
-  "fn": "get_memory_pressure_level",
-  "count": 9,
-  "keys": [
-   "x_get_memory_pressure_level__mutmut_10",
-   "x_get_memory_pressure_level__mutmut_11",
-   "x_get_memory_pressure_level__mutmut_2",
-   "x_get_memory_pressure_level__mutmut_3",
-   "x_get_memory_pressure_level__mutmut_5",
-   "x_get_memory_pressure_level__mutmut_6",
-   "x_get_memory_pressure_level__mutmut_7",
-   "x_get_memory_pressure_level__mutmut_8",
-   "x_get_memory_pressure_level__mutmut_9"
-  ],
-  "cls": "EQUIVALENT"
- },
- {
-  "name": "should_apply_backpressure: logger message/extra-payload text (both branches)",
-  "fn": "BatchAggregator.should_apply_backpressure",
+ "C18-INIT-CLIENT-CONFIG": {
+  "classification": "TEST-GAP",
   "count": 17,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_10",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_11",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_12",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_13",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_14",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_16",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_17",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_18",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_19",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_20",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_21",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_22",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_4",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_5",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_7",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_8",
-   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_9"
+  "fns": {
+   "__init__": 17
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_36",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_37",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_38"
   ],
-  "cls": "EQUIVALENT"
+  "sample_changes": [
+   [
+    {
+     "old": "connect=settings.ai_connect_timeout,",
+     "new": "connect=None,",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "read=settings.clip_read_timeout,",
+     "new": "read=None,",
+     "ctx": "?"
+    }
+   ]
+  ]
  },
- {
-  "name": "recover: SELECT predicate/operator flips (orphan set definition)",
-  "fn": "recover_orphaned_detections",
-  "count": 10,
-  "keys": [
-   "x_recover_orphaned_detections__mutmut_10",
-   "x_recover_orphaned_detections__mutmut_11",
-   "x_recover_orphaned_detections__mutmut_12",
-   "x_recover_orphaned_detections__mutmut_14",
-   "x_recover_orphaned_detections__mutmut_16",
-   "x_recover_orphaned_detections__mutmut_18",
-   "x_recover_orphaned_detections__mutmut_19",
-   "x_recover_orphaned_detections__mutmut_2",
-   "x_recover_orphaned_detections__mutmut_3",
-   "x_recover_orphaned_detections__mutmut_9"
+ "C12-BREAKER-NAME": {
+  "classification": "LOW-VALUE",
+  "count": 15,
+  "fns": {
+   "__init__": 15
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_63",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_67",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_68"
   ],
-  "cls": "TEST-GAP"
+  "sample_changes": [
+   [
+    {
+     "old": "\"embed\": CircuitBreaker(name=\"clip_embed\", config=_cb_config),",
+     "new": "\"embed\": CircuitBreaker(name=None, config=_cb_config),",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "\"embed\": CircuitBreaker(name=\"clip_embed\", config=_cb_config),",
+     "new": "\"embed\": CircuitBreaker(name=\"XXclip_embedXX\", config=_cb_config),",
+     "ctx": "?"
+    }
+   ]
+  ]
  },
- {
-  "name": "recover: SELECT structural mutations (select/limit/order_by/execute None)",
-  "fn": "recover_orphaned_detections",
-  "count": 5,
-  "keys": [
-   "x_recover_orphaned_detections__mutmut_17",
-   "x_recover_orphaned_detections__mutmut_31",
-   "x_recover_orphaned_detections__mutmut_5",
-   "x_recover_orphaned_detections__mutmut_6",
-   "x_recover_orphaned_detections__mutmut_7"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "recover: SELECT column-projection drops",
-  "fn": "recover_orphaned_detections",
-  "count": 5,
-  "keys": [
-   "x_recover_orphaned_detections__mutmut_25",
-   "x_recover_orphaned_detections__mutmut_26",
-   "x_recover_orphaned_detections__mutmut_27",
-   "x_recover_orphaned_detections__mutmut_28",
-   "x_recover_orphaned_detections__mutmut_29"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "recover: per-detection recovery-record field clobbers",
-  "fn": "recover_orphaned_detections",
-  "count": 6,
-  "keys": [
-   "x_recover_orphaned_detections__mutmut_42",
-   "x_recover_orphaned_detections__mutmut_43",
-   "x_recover_orphaned_detections__mutmut_44",
-   "x_recover_orphaned_detections__mutmut_47",
-   "x_recover_orphaned_detections__mutmut_48",
-   "x_recover_orphaned_detections__mutmut_49"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "recover: logger message/extra-payload text + exc_info",
-  "fn": "recover_orphaned_detections",
-  "count": 45,
-  "keys": [
-   "x_recover_orphaned_detections__mutmut_100",
-   "x_recover_orphaned_detections__mutmut_101",
-   "x_recover_orphaned_detections__mutmut_53",
-   "x_recover_orphaned_detections__mutmut_54",
-   "x_recover_orphaned_detections__mutmut_56",
-   "x_recover_orphaned_detections__mutmut_57",
-   "x_recover_orphaned_detections__mutmut_58",
-   "x_recover_orphaned_detections__mutmut_59",
-   "x_recover_orphaned_detections__mutmut_60",
-   "x_recover_orphaned_detections__mutmut_61",
-   "x_recover_orphaned_detections__mutmut_62",
-   "x_recover_orphaned_detections__mutmut_63",
-   "x_recover_orphaned_detections__mutmut_64",
-   "x_recover_orphaned_detections__mutmut_65",
-   "x_recover_orphaned_detections__mutmut_66",
-   "x_recover_orphaned_detections__mutmut_67",
-   "x_recover_orphaned_detections__mutmut_68",
-   "x_recover_orphaned_detections__mutmut_70",
-   "x_recover_orphaned_detections__mutmut_71",
-   "x_recover_orphaned_detections__mutmut_72",
-   "x_recover_orphaned_detections__mutmut_73",
-   "x_recover_orphaned_detections__mutmut_74",
-   "x_recover_orphaned_detections__mutmut_75",
-   "x_recover_orphaned_detections__mutmut_76",
-   "x_recover_orphaned_detections__mutmut_77",
-   "x_recover_orphaned_detections__mutmut_78",
-   "x_recover_orphaned_detections__mutmut_79",
-   "x_recover_orphaned_detections__mutmut_81",
-   "x_recover_orphaned_detections__mutmut_82",
-   "x_recover_orphaned_detections__mutmut_83",
-   "x_recover_orphaned_detections__mutmut_84",
-   "x_recover_orphaned_detections__mutmut_85",
-   "x_recover_orphaned_detections__mutmut_86",
-   "x_recover_orphaned_detections__mutmut_87",
-   "x_recover_orphaned_detections__mutmut_88",
-   "x_recover_orphaned_detections__mutmut_89",
-   "x_recover_orphaned_detections__mutmut_90",
-   "x_recover_orphaned_detections__mutmut_91",
-   "x_recover_orphaned_detections__mutmut_93",
-   "x_recover_orphaned_detections__mutmut_94",
-   "x_recover_orphaned_detections__mutmut_95",
-   "x_recover_orphaned_detections__mutmut_96",
-   "x_recover_orphaned_detections__mutmut_97",
-   "x_recover_orphaned_detections__mutmut_98",
-   "x_recover_orphaned_detections__mutmut_99"
-  ],
-  "cls": "EQUIVALENT"
- },
- {
-  "name": "close_size: lrange range/key arguments (detection completeness)",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 10,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_25",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_27",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_28",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_29",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_30",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_31",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_32",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_33",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_34",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_35"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "close_size: Redis cleanup key list (key leak on crash/retention)",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 14,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_118",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_119",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_120",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_121",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_122",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_123",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_124",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_125",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_126",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_127",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_128",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_129",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_130",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_131"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "close_size: closing-flag stored value",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 3,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_19",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_22",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_24"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "close_size: summary dict key contract (started_at/ended_at)",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 4,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_60",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_61",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_62",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_63"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "close_size: queue identity + overflow policy",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 3,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_72",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_74",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_77"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "close_size: started_at resolution from Redis",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 4,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_44",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_45",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_49",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_50"
-  ],
-  "cls": "TEST-GAP"
- },
- {
-  "name": "close_size: WebSocket broadcast payload fields",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
+ "C11-BREAKER-DICTKEY": {
+  "classification": "TEST-GAP",
   "count": 8,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_136",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_137",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_139",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_140",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_141",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_147",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_148",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_149"
+  "fns": {
+   "__init__": 8
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_69",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_70",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_77"
   ],
-  "cls": "TEST-GAP"
+  "sample_changes": [
+   [
+    {
+     "old": "\"anomaly_score\": CircuitBreaker(name=\"clip_anomaly_score\", config=_cb_config),",
+     "new": "\"XXanomaly_scoreXX\": CircuitBreaker(name=\"clip_anomaly_score\", config=_cb_config),",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "\"anomaly_score\": CircuitBreaker(name=\"clip_anomaly_score\", config=_cb_config),",
+     "new": "\"ANOMALY_SCORE\": CircuitBreaker(name=\"clip_anomaly_score\", config=_cb_config),",
+     "ctx": "?"
+    }
+   ]
+  ]
  },
- {
-  "name": "close_size: log_context correlation payload",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
+ "C10-BREAKER-CONFIG": {
+  "classification": "TEST-GAP",
+  "count": 8,
+  "fns": {
+   "__init__": 8
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_72",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_74",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_80"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "\"anomaly_score\": CircuitBreaker(name=\"clip_anomaly_score\", config=_cb_config),",
+     "new": "\"anomaly_score\": CircuitBreaker(name=\"clip_anomaly_score\", config=None),",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "\"anomaly_score\": CircuitBreaker(name=\"clip_anomaly_score\", config=_cb_config),",
+     "new": "\"anomaly_score\": CircuitBreaker(name=\"clip_anomaly_score\", ),",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C25-LOG-MSG-NONE": {
+  "classification": "LOW-VALUE",
+  "count": 48,
+  "fns": {
+   "__init__": 1,
+   "close": 1,
+   "_check_circuit_breaker": 1,
+   "embed": 9,
+   "anomaly_score": 10,
+   "classify": 9,
+   "similarity": 8,
+   "batch_similarity": 9
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1__init____mutmut_126",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1close__mutmut_1",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_7"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "logger.info(f\"CLIPClient initialized with base_url={self._base_url}\")",
+     "new": "logger.info(None)",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "logger.debug(\"CLIPClient HTTP connections closed\")",
+     "new": "logger.debug(None)",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C26-LOG-MSG-CASE": {
+  "classification": "EQUIVALENT",
+  "count": 12,
+  "fns": {
+   "close": 3,
+   "embed": 3,
+   "anomaly_score": 3,
+   "similarity": 3
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1close__mutmut_2",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1close__mutmut_3",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1close__mutmut_4"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "logger.debug(\"CLIPClient HTTP connections closed\")",
+     "new": "logger.debug(\"XXCLIPClient HTTP connections closedXX\")",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "logger.debug(\"CLIPClient HTTP connections closed\")",
+     "new": "logger.debug(\"clipclient http connections closed\")",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C04-ENCODE-CASE-EQUIV": {
+  "classification": "EQUIVALENT",
+  "count": 2,
+  "fns": {
+   "_encode_image_to_base64": 2
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_encode_image_to_base64__mutmut_7",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_encode_image_to_base64__mutmut_13"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "image.save(buffer, format=\"PNG\")",
+     "new": "image.save(buffer, format=\"png\")",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "return base64.b64encode(buffer.read()).decode(\"utf-8\")",
+     "new": "return base64.b64encode(buffer.read()).decode(\"UTF-8\")",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C09-GETBREAKER-FALLBACK": {
+  "classification": "TEST-GAP",
+  "count": 3,
+  "fns": {
+   "_get_breaker": 3
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_get_breaker__mutmut_1",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_get_breaker__mutmut_2",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_get_breaker__mutmut_4"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "return self._breakers.get(endpoint, self._circuit_breaker)",
+     "new": "return self._breakers.get(None, self._circuit_breaker)",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "return self._breakers.get(endpoint, self._circuit_breaker)",
+     "new": "return self._breakers.get(endpoint, None)",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C01-NOOP-IDENTICAL": {
+  "classification": "EQUIVALENT",
+  "count": 2,
+  "fns": {
+   "_check_circuit_breaker": 2
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_1",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_2"
+  ],
+  "sample_changes": [
+   [],
+   []
+  ]
+ },
+ "C08-BREAKER-CALLSITE": {
+  "classification": "TEST-GAP",
+  "count": 25,
+  "fns": {
+   "_check_circuit_breaker": 1,
+   "anomaly_score": 6,
+   "classify": 6,
+   "similarity": 6,
+   "batch_similarity": 6
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_4",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_1",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_2"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "breaker = self._get_breaker(endpoint)",
+     "new": "breaker = self._get_breaker(None)",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "self._check_circuit_breaker(\"anomaly_score\")",
+     "new": "self._check_circuit_breaker(None)",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C13-CIRCUIT-OPEN-LABEL": {
+  "classification": "TEST-GAP",
+  "count": 3,
+  "fns": {
+   "_check_circuit_breaker": 3
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_8",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_9",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1_check_circuit_breaker__mutmut_10"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "record_pipeline_error(\"clip_circuit_open\")",
+     "new": "record_pipeline_error(None)",
+     "ctx": "logger.warning"
+    }
+   ],
+   [
+    {
+     "old": "record_pipeline_error(\"clip_circuit_open\")",
+     "new": "record_pipeline_error(\"XXclip_circuit_openXX\")",
+     "ctx": "logger.warning"
+    }
+   ]
+  ]
+ },
+ "C16-HEADERS": {
+  "classification": "TEST-GAP",
+  "count": 11,
+  "fns": {
+   "check_health": 1,
+   "embed": 2,
+   "anomaly_score": 2,
+   "classify": 2,
+   "similarity": 2,
+   "batch_similarity": 2
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1check_health__mutmut_3",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_22",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_25"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "headers=self._get_headers(),",
+     "new": "headers=None,",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "headers=self._get_headers(),",
+     "new": "headers=None,",
+     "ctx": "logger.debug"
+    }
+   ]
+  ]
+ },
+ "C22-LOG-EXCINFO": {
+  "classification": "LOW-VALUE",
+  "count": 88,
+  "fns": {
+   "check_health": 13,
+   "embed": 15,
+   "anomaly_score": 15,
+   "classify": 15,
+   "similarity": 15,
+   "batch_similarity": 15
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1check_health__mutmut_7",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1check_health__mutmut_8",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1check_health__mutmut_10"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "logger.warning(f\"CLIP health check failed: {e}\", exc_info=True)",
+     "new": "logger.warning(None, exc_info=True)",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "logger.warning(f\"CLIP health check failed: {e}\", exc_info=True)",
+     "new": "logger.warning(f\"CLIP health check failed: {e}\", exc_info=None)",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C08-BREAKER-CALLSITE-EMBED": {
+  "classification": "EQUIVALENT",
+  "count": 6,
+  "fns": {
+   "embed": 6
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_1",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_2",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_3"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "self._check_circuit_breaker(\"embed\")",
+     "new": "self._check_circuit_breaker(None)",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "self._check_circuit_breaker(\"embed\")",
+     "new": "self._check_circuit_breaker(\"XXembedXX\")",
+     "ctx": "?"
+    }
+   ]
+  ]
+ },
+ "C15-AIDURATION-ARITH": {
+  "classification": "TEST-GAP",
+  "count": 5,
+  "fns": {
+   "embed": 1,
+   "anomaly_score": 1,
+   "classify": 1,
+   "similarity": 1,
+   "batch_similarity": 1
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_27",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_31",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_31"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "ai_duration = time.time() - ai_start_time",
+     "new": "ai_duration = time.time() + ai_start_time",
+     "ctx": "logger.debug"
+    }
+   ],
+   [
+    {
+     "old": "ai_duration = time.time() - ai_start_time",
+     "new": "ai_duration = time.time() + ai_start_time",
+     "ctx": "logger.debug"
+    }
+   ]
+  ]
+ },
+ "C14-OBSERVE-LABEL": {
+  "classification": "TEST-GAP",
+  "count": 15,
+  "fns": {
+   "embed": 3,
+   "anomaly_score": 3,
+   "classify": 3,
+   "similarity": 3,
+   "batch_similarity": 3
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_28",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_32",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_33"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "observe_ai_request_duration(\"clip\", ai_duration)",
+     "new": "observe_ai_request_duration(None, ai_duration)",
+     "ctx": "logger.debug"
+    }
+   ],
+   [
+    {
+     "old": "observe_ai_request_duration(\"clip\", ai_duration)",
+     "new": "observe_ai_request_duration(\"XXclipXX\", ai_duration)",
+     "ctx": "logger.debug"
+    }
+   ]
+  ]
+ },
+ "C21-RAISE-MSG-CASE": {
+  "classification": "EQUIVALENT",
+  "count": 94,
+  "fns": {
+   "embed": 19,
+   "anomaly_score": 20,
+   "classify": 18,
+   "similarity": 19,
+   "batch_similarity": 18
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_43",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_44",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_55"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "\"Malformed response from CLIP service: missing 'embedding'\"",
+     "new": "\"XXMalformed response from CLIP service: missing 'embedding'XX\"",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ],
+   [
+    {
+     "old": "\"Malformed response from CLIP service: missing 'embedding'\"",
+     "new": "\"malformed response from clip service: missing 'embedding'\"",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ]
+  ]
+ },
+ "C24-DURATION-COMPUTE": {
+  "classification": "LOW-VALUE",
+  "count": 20,
+  "fns": {
+   "embed": 4,
+   "anomaly_score": 4,
+   "classify": 4,
+   "similarity": 4,
+   "batch_similarity": 4
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_61",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_63",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_64"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "duration_ms = int((time.time() - start_time) * 1000)",
+     "new": "duration_ms = None",
+     "ctx": "logger.debug"
+    }
+   ],
+   [
+    {
+     "old": "duration_ms = int((time.time() - start_time) * 1000)",
+     "new": "duration_ms = int((time.time() - start_time) / 1000)",
+     "ctx": "logger.debug"
+    }
+   ]
+  ]
+ },
+ "C23-LOG-EXTRA": {
+  "classification": "LOW-VALUE",
+  "count": 120,
+  "fns": {
+   "embed": 24,
+   "anomaly_score": 24,
+   "classify": 24,
+   "similarity": 24,
+   "batch_similarity": 24
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_70",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_73",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_75"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "extra={\"duration_ms\": duration_ms},",
+     "new": "extra=None,",
+     "ctx": "logger.error"
+    }
+   ],
+   [
+    {
+     "old": "extra={\"duration_ms\": duration_ms},",
+     "new": "",
+     "ctx": "logger.error"
+    }
+   ]
+  ]
+ },
+ "C06-ERR-CHAIN": {
+  "classification": "TEST-GAP",
+  "count": 46,
+  "fns": {
+   "embed": 6,
+   "anomaly_score": 10,
+   "classify": 10,
+   "similarity": 10,
+   "batch_similarity": 10
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_126",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_128",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_144"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "original_error=e,",
+     "new": "original_error=None,",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ],
+   [
+    {
+     "old": "original_error=e, | ) from e",
+     "new": ") from e",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ]
+  ]
+ },
+ "C20-RAISE-MSG-SANITIZE-NONE": {
+  "classification": "TEST-GAP",
+  "count": 5,
+  "fns": {
+   "embed": 1,
+   "anomaly_score": 1,
+   "classify": 1,
+   "similarity": 1,
+   "batch_similarity": 1
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1embed__mutmut_169",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_181",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_174"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "f\"Unexpected error during CLIP embedding: {sanitize_error(e)}\",",
+     "new": "f\"Unexpected error during CLIP embedding: {sanitize_error(None)}\",",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ],
+   [
+    {
+     "old": "f\"Unexpected error during CLIP anomaly score: {sanitize_error(e)}\",",
+     "new": "f\"Unexpected error during CLIP anomaly score: {sanitize_error(None)}\",",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ]
+  ]
+ },
+ "C17-PAYLOAD": {
+  "classification": "TEST-GAP",
+  "count": 32,
+  "fns": {
+   "anomaly_score": 8,
+   "classify": 8,
+   "similarity": 8,
+   "batch_similarity": 8
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_15",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_17",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_18"
+  ],
+  "sample_changes": [
+   [
+    {
+     "old": "image_b64 = self._encode_image_to_base64(image)",
+     "new": "image_b64 = None",
+     "ctx": "logger.debug"
+    }
+   ],
+   [
+    {
+     "old": "payload = { | \"image\": image_b64, | \"baseline_embedding\": baseline_embedding, | }",
+     "new": "payload = None",
+     "ctx": "logger.debug"
+    }
+   ]
+  ]
+ },
+ "C07-STATUS-500-BOUNDARY": {
+  "classification": "TEST-GAP",
   "count": 4,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_14",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_15",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_16",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_17"
+  "fns": {
+   "anomaly_score": 2,
+   "similarity": 2
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_121",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1anomaly_score__mutmut_122",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1similarity__mutmut_105"
   ],
-  "cls": "EQUIVALENT"
+  "sample_changes": [
+   [
+    {
+     "old": "if status_code >= 500:",
+     "new": "if status_code > 500:",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ],
+   [
+    {
+     "old": "if status_code >= 500:",
+     "new": "if status_code >= 501:",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ]
+  ]
  },
- {
-  "name": "close_size: bytes decode utf-8 case",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 1,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_41"
-  ],
-  "cls": "EQUIVALENT"
- },
- {
-  "name": "close_size: batch_duration_ms (log-only)",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
+ "C05-VALUEERROR-MSGTEXT": {
+  "classification": "EQUIVALENT",
   "count": 4,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_95",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_96",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_97",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_98"
+  "fns": {
+   "classify": 2,
+   "batch_similarity": 2
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_3",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_4",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1batch_similarity__mutmut_3"
   ],
-  "cls": "EQUIVALENT"
+  "sample_changes": [
+   [
+    {
+     "old": "raise ValueError(\"Labels list cannot be empty\")",
+     "new": "raise ValueError(\"XXLabels list cannot be emptyXX\")",
+     "ctx": "?"
+    }
+   ],
+   [
+    {
+     "old": "raise ValueError(\"Labels list cannot be empty\")",
+     "new": "raise ValueError(\"labels list cannot be empty\")",
+     "ctx": "?"
+    }
+   ]
+  ]
  },
- {
-  "name": "close_size: logger message/extra-payload text",
-  "fn": "BatchAggregator._close_batch_for_size_limit",
-  "count": 45,
-  "keys": [
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_10",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_100",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_102",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_103",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_104",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_105",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_106",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_107",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_108",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_109",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_11",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_110",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_111",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_112",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_113",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_114",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_115",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_116",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_117",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_12",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_13",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_132",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_133",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_134",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_135",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_5",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_6",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_79",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_8",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_81",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_82",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_83",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_84",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_85",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_86",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_87",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_88",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_89",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_9",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_90",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_91",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_92",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_93",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_94",
-   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_99"
+ "C19-RAISE-MSG-NONE": {
+  "classification": "TEST-GAP",
+  "count": 15,
+  "fns": {
+   "classify": 5,
+   "similarity": 5,
+   "batch_similarity": 5
+  },
+  "example_keys": [
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_83",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_104",
+   "backend.services.clip_client.x\u01c1CLIPClient\u01c1classify__mutmut_130"
   ],
-  "cls": "EQUIVALENT"
+  "sample_changes": [
+   [
+    {
+     "old": "f\"Failed to connect to CLIP service: {e}\",",
+     "new": "None,",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ],
+   [
+    {
+     "old": "f\"CLIP request timed out: {e}\",",
+     "new": "None,",
+     "ctx": "raise CLIPUnavailableError"
+    }
+   ]
+  ]
  }
-]
+}

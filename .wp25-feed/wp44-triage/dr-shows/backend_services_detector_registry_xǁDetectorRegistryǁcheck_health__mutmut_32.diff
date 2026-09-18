@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -43,7 +43,7 @@
+             )
+ 
+     except Exception as e:
+-        latency_ms = (time.monotonic() - start_time) * 1000
++        latency_ms = None
+         logger.warning(
+             f"Health check failed for detector {detector_type}: {e}",
+             extra={"detector_type": detector_type, "error": str(e)},

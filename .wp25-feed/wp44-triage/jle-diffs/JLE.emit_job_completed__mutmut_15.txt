@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_job_completed__mutmut_15: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -20,7 +20,7 @@
+ 
+     return await self.emit_log(
+         job_id=job_id,
+-        level="INFO",
++        level="XXINFOXX",
+         message=message,
+         context={"status": "completed", "result": result, "duration_seconds": duration_seconds},
+     )

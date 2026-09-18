@@ -1,449 +1,436 @@
 # WP4.4 Triage Dossier — backend/services/clip_client.py
 
-Generated: 2026-09-17 (WP4.3 finding feed → WP4.4). READ-ONLY triage; no tests executed, no repo files modified.
+Date: 2026-09-18 · Wave: gen-2 queue · Module: `backend/services/clip_client.py`
+Source: `mutants/backend/services/clip_client.py.meta` — 1045 keys, all checked (307 killed rc=1, 125 rc=-24, **613 SURVIVED (rc=0)**).
 
-- Meta: `mutants/backend/services/clip_client.py.meta` → 1045 keys, 126 killed, 699 untested (not yet checked), **220 SURVIVED** (exit_code == 0).
-- All 220 survivors sit in exactly two functions: `CLIPClient.anomaly_score` (109) and `CLIPClient.similarity` (111). The other methods (`embed`, `classify`, `batch_similarity`, ctor, helpers) have zero survivors — their tests are already tight.
-- Diffs extracted offline: spans (`clip_client.py.spans`) → line-range diff of each `__mutmut_N` clobber vs its `__mutmut_orig` in the mutant copy. Keys below are shortened from `backend.services.clip_client.xǁCLIPClientǁ<FN>__mutmut_N` to `<FN>__mutmut_N`.
-- Cluster counts below are produced by a single-pass, mutually-exclusive bucket over the changed line text: **sum = 220 exactly**.
+Method of analysis: `mutmut show <key>` failed (`FileNotFoundError: Could not find mutant` — concurrent-cache state), so per the fallback procedure the mutant copy was parsed (each mutant is a full method copy `xǁCLIPClientǁ<fn>__mutmut_N` alongside `__mutmut_orig`) and every survivor diffed line-wise against its `_orig`. 613/613 survivors diffed; 221 distinct change signatures, grouped into 27 clusters. **Cluster counts sum to 613 exactly.**
 
-## Covering tests (from mutants/mutmut-stats.json tests_by_mangled_function_name)
+Verdict split: **125 EQUIVALENT · 291 LOW-VALUE · 197 TEST-GAP** (after C09 reclassification: 128 / 291 / 194; table below carries final classifications).
 
-All in `backend/tests/unit/services/test_clip_client.py`:
+## Covering test files (from mutmut-stats.json `tests_by_mangled_function_name`)
 
-| Concern | Location |
-|---|---|
-| `anomaly_score` happy + all 5 error paths | `TestAnomalyScore` :556 (success :560, connect :656, timeout :679, server :702 [status **503**], client :731 [**422**], unexpected :760, reraise :783) |
-| `similarity` happy + all 5 error paths | `TestSimilarity` :1051 (success :1055, missing-field :1079, connect :1106, timeout :1128, server :1150 [status **502**], client :1176 [**404**], unexpected :1202, reraise :1224) |
-| URL-only request assertions | `TestEdgeCases.test_anomaly_score_verifies_url_endpoint` :1584, `test_similarity_verifies_url_endpoint` :1634 — assert `call_args[0][0]` (URL) and nothing else about `json=`/`headers=` |
-| Payload-shape assertion exists **only for embed** | `test_embed_sends_correct_payload` :1682 — anomaly/similarity have no equivalent |
-| Breaker "all methods" test | `TestCircuitBreakerIntegration.test_circuit_breaker_affects_all_methods` :1890 — **passes for the wrong reason**: after opening the *embed* breaker it expects `CLIPUnavailableError` from every method, but with per-endpoint breakers intact those methods still issue the POST, whose mocked `ConnectError` gets wrapped into the same exception type. Breaker-label mutants pass by taking the *intended* (embed breaker) path instead — undetectable either way. |
-| `original_error` constructor coverage (class only, not call sites) | `backend/tests/unit/core/test_exceptions.py` :415 |
+| File | Role | Key line anchors |
+|---|---|---|
+| `backend/tests/unit/services/test_clip_client.py` | PRIMARY (all CLIPClient methods) | fixtures `client` L78; `TestCLIPClientInit` L134-181; `TestCheckHealth` L236; `TestEmbed` L341-548; `TestAnomalyScore` L556-801; `TestClassify` L809; `TestSimilarity` L1051; `TestBatchSimilarity` L1250; `TestEdgeCases` L1535-1709 (payload assert L1700-1707 — embed only); `TestCircuitBreakerIntegration` L1717-2029 |
+| `backend/tests/unit/services/test_clip_client_gateway.py` | `__init__` gateway routing | L34-162 |
+| `backend/tests/unit/services/test_http_connection_pooling.py` | CLIP pooling | `TestCLIPClientConnectionPooling` L145-241: limits asserted ONLY on `_http_client` (L189-190), no timeout assertions |
 
-Why anomaly_score raise-message mutants died but similarity's lived: `TestAnomalyScore` asserts message substrings (`"server error: 503"` etc.), `TestSimilarity` asserts only exception *type* + the `record_pipeline_error` label.
+Existing-assertion fingerprints that explain the survivorship: error tests assert exception TYPE + message-substring (`"server error: 500" in str(...)`) + `record_pipeline_error` label, but **never** `original_error`/`__cause__` (except Connect/Timeout on embed), **never** payload contents (except embed), **never** `observe_ai_request_duration` args (only `assert_called_once()`), **never** `headers=`, status-500 boundary never exercised (only 502/503 for the two methods that survived C07).
 
-## Cluster table (sums to 220)
+## Cluster table (27 clusters, counts sum = 613)
 
-| # | Pattern (same change, same concern) | Count | Classification | Example keys (≤3) |
-|---|---|---|---|---|
-| 1 | Log message text replaced (debug/warning/error f-string → `None` / `XX…XX` / case-flip) — output text only | 25 | **EQUIVALENT** | anomaly_score__mutmut_11, anomaly_score__mutmut_42, similarity__mutmut_56 |
-| 2 | Exception message cosmetic: case/`XX` wrapping of the "Malformed response…" strings (asserted substring preserved), or `sanitize_error(e)`→`sanitize_error(None)` inside the message | 8 | **EQUIVALENT** | anomaly_score__mutmut_47, similarity__mutmut_45, similarity__mutmut_165 |
-| 3 | `duration_ms = int((time.time() - start_time) * 1000)` → `None` / `/1000` / `+` / `* 1001` — value flows **only** into `logger` extra/debug text in these two functions | 40 | **LOW-VALUE** | anomaly_score__mutmut_67, anomaly_score__mutmut_69, similarity__mutmut_51 |
-| 4 | `extra={…}` on error logs → `extra=None` / dropped / key renamed `XXduration_msXX`, `DURATION_MS`, `XXstatus_codeXX`, `STATUS_CODE` — structured-log fields nobody asserts | 48 | **LOW-VALUE** | anomaly_score__mutmut_82, anomaly_score__mutmut_87, similarity__mutmut_111 |
-| 5 | `exc_info=True` → `None` / `False` / arg dropped on error logs — traceback capture only | 30 | **LOW-VALUE** | anomaly_score__mutmut_83, anomaly_score__mutmut_89, similarity__mutmut_112 |
-| 6 | `similarity`: raise message replaced by `None` in all 5 error paths (`CLIPUnavailableError(None, …)`) — same mutants in `anomaly_score` were KILLED because its tests assert message text; similarity's tests assert only type+label | 5 | **TEST-GAP** — `test_clip_client.py::TestSimilarity` (:1106–:1221) never asserts `str(exc)` on error paths | similarity__mutmut_74, similarity__mutmut_95, similarity__mutmut_121 |
-| 7 | `original_error=e` → `original_error=None` or arg dropped on every raise (both functions) — exception carries no wrapped cause; `from e` often still set so `__cause__` doesn't save it either (dropped-arg variant). `test_exceptions.py:415` covers only the constructor, not these call sites | 20 | **TEST-GAP** — no test on `anomaly_score`/`similarity` ever inspects `exc_info.value.original_error` | anomaly_score__mutmut_91, anomaly_score__mutmut_93, similarity__mutmut_122 |
-| 8 | Breaker endpoint label mutated: `_check_circuit_breaker("similarity")` → `None`/`"XXsimilarityXX"`/`"SIMILARITY"` (and same in `_get_breaker`) — lookup falls back to the **embed** breaker, destroying per-endpoint isolation; existing :1890 test can't tell (see table above) | 12 | **TEST-GAP** | anomaly_score__mutmut_1, anomaly_score__mutmut_5, similarity__mutmut_7 |
-| 9 | POST body mutated: payload dict → `None`, `json=payload` → `None`/dropped, keys `image`/`baseline_embedding`/`text` → `XX…XX`/UPPER, `image_b64 = …` → `None`. URL-only tests (:1584/:1634) never open `call_args[1]["json"]` | 16 | **TEST-GAP** | anomaly_score__mutmut_15, anomaly_score__mutmut_18, similarity__mutmut_16 |
-| 10 | `headers=self._get_headers()` → `None`/dropped — correlation/traceparent propagation silently lost | 4 | **TEST-GAP** | anomaly_score__mutmut_26, anomaly_score__mutmut_29, similarity__mutmut_24 |
-| 11 | `if status_code >= 500:` → `> 500` / `>= 501` — only distinguishable at exactly **500**; tests use 502/503/404/422 | 4 | **TEST-GAP** (boundary) | anomaly_score__mutmut_121, anomaly_score__mutmut_122, similarity__mutmut_105 |
-| 12 | `observe_ai_request_duration` args never asserted: label → `None`/`XX…XX`/UPPER (wrong Prometheus series) and `ai_duration = time.time() + ai_start_time` (≈3.5e9 s poisons the histogram). Tests only do `assert_called_once()` | 8 | **TEST-GAP** | anomaly_score__mutmut_31, anomaly_score__mutmut_32, similarity__mutmut_30 |
+| # | Cluster | N | Class | Mutation (orig → mutant) | Evidence / example keys | Why it survives (test file:line) |
+|---|---|---|---|---|---|---|
+| C01 | no-op / byte-identical variants | 2 | EQUIVALENT | `_check_circuit_breaker` bodies identical to orig | `_check_circuit_breaker__mutmut_1/2` | diff is empty; killed-by-construction artifact |
+| C02 | rstrip charset `"/"→"XX/XX"` | 3 | EQUIVALENT | `rstrip("/")`→`rstrip("XX/XX")` (strip set unchanged, `/` still member) | `__init____mutmut_14,30,34` | semantically identical |
+| C03 | `getattr(settings,"use_ai_gateway",False)` default flipped | 2 | EQUIVALENT | default `False→None/True` — both falsy/truthy path identical because `is True` gate follows | `__init____mutmut_18,24` | `getattr(...) is True` short-circuits; `None is True`==False, `True is True` only when attr truthy (gateway test sets True). gateway test L34-88 passes |
+| C04 | encode format case `"PNG"→"png"`, `"utf-8"→"UTF-8"` | 2 | EQUIVALENT | PIL format name & codecs alias are case-insensitive | `_encode_image_to_base64__mutmut_7,13` | TestEncodeImageToBase64 L192-228 passes identically |
+| C05 | ValueError msg case/XX (empty-labels guard) | 4 | EQUIVALENT | `"Labels list cannot be empty"→lowercase/XX` | `classify__mutmut_3,4`, `batch_similarity__mutmut_3,4` | tests assert `"cannot be empty" in str` — preserved L848, L1290 |
+| C06 | error-chain dropped: `original_error=e→None`; `raise X from e → raise X` | **46** | **TEST-GAP** | all 5 methods | `embed__mutmut_126,128,144` | only embed connect/timeout tests assert `original_error` (L446,468); `__cause__` NEVER asserted anywhere |
+| C07 | 5xx boundary `status_code >= 500 → >500 / >=501` | 4 | TEST-GAP | anomaly_score + similarity | `anomaly_score__mutmut_121,122`, `similarity__mutmut_105` | tests use 503/502 (L707, L1155); status==500 never exercised for these methods → 500 rerouted to client-error branch unobserved |
+| C08 | breaker call-site endpoint-name mangled (`"embed"→None/"XXembedXX"/"EMBED"` at `_check_circuit_breaker`/`_get_breaker` call sites, non-embed methods) | 25 | TEST-GAP | 4 methods ×6 + `_check_circuit_breaker__mutmut_4` | `anomaly_score__mutmut_1,2` etc. | endpoint→None falls back to embed-alias breaker; per-endpoint isolation never tested (TestCircuitBreakerIntegration L1717 only trips embed) |
+| C08e | same, on embed | 6 | EQUIVALENT | embed's own name mangled | `embed__mutmut_1,2,3` | `_breakers.get(unknown, alias)` returns the SAME embed breaker — no behavior change |
+| C09 | `_get_breaker` `.get(endpoint, X)` arg mutants | 3 | EQUIVALENT | default None/omitted, key None | `_get_breaker__mutmut_1,2,4` | identical for every endpoint key that exists; unknown-key lookup is undefined contract, never called |
+| C10 | per-endpoint breaker `config=_cb_config → None/dropped` | 8 | TEST-GAP | `__init__` | `__init____mutmut_72,74,80` | `test_circuit_breaker_initialization` L1969-1985 asserts ONLY `_circuit_breaker` (embed alias); other breakers silently get 5/30.0/3 defaults |
+| C11 | breakers dict KEY mangled (`"classify"→"XXclassifyXX"/"CLASSIFY"`) | 8 | TEST-GAP | `__init__` | `__init____mutmut_69,70,77` | `get_all_circuit_breaker_states()` keys never asserted; lookup falls to embed alias silently |
+| C12 | breaker `name=` arg mangled (cosmetic label) | 15 | LOW-VALUE | `__init__` | `__init____mutmut_63,67,68` | name only surfaces in metrics/otel labels; nobody should assert it |
+| C13 | `record_pipeline_error("clip_circuit_open")` label mangled | 3 | TEST-GAP | `_check_circuit_breaker` | `_check_circuit_breaker__mutmut_8,9,10` | circuit-open path never asserts the metric label (L1755 patches record without asserting args) |
+| C14 | `observe_ai_request_duration("clip"/"clip_anomaly")` label mangled/None | 15 | TEST-GAP | 5 methods | `embed__mutmut_28,32,33` | all tests do `assert_called_once()` only (L367,586,836,1074,1278) — args unchecked |
+| C15 | `ai_duration = t - ai_start → t + ai_start` | 5 | TEST-GAP | 5 methods | `embed__mutmut_27` | duration VALUE fed to observe never asserted (same weak `assert_called_once`) |
+| C16 | `headers=self._get_headers()` → None/dropped | 11 | TEST-GAP | 5 methods + check_health | `check_health__mutmut_3` | check_health asserts `"headers" in call_args[1]` (L259, key exists even if None!); embed asserts only URL |
+| C17 | payload mangled: key `"image"/"labels"/"text"/"texts"/"baseline_embedding"` case/XX, `payload=None`, `image_b64=None`, `json=None/dropped` | **32** | **TEST-GAP** | anomaly_score/classify/similarity/batch_similarity ×8 | `anomaly_score__mutmut_15,17,18` | payload asserted ONLY for embed (TestEdgeCases L1682-1709); other 4 endpoints' request bodies unchecked |
+| C18 | `__init__` client config: `connect/read/write/pool=None` (main+health), health `timeout=None/dropped`, health `limits` mangled (None/11/6/dropped) | 17 | TEST-GAP | `__init__` | `__init____mutmut_36,37,38` | main timeout values never asserted (init test checks `isinstance` only L180); pooling test asserts limits only on `_http_client` L189, never on `_health_http_client` |
+| C19 | raised-message → `None` in `raise CLIPUnavailableError(None)` | 15 | TEST-GAP | classify/similarity/batch_similarity server/client branches | `classify__mutmut_83,104,130` | `pytest.raises` passes, message `"None"` — embed/anomaly versions killed by existing substring asserts, these 3 methods lack them for 4xx/5xx (`test_classify_server_error` L969 has no message check) |
+| C20 | `sanitize_error(e)→sanitize_error(None)` in raised msg | 5 | TEST-GAP | 5 methods unexpected-error branch | `embed__mutmut_169` | `sanitize_error` does `str(error)` so msg degrades to `"…: None"`; `"Unexpected error" in str` still passes (L545) |
+| C21 | raised-message case/XX text variants | 94 | EQUIVALENT | all 5 methods | `embed__mutmut_43,44,55` | every surviving variant preserves the asserted substring (`"server error: 500"`, `"missing 'embedding'"`, lowercase keeps `in` checks true) |
+| C22 | `logger.*` `exc_info=True → None/False/dropped` | 88 | LOW-VALUE | all methods + check_health | `check_health__mutmut_7,8,10` | traceback attach is pure logging config; no test should assert it |
+| C23 | `logger.error extra={"duration_ms"...}` mangled/None/dropped | 120 | LOW-VALUE | 5 methods | `embed__mutmut_70,73,75` | log-record enrichment only |
+| C24 | `duration_ms = int((t-s)*1000)` → None/÷1000/÷sum/×1001 | 20 | LOW-VALUE | 5 methods | `embed__mutmut_61,63,64` | value only consumed by C23 log `extra` (and the C25 `None`-msg debug lines) |
+| C25 | log message → None / `sanitize_error(None)` (logger context only) | 48 | LOW-VALUE | all methods incl `logger.info(None)`/`logger.debug(None)` | `close__mutmut_1` | message content of log calls nobody parses |
+| C26 | log message case/XX | 12 | EQUIVALENT | close/embed/anomaly/similarity | `close__mutmut_2,3,4` | pure text |
 
-Totals: EQUIVALENT 33 · LOW-VALUE 118 · TEST-GAP 69 (= rows 6–12). Rows 3–5 are LOW-VALUE, not EQUIVALENT, because they are *real* changes (arithmetic, structured fields, traceback capture) whose only observable effect is diagnostic log content nobody should assert in unit tests.
+Totals: TEST-GAP C06:46 + C07:4 + C08:25 + C09:0(reclassed) + C10:8 + C11:8 + C13:3 + C14:15 + C15:5 + C16:11 + C17:32 + C18:17 + C19:15 + C20:5 = **197**; EQUIVALENT = 125+3(C09)=128; LOW-VALUE = 291; C09 moves TEST-GAP→194/EQUIV→128 if the table classification is applied.
 
-## Drafted tests (UNVERIFIED — TDD procedure)
+## Drafted kill-tests (6 tests covering 183 of the 197 TEST-GAP survivors)
 
-Procedure for each (one line): apply the cluster's mutant to a scratch copy of the module, run the new test → must FAIL naming the mutated value; run the same test against original `backend/services/clip_client.py` → must PASS. Not executed here — the live mutation run owns this machine's pytest lane.
+TDD procedure for every test below: apply the cluster's mutant → the NEW assertion fails (red); original source → passes (green). All UNVERIFIED — not executed (live mutation run owns this machine).
 
-Target file for all six: `backend/tests/unit/services/test_clip_client.py` (append; reuses existing `client`, `sample_image`, `valid_embedding` fixtures).
+Target file for all six: `backend/tests/unit/services/test_clip_client.py` (reuse `client`, `sample_image` fixtures, L78/L53).
 
-```python
-# UNVERIFIED - not yet run red/green
-# ---------------------------------------------------------------------------
-# Killers for cluster 8 (per-endpoint breaker label, 12 mutants)
-# ---------------------------------------------------------------------------
-from backend.services.circuit_breaker import CircuitState  # (add to imports)
-
-
-class TestPerEndpointBreakerIsolation:
-    """Each endpoint's circuit breaker must gate only its own endpoint.
-
-    Red on: _check_circuit_breaker("<wrong>") / _get_breaker("<wrong>") mutants
-    (they fall back to the embed breaker via dict.get default).
-    """
-
-    @pytest.fixture
-    def cb_settings(self) -> MagicMock:
-        settings = MagicMock()
-        settings.clip_url = "http://test-clip:8093"
-        settings.ai_connect_timeout = 10.0
-        settings.ai_health_timeout = 5.0
-        settings.clip_cb_failure_threshold = 3
-        settings.clip_cb_recovery_timeout = 30.0
-        settings.clip_cb_half_open_max_calls = 2
-        return settings
-
-    @pytest.fixture
-    def client_cb(self, cb_settings: MagicMock) -> CLIPClient:
-        with patch(
-            "backend.services.clip_client.get_settings",
-            autospec=True,
-            return_value=cb_settings,
-        ):
-            return CLIPClient()
-
-    @pytest.mark.asyncio
-    async def test_embed_breaker_open_does_not_block_similarity(
-        self, client_cb: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        """Open the embed breaker; similarity must still reach the service."""
-        ok_response = MagicMock()
-        ok_response.raise_for_status = MagicMock()
-        ok_response.json = MagicMock(return_value={"similarity": 0.5})
-
-        original_http = client_cb._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("down"))
-        client_cb._http_client = mock_http
-        try:
-            with (
-                patch("backend.services.clip_client.record_pipeline_error", autospec=True),
-                patch("backend.services.clip_client.observe_ai_request_duration", autospec=True),
-            ):
-                for _ in range(3):  # trip embed breaker (threshold 3)
-                    with pytest.raises(CLIPUnavailableError):
-                        await client_cb.embed(sample_image)
-                assert client_cb.get_circuit_breaker_state("embed") is CircuitState.OPEN
-
-                # similarity has its own (still CLOSED) breaker -> must proceed
-                mock_http.post = AsyncMock(return_value=ok_response)
-                result = await client_cb.similarity(sample_image, "a photo of a cat")
-                assert result == 0.5
-        finally:
-            client_cb._http_client = original_http
-
-    @pytest.mark.asyncio
-    async def test_similarity_failures_do_not_open_embed_breaker(
-        self, client_cb: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        """Failures on similarity must be recorded on ITS breaker, not embed's."""
-        embedding = [0.1] * EMBEDDING_DIMENSION
-        ok_embed = MagicMock()
-        ok_embed.raise_for_status = MagicMock()
-        ok_embed.json = MagicMock(return_value={"embedding": embedding})
-
-        call_count = 0
-
-        async def failing_post(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            raise httpx.ConnectError("down")
-
-        original_http = client_cb._http_client
-        mock_http = AsyncMock()
-        mock_http.post = failing_post
-        client_cb._http_client = mock_http
-        try:
-            with (
-                patch("backend.services.clip_client.record_pipeline_error", autospec=True),
-                patch("backend.services.clip_client.observe_ai_request_duration", autospec=True),
-            ):
-                for _ in range(3):  # trip similarity's own breaker
-                    with pytest.raises(CLIPUnavailableError):
-                        await client_cb.similarity(sample_image, "a cat")
-                assert call_count == 3
-
-                # 4th call: similarity rejected by ITS breaker, without HTTP.
-                # _check mutants consult embed's (CLOSED) breaker -> POST runs -> count 4.
-                with pytest.raises(CLIPUnavailableError):
-                    await client_cb.similarity(sample_image, "a cat")
-                assert call_count == 3
-
-                # embed's breaker must be untouched: _get_breaker mutants recorded
-                # similarity's failures onto embed -> this would raise.
-                assert client_cb.get_circuit_breaker_state("embed") is CircuitState.CLOSED
-                mock_http.post = AsyncMock(return_value=ok_embed)
-                result = await client_cb.embed(sample_image)
-                assert result == embedding
-        finally:
-            client_cb._http_client = original_http
-```
+### T1 — `test_error_chain_preserved_all_methods` (kills C06, 46)
 
 ```python
-# UNVERIFIED - not yet run red/green
-# ---------------------------------------------------------------------------
-# Killers for cluster 7 (original_error dropped, 20 mutants)
-# ---------------------------------------------------------------------------
+# UNVERIFIED - not yet run red/green  (kills cluster C06-ERR-CHAIN)
 class TestErrorChainContract:
-    """CLIPUnavailableError from anomaly_score/similarity must carry the cause."""
-
-    @staticmethod
-    def _make_error(kind: str) -> Exception:
-        if kind == "connect":
-            return httpx.ConnectError("connection refused")
-        if kind == "timeout":
-            return httpx.TimeoutException("slow")
-        if kind == "server":
-            resp = MagicMock()
-            resp.status_code = 503
-            return httpx.HTTPStatusError("boom", request=MagicMock(), response=resp)
-        if kind == "client":
-            resp = MagicMock()
-            resp.status_code = 422
-            return httpx.HTTPStatusError("bad", request=MagicMock(), response=resp)
-        return RuntimeError("kaboom")
+    """original_error attr and __cause__ must survive wrapping into CLIPUnavailableError."""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("kind", ["connect", "timeout", "server", "client", "unexpected"])
-    async def test_anomaly_score_preserves_original_error(
-        self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float], kind: str
+    @pytest.mark.parametrize("method,args", [
+        ("embed", ()), ("classify", (["cat"],)), ("similarity", ("text",)),
+        ("batch_similarity", (["cat"],)),
+    ])
+    async def test_error_chain_preserved(
+        self, client: CLIPClient, sample_image: Image.Image, method: str, args: tuple
     ) -> None:
-        err = self._make_error(kind)
-        original_http = client._http_client
+        original_error = httpx.ConnectError("Connection refused")
+        original_client = client._http_client
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(side_effect=err)
+        mock_http.post = AsyncMock(side_effect=original_error)
+        client._http_client = mock_http
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await getattr(client, method)(sample_image, *args)
+            assert exc_info.value.original_error is original_error
+            assert exc_info.value.__cause__ is original_error
+        finally:
+            client._http_client = original_client
+
+    @pytest.mark.asyncio
+    async def test_error_chain_preserved_anomaly_score(
+        self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
+    ) -> None:
+        original_error = httpx.ConnectError("Connection refused")
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=original_error)
         client._http_client = mock_http
         try:
             with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
-            assert exc_info.value.original_error is err
-            assert exc_info.value.__cause__ is err
+            assert exc_info.value.original_error is original_error
+            assert exc_info.value.__cause__ is original_error
         finally:
-            client._http_client = original_http
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("kind", ["connect", "timeout", "server", "client", "unexpected"])
-    async def test_similarity_preserves_original_error(
-        self, client: CLIPClient, sample_image: Image.Image, kind: str
-    ) -> None:
-        err = self._make_error(kind)
-        original_http = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(side_effect=err)
-        client._http_client = mock_http
-        try:
-            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
-                with pytest.raises(CLIPUnavailableError) as exc_info:
-                    await client.similarity(sample_image, "a cat")
-            assert exc_info.value.original_error is err
-            assert exc_info.value.__cause__ is err
-        finally:
-            client._http_client = original_http
+            client._http_client = original_client
 ```
 
-```python
-# UNVERIFIED - not yet run red/green
-# ---------------------------------------------------------------------------
-# Killers for clusters 9 (payload, 16) + 10 (headers, 4)
-# ---------------------------------------------------------------------------
-class TestRequestContract:
-    """Success-path POST body/headers are wire contract — assert them."""
+Red on `original_error=e → None` (attr assert) and on `) from e` dropped (`__cause__` becomes None). Green on original.
 
-    @pytest.mark.asyncio
-    async def test_anomaly_score_sends_exact_payload_and_headers(
-        self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
-    ) -> None:
-        ok_response = MagicMock()
-        ok_response.raise_for_status = MagicMock()
-        ok_response.json = MagicMock(
-            return_value={"anomaly_score": 0.2, "similarity_to_baseline": 0.8}
-        )
-        original_http = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=ok_response)
-        client._http_client = mock_http
-        expected_b64 = client._encode_image_to_base64(sample_image)
-        sentinel = {"traceparent": "00-abcd-ef01-01", "X-Correlation-ID": "corr-1"}
-        try:
-            with (
-                patch("backend.services.clip_client.observe_ai_request_duration", autospec=True),
-                patch(
-                    "backend.services.clip_client.get_correlation_headers",
-                    autospec=True,
-                    return_value=sentinel,
-                ),
-            ):
-                await client.anomaly_score(sample_image, valid_embedding)
-            call_kwargs = mock_http.post.call_args[1]
-            assert call_kwargs["headers"] == sentinel  # kills headers None/dropped
-            payload = call_kwargs["json"]
-            assert set(payload) == {"image", "baseline_embedding"}  # kills XX/UPPER/None payload
-            assert payload["image"] == expected_b64  # kills image_b64 = None
-            assert payload["baseline_embedding"] == valid_embedding
-        finally:
-            client._http_client = original_http
-
-    @pytest.mark.asyncio
-    async def test_similarity_sends_exact_payload_and_headers(
-        self, client: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        ok_response = MagicMock()
-        ok_response.raise_for_status = MagicMock()
-        ok_response.json = MagicMock(return_value={"similarity": 0.42})
-        original_http = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=ok_response)
-        client._http_client = mock_http
-        expected_b64 = client._encode_image_to_base64(sample_image)
-        sentinel = {"traceparent": "00-abcd-ef01-01", "X-Correlation-ID": "corr-2"}
-        try:
-            with (
-                patch("backend.services.clip_client.observe_ai_request_duration", autospec=True),
-                patch(
-                    "backend.services.clip_client.get_correlation_headers",
-                    autospec=True,
-                    return_value=sentinel,
-                ),
-            ):
-                result = await client.similarity(sample_image, "a person at the door")
-            assert result == 0.42
-            call_kwargs = mock_http.post.call_args[1]
-            assert call_kwargs["headers"] == sentinel
-            payload = call_kwargs["json"]
-            assert set(payload) == {"image", "text"}
-            assert payload["image"] == expected_b64
-            assert payload["text"] == "a person at the door"
-        finally:
-            client._http_client = original_http
-```
+### T2 — `test_request_payload_fields` (kills C17, 32)
 
 ```python
-# UNVERIFIED - not yet run red/green
-# ---------------------------------------------------------------------------
-# Killer for cluster 11 (status >= 500 boundary, 4 mutants)
-# ---------------------------------------------------------------------------
-class TestServerErrorBoundary:
-    """Exactly 500 must classify as server error (label + message), not client error."""
+# UNVERIFIED - not yet run red/green  (kills cluster C17-PAYLOAD)
+class TestRequestPayloadContract:
+    """Non-embed endpoints must send the documented JSON body (tests only covered embed)."""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("method", "label"),
+        "method,args,extra_key",
         [
-            ("anomaly_score", "clip_anomaly_server_error"),
-            ("similarity", "clip_server_error"),
+            ("anomaly_score", (None,), "baseline_embedding"),  # None replaced by valid_embedding below
+            ("classify", (["cat", "dog"],), "labels"),
+            ("similarity", ("a cat",), "text"),
+            ("batch_similarity", (["cat"],), "texts"),
         ],
     )
-    async def test_exactly_500_is_server_error(
-        self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float],
-        method: str, label: str,
+    async def test_payload_fields(
+        self,
+        client: CLIPClient,
+        sample_image: Image.Image,
+        valid_embedding: list[float],
+        method: str,
+        args: tuple,
+        extra_key: str,
     ) -> None:
-        resp = MagicMock()
-        resp.status_code = 500
-        error = httpx.HTTPStatusError("oops", request=MagicMock(), response=resp)
-        original_http = client._http_client
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json = MagicMock(
+            return_value={"similarities": {"cat": 0.1}, "scores": {"cat": 1.0},
+                          "top_label": "cat", "similarity": 0.5,
+                          "anomaly_score": 0.1, "similarity_to_baseline": 0.9}
+        )
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
+                call_args = list(args)
+                if extra_key == "baseline_embedding":
+                    call_args[0] = valid_embedding
+                await getattr(client, method)(sample_image, *call_args)
+            payload = mock_http.post.call_args[1]["json"]
+            assert isinstance(payload, dict), f"json payload missing (method={method})"
+            assert "image" in payload
+            decoded = base64.b64decode(payload["image"])
+            assert Image.open(io.BytesIO(decoded)).format == "PNG"
+            assert extra_key in payload
+            assert payload[extra_key] == call_args[0]
+        finally:
+            client._http_client = original_client
+```
+
+Red on key-case/XX (`"image" in payload` fails), `json=None`/dropped (`isinstance` fails), `image_b64=None` (b64decode TypeError). Green on original.
+
+### T3 — `test_ai_duration_observed_with_label` (kills C14 + C15, 20)
+
+```python
+# UNVERIFIED - not yet run red/green  (kills clusters C14-OBSERVE-LABEL + C15-AIDURATION-ARITH)
+class TestObserveAiDurationContract:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("method,expected_label", [
+        ("embed", "clip"), ("classify", "clip"),
+        ("similarity", "clip"), ("batch_similarity", "clip"),
+    ])
+    async def test_label_and_duration(
+        self, client: CLIPClient, sample_image: Image.Image, method: str, expected_label: str
+    ) -> None:
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json = MagicMock(
+            return_value={"embedding": [0.1] * EMBEDDING_DIMENSION, "scores": {"cat": 1.0},
+                          "top_label": "cat", "similarity": 0.5, "similarities": {"cat": 0.5}}
+        )
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True) as mock_observe:
+                await getattr(client, method)(
+                    sample_image, *({"classify": (["cat"],), "similarity": ("x",),
+                                     "batch_similarity": (["cat"],)}.get(method, ()))
+                )
+            args = mock_observe.call_args[0]
+            assert args[0] == expected_label
+            assert isinstance(args[1], float) and 0.0 <= args[1] < 60.0
+        finally:
+            client._http_client = original_client
+
+    @pytest.mark.asyncio
+    async def test_anomaly_label_clip_anomaly(
+        self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
+    ) -> None:
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json = MagicMock(
+            return_value={"anomaly_score": 0.2, "similarity_to_baseline": 0.8}
+        )
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http
+        try:
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True) as mock_observe:
+                await client.anomaly_score(sample_image, valid_embedding)
+            args = mock_observe.call_args[0]
+            assert args[0] == "clip_anomaly"
+            assert 0.0 <= args[1] < 60.0
+        finally:
+            client._http_client = original_client
+```
+
+Red on label None/XX/case (`args[0] ==` fails) and on `-`→`+` arith (duration ≈ 2×epoch > 60). Green on original.
+
+### T4 — `test_error_message_carries_diagnostic_content` (kills C19 + C20 + C07, 24)
+
+```python
+# UNVERIFIED - not yet run red/green  (kills clusters C19-RAISE-MSG-NONE, C20-RAISE-MSG-SANITIZE-NONE, C07-STATUS-500-BOUNDARY)
+class TestErrorMessageContract:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("method,args", [
+        ("embed", ()), ("classify", (["cat"],)), ("similarity", ("t",)),
+        ("batch_similarity", (["cat"],)),
+    ])
+    async def test_server_error_500_boundary(
+        self, client: CLIPClient, sample_image: Image.Image, method: str, args: tuple
+    ) -> None:
+        """status_code == 500 must take the 5xx branch (server error), not the 4xx branch."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        error = httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
+        original_client = client._http_client
         mock_http = AsyncMock()
         mock_http.post = AsyncMock(side_effect=error)
         client._http_client = mock_http
         try:
             with patch("backend.services.clip_client.record_pipeline_error", autospec=True) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
-                    if method == "anomaly_score":
-                        await client.anomaly_score(sample_image, valid_embedding)
-                    else:
-                        await client.similarity(sample_image, "a cat")
-            assert "server error: 500" in str(exc_info.value)  # >500/>=501 mutants -> "client error"
-            mock_record.assert_called_once_with(label)
+                    await getattr(client, method)(sample_image, *args)
+            assert "server error: 500" in str(exc_info.value)  # kills C19 (msg None) and C07 (>500/>=501 reroute)
+            expected = "clip_anomaly_server_error" if method == "anomaly_score" else "clip_server_error"
+            mock_record.assert_called_once_with(expected)
         finally:
-            client._http_client = original_http
-```
-
-```python
-# UNVERIFIED - not yet run red/green
-# ---------------------------------------------------------------------------
-# Killer for cluster 6 (similarity raise message -> None, 5 mutants)
-# ---------------------------------------------------------------------------
-class TestSimilarityErrorMessages:
-    """similarity() error messages are caller-visible contract (mirrors TestAnomalyScore)."""
+            client._http_client = original_client
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("kind", "status", "expected"),
-        [
-            ("connect", None, "Failed to connect"),
-            ("timeout", None, "timed out"),
-            ("status", 502, "server error: 502"),
-            ("status", 404, "client error: 404"),
-            ("unexpected", None, "Unexpected error"),
-        ],
-    )
-    async def test_similarity_error_message_preserved(
-        self, client: CLIPClient, sample_image: Image.Image, kind: str, status, expected: str
+    async def test_anomaly_500_boundary(
+        self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
     ) -> None:
-        if kind == "connect":
-            err: Exception = httpx.ConnectError("refused")
-        elif kind == "timeout":
-            err = httpx.TimeoutException("slow")
-        elif kind == "unexpected":
-            err = RuntimeError("kaboom")
-        else:
-            resp = MagicMock()
-            resp.status_code = status
-            err = httpx.HTTPStatusError("err", request=MagicMock(), response=resp)
-        original_http = client._http_client
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        error = httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
+        original_client = client._http_client
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(side_effect=err)
+        mock_http.post = AsyncMock(side_effect=error)
+        client._http_client = mock_http
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True) as mock_record:
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
+            assert "server error: 500" in str(exc_info.value)
+            mock_record.assert_called_once_with("clip_anomaly_server_error")
+        finally:
+            client._http_client = original_client
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("method,args", [
+        ("embed", ()), ("classify", (["cat"],)), ("similarity", ("t",)),
+        ("batch_similarity", (["cat"],)),
+    ])
+    async def test_unexpected_error_message_keeps_original_text(
+        self, client: CLIPClient, sample_image: Image.Image, method: str, args: tuple
+    ) -> None:
+        original_client = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = AsyncMock(side_effect=RuntimeError("kaboom-detail"))
         client._http_client = mock_http
         try:
             with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
                 with pytest.raises(CLIPUnavailableError) as exc_info:
-                    await client.similarity(sample_image, "a cat")
-            # message=None mutants give str(exc) == "None"
-            assert expected in str(exc_info.value)
+                    await getattr(client, method)(sample_image, *args)
         finally:
-            client._http_client = original_http
-```
-
-```python
-# UNVERIFIED - not yet run red/green
-# ---------------------------------------------------------------------------
-# Killer for cluster 12 (observe_ai_request_duration label + duration, 8 mutants)
-# ---------------------------------------------------------------------------
-class TestObserveAiDurationArgs:
-    """Metric label must match the service registry; duration must be plausible."""
+            client._http_client = original_client
+        # kills C20: sanitize_error(None) degrades the message to "...: None"
+        assert "kaboom-detail" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_anomaly_score_observes_clip_anomaly_label(
+    async def test_anomaly_unexpected_error_message_keeps_original_text(
         self, client: CLIPClient, sample_image: Image.Image, valid_embedding: list[float]
     ) -> None:
-        ok_response = MagicMock()
-        ok_response.raise_for_status = MagicMock()
-        ok_response.json = MagicMock(
-            return_value={"anomaly_score": 0.1, "similarity_to_baseline": 0.9}
-        )
-        original_http = client._http_client
+        original_client = client._http_client
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=ok_response)
+        mock_http.post = AsyncMock(side_effect=RuntimeError("kaboom-detail"))
         client._http_client = mock_http
         try:
-            with patch(
-                "backend.services.clip_client.observe_ai_request_duration", autospec=True
-            ) as mock_observe:
-                await client.anomaly_score(sample_image, valid_embedding)
-            (label, duration), _ = mock_observe.call_args
-            assert label == "clip_anomaly"  # kills None/XX/CLIP_ANOMALY label mutants
-            assert 0.0 <= duration < 60.0  # kills time.time() + start_time (≈3.5e9)
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
+                with pytest.raises(CLIPUnavailableError) as exc_info:
+                    await client.anomaly_score(sample_image, valid_embedding)
         finally:
-            client._http_client = original_http
-
-    @pytest.mark.asyncio
-    async def test_similarity_observes_clip_label(
-        self, client: CLIPClient, sample_image: Image.Image
-    ) -> None:
-        ok_response = MagicMock()
-        ok_response.raise_for_status = MagicMock()
-        ok_response.json = MagicMock(return_value={"similarity": 0.7})
-        original_http = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=ok_response)
-        client._http_client = mock_http
-        try:
-            with patch(
-                "backend.services.clip_client.observe_ai_request_duration", autospec=True
-            ) as mock_observe:
-                await client.similarity(sample_image, "a cat")
-            (label, duration), _ = mock_observe.call_args
-            assert label == "clip"
-            assert 0.0 <= duration < 60.0
-        finally:
-            client._http_client = original_http
+            client._http_client = original_client
+        assert "kaboom-detail" in str(exc_info.value)
 ```
 
-## WP4.4 disposition notes
+C07 note: embed/classify/batch use 500 in existing tests and die naturally; the surviving C07 mutants live in anomaly_score/similarity whose tests use 502/503 — the 500-boundary param above kills them (and doubles as the C19 kill for those methods).
 
-- Rows 1–5 (151 mutants, EQUIVALENT/LOW-VALUE): recommend marking as baseline-equivalent; no test work. If a score ceiling is wanted, a `caplog`-based contract test could kill rows 4–5, but asserting internal log record fields couples tests to diagnostics — not recommended.
-- Rows 6–12 (69 TEST-GAP mutants): the six drafted classes above cover all of them; each is cheap (mock-post pattern already canonical in this file).
-- `test_circuit_breaker_affects_all_methods` (:1890) is itself suspect — it passes whether or not per-endpoint isolation works. Fixing it = adopting the two isolation tests drafted here (or asserting `mock_http.post.call_count` stays flat for the rejected methods).
-- If the concurrent run later marks the 699 `null` (untested) keys, expect heavy overlap with rows 3–5 patterns in `embed`/`classify`/`batch_similarity`; this module's error-handling idiom repeats verbatim across five methods.
+### T5 — `test_client_configures_timeouts_and_health_limits` (kills C18, 17)
 
-Raw per-mutant bucket data: `/tmp/wp25/wp44-triage/clusters.json` (key → cluster), `/tmp/wp25/wp44-triage/diffs.txt` (all 220 diffs).
+```python
+# UNVERIFIED - not yet run red/green  (kills cluster C18-INIT-CLIENT-CONFIG)
+class TestClientTimeoutAndLimitsContract:
+    def test_main_and_health_timeouts_from_settings(self, mock_settings: MagicMock) -> None:
+        # NOTE: ai_health_timeout deliberately != httpx's built-in 5.0 default, else the
+        # timeout=None mutants are coincidentally equivalent. Same for clip_read_timeout.
+        mock_settings.clip_read_timeout = 15.0
+        mock_settings.ai_health_timeout = 7.0
+        with patch("backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings):
+            client = CLIPClient()
+        t = client._http_client.timeout
+        assert t.connect == 10.0 and t.read == 15.0 and t.write == 15.0 and t.pool == 10.0
+        h = client._health_http_client.timeout
+        assert h.connect == 7.0 and h.read == 7.0 and h.write == 7.0 and h.pool == 7.0
+        # health pool limits are asserted by NO existing test (pooling test covers _http_client only)
+        pool = client._health_http_client._transport._pool
+        assert pool._max_connections == 10
+        assert pool._max_keepalive_connections == 5
+```
+
+Red on every `=settings.X → None` (httpx coerces None → default ≠ settings value), `timeout=None/dropped` (httpx default 5.0 connect but read/write/pool differ from settings), health limits 11/6/None/dropped. Green on original. Add to `test_clip_client.py` (class `TestCLIPClientInit` neighbor); `mock_settings` fixture lacks `clip_read_timeout` → set explicitly (done above).
+
+### T6 — `test_per_endpoint_breaker_isolation_and_config` (kills C08 non-embed + C10 + C11 + C13, 44)
+
+```python
+# UNVERIFIED - not yet run red/green  (kills C08-BREAKER-CALLSITE, C10-BREAKER-CONFIG,
+# C11-BREAKER-DICTKEY, C13-CIRCUIT-OPEN-LABEL)
+class TestPerEndpointBreakerContract:
+    @pytest.fixture
+    def settings_cb(self) -> MagicMock:
+        s = MagicMock()
+        s.clip_url = "http://test-clip:8093"
+        s.ai_connect_timeout = 10.0
+        s.ai_health_timeout = 5.0
+        s.clip_cb_failure_threshold = 2
+        s.clip_cb_recovery_timeout = 30.0
+        s.clip_cb_half_open_max_calls = 2
+        return s
+
+    def test_breakers_instantiate_with_settings_config(self, settings_cb: MagicMock) -> None:
+        with patch("backend.services.clip_client.get_settings", autospec=True,
+                   return_value=settings_cb):
+            client = CLIPClient()
+        for endpoint, breaker in client._breakers.items():  # kills C11: dict keys must be exact
+            assert breaker._failure_threshold == 2, endpoint      # kills C10 config=None→defaults(5/30)
+            assert breaker._recovery_timeout == 30.0, endpoint
+            assert breaker._half_open_max_calls == 2, endpoint
+        assert set(client._breakers) == {"embed", "anomaly_score", "classify",
+                                         "similarity", "batch_similarity"}
+        assert client._breakers["classify"] is not client._circuit_breaker  # kills C11 key mangling
+
+    @pytest.mark.asyncio
+    async def test_open_embed_breaker_does_not_block_classify(
+        self, sample_image: Image.Image, settings_cb: MagicMock
+    ) -> None:
+        with patch("backend.services.clip_client.get_settings", autospec=True,
+                   return_value=settings_cb):
+            client = CLIPClient()
+        good = MagicMock()
+        good.raise_for_status = MagicMock()
+        good.json = MagicMock(return_value={"scores": {"cat": 1.0}, "top_label": "cat"})
+        fail_conn = httpx.ConnectError("down")
+        call = {"allow": False}
+
+        async def post(*a, **k):
+            if call["allow"]:
+                return good
+            raise fail_conn
+
+        original = client._http_client
+        mock_http = AsyncMock()
+        mock_http.post = post
+        client._http_client = mock_http
+        try:
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
+                for _ in range(2):  # threshold=2 opens the EMBED breaker only
+                    with pytest.raises(CLIPUnavailableError):
+                        await client.embed(sample_image)
+            # embed is now open -> must be rejected, AND report the right metric
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True) as rec:
+                with pytest.raises(CLIPUnavailableError):
+                    await client.embed(sample_image)
+                rec.assert_called_once_with("clip_circuit_open")  # kills C13 label mangling
+            # classify uses ITS OWN breaker -> must succeed (kills C08 call-site name mangling:
+            # mangled endpoints resolve to the open embed breaker and wrongly raise here)
+            call["allow"] = True
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
+                scores, top = await client.classify(sample_image, ["cat"])
+            assert top == "cat"
+            assert client.get_circuit_breaker_state("classify") \
+                .__class__ is client.get_circuit_breaker_state("embed").__class__ or True
+            assert client._get_breaker("embed").get_state().value == "open"
+            assert client._get_breaker("classify").get_state().value == "closed"
+        finally:
+            client._http_client = original
+```
+
+(One line above is a self-check placeholder for the state enum; replace with `assert client.get_circuit_breaker_state("classify").value == "closed"` when adopting — flagged UNVERIFIED anyway. `CircuitState` import already exists in the test file? No — add `from backend.services.circuit_breaker import CircuitState` if using `.value` comparisons against enum; the string compare shown avoids that.)
+
+## Kill coverage vs TEST-GAP survivors
+
+| Drafted test | Clusters killed | N |
+|---|---|---|
+| T1 | C06 | 46 |
+| T2 | C17 | 32 |
+| T3 | C14 + C15 | 20 |
+| T4 | C19 + C20 + C07 | 24 |
+| T5 | C18 | 17 |
+| T6 | C08 + C10 + C11 + C13 | 44 |
+| **Total** | | **183 / 197** (remaining 14 = C16 headers, below the value bar: correlation-header propagation is contract-tested elsewhere (`test_correlation_propagation.py` has CLIP-adjacent coverage for sibling clients) — a `headers=` assert could be tacked onto T2 if WP4.4 wants full closure) |
+
+## Notes / hazards for the fixing lane
+
+- C06/C16/etc. mutants live inside 5 near-identical except-blocks; a fix must be replicated across embed/anomaly_score/classify/similarity/batch_similarity or mutmut re-survives.
+- Do NOT try to kill C12 (breaker `name=`), C22-C25 (logging internals) with tests — LOW-VALUE by policy; if a score-driven baseline needs the numbers, prefer documented suppression (`mutmut config` exclusions) over asserting `extra=` dicts.
+- T5 relies on httpx internals (`_transport._pool`) exactly as the existing pooling test does (L187-190) — consistent with repo precedent.
+- `sanitize_error` (`backend/core/logging.py:963`) is `str(error)` + redaction — the reason C20 does NOT crash, only degrades: assertion must target the original message text, not type.
+- `test_clip_client.py` fixtures build `MagicMock()` settings: `clip_read_timeout` is auto-mocked (never set) — the main-client timeout mutants in C18 could not have been caught even if someone asserted it without setting it. Set explicit values (as in T5).

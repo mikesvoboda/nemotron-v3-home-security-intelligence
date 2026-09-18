@@ -1,60 +1,42 @@
-import re, json, difflib, collections, sys, ast
+import re, json, difflib, sys
 
-SRC = 'mutants/backend/services/prompts.py'
-text = open(SRC).read()
-lines = text.split('\n')
+path='/agents/agent-nemo2/workspace/mutants/backend/services/orchestrator/models.py'
+lines=open(path).read().split('\n')
 
-# index of function block starts
-def_re = re.compile(r'^def (x.+?)__mutmut_(orig|\d+)\(')
-blocks = {}   # (fn, id) -> (start_line_idx, end_line_idx)
-starts = []
-for i, l in enumerate(lines):
-    m = def_re.match(l)
+# find def blocks
+starts=[]
+for i,l in enumerate(lines):
+    m=re.match(r'^    def (.+?)(\(|$)', l)
     if m:
-        starts.append((i, m.group(1), m.group(2)))
-for j, (i, fn, mid) in enumerate(starts):
-    end = starts[j+1][0] if j+1 < len(starts) else len(lines)
-    # trim trailing assignment lines (mutants_x...[...] = ...) and blanks
-    e = end
-    while e > i+1:
-        s = lines[e-1].strip()
-        if s == '' or s.startswith('mutants_') or s.startswith('@'):
-            e -= 1
-        else:
-            break
-    blocks[(fn, mid)] = (i, e)
+        starts.append((i, m.group(1)))
+# end of each block = next def at same indent or line starting with 'mutants_'
+bounds=[]
+for idx,(i,name) in enumerate(starts):
+    end=len(lines)
+    for j in range(i+1,len(lines)):
+        lj=lines[j]
+        if re.match(r'^    def ',lj) or lj.startswith('mutants_') or lj.startswith('class ') or (lj and not lj.startswith(' ') and not lj.startswith('#')):
+            end=j; break
+    bounds.append((name,i,end))
 
-surv = [l.strip() for l in open('/tmp/wp25/wp44-triage/survivor_keys.txt') if l.strip()]
-byfn = collections.defaultdict(list)
-for k in surv:
-    m = re.match(r'^backend\.services\.prompts\.(.+?)__mutmut_(\d+)$', k)
-    byfn[m.group(1)].append((int(m.group(2)), k))
+bodies={name:'\n'.join(lines[i:end]) for name,i,end in bounds}
 
-def block_lines(fn, mid):
-    s, e = blocks[(fn, mid)]
-    return lines[s:e]
+surv=[k.split('.models.',1)[1] for k in json.load(open('/agents/agent-nemo2/workspace/mutants/backend/services/orchestrator/models.py.meta'))['exit_code_by_key'].items() if False]
+d=json.load(open('/agents/agent-nemo2/workspace/mutants/backend/services/orchestrator/models.py.meta'))
+surv=sorted(k.split('.models.',1)[1] for k,v in d['exit_code_by_key'].items() if v==0)
 
-out = []
-missing = []
-for fn, items in sorted(byfn.items()):
-    if (fn, 'orig') not in blocks:
-        missing.append(fn); continue
-    ob = block_lines(fn, 'orig')
-    for num, key in sorted(items):
-        if (fn, str(num)) not in blocks:
-            missing.append(key); continue
-        mb = block_lines(fn, str(num))
-        sm = difflib.SequenceMatcher(None, ob, mb)
-        hunks = []
-        for tag, i1, i2, j1, j2 in sm.get_opcodes():
-            if tag == 'equal': continue
-            ol = '\n'.join(ob[i1:i2]); ml = '\n'.join(mb[j1:j2])
-            hunks.append((tag, ol, ml))
-        out.append({'fn': fn, 'num': num, 'key': key, 'hunks': hunks})
-
-json.dump(out, open('/tmp/wp25/wp44-triage/raw_diffs.json','w'))
-print('survivors', len(surv), 'diffed', len(out), 'missing', len(missing), missing[:10])
-# how many have empty hunks (no textual diff = suspicious)
-print('no-text-diff:', sum(1 for o in out if not o['hunks']))
-# distribution of hunk sizes
-print('hunk count hist', collections.Counter(len(o['hunks']) for o in out).most_common(8))
+out=open('/tmp/wp25/wp44-triage/manual-diffs.txt','w')
+missing=[]
+for s in surv:
+    orig_fn=s.split('__mutmut_')[0]
+    orig=bodies.get(orig_fn+'__mutmut_orig')
+    var=bodies.get(s)
+    if orig is None or var is None:
+        missing.append(s); continue
+    # normalize signature line diff noise: compare full blocks
+    dl=list(difflib.unified_diff(orig.split('\n'), var.split('\n'), lineterm='', n=1))
+    out.write('### '+s+'\n')
+    out.write('\n'.join(dl[2:])+'\n\n')
+out.close()
+print('missing:',len(missing))
+for m in missing[:10]: print('  ',m)

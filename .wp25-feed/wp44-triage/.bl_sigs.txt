@@ -1,0 +1,358 @@
+[ 1] __init__ :: raise ValueError("decay_factor must be between 0 (exclusive) and 1 (inclusive)")  ===>  raise ValueError("XXdecay_factor must be between 0 (exclusive) and 1 (inclusive)XX")   xǁBaselineServiceǁ__init____mutmut_7
+[ 1] __init__ :: raise ValueError("window_days must be at least 1")  ===>  raise ValueError("XXwindow_days must be at least 1XX")   xǁBaselineServiceǁ__init____mutmut_12
+[ 1] __init__ :: raise ValueError("anomaly_threshold_std must be non-negative")  ===>  raise ValueError("XXanomaly_threshold_std must be non-negativeXX")   xǁBaselineServiceǁ__init____mutmut_17
+[ 1] __init__ :: raise ValueError("min_samples must be at least 1")  ===>  raise ValueError("XXmin_samples must be at least 1XX")   xǁBaselineServiceǁ__init____mutmut_22
+[ 1] __init__ :: DEL[f"BaselineService initialized: decay={decay_factor}, " f"window={window_days}d, threshold={anoma  ===>  ADD[None """Calculate time-based decay factor.  Uses exponential decay based on the number of days s   xǁBaselineServiceǁ__init____mutmut_28
+[ 1] _calculate_time_decay :: days_elapsed = (now - last_updated).total_seconds() / 86400.0  ===>  days_elapsed = (now - last_updated).total_seconds() / 86401.0   xǁBaselineServiceǁ_calculate_time_decay__mutmut_10
+[ 1] _interpret_z_score :: if z_score < -2.0:  ===>  if z_score <= -2.0:   xǁBaselineServiceǁ_interpret_z_score__mutmut_1
+[ 1] _interpret_z_score :: if z_score < -1.0:  ===>  if z_score <= -1.0:   xǁBaselineServiceǁ_interpret_z_score__mutmut_4
+[ 1] _interpret_z_score :: if z_score < 1.0:  ===>  if z_score <= 1.0:   xǁBaselineServiceǁ_interpret_z_score__mutmut_7
+[ 1] _interpret_z_score :: if z_score < 2.0:  ===>  if z_score <= 2.0:   xǁBaselineServiceǁ_interpret_z_score__mutmut_9
+[ 1] _interpret_z_score :: if z_score < 3.0:  ===>  if z_score <= 3.0:   xǁBaselineServiceǁ_interpret_z_score__mutmut_11
+[ 1] _reset_baseline_service :: DEL[_baseline_service = None]  ===>  ADD[_baseline_service = "" mutants_x_reset_baseline_service__mutmut['_mutmut_orig'] = x_reset_baseli   x_reset_baseline_service__mutmut_1
+[ 1] _update_activity_baseline :: DEL[stmt = select(ActivityBaseline).where( ActivityBaseline.camera_id == camera_id, ActivityBaseline  ===>  ADD[stmt = None]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_1
+[ 1] _update_activity_baseline :: ActivityBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_2
+[ 1] _update_activity_baseline :: ActivityBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_3
+[ 1] _update_activity_baseline :: ActivityBaseline.day_of_week == day_of_week,  ===>  None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_4
+[ 1] _update_activity_baseline :: DEL[ActivityBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_5
+[ 1] _update_activity_baseline :: DEL[ActivityBaseline.hour == hour,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_6
+[ 1] _update_activity_baseline :: DEL[ActivityBaseline.day_of_week == day_of_week, )]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_7
+[ 1] _update_activity_baseline :: stmt = select(ActivityBaseline).where(  ===>  stmt = select(None).where(   xǁBaselineServiceǁ_update_activity_baseline__mutmut_8
+[ 1] _update_activity_baseline :: ActivityBaseline.camera_id == camera_id,  ===>  ActivityBaseline.camera_id != camera_id,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_9
+[ 1] _update_activity_baseline :: ActivityBaseline.hour == hour,  ===>  ActivityBaseline.hour != hour,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_10
+[ 1] _update_activity_baseline :: ActivityBaseline.day_of_week == day_of_week,  ===>  ActivityBaseline.day_of_week != day_of_week,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_11
+[ 1] _update_activity_baseline :: result = await session.execute(stmt)  ===>  result = await session.execute(None)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_13
+[ 1] _update_activity_baseline :: existing = result.scalar_one_or_none()  ===>  existing = None   xǁBaselineServiceǁ_update_activity_baseline__mutmut_14
+[ 1] _update_activity_baseline :: if decay > 0:  ===>  if decay >= 0:   xǁBaselineServiceǁ_update_activity_baseline__mutmut_20
+[ 1] _update_activity_baseline :: if decay > 0:  ===>  if decay > 1:   xǁBaselineServiceǁ_update_activity_baseline__mutmut_21
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = None   xǁBaselineServiceǁ_update_activity_baseline__mutmut_22
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = decay * existing.avg_count - (1 - decay) * 1.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_23
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = decay / existing.avg_count + (1 - decay) * 1.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_24
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = decay * existing.avg_count + (1 - decay) / 1.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_25
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = decay * existing.avg_count + (1 + decay) * 1.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_26
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = decay * existing.avg_count + (2 - decay) * 1.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_27
+[ 1] _update_activity_baseline :: new_avg = decay * existing.avg_count + (1 - decay) * 1.0  ===>  new_avg = decay * existing.avg_count + (1 - decay) * 2.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_28
+[ 1] _update_activity_baseline :: new_count = existing.sample_count + 1  ===>  new_count = None   xǁBaselineServiceǁ_update_activity_baseline__mutmut_29
+[ 1] _update_activity_baseline :: new_count = existing.sample_count + 1  ===>  new_count = existing.sample_count - 1   xǁBaselineServiceǁ_update_activity_baseline__mutmut_30
+[ 1] _update_activity_baseline :: new_count = existing.sample_count + 1  ===>  new_count = existing.sample_count + 2   xǁBaselineServiceǁ_update_activity_baseline__mutmut_31
+[ 1] _update_activity_baseline :: new_avg = 1.0  ===>  new_avg = None   xǁBaselineServiceǁ_update_activity_baseline__mutmut_32
+[ 1] _update_activity_baseline :: new_avg = 1.0  ===>  new_avg = 2.0   xǁBaselineServiceǁ_update_activity_baseline__mutmut_33
+[ 1] _update_activity_baseline :: new_count = 1  ===>  new_count = None   xǁBaselineServiceǁ_update_activity_baseline__mutmut_34
+[ 1] _update_activity_baseline :: new_count = 1  ===>  new_count = 2   xǁBaselineServiceǁ_update_activity_baseline__mutmut_35
+[ 1] _update_activity_baseline :: DEL[update_stmt = ( update(ActivityBaseline) .where(ActivityBaseline.id == existing.id) .values(avg_  ===>  ADD[update_stmt = None]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_36
+[ 1] _update_activity_baseline :: .values(avg_count=new_avg, sample_count=new_count, last_updated=now)  ===>  .values(avg_count=None, sample_count=new_count, last_updated=now)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_37
+[ 1] _update_activity_baseline :: .values(avg_count=new_avg, sample_count=new_count, last_updated=now)  ===>  .values(avg_count=new_avg, sample_count=None, last_updated=now)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_38
+[ 1] _update_activity_baseline :: .values(avg_count=new_avg, sample_count=new_count, last_updated=now)  ===>  .values(avg_count=new_avg, sample_count=new_count, last_updated=None)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_39
+[ 1] _update_activity_baseline :: .values(avg_count=new_avg, sample_count=new_count, last_updated=now)  ===>  .values(sample_count=new_count, last_updated=now)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_40
+[ 1] _update_activity_baseline :: .values(avg_count=new_avg, sample_count=new_count, last_updated=now)  ===>  .values(avg_count=new_avg, last_updated=now)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_41
+[ 1] _update_activity_baseline :: .values(avg_count=new_avg, sample_count=new_count, last_updated=now)  ===>  .values(avg_count=new_avg, sample_count=new_count, )   xǁBaselineServiceǁ_update_activity_baseline__mutmut_42
+[ 1] _update_activity_baseline :: .where(ActivityBaseline.id == existing.id)  ===>  .where(None)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_43
+[ 1] _update_activity_baseline :: .where(ActivityBaseline.id == existing.id)  ===>  .where(ActivityBaseline.id != existing.id)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_45
+[ 1] _update_activity_baseline :: await session.execute(update_stmt)  ===>  await session.execute(None)   xǁBaselineServiceǁ_update_activity_baseline__mutmut_46
+[ 1] _update_activity_baseline :: DEL[new_baseline = ActivityBaseline( camera_id=camera_id, hour=hour, day_of_week=day_of_week, avg_co  ===>  ADD[new_baseline = None]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_47
+[ 1] _update_activity_baseline :: camera_id=camera_id,  ===>  camera_id=None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_48
+[ 1] _update_activity_baseline :: hour=hour,  ===>  hour=None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_49
+[ 1] _update_activity_baseline :: day_of_week=day_of_week,  ===>  day_of_week=None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_50
+[ 1] _update_activity_baseline :: avg_count=1.0,  ===>  avg_count=None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_51
+[ 1] _update_activity_baseline :: sample_count=1,  ===>  sample_count=None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_52
+[ 1] _update_activity_baseline :: last_updated=now,  ===>  last_updated=None,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_53
+[ 1] _update_activity_baseline :: DEL[camera_id=camera_id,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_54
+[ 1] _update_activity_baseline :: DEL[hour=hour,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_55
+[ 1] _update_activity_baseline :: DEL[day_of_week=day_of_week,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_56
+[ 1] _update_activity_baseline :: DEL[avg_count=1.0,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_57
+[ 1] _update_activity_baseline :: DEL[sample_count=1,]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_58
+[ 1] _update_activity_baseline :: DEL[last_updated=now, )]  ===>  ADD[]   xǁBaselineServiceǁ_update_activity_baseline__mutmut_59
+[ 1] _update_activity_baseline :: avg_count=1.0,  ===>  avg_count=2.0,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_60
+[ 1] _update_activity_baseline :: sample_count=1,  ===>  sample_count=2,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_61
+[ 1] _update_activity_baseline :: DEL[]  ===>  ADD[session.add(None)  self, session: AsyncSession, camera_id: str, detection_class: str, hour: int,   xǁBaselineServiceǁ_update_activity_baseline__mutmut_62
+[ 1] _update_class_baseline :: DEL[stmt = select(ClassBaseline).where( ClassBaseline.camera_id == camera_id, ClassBaseline.detectio  ===>  ADD[stmt = None]   xǁBaselineServiceǁ_update_class_baseline__mutmut_1
+[ 1] _update_class_baseline :: ClassBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_2
+[ 1] _update_class_baseline :: ClassBaseline.detection_class == detection_class,  ===>  None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_3
+[ 1] _update_class_baseline :: ClassBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_4
+[ 1] _update_class_baseline :: DEL[ClassBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_5
+[ 1] _update_class_baseline :: DEL[ClassBaseline.detection_class == detection_class,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_6
+[ 1] _update_class_baseline :: DEL[ClassBaseline.hour == hour, )]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_7
+[ 1] _update_class_baseline :: stmt = select(ClassBaseline).where(  ===>  stmt = select(None).where(   xǁBaselineServiceǁ_update_class_baseline__mutmut_8
+[ 1] _update_class_baseline :: ClassBaseline.camera_id == camera_id,  ===>  ClassBaseline.camera_id != camera_id,   xǁBaselineServiceǁ_update_class_baseline__mutmut_9
+[ 1] _update_class_baseline :: ClassBaseline.detection_class == detection_class,  ===>  ClassBaseline.detection_class != detection_class,   xǁBaselineServiceǁ_update_class_baseline__mutmut_10
+[ 1] _update_class_baseline :: ClassBaseline.hour == hour,  ===>  ClassBaseline.hour != hour,   xǁBaselineServiceǁ_update_class_baseline__mutmut_11
+[ 1] _update_class_baseline :: result = await session.execute(stmt)  ===>  result = await session.execute(None)   xǁBaselineServiceǁ_update_class_baseline__mutmut_13
+[ 1] _update_class_baseline :: existing = result.scalar_one_or_none()  ===>  existing = None   xǁBaselineServiceǁ_update_class_baseline__mutmut_14
+[ 1] _update_class_baseline :: if decay > 0:  ===>  if decay >= 0:   xǁBaselineServiceǁ_update_class_baseline__mutmut_20
+[ 1] _update_class_baseline :: if decay > 0:  ===>  if decay > 1:   xǁBaselineServiceǁ_update_class_baseline__mutmut_21
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = None   xǁBaselineServiceǁ_update_class_baseline__mutmut_22
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = decay * existing.frequency - (1 - decay) * 1.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_23
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = decay / existing.frequency + (1 - decay) * 1.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_24
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = decay * existing.frequency + (1 - decay) / 1.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_25
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = decay * existing.frequency + (1 + decay) * 1.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_26
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = decay * existing.frequency + (2 - decay) * 1.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_27
+[ 1] _update_class_baseline :: new_freq = decay * existing.frequency + (1 - decay) * 1.0  ===>  new_freq = decay * existing.frequency + (1 - decay) * 2.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_28
+[ 1] _update_class_baseline :: new_count = existing.sample_count + 1  ===>  new_count = None   xǁBaselineServiceǁ_update_class_baseline__mutmut_29
+[ 1] _update_class_baseline :: new_count = existing.sample_count + 1  ===>  new_count = existing.sample_count - 1   xǁBaselineServiceǁ_update_class_baseline__mutmut_30
+[ 1] _update_class_baseline :: new_count = existing.sample_count + 1  ===>  new_count = existing.sample_count + 2   xǁBaselineServiceǁ_update_class_baseline__mutmut_31
+[ 1] _update_class_baseline :: new_freq = 1.0  ===>  new_freq = None   xǁBaselineServiceǁ_update_class_baseline__mutmut_32
+[ 1] _update_class_baseline :: new_freq = 1.0  ===>  new_freq = 2.0   xǁBaselineServiceǁ_update_class_baseline__mutmut_33
+[ 1] _update_class_baseline :: new_count = 1  ===>  new_count = None   xǁBaselineServiceǁ_update_class_baseline__mutmut_34
+[ 1] _update_class_baseline :: new_count = 1  ===>  new_count = 2   xǁBaselineServiceǁ_update_class_baseline__mutmut_35
+[ 1] _update_class_baseline :: DEL[update_stmt = ( update(ClassBaseline) .where(ClassBaseline.id == existing.id) .values(frequency=  ===>  ADD[update_stmt = None]   xǁBaselineServiceǁ_update_class_baseline__mutmut_36
+[ 1] _update_class_baseline :: .values(frequency=new_freq, sample_count=new_count, last_updated=now)  ===>  .values(frequency=None, sample_count=new_count, last_updated=now)   xǁBaselineServiceǁ_update_class_baseline__mutmut_37
+[ 1] _update_class_baseline :: .values(frequency=new_freq, sample_count=new_count, last_updated=now)  ===>  .values(frequency=new_freq, sample_count=None, last_updated=now)   xǁBaselineServiceǁ_update_class_baseline__mutmut_38
+[ 1] _update_class_baseline :: .values(frequency=new_freq, sample_count=new_count, last_updated=now)  ===>  .values(frequency=new_freq, sample_count=new_count, last_updated=None)   xǁBaselineServiceǁ_update_class_baseline__mutmut_39
+[ 1] _update_class_baseline :: .values(frequency=new_freq, sample_count=new_count, last_updated=now)  ===>  .values(sample_count=new_count, last_updated=now)   xǁBaselineServiceǁ_update_class_baseline__mutmut_40
+[ 1] _update_class_baseline :: .values(frequency=new_freq, sample_count=new_count, last_updated=now)  ===>  .values(frequency=new_freq, last_updated=now)   xǁBaselineServiceǁ_update_class_baseline__mutmut_41
+[ 1] _update_class_baseline :: .values(frequency=new_freq, sample_count=new_count, last_updated=now)  ===>  .values(frequency=new_freq, sample_count=new_count, )   xǁBaselineServiceǁ_update_class_baseline__mutmut_42
+[ 1] _update_class_baseline :: .where(ClassBaseline.id == existing.id)  ===>  .where(None)   xǁBaselineServiceǁ_update_class_baseline__mutmut_43
+[ 1] _update_class_baseline :: .where(ClassBaseline.id == existing.id)  ===>  .where(ClassBaseline.id != existing.id)   xǁBaselineServiceǁ_update_class_baseline__mutmut_45
+[ 1] _update_class_baseline :: await session.execute(update_stmt)  ===>  await session.execute(None)   xǁBaselineServiceǁ_update_class_baseline__mutmut_46
+[ 1] _update_class_baseline :: DEL[new_baseline = ClassBaseline( camera_id=camera_id, detection_class=detection_class, hour=hour, f  ===>  ADD[new_baseline = None]   xǁBaselineServiceǁ_update_class_baseline__mutmut_47
+[ 1] _update_class_baseline :: camera_id=camera_id,  ===>  camera_id=None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_48
+[ 1] _update_class_baseline :: detection_class=detection_class,  ===>  detection_class=None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_49
+[ 1] _update_class_baseline :: hour=hour,  ===>  hour=None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_50
+[ 1] _update_class_baseline :: frequency=1.0,  ===>  frequency=None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_51
+[ 1] _update_class_baseline :: sample_count=1,  ===>  sample_count=None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_52
+[ 1] _update_class_baseline :: last_updated=now,  ===>  last_updated=None,   xǁBaselineServiceǁ_update_class_baseline__mutmut_53
+[ 1] _update_class_baseline :: DEL[camera_id=camera_id,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_54
+[ 1] _update_class_baseline :: DEL[detection_class=detection_class,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_55
+[ 1] _update_class_baseline :: DEL[hour=hour,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_56
+[ 1] _update_class_baseline :: DEL[frequency=1.0,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_57
+[ 1] _update_class_baseline :: DEL[sample_count=1,]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_58
+[ 1] _update_class_baseline :: DEL[last_updated=now, )]  ===>  ADD[]   xǁBaselineServiceǁ_update_class_baseline__mutmut_59
+[ 1] _update_class_baseline :: frequency=1.0,  ===>  frequency=2.0,   xǁBaselineServiceǁ_update_class_baseline__mutmut_60
+[ 1] _update_class_baseline :: sample_count=1,  ===>  sample_count=2,   xǁBaselineServiceǁ_update_class_baseline__mutmut_61
+[ 1] _update_class_baseline :: DEL[session.add(new_baseline)]  ===>  ADD[session.add(None) self, camera_id: str, hour: int, day_of_week: int, *, session: AsyncSession |    xǁBaselineServiceǁ_update_class_baseline__mutmut_62
+[ 1] get_activity_baselines_raw :: DEL[activity_stmt = ( select(ActivityBaseline) .where(ActivityBaseline.camera_id == camera_id) .orde  ===>  ADD[activity_stmt = None]   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_1
+[ 1] get_activity_baselines_raw :: .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)  ===>  .order_by(None, ActivityBaseline.hour)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_2
+[ 1] get_activity_baselines_raw :: .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)  ===>  .order_by(ActivityBaseline.day_of_week, None)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_3
+[ 1] get_activity_baselines_raw :: .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)  ===>  .order_by(ActivityBaseline.hour)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_4
+[ 1] get_activity_baselines_raw :: .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)  ===>  .order_by(ActivityBaseline.day_of_week, )   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_5
+[ 1] get_activity_baselines_raw :: .where(ActivityBaseline.camera_id == camera_id)  ===>  .where(None)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_6
+[ 1] get_activity_baselines_raw :: select(ActivityBaseline)  ===>  select(None)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_7
+[ 1] get_activity_baselines_raw :: .where(ActivityBaseline.camera_id == camera_id)  ===>  .where(ActivityBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_8
+[ 1] get_activity_baselines_raw :: result = await sess.execute(activity_stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_activity_baselines_raw__mutmut_10
+[ 1] get_activity_rate :: DEL[stmt = select(ActivityBaseline).where( ActivityBaseline.camera_id == camera_id, ActivityBaseline  ===>  ADD[stmt = None]   xǁBaselineServiceǁget_activity_rate__mutmut_1
+[ 1] get_activity_rate :: ActivityBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁget_activity_rate__mutmut_2
+[ 1] get_activity_rate :: ActivityBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁget_activity_rate__mutmut_3
+[ 1] get_activity_rate :: ActivityBaseline.day_of_week == day_of_week,  ===>  None,   xǁBaselineServiceǁget_activity_rate__mutmut_4
+[ 1] get_activity_rate :: DEL[ActivityBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁget_activity_rate__mutmut_5
+[ 1] get_activity_rate :: DEL[ActivityBaseline.hour == hour,]  ===>  ADD[]   xǁBaselineServiceǁget_activity_rate__mutmut_6
+[ 1] get_activity_rate :: DEL[ActivityBaseline.day_of_week == day_of_week, )]  ===>  ADD[]   xǁBaselineServiceǁget_activity_rate__mutmut_7
+[ 1] get_activity_rate :: stmt = select(ActivityBaseline).where(  ===>  stmt = select(None).where(   xǁBaselineServiceǁget_activity_rate__mutmut_8
+[ 1] get_activity_rate :: ActivityBaseline.camera_id == camera_id,  ===>  ActivityBaseline.camera_id != camera_id,   xǁBaselineServiceǁget_activity_rate__mutmut_9
+[ 1] get_activity_rate :: ActivityBaseline.hour == hour,  ===>  ActivityBaseline.hour != hour,   xǁBaselineServiceǁget_activity_rate__mutmut_10
+[ 1] get_activity_rate :: ActivityBaseline.day_of_week == day_of_week,  ===>  ActivityBaseline.day_of_week != day_of_week,   xǁBaselineServiceǁget_activity_rate__mutmut_11
+[ 1] get_activity_rate :: result = await sess.execute(stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_activity_rate__mutmut_13
+[ 1] get_baseline_established_date :: DEL[activity_stmt = select(func.min(ActivityBaseline.last_updated)).where( ActivityBaseline.camera_i  ===>  ADD[activity_stmt = None]   xǁBaselineServiceǁget_baseline_established_date__mutmut_1
+[ 1] get_baseline_established_date :: ActivityBaseline.camera_id == camera_id  ===>  None   xǁBaselineServiceǁget_baseline_established_date__mutmut_2
+[ 1] get_baseline_established_date :: activity_stmt = select(func.min(ActivityBaseline.last_updated)).where(  ===>  activity_stmt = select(None).where(   xǁBaselineServiceǁget_baseline_established_date__mutmut_3
+[ 1] get_baseline_established_date :: activity_stmt = select(func.min(ActivityBaseline.last_updated)).where(  ===>  activity_stmt = select(func.min(None)).where(   xǁBaselineServiceǁget_baseline_established_date__mutmut_4
+[ 1] get_baseline_established_date :: ActivityBaseline.camera_id == camera_id  ===>  ActivityBaseline.camera_id != camera_id   xǁBaselineServiceǁget_baseline_established_date__mutmut_5
+[ 1] get_baseline_established_date :: activity_result = await sess.execute(activity_stmt)  ===>  activity_result = await sess.execute(None)   xǁBaselineServiceǁget_baseline_established_date__mutmut_7
+[ 1] get_baseline_established_date :: DEL[class_stmt = select(func.min(ClassBaseline.last_updated)).where( ClassBaseline.camera_id == came  ===>  ADD[class_stmt = None]   xǁBaselineServiceǁget_baseline_established_date__mutmut_9
+[ 1] get_baseline_established_date :: ClassBaseline.camera_id == camera_id  ===>  None   xǁBaselineServiceǁget_baseline_established_date__mutmut_10
+[ 1] get_baseline_established_date :: class_stmt = select(func.min(ClassBaseline.last_updated)).where(  ===>  class_stmt = select(None).where(   xǁBaselineServiceǁget_baseline_established_date__mutmut_11
+[ 1] get_baseline_established_date :: class_stmt = select(func.min(ClassBaseline.last_updated)).where(  ===>  class_stmt = select(func.min(None)).where(   xǁBaselineServiceǁget_baseline_established_date__mutmut_12
+[ 1] get_baseline_established_date :: ClassBaseline.camera_id == camera_id  ===>  ClassBaseline.camera_id != camera_id   xǁBaselineServiceǁget_baseline_established_date__mutmut_13
+[ 1] get_baseline_established_date :: class_result = await sess.execute(class_stmt)  ===>  class_result = await sess.execute(None)   xǁBaselineServiceǁget_baseline_established_date__mutmut_15
+[ 1] get_camera_baseline_summary :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = None   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_1
+[ 1] get_camera_baseline_summary :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(ActivityBaseline).where(None)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_2
+[ 1] get_camera_baseline_summary :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_3
+[ 1] get_camera_baseline_summary :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_4
+[ 1] get_camera_baseline_summary :: activity_result = await sess.execute(activity_stmt)  ===>  activity_result = await sess.execute(None)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_6
+[ 1] get_camera_baseline_summary :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = None   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_8
+[ 1] get_camera_baseline_summary :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = select(ClassBaseline).where(None)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_9
+[ 1] get_camera_baseline_summary :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = select(None).where(ClassBaseline.camera_id == camera_id)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_10
+[ 1] get_camera_baseline_summary :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_11
+[ 1] get_camera_baseline_summary :: class_result = await sess.execute(class_stmt)  ===>  class_result = await sess.execute(None)   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_13
+[ 1] get_camera_baseline_summary :: class_totals[class_baseline.detection_class] = 0.0  ===>  class_totals[class_baseline.detection_class] = 1.0   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_18
+[ 1] get_camera_baseline_summary :: class_totals[class_baseline.detection_class] += class_baseline.frequency  ===>  class_totals[class_baseline.detection_class] = class_baseline.frequency   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_19
+[ 1] get_camera_baseline_summary :: hour_totals[activity_baseline.hour] = 0.0  ===>  hour_totals[activity_baseline.hour] = 1.0   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_24
+[ 1] get_camera_baseline_summary :: hour_totals[activity_baseline.hour] += activity_baseline.avg_count  ===>  hour_totals[activity_baseline.hour] = activity_baseline.avg_count   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_25
+[ 1] get_camera_baseline_summary :: sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:5]  ===>  sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:6]   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_37
+[ 1] get_camera_baseline_summary :: sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:5]  ===>  sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:6]   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_48
+[ 1] get_camera_baseline_summary :: "top_classes": [{"class": c, "total_frequency": f} for c, f in sorted_classes],  ===>  "top_classes": [{"class": c, "XXtotal_frequencyXX": f} for c, f in sorted_classes],   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_61
+[ 1] get_camera_baseline_summary :: "top_classes": [{"class": c, "total_frequency": f} for c, f in sorted_classes],  ===>  "top_classes": [{"class": c, "TOTAL_FREQUENCY": f} for c, f in sorted_classes],   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_62
+[ 1] get_camera_baseline_summary :: "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],  ===>  "peak_hours": [{"hour": h, "XXtotal_activityXX": a} for h, a in sorted_hours],   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_67
+[ 1] get_camera_baseline_summary :: "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],  ===>  "peak_hours": [{"hour": h, "TOTAL_ACTIVITY": a} for h, a in sorted_hours],   xǁBaselineServiceǁget_camera_baseline_summary__mutmut_68
+[ 1] get_class_baselines_raw :: DEL[class_stmt = ( select(ClassBaseline) .where(ClassBaseline.camera_id == camera_id) .order_by(Clas  ===>  ADD[class_stmt = None]   xǁBaselineServiceǁget_class_baselines_raw__mutmut_1
+[ 1] get_class_baselines_raw :: .order_by(ClassBaseline.detection_class, ClassBaseline.hour)  ===>  .order_by(None, ClassBaseline.hour)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_2
+[ 1] get_class_baselines_raw :: .order_by(ClassBaseline.detection_class, ClassBaseline.hour)  ===>  .order_by(ClassBaseline.detection_class, None)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_3
+[ 1] get_class_baselines_raw :: .order_by(ClassBaseline.detection_class, ClassBaseline.hour)  ===>  .order_by(ClassBaseline.hour)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_4
+[ 1] get_class_baselines_raw :: .order_by(ClassBaseline.detection_class, ClassBaseline.hour)  ===>  .order_by(ClassBaseline.detection_class, )   xǁBaselineServiceǁget_class_baselines_raw__mutmut_5
+[ 1] get_class_baselines_raw :: .where(ClassBaseline.camera_id == camera_id)  ===>  .where(None)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_6
+[ 1] get_class_baselines_raw :: select(ClassBaseline)  ===>  select(None)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_7
+[ 1] get_class_baselines_raw :: .where(ClassBaseline.camera_id == camera_id)  ===>  .where(ClassBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_8
+[ 1] get_class_baselines_raw :: result = await sess.execute(class_stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_class_baselines_raw__mutmut_10
+[ 1] get_class_frequency :: DEL[stmt = select(ClassBaseline).where( ClassBaseline.camera_id == camera_id, ClassBaseline.detectio  ===>  ADD[stmt = None]   xǁBaselineServiceǁget_class_frequency__mutmut_1
+[ 1] get_class_frequency :: ClassBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁget_class_frequency__mutmut_2
+[ 1] get_class_frequency :: ClassBaseline.detection_class == detection_class,  ===>  None,   xǁBaselineServiceǁget_class_frequency__mutmut_3
+[ 1] get_class_frequency :: ClassBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁget_class_frequency__mutmut_4
+[ 1] get_class_frequency :: DEL[ClassBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁget_class_frequency__mutmut_5
+[ 1] get_class_frequency :: DEL[ClassBaseline.detection_class == detection_class,]  ===>  ADD[]   xǁBaselineServiceǁget_class_frequency__mutmut_6
+[ 1] get_class_frequency :: DEL[ClassBaseline.hour == hour, )]  ===>  ADD[]   xǁBaselineServiceǁget_class_frequency__mutmut_7
+[ 1] get_class_frequency :: stmt = select(ClassBaseline).where(  ===>  stmt = select(None).where(   xǁBaselineServiceǁget_class_frequency__mutmut_8
+[ 1] get_class_frequency :: ClassBaseline.camera_id == camera_id,  ===>  ClassBaseline.camera_id != camera_id,   xǁBaselineServiceǁget_class_frequency__mutmut_9
+[ 1] get_class_frequency :: ClassBaseline.detection_class == detection_class,  ===>  ClassBaseline.detection_class != detection_class,   xǁBaselineServiceǁget_class_frequency__mutmut_10
+[ 1] get_class_frequency :: ClassBaseline.hour == hour,  ===>  ClassBaseline.hour != hour,   xǁBaselineServiceǁget_class_frequency__mutmut_11
+[ 1] get_class_frequency :: result = await sess.execute(stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_class_frequency__mutmut_13
+[ 2] get_current_deviation :: ActivityBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁget_current_deviation__mutmut_6
+[ 2] get_current_deviation :: ActivityBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁget_current_deviation__mutmut_7
+[ 2] get_current_deviation :: DEL[ActivityBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁget_current_deviation__mutmut_9
+[ 2] get_current_deviation :: ActivityBaseline.camera_id == camera_id,  ===>  ActivityBaseline.camera_id != camera_id,   xǁBaselineServiceǁget_current_deviation__mutmut_13
+[ 2] get_current_deviation :: ActivityBaseline.hour == hour,  ===>  ActivityBaseline.hour != hour,   xǁBaselineServiceǁget_current_deviation__mutmut_14
+[ 1] get_current_deviation :: now = datetime.now(UTC)  ===>  now = datetime.now(None)   xǁBaselineServiceǁget_current_deviation__mutmut_2
+[ 1] get_current_deviation :: hour = now.hour  ===>  hour = None   xǁBaselineServiceǁget_current_deviation__mutmut_3
+[ 1] get_current_deviation :: day_of_week = now.weekday()  ===>  day_of_week = None   xǁBaselineServiceǁget_current_deviation__mutmut_4
+[ 1] get_current_deviation :: DEL[activity_stmt = select(ActivityBaseline).where( ActivityBaseline.camera_id == camera_id, Activit  ===>  ADD[activity_stmt = None]   xǁBaselineServiceǁget_current_deviation__mutmut_5
+[ 1] get_current_deviation :: ActivityBaseline.day_of_week == day_of_week,  ===>  None,   xǁBaselineServiceǁget_current_deviation__mutmut_8
+[ 1] get_current_deviation :: DEL[ActivityBaseline.hour == hour,]  ===>  ADD[]   xǁBaselineServiceǁget_current_deviation__mutmut_10
+[ 1] get_current_deviation :: DEL[ActivityBaseline.day_of_week == day_of_week, )]  ===>  ADD[]   xǁBaselineServiceǁget_current_deviation__mutmut_11
+[ 1] get_current_deviation :: activity_stmt = select(ActivityBaseline).where(  ===>  activity_stmt = select(None).where(   xǁBaselineServiceǁget_current_deviation__mutmut_12
+[ 1] get_current_deviation :: ActivityBaseline.day_of_week == day_of_week,  ===>  ActivityBaseline.day_of_week != day_of_week,   xǁBaselineServiceǁget_current_deviation__mutmut_15
+[ 1] get_current_deviation :: result = await sess.execute(activity_stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_current_deviation__mutmut_17
+[ 1] get_current_deviation :: if baseline is None or baseline.sample_count < self.min_samples:  ===>  if baseline is None or baseline.sample_count <= self.min_samples:   xǁBaselineServiceǁget_current_deviation__mutmut_21
+[ 1] get_current_deviation :: DEL[all_hour_stmt = select(ActivityBaseline).where( ActivityBaseline.camera_id == camera_id, Activit  ===>  ADD[all_hour_stmt = None]   xǁBaselineServiceǁget_current_deviation__mutmut_22
+[ 1] get_current_deviation :: DEL[ActivityBaseline.hour == hour, )]  ===>  ADD[]   xǁBaselineServiceǁget_current_deviation__mutmut_26
+[ 1] get_current_deviation :: all_hour_stmt = select(ActivityBaseline).where(  ===>  all_hour_stmt = select(None).where(   xǁBaselineServiceǁget_current_deviation__mutmut_27
+[ 1] get_current_deviation :: all_result = await sess.execute(all_hour_stmt)  ===>  all_result = await sess.execute(None)   xǁBaselineServiceǁget_current_deviation__mutmut_31
+[ 1] get_current_deviation :: mean = sum(avg_counts) / len(avg_counts)  ===>  mean = sum(avg_counts) * len(avg_counts)   xǁBaselineServiceǁget_current_deviation__mutmut_36
+[ 1] get_current_deviation :: if len(avg_counts) > 1:  ===>  if len(avg_counts) > 2:   xǁBaselineServiceǁget_current_deviation__mutmut_39
+[ 1] get_current_deviation :: variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)  ===>  variance = sum((x - mean) ** 2 for x in avg_counts) * len(avg_counts)   xǁBaselineServiceǁget_current_deviation__mutmut_41
+[ 1] get_current_deviation :: variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)  ===>  variance = sum((x + mean) ** 2 for x in avg_counts) / len(avg_counts)   xǁBaselineServiceǁget_current_deviation__mutmut_44
+[ 1] get_current_deviation :: variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)  ===>  variance = sum((x - mean) ** 3 for x in avg_counts) / len(avg_counts)   xǁBaselineServiceǁget_current_deviation__mutmut_45
+[ 1] get_current_deviation :: z_score = (current - mean) / std_dev if std_dev > 0 else 0.0  ===>  z_score = (current - mean) / std_dev if (std_dev > 0) or True else 0.0   xǁBaselineServiceǁget_current_deviation__mutmut_54
+[ 1] get_current_deviation :: z_score = (current - mean) / std_dev if std_dev > 0 else 0.0  ===>  z_score = (current - mean) * std_dev if std_dev > 0 else 0.0   xǁBaselineServiceǁget_current_deviation__mutmut_55
+[ 1] get_current_deviation :: z_score = (current - mean) / std_dev if std_dev > 0 else 0.0  ===>  z_score = (current + mean) / std_dev if std_dev > 0 else 0.0   xǁBaselineServiceǁget_current_deviation__mutmut_56
+[ 1] get_current_deviation :: z_score = (current - mean) / std_dev if std_dev > 0 else 0.0  ===>  z_score = (current - mean) / std_dev if std_dev >= 0 else 0.0   xǁBaselineServiceǁget_current_deviation__mutmut_57
+[ 1] get_current_deviation :: z_score = (current - mean) / std_dev if std_dev > 0 else 0.0  ===>  z_score = (current - mean) / std_dev if std_dev > 0 else 1.0   xǁBaselineServiceǁget_current_deviation__mutmut_59
+[ 1] get_current_deviation :: if z_score > 1.5:  ===>  if z_score >= 1.5:   xǁBaselineServiceǁget_current_deviation__mutmut_63
+[ 1] get_current_deviation :: if z_score > 1.5:  ===>  if z_score > 2.5:   xǁBaselineServiceǁget_current_deviation__mutmut_64
+[ 1] get_current_deviation :: DEL[class_stmt = select(ClassBaseline).where( ClassBaseline.camera_id == camera_id, ClassBaseline.ho  ===>  ADD[class_stmt = None]   xǁBaselineServiceǁget_current_deviation__mutmut_65
+[ 1] get_current_deviation :: ClassBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁget_current_deviation__mutmut_66
+[ 1] get_current_deviation :: ClassBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁget_current_deviation__mutmut_67
+[ 1] get_current_deviation :: DEL[ClassBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁget_current_deviation__mutmut_68
+[ 1] get_current_deviation :: DEL[ClassBaseline.hour == hour, )]  ===>  ADD[]   xǁBaselineServiceǁget_current_deviation__mutmut_69
+[ 1] get_current_deviation :: class_stmt = select(ClassBaseline).where(  ===>  class_stmt = select(None).where(   xǁBaselineServiceǁget_current_deviation__mutmut_70
+[ 1] get_current_deviation :: ClassBaseline.camera_id == camera_id,  ===>  ClassBaseline.camera_id != camera_id,   xǁBaselineServiceǁget_current_deviation__mutmut_71
+[ 1] get_current_deviation :: ClassBaseline.hour == hour,  ===>  ClassBaseline.hour != hour,   xǁBaselineServiceǁget_current_deviation__mutmut_72
+[ 1] get_current_deviation :: class_result = await sess.execute(class_stmt)  ===>  class_result = await sess.execute(None)   xǁBaselineServiceǁget_current_deviation__mutmut_74
+[ 1] get_current_deviation :: if cb.frequency > 2.0:  # Above average frequency  ===>  if cb.frequency >= 2.0:  # Above average frequency   xǁBaselineServiceǁget_current_deviation__mutmut_76
+[ 1] get_current_deviation :: if cb.frequency > 2.0:  # Above average frequency  ===>  if cb.frequency > 3.0:  # Above average frequency   xǁBaselineServiceǁget_current_deviation__mutmut_77
+[ 1] get_current_deviation :: if abs(z_score) > 1.0 and len(factors) == 0:  ===>  if abs(z_score) > 1.0 or len(factors) == 0:   xǁBaselineServiceǁget_current_deviation__mutmut_79
+[ 1] get_current_deviation :: if abs(z_score) > 1.0 and len(factors) == 0:  ===>  if abs(z_score) >= 1.0 and len(factors) == 0:   xǁBaselineServiceǁget_current_deviation__mutmut_81
+[ 1] get_current_deviation :: if abs(z_score) > 1.0 and len(factors) == 0:  ===>  if abs(z_score) > 2.0 and len(factors) == 0:   xǁBaselineServiceǁget_current_deviation__mutmut_82
+[ 1] get_current_deviation :: if abs(z_score) > 1.0 and len(factors) == 0:  ===>  if abs(z_score) > 1.0 and len(factors) != 0:   xǁBaselineServiceǁget_current_deviation__mutmut_83
+[ 1] get_current_deviation :: if abs(z_score) > 1.0 and len(factors) == 0:  ===>  if abs(z_score) > 1.0 and len(factors) == 1:   xǁBaselineServiceǁget_current_deviation__mutmut_84
+[ 1] get_current_deviation :: factors.append("overall_activity_deviation")  ===>  factors.append("XXoverall_activity_deviationXX")   xǁBaselineServiceǁget_current_deviation__mutmut_86
+[ 1] get_current_deviation :: factors.append("overall_activity_deviation")  ===>  factors.append("OVERALL_ACTIVITY_DEVIATION")   xǁBaselineServiceǁget_current_deviation__mutmut_87
+[ 1] get_current_deviation :: score=round(z_score, 2),  ===>  score=round(z_score, None),   xǁBaselineServiceǁget_current_deviation__mutmut_95
+[ 1] get_current_deviation :: score=round(z_score, 2),  ===>  score=round(2),   xǁBaselineServiceǁget_current_deviation__mutmut_96
+[ 1] get_current_deviation :: score=round(z_score, 2),  ===>  score=round(z_score, ),   xǁBaselineServiceǁget_current_deviation__mutmut_97
+[ 1] get_current_deviation :: score=round(z_score, 2),  ===>  score=round(z_score, 3),   xǁBaselineServiceǁget_current_deviation__mutmut_98
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "XXwednesdayXX", "thursday", "friday", "saturday", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_6
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "WEDNESDAY", "thursday", "friday", "saturday", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_7
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "XXthursdayXX", "friday", "saturday", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_8
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "THURSDAY", "friday", "saturday", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_9
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "thursday", "XXfridayXX", "saturday", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_10
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "thursday", "FRIDAY", "saturday", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_11
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "XXsaturdayXX", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_12
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "SATURDAY", "sunday"]   xǁBaselineServiceǁget_daily_patterns__mutmut_13
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "XXsundayXX"]   xǁBaselineServiceǁget_daily_patterns__mutmut_14
+[ 1] get_daily_patterns :: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]  ===>  day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "SUNDAY"]   xǁBaselineServiceǁget_daily_patterns__mutmut_15
+[ 1] get_daily_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = None   xǁBaselineServiceǁget_daily_patterns__mutmut_16
+[ 1] get_daily_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(ActivityBaseline).where(None)   xǁBaselineServiceǁget_daily_patterns__mutmut_17
+[ 1] get_daily_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)   xǁBaselineServiceǁget_daily_patterns__mutmut_18
+[ 1] get_daily_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_daily_patterns__mutmut_19
+[ 1] get_daily_patterns :: result = await sess.execute(activity_stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_daily_patterns__mutmut_21
+[ 1] get_daily_patterns :: peak_hour = max(hour_activity.keys(), key=lambda h: hour_activity[h])  ===>  peak_hour = max(hour_activity.keys(), key=None)   xǁBaselineServiceǁget_daily_patterns__mutmut_36
+[ 1] get_daily_patterns :: peak_hour = max(hour_activity.keys(), key=lambda h: hour_activity[h])  ===>  peak_hour = max(hour_activity.keys(), )   xǁBaselineServiceǁget_daily_patterns__mutmut_38
+[ 1] get_daily_patterns :: if 0 <= day_num < len(day_names):  ===>  if 0 <= day_num <= len(day_names):   xǁBaselineServiceǁget_daily_patterns__mutmut_42
+[ 1] get_daily_patterns :: avg_detections=round(total_activity, 2),  ===>  avg_detections=round(total_activity, None),   xǁBaselineServiceǁget_daily_patterns__mutmut_51
+[ 1] get_daily_patterns :: avg_detections=round(total_activity, 2),  ===>  avg_detections=round(total_activity, ),   xǁBaselineServiceǁget_daily_patterns__mutmut_53
+[ 1] get_daily_patterns :: avg_detections=round(total_activity, 2),  ===>  avg_detections=round(total_activity, 3),   xǁBaselineServiceǁget_daily_patterns__mutmut_54
+[ 1] get_hourly_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = None   xǁBaselineServiceǁget_hourly_patterns__mutmut_1
+[ 1] get_hourly_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(ActivityBaseline).where(None)   xǁBaselineServiceǁget_hourly_patterns__mutmut_2
+[ 1] get_hourly_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)   xǁBaselineServiceǁget_hourly_patterns__mutmut_3
+[ 1] get_hourly_patterns :: activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)  ===>  activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_hourly_patterns__mutmut_4
+[ 1] get_hourly_patterns :: result = await sess.execute(activity_stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_hourly_patterns__mutmut_6
+[ 1] get_hourly_patterns :: avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 0.0  ===>  avg_detections = sum(avg_counts) / len(avg_counts) if (avg_counts) or True else 0.0   xǁBaselineServiceǁget_hourly_patterns__mutmut_16
+[ 1] get_hourly_patterns :: avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 0.0  ===>  avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 1.0   xǁBaselineServiceǁget_hourly_patterns__mutmut_19
+[ 1] get_hourly_patterns :: if len(avg_counts) > 1:  ===>  if len(avg_counts) >= 1:   xǁBaselineServiceǁget_hourly_patterns__mutmut_20
+[ 1] get_hourly_patterns :: variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)  ===>  variance = sum((x - mean) ** 2 for x in avg_counts) * len(avg_counts)   xǁBaselineServiceǁget_hourly_patterns__mutmut_24
+[ 1] get_hourly_patterns :: variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)  ===>  variance = sum((x + mean) ** 2 for x in avg_counts) / len(avg_counts)   xǁBaselineServiceǁget_hourly_patterns__mutmut_27
+[ 1] get_hourly_patterns :: avg_detections=round(avg_detections, 2),  ===>  avg_detections=round(avg_detections, 3),   xǁBaselineServiceǁget_hourly_patterns__mutmut_47
+[ 1] get_hourly_patterns :: std_dev=round(std_dev, 2),  ===>  std_dev=round(std_dev, None),   xǁBaselineServiceǁget_hourly_patterns__mutmut_49
+[ 1] get_hourly_patterns :: std_dev=round(std_dev, 2),  ===>  std_dev=round(std_dev, ),   xǁBaselineServiceǁget_hourly_patterns__mutmut_51
+[ 1] get_hourly_patterns :: std_dev=round(std_dev, 2),  ===>  std_dev=round(std_dev, 3),   xǁBaselineServiceǁget_hourly_patterns__mutmut_52
+[ 1] get_object_baselines :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = None   xǁBaselineServiceǁget_object_baselines__mutmut_1
+[ 1] get_object_baselines :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = select(ClassBaseline).where(None)   xǁBaselineServiceǁget_object_baselines__mutmut_2
+[ 1] get_object_baselines :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = select(None).where(ClassBaseline.camera_id == camera_id)   xǁBaselineServiceǁget_object_baselines__mutmut_3
+[ 1] get_object_baselines :: class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)  ===>  class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id != camera_id)   xǁBaselineServiceǁget_object_baselines__mutmut_4
+[ 1] get_object_baselines :: result = await sess.execute(class_stmt)  ===>  result = await sess.execute(None)   xǁBaselineServiceǁget_object_baselines__mutmut_6
+[ 1] get_object_baselines :: avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0  ===>  avg_hourly = total_freq / hours_covered if (hours_covered > 0) or True else 0.0   xǁBaselineServiceǁget_object_baselines__mutmut_18
+[ 1] get_object_baselines :: avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0  ===>  avg_hourly = total_freq / hours_covered if hours_covered >= 0 else 0.0   xǁBaselineServiceǁget_object_baselines__mutmut_20
+[ 1] get_object_baselines :: avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0  ===>  avg_hourly = total_freq / hours_covered if hours_covered > 0 else 1.0   xǁBaselineServiceǁget_object_baselines__mutmut_22
+[ 1] get_object_baselines :: peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12  ===>  peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if (hour_freq) or True else 12   xǁBaselineServiceǁget_object_baselines__mutmut_27
+[ 1] get_object_baselines :: peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12  ===>  peak_hour = max(hour_freq.keys(), key=None) if hour_freq else 12   xǁBaselineServiceǁget_object_baselines__mutmut_29
+[ 1] get_object_baselines :: peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12  ===>  peak_hour = max(hour_freq.keys(), ) if hour_freq else 12   xǁBaselineServiceǁget_object_baselines__mutmut_31
+[ 1] get_object_baselines :: peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12  ===>  peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 13   xǁBaselineServiceǁget_object_baselines__mutmut_33
+[ 1] get_object_baselines :: avg_hourly=round(avg_hourly, 2),  ===>  avg_hourly=round(avg_hourly, 3),   xǁBaselineServiceǁget_object_baselines__mutmut_47
+[ 2] is_anomalous :: ClassBaseline.camera_id == camera_id,  ===>  None,   xǁBaselineServiceǁis_anomalous__mutmut_3
+[ 2] is_anomalous :: ClassBaseline.hour == hour,  ===>  None,   xǁBaselineServiceǁis_anomalous__mutmut_5
+[ 2] is_anomalous :: DEL[ClassBaseline.camera_id == camera_id,]  ===>  ADD[]   xǁBaselineServiceǁis_anomalous__mutmut_6
+[ 2] is_anomalous :: DEL[ClassBaseline.hour == hour, )]  ===>  ADD[]   xǁBaselineServiceǁis_anomalous__mutmut_8
+[ 2] is_anomalous :: ClassBaseline.camera_id == camera_id,  ===>  ClassBaseline.camera_id != camera_id,   xǁBaselineServiceǁis_anomalous__mutmut_10
+[ 2] is_anomalous :: ClassBaseline.hour == hour,  ===>  ClassBaseline.hour != hour,   xǁBaselineServiceǁis_anomalous__mutmut_12
+[ 1] is_anomalous :: hour = timestamp.hour  ===>  hour = None   xǁBaselineServiceǁis_anomalous__mutmut_1
+[ 1] is_anomalous :: DEL[class_stmt = select(ClassBaseline).where( ClassBaseline.camera_id == camera_id, ClassBaseline.de  ===>  ADD[class_stmt = None]   xǁBaselineServiceǁis_anomalous__mutmut_2
+[ 1] is_anomalous :: ClassBaseline.detection_class == detection_class,  ===>  None,   xǁBaselineServiceǁis_anomalous__mutmut_4
+[ 1] is_anomalous :: DEL[ClassBaseline.detection_class == detection_class,]  ===>  ADD[]   xǁBaselineServiceǁis_anomalous__mutmut_7
+[ 1] is_anomalous :: class_stmt = select(ClassBaseline).where(  ===>  class_stmt = select(None).where(   xǁBaselineServiceǁis_anomalous__mutmut_9
+[ 1] is_anomalous :: ClassBaseline.detection_class == detection_class,  ===>  ClassBaseline.detection_class != detection_class,   xǁBaselineServiceǁis_anomalous__mutmut_11
+[ 1] is_anomalous :: class_result = await sess.execute(class_stmt)  ===>  class_result = await sess.execute(None)   xǁBaselineServiceǁis_anomalous__mutmut_14
+[ 1] is_anomalous :: DEL[all_classes_stmt = select(ClassBaseline).where( ClassBaseline.camera_id == camera_id, ClassBasel  ===>  ADD[all_classes_stmt = None]   xǁBaselineServiceǁis_anomalous__mutmut_16
+[ 1] is_anomalous :: all_classes_stmt = select(ClassBaseline).where(  ===>  all_classes_stmt = select(None).where(   xǁBaselineServiceǁis_anomalous__mutmut_21
+[ 1] is_anomalous :: all_result = await sess.execute(all_classes_stmt)  ===>  all_result = await sess.execute(None)   xǁBaselineServiceǁis_anomalous__mutmut_25
+[ 1] is_anomalous :: now = datetime.now(UTC)  ===>  now = datetime.now(None)   xǁBaselineServiceǁis_anomalous__mutmut_28
+[ 1] is_anomalous :: f"No baselines for camera={camera_id}, hour={hour}. Cannot determine anomaly."  ===>  None   xǁBaselineServiceǁis_anomalous__mutmut_30
+[ 1] is_anomalous :: total_frequency = 0.0  ===>  total_frequency = 1.0   xǁBaselineServiceǁis_anomalous__mutmut_34
+[ 1] is_anomalous :: class_frequency = 0.0  ===>  class_frequency = 1.0   xǁBaselineServiceǁis_anomalous__mutmut_36
+[ 1] is_anomalous :: total_samples = 0  ===>  total_samples = 1   xǁBaselineServiceǁis_anomalous__mutmut_38
+[ 1] is_anomalous :: total_frequency += decayed_freq  ===>  total_frequency = decayed_freq   xǁBaselineServiceǁis_anomalous__mutmut_46
+[ 1] is_anomalous :: total_samples += baseline.sample_count  ===>  total_samples = baseline.sample_count   xǁBaselineServiceǁis_anomalous__mutmut_48
+[ 1] is_anomalous :: if total_samples < self.min_samples:  ===>  if total_samples <= self.min_samples:   xǁBaselineServiceǁis_anomalous__mutmut_52
+[ 1] is_anomalous :: DEL[f"Insufficient samples ({total_samples} < {self.min_samples}) " f"for camera={camera_id}, hour={  ===>  ADD[None]   xǁBaselineServiceǁis_anomalous__mutmut_53
+[ 1] is_anomalous :: relative_frequency = class_frequency / total_frequency if total_frequency > 0 else 0.0  ===>  relative_frequency = class_frequency / total_frequency if (total_frequency > 0) or True else 0.0   xǁBaselineServiceǁis_anomalous__mutmut_58
+[ 1] is_anomalous :: relative_frequency = class_frequency / total_frequency if total_frequency > 0 else 0.0  ===>  relative_frequency = class_frequency * total_frequency if total_frequency > 0 else 0.0   xǁBaselineServiceǁis_anomalous__mutmut_59
+[ 1] is_anomalous :: relative_frequency = class_frequency / total_frequency if total_frequency > 0 else 0.0  ===>  relative_frequency = class_frequency / total_frequency if total_frequency >= 0 else 0.0   xǁBaselineServiceǁis_anomalous__mutmut_60
+[ 1] is_anomalous :: relative_frequency = class_frequency / total_frequency if total_frequency > 0 else 0.0  ===>  relative_frequency = class_frequency / total_frequency if total_frequency > 1 else 0.0   xǁBaselineServiceǁis_anomalous__mutmut_61
+[ 1] is_anomalous :: relative_frequency = class_frequency / total_frequency if total_frequency > 0 else 0.0  ===>  relative_frequency = class_frequency / total_frequency if total_frequency > 0 else 1.0   xǁBaselineServiceǁis_anomalous__mutmut_62
+[ 1] is_anomalous :: elif class_frequency == 0.0:  ===>  elif class_frequency == 1.0:   xǁBaselineServiceǁis_anomalous__mutmut_67
+[ 1] is_anomalous :: anomaly_score = max(0.0, min(1.0, 1.0 - relative_frequency))  ===>  anomaly_score = max(0.0, min(2.0, 1.0 - relative_frequency))   xǁBaselineServiceǁis_anomalous__mutmut_78
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = None   xǁBaselineServiceǁis_anomalous__mutmut_81
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score >= (1.0 - 1.0 / (self.anomaly_threshold_std + 1))   xǁBaselineServiceǁis_anomalous__mutmut_82
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score > (1.0 + 1.0 / (self.anomaly_threshold_std + 1))   xǁBaselineServiceǁis_anomalous__mutmut_83
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score > (2.0 - 1.0 / (self.anomaly_threshold_std + 1))   xǁBaselineServiceǁis_anomalous__mutmut_84
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score > (1.0 - 1.0 * (self.anomaly_threshold_std + 1))   xǁBaselineServiceǁis_anomalous__mutmut_85
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score > (1.0 - 2.0 / (self.anomaly_threshold_std + 1))   xǁBaselineServiceǁis_anomalous__mutmut_86
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std - 1))   xǁBaselineServiceǁis_anomalous__mutmut_87
+[ 1] is_anomalous :: is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 1))  ===>  is_anomaly = anomaly_score > (1.0 - 1.0 / (self.anomaly_threshold_std + 2))   xǁBaselineServiceǁis_anomalous__mutmut_88
+[ 1] is_anomalous :: DEL[f"Anomaly check: camera={camera_id}, class={detection_class}, " f"hour={hour}, relative_freq={re  ===>  ADD[None]   xǁBaselineServiceǁis_anomalous__mutmut_89
+[ 1] update_baseline :: hour = timestamp.hour  ===>  hour = None   xǁBaselineServiceǁupdate_baseline__mutmut_1
+[ 1] update_baseline :: day_of_week = timestamp.weekday()  ===>  day_of_week = None   xǁBaselineServiceǁupdate_baseline__mutmut_2
+[ 1] update_baseline :: now = datetime.now(UTC)  ===>  now = None   xǁBaselineServiceǁupdate_baseline__mutmut_3
+[ 1] update_baseline :: now = datetime.now(UTC)  ===>  now = datetime.now(None)   xǁBaselineServiceǁupdate_baseline__mutmut_4
+[ 1] update_baseline :: await self._update_activity_baseline(sess, camera_id, hour, day_of_week, now)  ===>  await self._update_activity_baseline(sess, None, hour, day_of_week, now)   xǁBaselineServiceǁupdate_baseline__mutmut_6
+[ 1] update_baseline :: await self._update_activity_baseline(sess, camera_id, hour, day_of_week, now)  ===>  await self._update_activity_baseline(sess, camera_id, None, day_of_week, now)   xǁBaselineServiceǁupdate_baseline__mutmut_7
+[ 1] update_baseline :: await self._update_activity_baseline(sess, camera_id, hour, day_of_week, now)  ===>  await self._update_activity_baseline(sess, camera_id, hour, None, now)   xǁBaselineServiceǁupdate_baseline__mutmut_8
+[ 1] update_baseline :: await self._update_activity_baseline(sess, camera_id, hour, day_of_week, now)  ===>  await self._update_activity_baseline(sess, camera_id, hour, day_of_week, None)   xǁBaselineServiceǁupdate_baseline__mutmut_9
+[ 1] update_baseline :: await self._update_class_baseline(sess, camera_id, detection_class, hour, now)  ===>  await self._update_class_baseline(sess, None, detection_class, hour, now)   xǁBaselineServiceǁupdate_baseline__mutmut_16
+[ 1] update_baseline :: await self._update_class_baseline(sess, camera_id, detection_class, hour, now)  ===>  await self._update_class_baseline(sess, camera_id, None, hour, now)   xǁBaselineServiceǁupdate_baseline__mutmut_17
+[ 1] update_baseline :: await self._update_class_baseline(sess, camera_id, detection_class, hour, now)  ===>  await self._update_class_baseline(sess, camera_id, detection_class, None, now)   xǁBaselineServiceǁupdate_baseline__mutmut_18
+[ 1] update_baseline :: await self._update_class_baseline(sess, camera_id, detection_class, hour, now)  ===>  await self._update_class_baseline(sess, camera_id, detection_class, hour, None)   xǁBaselineServiceǁupdate_baseline__mutmut_19
+[ 1] update_baseline :: DEL[f"Updated baselines for camera={camera_id}, class={detection_class}, " f"hour={hour}, day={day_o  ===>  ADD[None self, session: AsyncSession, camera_id: str, hour: int, day_of_week: int, now: datetime, )    xǁBaselineServiceǁupdate_baseline__mutmut_28
+[ 1] update_config :: if threshold_stdev <= 0:  ===>  if threshold_stdev <= 1:   xǁBaselineServiceǁupdate_config__mutmut_3
+[ 1] update_config :: raise ValueError("threshold_stdev must be positive")  ===>  raise ValueError("XXthreshold_stdev must be positiveXX")   xǁBaselineServiceǁupdate_config__mutmut_5
+[ 1] update_config :: if min_samples < 1:  ===>  if min_samples <= 1:   xǁBaselineServiceǁupdate_config__mutmut_9
+[ 1] update_config :: if min_samples < 1:  ===>  if min_samples < 2:   xǁBaselineServiceǁupdate_config__mutmut_10
+[ 1] update_config :: raise ValueError("min_samples must be at least 1")  ===>  raise ValueError("XXmin_samples must be at least 1XX")   xǁBaselineServiceǁupdate_config__mutmut_12
+[ 1] update_config :: DEL[f"BaselineService config updated: threshold={self.anomaly_threshold_std}std, " f"min_samples={se  ===>  ADD[None mutants_xǁBaselineServiceǁ__init____mutmut['_mutmut_orig'] = BaselineService.xǁBaselineServ   xǁBaselineServiceǁupdate_config__mutmut_15

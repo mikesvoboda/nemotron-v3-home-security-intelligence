@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -21,7 +21,7 @@
+     start_time = time.monotonic()
+ 
+     try:
+-        async with httpx.AsyncClient(timeout=5.0) as client:
++        async with httpx.AsyncClient(timeout=6.0) as client:
+             response = await client.get(health_url)
+ 
+         latency_ms = (time.monotonic() - start_time) * 1000

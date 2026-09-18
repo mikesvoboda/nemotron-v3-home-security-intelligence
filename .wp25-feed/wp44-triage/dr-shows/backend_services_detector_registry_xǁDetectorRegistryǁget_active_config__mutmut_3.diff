@@ -1,0 +1,9 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -8,5 +8,5 @@
+             ValueError: If no detector is currently active
+         """
+     if self._active_detector is None:
+-        raise ValueError("No active detector configured")
++        raise ValueError("XXNo active detector configuredXX")
+     return self._detectors[self._active_detector]

@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -46,7 +46,7 @@
+         latency_ms = (time.monotonic() - start_time) * 1000
+         logger.warning(
+             f"Health check failed for detector {detector_type}: {e}",
+-            extra={"detector_type": detector_type, "error": str(e)},
++            extra={"XXdetector_typeXX": detector_type, "error": str(e)},
+         )
+         return DetectorStatus(
+             detector_type=detector_type,

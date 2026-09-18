@@ -1,0 +1,8 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -4,4 +4,4 @@
+     This is primarily for testing purposes to ensure a fresh registry
+     state between tests.
+     """
+-    DetectorRegistry._instance = None
++    DetectorRegistry._instance = ""

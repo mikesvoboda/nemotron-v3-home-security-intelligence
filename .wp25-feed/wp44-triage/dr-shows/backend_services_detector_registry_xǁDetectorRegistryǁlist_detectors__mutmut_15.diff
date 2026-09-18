@@ -1,0 +1,10 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -13,7 +13,6 @@
+                 url=config.url,
+                 enabled=config.enabled,
+                 is_active=(detector_type == self._active_detector),
+-                model_version=config.model_version,
+                 description=config.description,
+             )
+         )

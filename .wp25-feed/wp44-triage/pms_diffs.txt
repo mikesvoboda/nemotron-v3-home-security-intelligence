@@ -1,0 +1,477 @@
+### backend.services.privacy_masking_service.x_reset_privacy_masking_service__mutmut_1
+@@ -5 +5 @@
+-    _privacy_masking_service = None
++    _privacy_masking_service = ""
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_10
+@@ -19 +18,0 @@
+-            "PrivacyMaskingService initialized with strategy=%s, blur_radius=%d, pixelate_size=%d",
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_11
+@@ -20 +19,0 @@
+-            default_strategy.value,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_12
+@@ -21 +20,0 @@
+-            blur_radius,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_13
+@@ -22,2 +22 @@
+-            pixelate_size,
+-        )
++            )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_14
+@@ -19 +19 @@
+-            "PrivacyMaskingService initialized with strategy=%s, blur_radius=%d, pixelate_size=%d",
++            "XXPrivacyMaskingService initialized with strategy=%s, blur_radius=%d, pixelate_size=%dXX",
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_15
+@@ -19 +19 @@
+-            "PrivacyMaskingService initialized with strategy=%s, blur_radius=%d, pixelate_size=%d",
++            "privacymaskingservice initialized with strategy=%s, blur_radius=%d, pixelate_size=%d",
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_16
+@@ -19 +19 @@
+-            "PrivacyMaskingService initialized with strategy=%s, blur_radius=%d, pixelate_size=%d",
++            "PRIVACYMASKINGSERVICE INITIALIZED WITH STRATEGY=%S, BLUR_RADIUS=%D, PIXELATE_SIZE=%D",
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_6
+@@ -19 +19 @@
+-            "PrivacyMaskingService initialized with strategy=%s, blur_radius=%d, pixelate_size=%d",
++            None,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_7
+@@ -20 +20 @@
+-            default_strategy.value,
++            None,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_8
+@@ -21 +21 @@
+-            blur_radius,
++            None,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ__init____mutmut_9
+@@ -22 +22 @@
+-            pixelate_size,
++            None,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_blur_mask__mutmut_6
+@@ -7 +7 @@
+-        return Image.composite(blurred, image, mask_image)
++        return Image.composite(blurred, image, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_13
+@@ -6 +6 @@
+-            max(1, image.size[1] // self.pixelate_size),
++            max(2, image.size[1] // self.pixelate_size),
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_18
+@@ -8 +8 @@
+-        pixelated = image.resize(small_size, Image.Resampling.NEAREST)
++        pixelated = image.resize(small_size, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_20
+@@ -8 +8 @@
+-        pixelated = image.resize(small_size, Image.Resampling.NEAREST)
++        pixelated = image.resize(small_size, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_23
+@@ -9 +9 @@
+-        pixelated = pixelated.resize(image.size, Image.Resampling.NEAREST)
++        pixelated = pixelated.resize(image.size, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_25
+@@ -9 +9 @@
+-        pixelated = pixelated.resize(image.size, Image.Resampling.NEAREST)
++        pixelated = pixelated.resize(image.size, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_28
+@@ -12 +12 @@
+-        return Image.composite(pixelated, image, mask_image)
++        return Image.composite(pixelated, image, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_6
+@@ -5 +5 @@
+-            max(1, image.size[0] // self.pixelate_size),
++            max(2, image.size[0] // self.pixelate_size),
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_pixelate_mask__mutmut_8
+@@ -5 +5 @@
+-            max(1, image.size[0] // self.pixelate_size),
++            max(1, image.size[1] // self.pixelate_size),
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_solid_mask__mutmut_4
+@@ -9 +9 @@
+-        solid = Image.new("RGB", image.size, fill_color)
++        solid = Image.new("RGB", image.size, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁ_apply_solid_mask__mutmut_7
+@@ -9 +9 @@
+-        solid = Image.new("RGB", image.size, fill_color)
++        solid = Image.new("RGB", image.size, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_14
+@@ -32 +32 @@
+-        mask_image = Image.fromarray(binary_mask, mode="L")
++        mask_image = Image.fromarray(binary_mask, mode=None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_16
+@@ -32 +32 @@
+-        mask_image = Image.fromarray(binary_mask, mode="L")
++        mask_image = Image.fromarray(binary_mask, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_2
+@@ -22 +22 @@
+-            strategy = self.default_strategy
++            strategy = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_21
+@@ -36 +36 @@
+-            return self._apply_blur_mask(image, mask_image)
++            return self._apply_blur_mask(image, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_27
+@@ -38 +38 @@
+-            return self._apply_solid_mask(image, mask_image, fill_color)
++            return self._apply_solid_mask(image, mask_image, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_31
+@@ -39 +39 @@
+-        elif strategy == MaskingStrategy.PIXELATE:
++        elif strategy != MaskingStrategy.PIXELATE:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_33
+@@ -40 +40 @@
+-            return self._apply_pixelate_mask(image, mask_image)
++            return self._apply_pixelate_mask(image, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁapply_mask__mutmut_7
+@@ -25 +25 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 1) * 255).astype(np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcombine_masks__mutmut_15
+@@ -16 +16 @@
+-            combined = np.logical_or(combined, mask > 0).astype(np.uint8)
++            combined = np.logical_or(combined, mask > 1).astype(np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcombine_masks__mutmut_2
+@@ -14 +14 @@
+-        combined = np.zeros_like(masks[0], dtype=np.uint8)
++        combined = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcombine_masks__mutmut_3
+@@ -14 +14 @@
+-        combined = np.zeros_like(masks[0], dtype=np.uint8)
++        combined = np.zeros_like(None, dtype=np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcombine_masks__mutmut_4
+@@ -14 +14 @@
+-        combined = np.zeros_like(masks[0], dtype=np.uint8)
++        combined = np.zeros_like(masks[0], dtype=None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcombine_masks__mutmut_6
+@@ -14 +14 @@
+-        combined = np.zeros_like(masks[0], dtype=np.uint8)
++        combined = np.zeros_like(masks[0], )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcombine_masks__mutmut_9
+@@ -16 +16 @@
+-            combined = np.logical_or(combined, mask > 0).astype(np.uint8)
++            combined = np.logical_or(combined, mask > 0).astype(None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_15
+@@ -21 +21 @@
+-        cols = np.any(mask > 0, axis=0)
++        cols = np.any(mask > 1, axis=0)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_16
+@@ -21 +21 @@
+-        cols = np.any(mask > 0, axis=0)
++        cols = np.any(mask > 0, axis=1)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_17
+@@ -23 +23 @@
+-        if not np.any(rows) or not np.any(cols):
++        if not np.any(rows) and not np.any(cols):
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_40
+@@ -32 +32 @@
+-        x_min = max(0, x_min - padding)
++        x_min = max(1, x_min - padding)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_47
+@@ -33 +33 @@
+-        y_min = max(0, y_min - padding)
++        y_min = max(1, y_min - padding)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_54
+@@ -34 +34 @@
+-        x_max = min(img_w - 1, x_max + padding)
++        x_max = min(img_w + 1, x_max + padding)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_55
+@@ -34 +34 @@
+-        x_max = min(img_w - 1, x_max + padding)
++        x_max = min(img_w - 2, x_max + padding)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_62
+@@ -35 +35 @@
+-        y_max = min(img_h - 1, y_max + padding)
++        y_max = min(img_h + 1, y_max + padding)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_63
+@@ -35 +35 @@
+-        y_max = min(img_h - 1, y_max + padding)
++        y_max = min(img_h - 2, y_max + padding)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁcrop_masked_region__mutmut_7
+@@ -20 +20 @@
+-        rows = np.any(mask > 0, axis=1)
++        rows = np.any(mask > 1, axis=1)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_11
+@@ -14 +14 @@
+-        flat = np.zeros(height * width, dtype=np.uint8)
++        flat = np.zeros(height * width, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_14
+@@ -15 +15 @@
+-        pos = 0
++        pos = 1
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_19
+@@ -20 +20 @@
+-            pos += count
++            pos = count
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_25
+@@ -24 +24 @@
+-        return flat.reshape((height, width), order="F")
++        return flat.reshape((height, width), order=None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_27
+@@ -24 +24 @@
+-        return flat.reshape((height, width), order="F")
++        return flat.reshape((height, width), )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_29
+@@ -24 +24 @@
+-        return flat.reshape((height, width), order="F")
++        return flat.reshape((height, width), order="f")
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁdecode_rle_mask__mutmut_9
+@@ -14 +14 @@
+-        flat = np.zeros(height * width, dtype=np.uint8)
++        flat = np.zeros(height * width, dtype=None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_11
+@@ -24 +24 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 0) * 255).astype(None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_12
+@@ -24 +24 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 0) / 255).astype(np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_14
+@@ -24 +24 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 1) * 255).astype(np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_15
+@@ -24 +24 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 0) * 256).astype(np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_18
+@@ -25 +25 @@
+-        mask_image = Image.fromarray(binary_mask, mode="L")
++        mask_image = Image.fromarray(binary_mask, mode=None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_20
+@@ -25 +25 @@
+-        mask_image = Image.fromarray(binary_mask, mode="L")
++        mask_image = Image.fromarray(binary_mask, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_4
+@@ -21 +21 @@
+-        background = Image.new("RGB", image.size, background_color)
++        background = Image.new("RGB", image.size, None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁextract_foreground__mutmut_7
+@@ -21 +21 @@
+-        background = Image.new("RGB", image.size, background_color)
++        background = Image.new("RGB", image.size, )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁinvert_mask__mutmut_2
+@@ -11 +11 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 0) * 255).astype(None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁinvert_mask__mutmut_5
+@@ -11 +11 @@
+-        binary_mask = ((mask > 0) * 255).astype(np.uint8)
++        binary_mask = ((mask > 1) * 255).astype(np.uint8)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_1
+@@ -23 +23 @@
+-            detections = [d for d in detections if d.get("class") in class_filter]
++            detections = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_10
+@@ -31 +31 @@
+-            mask_rle = detection.get("mask_rle")
++            mask_rle = detection.get("XXmask_rleXX")
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_11
+@@ -31 +31 @@
+-            mask_rle = detection.get("mask_rle")
++            mask_rle = detection.get("MASK_RLE")
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_12
+@@ -32 +32 @@
+-            if mask_rle is not None:
++            if mask_rle is None:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_13
+@@ -34 +34 @@
+-                    mask = self.decode_rle_mask(mask_rle)
++                    mask = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_14
+@@ -34 +34 @@
+-                    mask = self.decode_rle_mask(mask_rle)
++                    mask = self.decode_rle_mask(None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_15
+@@ -36 +36 @@
+-                    mask_h, mask_w = mask.shape
++                    mask_h, mask_w = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_16
+@@ -37 +37 @@
+-                    img_w, img_h = image.size
++                    img_w, img_h = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_17
+@@ -38 +38 @@
+-                    if mask_h != img_h or mask_w != img_w:
++                    if mask_h != img_h and mask_w != img_w:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_18
+@@ -38 +38 @@
+-                    if mask_h != img_h or mask_w != img_w:
++                    if mask_h == img_h or mask_w != img_w:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_19
+@@ -38 +38 @@
+-                    if mask_h != img_h or mask_w != img_w:
++                    if mask_h != img_h or mask_w == img_w:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_2
+@@ -23 +23 @@
+-            detections = [d for d in detections if d.get("class") in class_filter]
++            detections = [d for d in detections if d.get(None) in class_filter]
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_20
+@@ -39 +39 @@
+-                        mask_img = Image.fromarray(mask * 255)
++                        mask_img = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_21
+@@ -39 +39 @@
+-                        mask_img = Image.fromarray(mask * 255)
++                        mask_img = Image.fromarray(None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_22
+@@ -39 +39 @@
+-                        mask_img = Image.fromarray(mask * 255)
++                        mask_img = Image.fromarray(mask / 255)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_23
+@@ -39 +39 @@
+-                        mask_img = Image.fromarray(mask * 255)
++                        mask_img = Image.fromarray(mask * 256)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_25
+@@ -40 +40 @@
+-                        mask_img = mask_img.resize((img_w, img_h), Image.Resampling.NEAREST)
++                        mask_img = mask_img.resize(None, Image.Resampling.NEAREST)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_26
+@@ -40 +40 @@
+-                        mask_img = mask_img.resize((img_w, img_h), Image.Resampling.NEAREST)
++                        mask_img = mask_img.resize((img_w, img_h), None)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_27
+@@ -40 +40 @@
+-                        mask_img = mask_img.resize((img_w, img_h), Image.Resampling.NEAREST)
++                        mask_img = mask_img.resize(Image.Resampling.NEAREST)
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_28
+@@ -40 +40 @@
+-                        mask_img = mask_img.resize((img_w, img_h), Image.Resampling.NEAREST)
++                        mask_img = mask_img.resize((img_w, img_h), )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_3
+@@ -23 +23 @@
+-            detections = [d for d in detections if d.get("class") in class_filter]
++            detections = [d for d in detections if d.get("XXclassXX") in class_filter]
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_32
+@@ -46 +46 @@
+-        if not masks:
++        if masks:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_37
+@@ -56 +56 @@
+-            strategy=strategy,
++            strategy=None,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_38
+@@ -57 +57 @@
+-            fill_color=fill_color,
++            fill_color=None,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_4
+@@ -23 +23 @@
+-            detections = [d for d in detections if d.get("class") in class_filter]
++            detections = [d for d in detections if d.get("CLASS") in class_filter]
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_41
+@@ -56 +55,0 @@
+-            strategy=strategy,
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_42
+@@ -57,2 +57 @@
+-            fill_color=fill_color,
+-        )
++            )
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_5
+@@ -23 +23 @@
+-            detections = [d for d in detections if d.get("class") in class_filter]
++            detections = [d for d in detections if d.get("class") not in class_filter]
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_6
+@@ -25 +25 @@
+-        if not detections:
++        if detections:
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_7
+@@ -29 +29 @@
+-        masks = []
++        masks = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_8
+@@ -31 +31 @@
+-            mask_rle = detection.get("mask_rle")
++            mask_rle = None
+
+### backend.services.privacy_masking_service.xǁPrivacyMaskingServiceǁmask_detections__mutmut_9
+@@ -31 +31 @@
+-            mask_rle = detection.get("mask_rle")
++            mask_rle = detection.get(None)

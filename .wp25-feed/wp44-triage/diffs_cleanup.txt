@@ -1,0 +1,1392 @@
+### xǁCleanupServiceǁ__init____mutmut_8
+    (no textual diff)
+
+### xǁCleanupServiceǁ__init____mutmut_14
+    (no textual diff)
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_12
+    - if not (0 <= hours_int < 24) or not (0 <= minutes_int < 60):
+    + if not (0 <= hours_int <= 24) or not (0 <= minutes_int < 60):
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_13
+    - if not (0 <= hours_int < 24) or not (0 <= minutes_int < 60):
+    + if not (0 <= hours_int < 25) or not (0 <= minutes_int < 60):
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_17
+    - if not (0 <= hours_int < 24) or not (0 <= minutes_int < 60):
+    + if not (0 <= hours_int < 24) or not (0 <= minutes_int <= 60):
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_18
+    - if not (0 <= hours_int < 24) or not (0 <= minutes_int < 60):
+    + if not (0 <= hours_int < 24) or not (0 <= minutes_int < 61):
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_19
+    - raise ValueError("Invalid time range")
+    + raise ValueError(None)
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_20
+    - raise ValueError("Invalid time range")
+    + raise ValueError("XXInvalid time rangeXX")
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_21
+    - raise ValueError("Invalid time range")
+    + raise ValueError("invalid time range")
+
+### xǁCleanupServiceǁ_parse_cleanup_time__mutmut_22
+    - raise ValueError("Invalid time range")
+    + raise ValueError("INVALID TIME RANGE")
+
+### xǁCleanupServiceǁ_calculate_next_cleanup__mutmut_10
+    - next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    + next_cleanup = now.replace(hour=hours, second=0, microsecond=0)
+
+### xǁCleanupServiceǁ_calculate_next_cleanup__mutmut_11
+    - next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    + next_cleanup = now.replace(hour=hours, minute=minutes, microsecond=0)
+
+### xǁCleanupServiceǁ_calculate_next_cleanup__mutmut_12
+    - next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    + next_cleanup = now.replace(hour=hours, minute=minutes, second=0, )
+
+### xǁCleanupServiceǁ_calculate_next_cleanup__mutmut_13
+    - next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    + next_cleanup = now.replace(hour=hours, minute=minutes, second=1, microsecond=0)
+
+### xǁCleanupServiceǁ_calculate_next_cleanup__mutmut_14
+    - next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    + next_cleanup = now.replace(hour=hours, minute=minutes, second=0, microsecond=1)
+
+### xǁCleanupServiceǁ_calculate_next_cleanup__mutmut_15
+    - if next_cleanup <= now:
+    + if next_cleanup < now:
+
+### xǁCleanupServiceǁ_wait_until_next_cleanup__mutmut_5
+    - logger.info(f"Next cleanup scheduled for {next_cleanup} ({wait_seconds:.0f}s)")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_1
+    - logger.info(f"Starting cleanup (retention: {self.retention_days} days)")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_4
+    - job_id: str | None = None
+    + job_id: str | None = ""
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_7
+    - job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+    + job_id=None,
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_8
+    - job_type="data_cleanup",
+    + job_type=None,
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_9
+    - metadata={"retention_days": self.retention_days},
+    + metadata=None,
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_10
+    - job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_11
+    - job_type="data_cleanup",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_12
+    - metadata={"retention_days": self.retention_days},
+    - )
+    + )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_14
+    - job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+    + job_id=f"cleanup-{datetime.now(None).strftime('%Y%m%d-%H%M%S')}",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_15
+    - job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+    + job_id=f"cleanup-{datetime.now(UTC).strftime('XX%Y%m%d-%H%M%SXX')}",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_16
+    - job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+    + job_id=f"cleanup-{datetime.now(UTC).strftime('%y%m%d-%h%m%s')}",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_17
+    - job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}",
+    + job_id=f"cleanup-{datetime.now(UTC).strftime('%Y%M%D-%H%M%S')}",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_18
+    - job_type="data_cleanup",
+    + job_type="XXdata_cleanupXX",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_19
+    - job_type="data_cleanup",
+    + job_type="DATA_CLEANUP",
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_20
+    - metadata={"retention_days": self.retention_days},
+    + metadata={"XXretention_daysXX": self.retention_days},
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_21
+    - metadata={"retention_days": self.retention_days},
+    + metadata={"RETENTION_DAYS": self.retention_days},
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_23
+    - cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
+    + cutoff_date = datetime.now(UTC) + timedelta(days=self.retention_days)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_24
+    - cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
+    + cutoff_date = datetime.now(None) - timedelta(days=self.retention_days)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_26
+    - logger.info(f"Deleting records older than {cutoff_date}")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_27
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_28
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_29
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_30
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(None, 5, "Scanning for files to delete")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_31
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, None, "Scanning for files to delete")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_32
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, 5, None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_33
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(5, "Scanning for files to delete")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_34
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, "Scanning for files to delete")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_35
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, 5, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_36
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, 6, "Scanning for files to delete")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_37
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, 5, "XXScanning for files to deleteXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_38
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, 5, "scanning for files to delete")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_39
+    - await job_service.update_progress(job_id, 5, "Scanning for files to delete")
+    + await job_service.update_progress(job_id, 5, "SCANNING FOR FILES TO DELETE")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_45
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_46
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_47
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_48
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(None, 15, "Deleting old detections")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_49
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, None, "Deleting old detections")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_50
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, 15, None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_51
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(15, "Deleting old detections")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_52
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, "Deleting old detections")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_53
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, 15, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_54
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, 16, "Deleting old detections")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_55
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, 15, "XXDeleting old detectionsXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_56
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, 15, "deleting old detections")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_57
+    - await job_service.update_progress(job_id, 15, "Deleting old detections")
+    + await job_service.update_progress(job_id, 15, "DELETING OLD DETECTIONS")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_58
+    - delete_detections_stmt = delete(Detection).where(
+    - Detection.detected_at < cutoff_date
+    - )
+    + delete_detections_stmt = None
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_59
+    - Detection.detected_at < cutoff_date
+    + None
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_61
+    - Detection.detected_at < cutoff_date
+    + Detection.detected_at <= cutoff_date
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_63
+    - detections_result = await session.execute(delete_detections_stmt)
+    + detections_result = await session.execute(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_67
+    - logger.info(f"Deleted {stats.detections_deleted} old detections")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_68
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_69
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_70
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_71
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(None, 30, "Deleting old events")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_72
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, None, "Deleting old events")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_73
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, 30, None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_74
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(30, "Deleting old events")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_75
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, "Deleting old events")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_76
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, 30, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_77
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, 31, "Deleting old events")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_78
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, 30, "XXDeleting old eventsXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_79
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, 30, "deleting old events")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_80
+    - await job_service.update_progress(job_id, 30, "Deleting old events")
+    + await job_service.update_progress(job_id, 30, "DELETING OLD EVENTS")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_81
+    - delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
+    + delete_events_stmt = None
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_82
+    - delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
+    + delete_events_stmt = delete(Event).where(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_84
+    - delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
+    + delete_events_stmt = delete(Event).where(Event.started_at <= cutoff_date)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_86
+    - events_result = await session.execute(delete_events_stmt)
+    + events_result = await session.execute(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_90
+    - logger.info(f"Deleted {stats.events_deleted} old events")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_91
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_92
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_93
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_94
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(None, 45, "Deleting old GPU stats")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_95
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, None, "Deleting old GPU stats")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_96
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, 45, None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_97
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(45, "Deleting old GPU stats")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_98
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, "Deleting old GPU stats")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_99
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, 45, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_100
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, 46, "Deleting old GPU stats")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_101
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, 45, "XXDeleting old GPU statsXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_102
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, 45, "deleting old gpu stats")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_103
+    - await job_service.update_progress(job_id, 45, "Deleting old GPU stats")
+    + await job_service.update_progress(job_id, 45, "DELETING OLD GPU STATS")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_104
+    - delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at < cutoff_date)
+    + delete_gpu_stats_stmt = None
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_105
+    - delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at < cutoff_date)
+    + delete_gpu_stats_stmt = delete(GPUStats).where(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_107
+    - delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at < cutoff_date)
+    + delete_gpu_stats_stmt = delete(GPUStats).where(GPUStats.recorded_at <= cutoff_date)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_109
+    - gpu_stats_result = await session.execute(delete_gpu_stats_stmt)
+    + gpu_stats_result = await session.execute(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_113
+    - logger.info(f"Deleted {stats.gpu_stats_deleted} old GPU stats")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_114
+    - logger.info("Database cleanup committed successfully")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_115
+    - logger.info("Database cleanup committed successfully")
+    + logger.info("XXDatabase cleanup committed successfullyXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_116
+    - logger.info("Database cleanup committed successfully")
+    + logger.info("database cleanup committed successfully")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_117
+    - logger.info("Database cleanup committed successfully")
+    + logger.info("DATABASE CLEANUP COMMITTED SUCCESSFULLY")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_118
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_119
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_120
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_121
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(None, 55, "Deleting old logs")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_122
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, None, "Deleting old logs")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_123
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, 55, None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_124
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(55, "Deleting old logs")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_125
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, "Deleting old logs")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_126
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, 55, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_127
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, 56, "Deleting old logs")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_128
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, 55, "XXDeleting old logsXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_129
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, 55, "deleting old logs")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_130
+    - await job_service.update_progress(job_id, 55, "Deleting old logs")
+    + await job_service.update_progress(job_id, 55, "DELETING OLD LOGS")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_132
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_133
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_134
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_135
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(None, 70, "Deleting thumbnail files")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_136
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, None, "Deleting thumbnail files")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_137
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, 70, None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_138
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(70, "Deleting thumbnail files")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_139
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, "Deleting thumbnail files")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_140
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, 70, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_141
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, 71, "Deleting thumbnail files")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_142
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, 70, "XXDeleting thumbnail filesXX")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_143
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, 70, "deleting thumbnail files")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_144
+    - await job_service.update_progress(job_id, 70, "Deleting thumbnail files")
+    + await job_service.update_progress(job_id, 70, "DELETING THUMBNAIL FILES")
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_149
+    - logger.info(f"Deleted {stats.thumbnails_deleted} thumbnail files")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_150
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_151
+    - if job_service is not None and job_id is not None:
+    + if job_service is None and job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_152
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None and job_id is None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_157
+    - logger.info(f"Deleted {stats.images_deleted} original image files")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_158
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_161
+    - await job_service.complete_job(job_id, result=stats.to_dict())
+    + await job_service.complete_job(None, result=stats.to_dict())
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_162
+    - await job_service.complete_job(job_id, result=stats.to_dict())
+    + await job_service.complete_job(job_id, result=None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_163
+    - await job_service.complete_job(job_id, result=stats.to_dict())
+    + await job_service.complete_job(result=stats.to_dict())
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_164
+    - await job_service.complete_job(job_id, result=stats.to_dict())
+    + await job_service.complete_job(job_id, )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_165
+    - logger.info(f"Cleanup completed: {stats}")
+    + logger.info(None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_166
+    - logger.error(f"Cleanup failed: {e}", exc_info=True)
+    + logger.error(None, exc_info=True)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_167
+    - logger.error(f"Cleanup failed: {e}", exc_info=True)
+    + logger.error(f"Cleanup failed: {e}", exc_info=None)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_169
+    - logger.error(f"Cleanup failed: {e}", exc_info=True)
+    + logger.error(f"Cleanup failed: {e}", )
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_170
+    - logger.error(f"Cleanup failed: {e}", exc_info=True)
+    + logger.error(f"Cleanup failed: {e}", exc_info=False)
+
+### xǁCleanupServiceǁrun_cleanup__mutmut_171
+    - if job_service is not None and job_id is not None:
+    + if job_service is not None or job_id is not None:
+
+### xǁCleanupServiceǁ_get_detection_file_paths_streaming__mutmut_3
+    (no textual diff)
+
+### xǁCleanupServiceǁ_get_detection_file_paths_streaming__mutmut_4
+    (no textual diff)
+
+### xǁCleanupServiceǁ_get_detection_file_paths_streaming__mutmut_5
+    (no textual diff)
+
+### xǁCleanupServiceǁ_get_detection_file_paths_streaming__mutmut_6
+    (no textual diff)
+
+### xǁCleanupServiceǁ_get_detection_file_paths_streaming__mutmut_7
+    (no textual diff)
+
+### xǁCleanupServiceǁ_get_detection_file_paths_streaming__mutmut_9
+    (no textual diff)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_1
+    - logger.info(f"Starting cleanup dry run (retention: {self.retention_days} days)")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_4
+    - cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
+    + cutoff_date = datetime.now(UTC) + timedelta(days=self.retention_days)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_5
+    - cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
+    + cutoff_date = datetime.now(None) - timedelta(days=self.retention_days)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_7
+    - logger.info(f"Dry run: would delete records older than {cutoff_date}")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_8
+    - detections_count_query = (
+    - select(func.count())
+    - .select_from(Detection)
+    - .where(Detection.detected_at < cutoff_date)
+    - )
+    + detections_count_query = None
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_9
+    - .where(Detection.detected_at < cutoff_date)
+    + .where(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_11
+    - select(func.count())
+    + select(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_12
+    - .where(Detection.detected_at < cutoff_date)
+    + .where(Detection.detected_at <= cutoff_date)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_14
+    - result = await session.execute(detections_count_query)
+    + result = await session.execute(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_16
+    - logger.info(f"Dry run: would delete {stats.detections_deleted} detections")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_17
+    - detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
+    + detections_query = None
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_18
+    - detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
+    + detections_query = select(Detection).where(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_19
+    - detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
+    + detections_query = select(None).where(Detection.detected_at < cutoff_date)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_20
+    - detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
+    + detections_query = select(Detection).where(Detection.detected_at <= cutoff_date)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_21
+    - async for detection in await session.stream_scalars(detections_query):
+    + async for detection in await session.stream_scalars(None):
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_24
+    - if path.exists() and path.is_file():
+    + if path.exists() or path.is_file():
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_33
+    - if path.exists() and path.is_file():
+    + if path.exists() or path.is_file():
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_34
+    - stats.images_deleted += 1
+    + stats.images_deleted = 1
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_39
+    - logger.info(f"Dry run: would delete {stats.thumbnails_deleted} thumbnail files")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_40
+    - logger.info(f"Dry run: would delete {stats.images_deleted} image files")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_41
+    - events_count_query = (
+    - select(func.count()).select_from(Event).where(Event.started_at < cutoff_date)
+    - )
+    + events_count_query = None
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_42
+    - select(func.count()).select_from(Event).where(Event.started_at < cutoff_date)
+    + select(func.count()).select_from(Event).where(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_44
+    - select(func.count()).select_from(Event).where(Event.started_at < cutoff_date)
+    + select(None).select_from(Event).where(Event.started_at < cutoff_date)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_45
+    - select(func.count()).select_from(Event).where(Event.started_at < cutoff_date)
+    + select(func.count()).select_from(Event).where(Event.started_at <= cutoff_date)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_47
+    - result = await session.execute(events_count_query)
+    + result = await session.execute(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_49
+    - logger.info(f"Dry run: would delete {stats.events_deleted} events")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_50
+    - gpu_stats_count_query = (
+    - select(func.count())
+    - .select_from(GPUStats)
+    - .where(GPUStats.recorded_at < cutoff_date)
+    - )
+    + gpu_stats_count_query = None
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_51
+    - .where(GPUStats.recorded_at < cutoff_date)
+    + .where(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_53
+    - select(func.count())
+    + select(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_54
+    - .where(GPUStats.recorded_at < cutoff_date)
+    + .where(GPUStats.recorded_at <= cutoff_date)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_56
+    - result = await session.execute(gpu_stats_count_query)
+    + result = await session.execute(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_58
+    - logger.info(f"Dry run: would delete {stats.gpu_stats_deleted} GPU stats")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_60
+    - logger.info(f"Cleanup dry run completed: {stats}")
+    + logger.info(None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_61
+    - logger.error(f"Cleanup dry run failed: {e}", exc_info=True)
+    + logger.error(None, exc_info=True)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_62
+    - logger.error(f"Cleanup dry run failed: {e}", exc_info=True)
+    + logger.error(f"Cleanup dry run failed: {e}", exc_info=None)
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_64
+    - logger.error(f"Cleanup dry run failed: {e}", exc_info=True)
+    + logger.error(f"Cleanup dry run failed: {e}", )
+
+### xǁCleanupServiceǁdry_run_cleanup__mutmut_65
+    - logger.error(f"Cleanup dry run failed: {e}", exc_info=True)
+    + logger.error(f"Cleanup dry run failed: {e}", exc_info=False)
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_3
+    - cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)
+    + cutoff = datetime.now(UTC) + timedelta(days=settings.log_retention_days)
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_4
+    - cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)
+    + cutoff = datetime.now(None) - timedelta(days=settings.log_retention_days)
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_7
+    - select(func.count()).select_from(Log).where(Log.timestamp < cutoff)
+    + None
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_8
+    - select(func.count()).select_from(Log).where(Log.timestamp < cutoff)
+    + select(func.count()).select_from(Log).where(None)
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_10
+    - select(func.count()).select_from(Log).where(Log.timestamp < cutoff)
+    + select(None).select_from(Log).where(Log.timestamp < cutoff)
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_11
+    - select(func.count()).select_from(Log).where(Log.timestamp < cutoff)
+    + select(func.count()).select_from(Log).where(Log.timestamp <= cutoff)
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_16
+    - if count > 0:
+    + if count >= 0:
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_17
+    - if count > 0:
+    + if count > 1:
+
+### xǁCleanupServiceǁ_count_old_logs__mutmut_18
+    - f"Dry run: would delete {count} logs older than {settings.log_retention_days} days"
+    + None
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_3
+    - cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)
+    + cutoff = datetime.now(UTC) + timedelta(days=settings.log_retention_days)
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_4
+    - cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)
+    + cutoff = datetime.now(None) - timedelta(days=settings.log_retention_days)
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_7
+    - result = await session.execute(delete(Log).where(Log.timestamp < cutoff))
+    + result = await session.execute(None)
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_8
+    - result = await session.execute(delete(Log).where(Log.timestamp < cutoff))
+    + result = await session.execute(delete(Log).where(None))
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_10
+    - result = await session.execute(delete(Log).where(Log.timestamp < cutoff))
+    + result = await session.execute(delete(Log).where(Log.timestamp <= cutoff))
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_14
+    - if deleted > 0:
+    + if deleted >= 0:
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_15
+    - if deleted > 0:
+    + if deleted > 1:
+
+### xǁCleanupServiceǁcleanup_old_logs__mutmut_16
+    - logger.info(f"Cleaned up {deleted} logs older than {settings.log_retention_days} days")
+    + logger.info(None)
+
+### xǁCleanupServiceǁ_delete_file__mutmut_3
+    - if path.exists() and path.is_file():
+    + if path.exists() or path.is_file():
+
+### xǁCleanupServiceǁ_delete_file__mutmut_5
+    - logger.debug(f"File not found or not a file: {file_path}")
+    + logger.debug(None)
+
+### xǁCleanupServiceǁ_delete_file__mutmut_7
+    - logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=True)
+    + logger.warning(None, exc_info=True)
+
+### xǁCleanupServiceǁ_delete_file__mutmut_8
+    - logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=True)
+    + logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=None)
+
+### xǁCleanupServiceǁ_delete_file__mutmut_10
+    - logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=True)
+    + logger.warning(f"Failed to delete file {file_path}: {e}", )
+
+### xǁCleanupServiceǁ_delete_file__mutmut_11
+    - logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=True)
+    + logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=False)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_1
+    - logger.info("Cleanup loop started")
+    + logger.info(None)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_2
+    - logger.info("Cleanup loop started")
+    + logger.info("XXCleanup loop startedXX")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_3
+    - logger.info("Cleanup loop started")
+    + logger.info("cleanup loop started")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_4
+    - logger.info("Cleanup loop started")
+    + logger.info("CLEANUP LOOP STARTED")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_5
+    - logger.info("Cleanup loop cancelled")
+    + logger.info(None)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_6
+    - logger.info("Cleanup loop cancelled")
+    + logger.info("XXCleanup loop cancelledXX")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_7
+    - logger.info("Cleanup loop cancelled")
+    + logger.info("cleanup loop cancelled")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_8
+    - logger.info("Cleanup loop cancelled")
+    + logger.info("CLEANUP LOOP CANCELLED")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_9
+    - break
+    + return
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_10
+    - logger.error(f"Error in cleanup loop: {e}", exc_info=True)
+    + logger.error(None, exc_info=True)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_11
+    - logger.error(f"Error in cleanup loop: {e}", exc_info=True)
+    + logger.error(f"Error in cleanup loop: {e}", exc_info=None)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_13
+    - logger.error(f"Error in cleanup loop: {e}", exc_info=True)
+    + logger.error(f"Error in cleanup loop: {e}", )
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_14
+    - logger.error(f"Error in cleanup loop: {e}", exc_info=True)
+    + logger.error(f"Error in cleanup loop: {e}", exc_info=False)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_16
+    - await asyncio.sleep(60)
+    + await asyncio.sleep(61)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_17
+    - logger.info("Cleanup loop stopped")
+    + logger.info(None)
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_18
+    - logger.info("Cleanup loop stopped")
+    + logger.info("XXCleanup loop stoppedXX")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_19
+    - logger.info("Cleanup loop stopped")
+    + logger.info("cleanup loop stopped")
+
+### xǁCleanupServiceǁ_cleanup_loop__mutmut_20
+    - logger.info("Cleanup loop stopped")
+    + logger.info("CLEANUP LOOP STOPPED")
+
+### xǁCleanupServiceǁstart__mutmut_1
+    - logger.warning("CleanupService already running")
+    + logger.warning(None)
+
+### xǁCleanupServiceǁstart__mutmut_2
+    - logger.warning("CleanupService already running")
+    + logger.warning("XXCleanupService already runningXX")
+
+### xǁCleanupServiceǁstart__mutmut_3
+    - logger.warning("CleanupService already running")
+    + logger.warning("cleanupservice already running")
+
+### xǁCleanupServiceǁstart__mutmut_4
+    - logger.warning("CleanupService already running")
+    + logger.warning("CLEANUPSERVICE ALREADY RUNNING")
+
+### xǁCleanupServiceǁstart__mutmut_5
+    - logger.info("Starting CleanupService")
+    + logger.info(None)
+
+### xǁCleanupServiceǁstart__mutmut_6
+    - logger.info("Starting CleanupService")
+    + logger.info("XXStarting CleanupServiceXX")
+
+### xǁCleanupServiceǁstart__mutmut_7
+    - logger.info("Starting CleanupService")
+    + logger.info("starting cleanupservice")
+
+### xǁCleanupServiceǁstart__mutmut_8
+    - logger.info("Starting CleanupService")
+    + logger.info("STARTING CLEANUPSERVICE")
+
+### xǁCleanupServiceǁstart__mutmut_13
+    - self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="cleanup-service")
+    + self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name=None)
+
+### xǁCleanupServiceǁstart__mutmut_15
+    - self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="cleanup-service")
+    + self._cleanup_task = asyncio.create_task(self._cleanup_loop(), )
+
+### xǁCleanupServiceǁstart__mutmut_16
+    - self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="cleanup-service")
+    + self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="XXcleanup-serviceXX")
+
+### xǁCleanupServiceǁstart__mutmut_17
+    - self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="cleanup-service")
+    + self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="CLEANUP-SERVICE")
+
+### xǁCleanupServiceǁstart__mutmut_18
+    - logger.info("CleanupService started successfully")
+    + logger.info(None)
+
+### xǁCleanupServiceǁstart__mutmut_19
+    - logger.info("CleanupService started successfully")
+    + logger.info("XXCleanupService started successfullyXX")
+
+### xǁCleanupServiceǁstart__mutmut_20
+    - logger.info("CleanupService started successfully")
+    + logger.info("cleanupservice started successfully")
+
+### xǁCleanupServiceǁstart__mutmut_21
+    - logger.info("CleanupService started successfully")
+    + logger.info("CLEANUPSERVICE STARTED SUCCESSFULLY")
+
+### xǁCleanupServiceǁstop__mutmut_2
+    - logger.debug("CleanupService not running, nothing to stop")
+    + logger.debug(None)
+
+### xǁCleanupServiceǁstop__mutmut_3
+    - logger.debug("CleanupService not running, nothing to stop")
+    + logger.debug("XXCleanupService not running, nothing to stopXX")
+
+### xǁCleanupServiceǁstop__mutmut_4
+    - logger.debug("CleanupService not running, nothing to stop")
+    + logger.debug("cleanupservice not running, nothing to stop")
+
+### xǁCleanupServiceǁstop__mutmut_5
+    - logger.debug("CleanupService not running, nothing to stop")
+    + logger.debug("CLEANUPSERVICE NOT RUNNING, NOTHING TO STOP")
+
+### xǁCleanupServiceǁstop__mutmut_6
+    - logger.info("Stopping CleanupService")
+    + logger.info(None)
+
+### xǁCleanupServiceǁstop__mutmut_7
+    - logger.info("Stopping CleanupService")
+    + logger.info("XXStopping CleanupServiceXX")
+
+### xǁCleanupServiceǁstop__mutmut_8
+    - logger.info("Stopping CleanupService")
+    + logger.info("stopping cleanupservice")
+
+### xǁCleanupServiceǁstop__mutmut_9
+    - logger.info("Stopping CleanupService")
+    + logger.info("STOPPING CLEANUPSERVICE")
+
+### xǁCleanupServiceǁstop__mutmut_14
+    - logger.info("CleanupService stopped")
+    + logger.info(None)
+
+### xǁCleanupServiceǁstop__mutmut_15
+    - logger.info("CleanupService stopped")
+    + logger.info("XXCleanupService stoppedXX")
+
+### xǁCleanupServiceǁstop__mutmut_16
+    - logger.info("CleanupService stopped")
+    + logger.info("cleanupservice stopped")
+
+### xǁCleanupServiceǁstop__mutmut_17
+    - logger.info("CleanupService stopped")
+    + logger.info("CLEANUPSERVICE STOPPED")
+
+### x_format_bytes__mutmut_1
+    - if size < 0:
+    + if size <= 0:
+
+### x_format_bytes__mutmut_2
+    - if size < 0:
+    + if size < 1:
+
+### xǁOrphanedFileCleanupǁ__init____mutmut_4
+    (no textual diff)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_2
+    - detection_query = select(Detection.file_path, Detection.thumbnail_path)
+    + detection_query = None
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_3
+    - detection_query = select(Detection.file_path, Detection.thumbnail_path)
+    + detection_query = select(None, Detection.thumbnail_path)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_4
+    - detection_query = select(Detection.file_path, Detection.thumbnail_path)
+    + detection_query = select(Detection.file_path, None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_5
+    - detection_query = select(Detection.file_path, Detection.thumbnail_path)
+    + detection_query = select(Detection.thumbnail_path)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_6
+    - detection_query = select(Detection.file_path, Detection.thumbnail_path)
+    + detection_query = select(Detection.file_path, )
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_8
+    - result = await session.execute(detection_query)
+    + result = await session.execute(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_9
+    - abs_path = str(Path(file_path).resolve())
+    + abs_path = None
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_10
+    - abs_path = str(Path(file_path).resolve())
+    + abs_path = str(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_12
+    - referenced.add(abs_path)
+    + referenced.add(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_13
+    - abs_path = str(Path(thumbnail_path).resolve())
+    + abs_path = None
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_14
+    - abs_path = str(Path(thumbnail_path).resolve())
+    + abs_path = str(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_16
+    - referenced.add(abs_path)
+    + referenced.add(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_17
+    - event_query = select(Event.clip_path).where(Event.clip_path.isnot(None))
+    + event_query = None
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_18
+    - event_query = select(Event.clip_path).where(Event.clip_path.isnot(None))
+    + event_query = select(Event.clip_path).where(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_19
+    - event_query = select(Event.clip_path).where(Event.clip_path.isnot(None))
+    + event_query = select(None).where(Event.clip_path.isnot(None))
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_21
+    - result = await session.execute(event_query)
+    + result = await session.execute(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_22
+    - abs_path = str(Path(clip_path).resolve())
+    + abs_path = None
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_23
+    - abs_path = str(Path(clip_path).resolve())
+    + abs_path = str(None)
+
+### xǁOrphanedFileCleanupǁ_get_referenced_files__mutmut_25
+    - referenced.add(abs_path)
+    + referenced.add(None)
+
+### xǁOrphanedFileCleanupǁ_scan_storage_directories__mutmut_5
+    - logger.warning(f"Storage path does not exist: {storage_path}")
+    + logger.warning(None)
+
+### xǁOrphanedFileCleanupǁ_scan_storage_directories__mutmut_6
+    - continue
+    + break
+
+### xǁOrphanedFileCleanupǁ_scan_storage_directories__mutmut_8
+    - logger.warning(f"Storage path is not a directory: {storage_path}")
+    + logger.warning(None)
+
+### xǁOrphanedFileCleanupǁ_scan_storage_directories__mutmut_9
+    - continue
+    + break
+
+### xǁOrphanedFileCleanupǁ_scan_storage_directories__mutmut_16
+    - logger.warning(f"Could not stat file {file_path}: {e}")
+    + logger.warning(None)
+
+### xǁOrphanedFileCleanupǁ_delete_orphaned_files__mutmut_7
+    - logger.warning(f"Failed to delete orphaned file {file_path}: {e}")
+    + logger.warning(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_1
+    (no textual diff)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_2
+    - job_id: str | None = None
+    + job_id: str | None = ""
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_7
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job(None, "Starting orphaned file cleanup")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_8
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job(job_id, None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_9
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job("Starting orphaned file cleanup")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_10
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job(job_id, )
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_11
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job(job_id, "XXStarting orphaned file cleanupXX")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_12
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job(job_id, "starting orphaned file cleanup")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_13
+    - self._job_tracker.start_job(job_id, "Starting orphaned file cleanup")
+    + self._job_tracker.start_job(job_id, "STARTING ORPHANED FILE CLEANUP")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_16
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(None, 10, "Querying database for referenced files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_17
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(job_id, None, "Querying database for referenced files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_18
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(job_id, 10, None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_22
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(job_id, 11, "Querying database for referenced files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_23
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(job_id, 10, "XXQuerying database for referenced filesXX")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_24
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(job_id, 10, "querying database for referenced files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_25
+    - self._update_job_progress(job_id, 10, "Querying database for referenced files")
+    + self._update_job_progress(job_id, 10, "QUERYING DATABASE FOR REFERENCED FILES")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_26
+    - logger.info("Querying database for referenced files...")
+    + logger.info(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_27
+    - logger.info("Querying database for referenced files...")
+    + logger.info("XXQuerying database for referenced files...XX")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_28
+    - logger.info("Querying database for referenced files...")
+    + logger.info("querying database for referenced files...")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_29
+    - logger.info("Querying database for referenced files...")
+    + logger.info("QUERYING DATABASE FOR REFERENCED FILES...")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_31
+    - logger.info(f"Found {len(referenced_files)} referenced files in database")
+    + logger.info(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_32
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(None, 30, "Scanning storage directories")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_33
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(job_id, None, "Scanning storage directories")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_34
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(job_id, 30, None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_38
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(job_id, 31, "Scanning storage directories")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_39
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(job_id, 30, "XXScanning storage directoriesXX")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_40
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(job_id, 30, "scanning storage directories")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_41
+    - self._update_job_progress(job_id, 30, "Scanning storage directories")
+    + self._update_job_progress(job_id, 30, "SCANNING STORAGE DIRECTORIES")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_42
+    - logger.info(f"Scanning storage directories: {self._storage_paths}")
+    + logger.info(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_44
+    - logger.info(f"Found {len(all_files)} files on disk")
+    + logger.info(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_45
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(None, 50, "Identifying orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_46
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(job_id, None, "Identifying orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_47
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(job_id, 50, None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_51
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(job_id, 51, "Identifying orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_52
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(job_id, 50, "XXIdentifying orphaned filesXX")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_53
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(job_id, 50, "identifying orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_54
+    - self._update_job_progress(job_id, 50, "Identifying orphaned files")
+    + self._update_job_progress(job_id, 50, "IDENTIFYING ORPHANED FILES")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_58
+    - stats.orphaned_files.append(file_path)
+    + stats.orphaned_files.append(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_62
+    - f"Found {stats.orphaned_count} orphaned files ({format_bytes(stats.total_size)})"
+    + None
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_66
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(None, 70, "Deleting orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_67
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(job_id, None, "Deleting orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_68
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(job_id, 70, None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_72
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(job_id, 71, "Deleting orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_73
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(job_id, 70, "XXDeleting orphaned filesXX")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_74
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(job_id, 70, "deleting orphaned files")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_75
+    - self._update_job_progress(job_id, 70, "Deleting orphaned files")
+    + self._update_job_progress(job_id, 70, "DELETING ORPHANED FILES")
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_78
+    - logger.info(f"Deleted {deleted_count} of {stats.orphaned_count} orphaned files")
+    + logger.info(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_79
+    - if job_id and self._job_tracker:
+    + if job_id or self._job_tracker:
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_80
+    - result = stats.to_dict()
+    + result = None
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_81
+    - self._job_tracker.complete_job(job_id, result)
+    + self._job_tracker.complete_job(None, result)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_82
+    - self._job_tracker.complete_job(job_id, result)
+    + self._job_tracker.complete_job(job_id, None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_83
+    - self._job_tracker.complete_job(job_id, result)
+    + self._job_tracker.complete_job(result)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_84
+    - self._job_tracker.complete_job(job_id, result)
+    + self._job_tracker.complete_job(job_id, )
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_85
+    - logger.info(f"Orphaned file cleanup completed: {stats}")
+    + logger.info(None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_86
+    - logger.error(f"Orphaned file cleanup failed: {e}", exc_info=True)
+    + logger.error(None, exc_info=True)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_87
+    - logger.error(f"Orphaned file cleanup failed: {e}", exc_info=True)
+    + logger.error(f"Orphaned file cleanup failed: {e}", exc_info=None)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_89
+    - logger.error(f"Orphaned file cleanup failed: {e}", exc_info=True)
+    + logger.error(f"Orphaned file cleanup failed: {e}", )
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_90
+    - logger.error(f"Orphaned file cleanup failed: {e}", exc_info=True)
+    + logger.error(f"Orphaned file cleanup failed: {e}", exc_info=False)
+
+### xǁOrphanedFileCleanupǁrun_cleanup__mutmut_91
+    - if job_id and self._job_tracker:
+    + if job_id or self._job_tracker:

@@ -1,0 +1,1040 @@
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_1: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -22,7 +22,7 @@
+     Raises:
+         RuntimeError: If classification fails
+     """
+-    if prompts is None:
++    if prompts is not None:
+         prompts = SECURITY_CLOTHING_PROMPTS
+ 
+     try:
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_10: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -30,7 +30,7 @@
+ 
+         model = model_dict["model"]
+         preprocess = model_dict["preprocess"]
+-        tokenizer = model_dict["tokenizer"]
++        tokenizer = model_dict["XXtokenizerXX"]
+ 
+         loop = asyncio.get_running_loop()
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_11: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -30,7 +30,7 @@
+ 
+         model = model_dict["model"]
+         preprocess = model_dict["preprocess"]
+-        tokenizer = model_dict["tokenizer"]
++        tokenizer = model_dict["TOKENIZER"]
+ 
+         loop = asyncio.get_running_loop()
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_12: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -32,7 +32,7 @@
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+-        loop = asyncio.get_running_loop()
++        loop = None
+ 
+         def _classify() -> ClothingClassification:
+             """Run classification synchronously."""
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_13: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -37,7 +37,7 @@
+         def _classify() -> ClothingClassification:
+             """Run classification synchronously."""
+             # Get device from model
+-            device = next(model.parameters()).device
++            device = None
+ 
+             # Process image using open_clip preprocess
+             image_tensor = preprocess(image).unsqueeze(0).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_14: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -37,7 +37,7 @@
+         def _classify() -> ClothingClassification:
+             """Run classification synchronously."""
+             # Get device from model
+-            device = next(model.parameters()).device
++            device = next(None).device
+ 
+             # Process image using open_clip preprocess
+             image_tensor = preprocess(image).unsqueeze(0).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_15: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -40,7 +40,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process image using open_clip preprocess
+-            image_tensor = preprocess(image).unsqueeze(0).to(device)
++            image_tensor = None
+ 
+             # Tokenize text prompts
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_16: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -40,7 +40,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process image using open_clip preprocess
+-            image_tensor = preprocess(image).unsqueeze(0).to(device)
++            image_tensor = preprocess(image).unsqueeze(0).to(None)
+ 
+             # Tokenize text prompts
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_17: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -40,7 +40,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process image using open_clip preprocess
+-            image_tensor = preprocess(image).unsqueeze(0).to(device)
++            image_tensor = preprocess(image).unsqueeze(None).to(device)
+ 
+             # Tokenize text prompts
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_18: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -40,7 +40,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process image using open_clip preprocess
+-            image_tensor = preprocess(image).unsqueeze(0).to(device)
++            image_tensor = preprocess(None).unsqueeze(0).to(device)
+ 
+             # Tokenize text prompts
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_19: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -40,7 +40,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process image using open_clip preprocess
+-            image_tensor = preprocess(image).unsqueeze(0).to(device)
++            image_tensor = preprocess(image).unsqueeze(1).to(device)
+ 
+             # Tokenize text prompts
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_2: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -23,7 +23,7 @@
+         RuntimeError: If classification fails
+     """
+     if prompts is None:
+-        prompts = SECURITY_CLOTHING_PROMPTS
++        prompts = None
+ 
+     try:
+         import torch
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_20: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -92,7 +92,7 @@
+                 raw_description=description,
+             )
+ 
+-        return await loop.run_in_executor(None, _classify)
++        return await loop.run_in_executor(None, None)
+ 
+     except Exception as e:
+         logger.error("Clothing classification failed", exc_info=True)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_21: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -92,7 +92,7 @@
+                 raw_description=description,
+             )
+ 
+-        return await loop.run_in_executor(None, _classify)
++        return await loop.run_in_executor(_classify)
+ 
+     except Exception as e:
+         logger.error("Clothing classification failed", exc_info=True)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_22: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -92,7 +92,7 @@
+                 raw_description=description,
+             )
+ 
+-        return await loop.run_in_executor(None, _classify)
++        return await loop.run_in_executor(None, )
+ 
+     except Exception as e:
+         logger.error("Clothing classification failed", exc_info=True)
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_23: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error(None, exc_info=True)
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_24: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error("Clothing classification failed", exc_info=None)
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_26: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error("Clothing classification failed", )
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_27: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error("XXClothing classification failedXX", exc_info=True)
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_28: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error("clothing classification failed", exc_info=True)
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_29: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error("CLOTHING CLASSIFICATION FAILED", exc_info=True)
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_3: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -28,7 +28,7 @@
+     try:
+         import torch
+ 
+-        model = model_dict["model"]
++        model = None
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_30: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -95,5 +95,5 @@
+         return await loop.run_in_executor(None, _classify)
+ 
+     except Exception as e:
+-        logger.error("Clothing classification failed", exc_info=True)
++        logger.error("Clothing classification failed", exc_info=False)
+         raise RuntimeError(f"Clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_4: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -28,7 +28,7 @@
+     try:
+         import torch
+ 
+-        model = model_dict["model"]
++        model = model_dict["XXmodelXX"]
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_5: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -28,7 +28,7 @@
+     try:
+         import torch
+ 
+-        model = model_dict["model"]
++        model = model_dict["MODEL"]
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_6: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -29,7 +29,7 @@
+         import torch
+ 
+         model = model_dict["model"]
+-        preprocess = model_dict["preprocess"]
++        preprocess = None
+         tokenizer = model_dict["tokenizer"]
+ 
+         loop = asyncio.get_running_loop()
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_7: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -29,7 +29,7 @@
+         import torch
+ 
+         model = model_dict["model"]
+-        preprocess = model_dict["preprocess"]
++        preprocess = model_dict["XXpreprocessXX"]
+         tokenizer = model_dict["tokenizer"]
+ 
+         loop = asyncio.get_running_loop()
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_8: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -29,7 +29,7 @@
+         import torch
+ 
+         model = model_dict["model"]
+-        preprocess = model_dict["preprocess"]
++        preprocess = model_dict["PREPROCESS"]
+         tokenizer = model_dict["tokenizer"]
+ 
+         loop = asyncio.get_running_loop()
+# backend.services.fashion_clip_loader.x_classify_clothing__mutmut_9: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -30,7 +30,7 @@
+ 
+         model = model_dict["model"]
+         preprocess = model_dict["preprocess"]
+-        tokenizer = model_dict["tokenizer"]
++        tokenizer = None
+ 
+         loop = asyncio.get_running_loop()
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_10: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -29,7 +29,7 @@
+ 
+         model = model_dict["model"]
+         preprocess = model_dict["preprocess"]
+-        tokenizer = model_dict["tokenizer"]
++        tokenizer = None
+ 
+         loop = asyncio.get_running_loop()
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_11: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -29,7 +29,7 @@
+ 
+         model = model_dict["model"]
+         preprocess = model_dict["preprocess"]
+-        tokenizer = model_dict["tokenizer"]
++        tokenizer = model_dict["XXtokenizerXX"]
+ 
+         loop = asyncio.get_running_loop()
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_12: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -29,7 +29,7 @@
+ 
+         model = model_dict["model"]
+         preprocess = model_dict["preprocess"]
+-        tokenizer = model_dict["tokenizer"]
++        tokenizer = model_dict["TOKENIZER"]
+ 
+         loop = asyncio.get_running_loop()
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_13: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -31,7 +31,7 @@
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+-        loop = asyncio.get_running_loop()
++        loop = None
+ 
+         def _classify_batch() -> list[ClothingClassification]:
+             """Run batch classification synchronously."""
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_14: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -36,7 +36,7 @@
+         def _classify_batch() -> list[ClothingClassification]:
+             """Run batch classification synchronously."""
+             # Get device from model
+-            device = next(model.parameters()).device
++            device = None
+ 
+             # Process all images using open_clip preprocess and stack into batch
+             image_tensors = torch.stack([preprocess(img) for img in images]).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_15: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -36,7 +36,7 @@
+         def _classify_batch() -> list[ClothingClassification]:
+             """Run batch classification synchronously."""
+             # Get device from model
+-            device = next(model.parameters()).device
++            device = next(None).device
+ 
+             # Process all images using open_clip preprocess and stack into batch
+             image_tensors = torch.stack([preprocess(img) for img in images]).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_17: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -39,7 +39,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process all images using open_clip preprocess and stack into batch
+-            image_tensors = torch.stack([preprocess(img) for img in images]).to(device)
++            image_tensors = torch.stack([preprocess(img) for img in images]).to(None)
+ 
+             # Tokenize text prompts (same for all images)
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_19: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -39,7 +39,7 @@
+             device = next(model.parameters()).device
+ 
+             # Process all images using open_clip preprocess and stack into batch
+-            image_tensors = torch.stack([preprocess(img) for img in images]).to(device)
++            image_tensors = torch.stack([preprocess(None) for img in images]).to(device)
+ 
+             # Tokenize text prompts (same for all images)
+             text_tokens = tokenizer(prompts).to(device)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_2: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -21,7 +21,7 @@
+     if not images:
+         return []
+ 
+-    if prompts is None:
++    if prompts is not None:
+         prompts = SECURITY_CLOTHING_PROMPTS
+ 
+     try:
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_20: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -97,7 +97,7 @@
+ 
+             return results
+ 
+-        return await loop.run_in_executor(None, _classify_batch)
++        return await loop.run_in_executor(None, None)
+ 
+     except Exception as e:
+         logger.error("Batch clothing classification failed", exc_info=True)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_21: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -97,7 +97,7 @@
+ 
+             return results
+ 
+-        return await loop.run_in_executor(None, _classify_batch)
++        return await loop.run_in_executor(_classify_batch)
+ 
+     except Exception as e:
+         logger.error("Batch clothing classification failed", exc_info=True)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_22: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -97,7 +97,7 @@
+ 
+             return results
+ 
+-        return await loop.run_in_executor(None, _classify_batch)
++        return await loop.run_in_executor(None, )
+ 
+     except Exception as e:
+         logger.error("Batch clothing classification failed", exc_info=True)
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_23: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error(None, exc_info=True)
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_24: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error("Batch clothing classification failed", exc_info=None)
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_26: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error("Batch clothing classification failed", )
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_27: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error("XXBatch clothing classification failedXX", exc_info=True)
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_28: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error("batch clothing classification failed", exc_info=True)
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_29: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error("BATCH CLOTHING CLASSIFICATION FAILED", exc_info=True)
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_3: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -22,7 +22,7 @@
+         return []
+ 
+     if prompts is None:
+-        prompts = SECURITY_CLOTHING_PROMPTS
++        prompts = None
+ 
+     try:
+         import torch
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_30: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -100,5 +100,5 @@
+         return await loop.run_in_executor(None, _classify_batch)
+ 
+     except Exception as e:
+-        logger.error("Batch clothing classification failed", exc_info=True)
++        logger.error("Batch clothing classification failed", exc_info=False)
+         raise RuntimeError(f"Batch clothing classification failed: {e}") from e
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_4: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -27,7 +27,7 @@
+     try:
+         import torch
+ 
+-        model = model_dict["model"]
++        model = None
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_5: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -27,7 +27,7 @@
+     try:
+         import torch
+ 
+-        model = model_dict["model"]
++        model = model_dict["XXmodelXX"]
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_6: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -27,7 +27,7 @@
+     try:
+         import torch
+ 
+-        model = model_dict["model"]
++        model = model_dict["MODEL"]
+         preprocess = model_dict["preprocess"]
+         tokenizer = model_dict["tokenizer"]
+ 
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_7: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -28,7 +28,7 @@
+         import torch
+ 
+         model = model_dict["model"]
+-        preprocess = model_dict["preprocess"]
++        preprocess = None
+         tokenizer = model_dict["tokenizer"]
+ 
+         loop = asyncio.get_running_loop()
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_8: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -28,7 +28,7 @@
+         import torch
+ 
+         model = model_dict["model"]
+-        preprocess = model_dict["preprocess"]
++        preprocess = model_dict["XXpreprocessXX"]
+         tokenizer = model_dict["tokenizer"]
+ 
+         loop = asyncio.get_running_loop()
+# backend.services.fashion_clip_loader.x_classify_clothing_batch__mutmut_9: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -28,7 +28,7 @@
+         import torch
+ 
+         model = model_dict["model"]
+-        preprocess = model_dict["preprocess"]
++        preprocess = model_dict["PREPROCESS"]
+         tokenizer = model_dict["tokenizer"]
+ 
+         loop = asyncio.get_running_loop()
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_14: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -17,7 +17,7 @@
+     lines.append(f"  Confidence: {classification.confidence:.1%}")
+ 
+     # Add top alternative if confidence is low
+-    if classification.confidence < 0.5 and len(classification.all_scores) > 1:
++    if classification.confidence < 0.5 and len(classification.all_scores) >= 1:
+         sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
+         if len(sorted_scores) > 1:
+             alt_cat, alt_score = sorted_scores[1]
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_18: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -18,7 +18,7 @@
+ 
+     # Add top alternative if confidence is low
+     if classification.confidence < 0.5 and len(classification.all_scores) > 1:
+-        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
++        sorted_scores = sorted(classification.all_scores.items(), key=None, reverse=True)
+         if len(sorted_scores) > 1:
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_19: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -18,7 +18,7 @@
+ 
+     # Add top alternative if confidence is low
+     if classification.confidence < 0.5 and len(classification.all_scores) > 1:
+-        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
++        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=None)
+         if len(sorted_scores) > 1:
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_21: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -18,7 +18,7 @@
+ 
+     # Add top alternative if confidence is low
+     if classification.confidence < 0.5 and len(classification.all_scores) > 1:
+-        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
++        sorted_scores = sorted(classification.all_scores.items(), reverse=True)
+         if len(sorted_scores) > 1:
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_22: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -18,7 +18,7 @@
+ 
+     # Add top alternative if confidence is low
+     if classification.confidence < 0.5 and len(classification.all_scores) > 1:
+-        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
++        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], )
+         if len(sorted_scores) > 1:
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_25: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -18,7 +18,7 @@
+ 
+     # Add top alternative if confidence is low
+     if classification.confidence < 0.5 and len(classification.all_scores) > 1:
+-        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
++        sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=False)
+         if len(sorted_scores) > 1:
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_26: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -19,7 +19,7 @@
+     # Add top alternative if confidence is low
+     if classification.confidence < 0.5 and len(classification.all_scores) > 1:
+         sorted_scores = sorted(classification.all_scores.items(), key=lambda x: x[1], reverse=True)
+-        if len(sorted_scores) > 1:
++        if len(sorted_scores) >= 1:
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+ 
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_3: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -10,7 +10,7 @@
+     lines = [f"Clothing: {classification.raw_description}"]
+ 
+     if classification.is_suspicious:
+-        lines.append("  [ALERT: Potentially suspicious attire detected]")
++        lines.append("XX  [ALERT: Potentially suspicious attire detected]XX")
+     elif classification.is_service_uniform:
+         lines.append("  [Service/delivery worker uniform detected]")
+ 
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_32: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -23,4 +23,4 @@
+             alt_cat, alt_score = sorted_scores[1]
+             lines.append(f"  Alternative: {alt_cat} ({alt_score:.1%})")
+ 
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+# backend.services.fashion_clip_loader.x_format_clothing_context__mutmut_7: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -12,7 +12,7 @@
+     if classification.is_suspicious:
+         lines.append("  [ALERT: Potentially suspicious attire detected]")
+     elif classification.is_service_uniform:
+-        lines.append("  [Service/delivery worker uniform detected]")
++        lines.append("XX  [Service/delivery worker uniform detected]XX")
+ 
+     lines.append(f"  Confidence: {classification.confidence:.1%}")
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_15: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -54,7 +54,7 @@
+             hub_path = "hf-hub:Marqo/marqo-fashionSigLIP"
+ 
+             model, preprocess = create_model_from_pretrained(hub_path)
+-            tokenizer = get_tokenizer(hub_path)
++            tokenizer = get_tokenizer(None)
+ 
+             model = model.cuda()
+             model.eval()
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_17: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -58,7 +58,7 @@
+ 
+             model = model.cuda()
+             model.eval()
+-            logger.info("FashionSigLIP model loaded on cuda")
++            logger.info(None)
+ 
+             return {"model": model, "preprocess": preprocess, "tokenizer": tokenizer}
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_18: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -58,7 +58,7 @@
+ 
+             model = model.cuda()
+             model.eval()
+-            logger.info("FashionSigLIP model loaded on cuda")
++            logger.info("XXFashionSigLIP model loaded on cudaXX")
+ 
+             return {"model": model, "preprocess": preprocess, "tokenizer": tokenizer}
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_19: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -58,7 +58,7 @@
+ 
+             model = model.cuda()
+             model.eval()
+-            logger.info("FashionSigLIP model loaded on cuda")
++            logger.info("fashionsiglip model loaded on cuda")
+ 
+             return {"model": model, "preprocess": preprocess, "tokenizer": tokenizer}
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_20: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -58,7 +58,7 @@
+ 
+             model = model.cuda()
+             model.eval()
+-            logger.info("FashionSigLIP model loaded on cuda")
++            logger.info("FASHIONSIGLIP MODEL LOADED ON CUDA")
+ 
+             return {"model": model, "preprocess": preprocess, "tokenizer": tokenizer}
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_3: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -32,7 +32,7 @@
+ 
+         if not torch.cuda.is_available():
+             raise RuntimeError(
+-                "FashionSigLIP requires a CUDA GPU — CPU inference holds the GIL "
++                "XXFashionSigLIP requires a CUDA GPU — CPU inference holds the GIL XX"
+                 "for 10-30 s per frame and starves the async event loop. "
+                 "Skipping on CPU-only host."
+             )
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_31: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -64,7 +64,7 @@
+ 
+         result = await loop.run_in_executor(None, _load)
+ 
+-        logger.info(f"Successfully loaded FashionSigLIP model from {model_path}")
++        logger.info(None)
+         return result
+ 
+     except ImportError as e:
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_32: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -69,8 +69,7 @@
+ 
+     except ImportError as e:
+         logger.warning(
+-            "open_clip_torch or torch package not installed. "
+-            "Install with: pip install open_clip_torch torch"
++            None
+         )
+         raise ImportError(
+             "FashionSigLIP requires open_clip_torch and torch. "
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_33: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -69,7 +69,7 @@
+ 
+     except ImportError as e:
+         logger.warning(
+-            "open_clip_torch or torch package not installed. "
++            "XXopen_clip_torch or torch package not installed. XX"
+             "Install with: pip install open_clip_torch torch"
+         )
+         raise ImportError(
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_34: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -69,7 +69,7 @@
+ 
+     except ImportError as e:
+         logger.warning(
+-            "open_clip_torch or torch package not installed. "
++            "OPEN_CLIP_TORCH OR TORCH PACKAGE NOT INSTALLED. "
+             "Install with: pip install open_clip_torch torch"
+         )
+         raise ImportError(
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_35: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -73,8 +73,7 @@
+             "Install with: pip install open_clip_torch torch"
+         )
+         raise ImportError(
+-            "FashionSigLIP requires open_clip_torch and torch. "
+-            "Install with: pip install open_clip_torch torch"
++            None
+         ) from e
+ 
+     except Exception as e:
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_36: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -73,7 +73,7 @@
+             "Install with: pip install open_clip_torch torch"
+         )
+         raise ImportError(
+-            "FashionSigLIP requires open_clip_torch and torch. "
++            "XXFashionSigLIP requires open_clip_torch and torch. XX"
+             "Install with: pip install open_clip_torch torch"
+         ) from e
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_37: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -73,7 +73,7 @@
+             "Install with: pip install open_clip_torch torch"
+         )
+         raise ImportError(
+-            "FashionSigLIP requires open_clip_torch and torch. "
++            "fashionsiglip requires open_clip_torch and torch. "
+             "Install with: pip install open_clip_torch torch"
+         ) from e
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_38: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -73,7 +73,7 @@
+             "Install with: pip install open_clip_torch torch"
+         )
+         raise ImportError(
+-            "FashionSigLIP requires open_clip_torch and torch. "
++            "FASHIONSIGLIP REQUIRES OPEN_CLIP_TORCH AND TORCH. "
+             "Install with: pip install open_clip_torch torch"
+         ) from e
+ 
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_39: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            None, exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_40: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load FashionSigLIP model", exc_info=None, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_41: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load FashionSigLIP model", exc_info=True, extra=None
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_43: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load FashionSigLIP model", extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_44: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,5 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
+-        )
++            "Failed to load FashionSigLIP model", exc_info=True, )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_45: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "XXFailed to load FashionSigLIP modelXX", exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_46: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "failed to load fashionsiglip model", exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_47: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "FAILED TO LOAD FASHIONSIGLIP MODEL", exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_48: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load FashionSigLIP model", exc_info=False, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_49: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load FashionSigLIP model", exc_info=True, extra={"XXmodel_pathXX": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
+# backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_50: survived
+--- backend/services/fashion_clip_loader.py
++++ backend/services/fashion_clip_loader.py
+@@ -79,6 +79,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load FashionSigLIP model", exc_info=True, extra={"MODEL_PATH": model_path}
+         )
+         raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e

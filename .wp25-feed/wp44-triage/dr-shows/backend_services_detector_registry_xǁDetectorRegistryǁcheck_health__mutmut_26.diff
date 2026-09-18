@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -31,7 +31,7 @@
+             return DetectorStatus(
+                 detector_type=detector_type,
+                 healthy=True,
+-                model_loaded=data.get("model_loaded", False),
++                model_loaded=data.get("model_loaded", None),
+                 latency_ms=latency_ms,
+             )
+         else:

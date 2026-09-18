@@ -1,169 +1,160 @@
-import json, re
-from collections import Counter, defaultdict
+import json, re, collections
 
-rows = json.load(open('/tmp/wp25/wp44-triage/rows.json'))
+rows = json.load(open('eb_classified.json'))
+recs = {}
+for row in rows:
+    recs.setdefault(row['key'], []).append(row)
+recs = [{'key': k, 'fn': r[0]['fn'], 'hunks': r} for k, r in recs.items()]
+FN = lambda r: r['fn']
 
-STR = r'"[^"]*"'
-QSTR = r"'[^']*'"
-BOTH = '(' + STR + '|' + QSTR + ')'
+def case_variant(o, n):
+    """pure case / XX-wrap / identical text mutation"""
+    so = re.sub(r'\s+', ' ', o).strip()
+    sn = re.sub(r'\s+', ' ', n).strip()
+    if so == sn:
+        return True
+    if sn == so.upper() or sn == so.lower():
+        return True
+    if sn == 'XX' + so + 'XX' or sn.replace('XX', '') == so.replace('XX', ''):
+        return True
+    # key renames inside dict literals: "type"->"TYPE" etc: compare after uppercasing+strip XX
+    a = so.replace('XX', '').upper()
+    b = sn.replace('XX', '').upper()
+    return a == b
 
+LOGCTX = ('logger', 'extra={')
 
-def str_variant(o, n):
-    """Return family if difference is purely string-literal text."""
-    so = re.findall(BOTH, o)
-    sn = re.findall(BOTH, n)
-    if len(so) == 1 and len(sn) == 1 and re.sub(BOTH, 'S', o) == re.sub(BOTH, 'S', n):
-        a, b = so[0], sn[0]
-        core, nc = a[1:-1], b[1:-1]
-        if nc == 'XX' + core + 'XX' or nc == 'xx' + core.lower() + 'xx':
-            return 'STR-XXwrap'
-        if nc == core.upper() and core != core.upper():
-            return 'STR-UPPER'
-        if nc == core.upper():
-            return 'STR-UPPER'
-        if nc == core.lower() and core != core.lower():
-            return 'STR-lower'
-        if nc == '':
-            return 'STR-empty'
-        if nc in ('XX', 'xx'):
-            return 'STR-XXwrap'
-        return 'STR-other'
-    return None
+def bucket(r, h):
+    o, n, c, fn = h['old'], h['new'], h['ctx'] or '', r['fn']
+    so = re.sub(r'\s+', ' ', o).strip()
+    # ---- explicit key-level overrides
+    key = r['key'].split('.')[-1].replace('__mutmut_', '_')
+    ov = {
+        'x_requires_ack_21': 'TG-requires_ack-default-score-1',
+        'x_requires_ack_27': 'EQ-requires_ack-risklevel-defaults',
+        'x_requires_ack_29': 'EQ-requires_ack-risklevel-defaults',
+        'x_requires_ack_32': 'EQ-requires_ack-risklevel-defaults',
+        'xǁEventBroadcasterǁrecord_ack_6': 'TG-record_ack-baseline-1',
+        'xǁEventBroadcasterǁrecord_ack_7': 'EQ-record_ack-ge-same',
+        'xǁBroadcastRetryMetricsǁrecord_success_9': 'EQ-record_success-branch-equivalence',
+        'xǁBroadcastRetryMetricsǁto_dict_9': 'EQ-metrics-to_dict-key-literals',
+        'xǁBroadcastRetryMetricsǁto_dict_10': 'EQ-metrics-to_dict-key-literals',
+        'xǁBroadcastRetryMetricsǁrecord_success_10': 'TG-metrics-counter-reset',
+        'xǁBroadcastRetryMetricsǁrecord_failure_3': 'TG-metrics-counter-reset',
+        'xǁBroadcastRetryMetricsǁrecord_failure_6': 'TG-metrics-counter-reset',
+        'xǁBroadcastRetryMetricsǁto_dict_17': 'TG-metrics-success_rate-guard',
+        'xǁBroadcastRetryMetricsǁto_dict_19': 'TG-metrics-success_rate-guard',
+        'x_broadcast_with_retry_68': 'TG-metrics-counter-reset',
+        'x_broadcast_with_retry_69': 'TG-metrics-counter-reset',
+        'x_broadcast_with_retry_1': 'EQ-dead-init-variants',
+        'xǁEventBroadcasterǁ__init___5': 'EQ-dead-init-variants',
+        'xǁEventBroadcasterǁ__init___12': 'TG-init-circuit-breaker-flags',
+        'xǁEventBroadcasterǁ__init___13': 'TG-init-circuit-breaker-flags',
+        'xǁEventBroadcasterǁ_listen_for_events_43': 'TG-listen-recovery-gate',
+        'xǁEventBroadcasterǁ_listen_for_events_50': 'LV-listener-backoff-constants',
+        'xǁEventBroadcasterǁ_listen_for_events_53': 'LV-listener-backoff-constants',
+        'xǁEventBroadcasterǁ_supervise_listener_7': 'TG-supervisor-break-vs-return',
+        'xǁEventBroadcasterǁ_supervise_listener_13': 'TG-supervisor-break-vs-return',
+        'xǁEventBroadcasterǁ_supervise_listener_5': 'LV-supervisor-sleep-arg',
+        'xǁEventBroadcasterǁ_handle_healthy_listener_1': 'TG-healthy-flag-set-false',
+        'xǁEventBroadcasterǁ_handle_healthy_listener_2': 'TG-healthy-flag-set-false',
+        'xǁEventBroadcasterǁ_handle_healthy_listener_3': 'TG-healthy-reset-gate',
+        'xǁEventBroadcasterǁ_handle_healthy_listener_4': 'TG-healthy-reset-gate',
+        'xǁEventBroadcasterǁ_handle_dead_listener_10': 'TG-dead-listener-return-flags',
+        'xǁEventBroadcasterǁ_handle_dead_listener_16': 'TG-dead-listener-return-flags',
+        'xǁEventBroadcasterǁ_handle_dead_listener_24': 'TG-dead-listener-return-flags',
+        'xǁEventBroadcasterǁ_handle_dead_listener_33': 'TG-dead-listener-return-flags',
+        'xǁEventBroadcasterǁ_handle_dead_listener_17': 'TG-dead-listener-attempt-arithmetic',
+        'xǁEventBroadcasterǁ_handle_dead_listener_18': 'TG-dead-listener-attempt-arithmetic',
+        'xǁEventBroadcasterǁ_handle_dead_listener_19': 'TG-dead-listener-attempt-arithmetic',
+        'xǁEventBroadcasterǁ_handle_dead_listener_25': 'TG-dead-listener-restart-task',
+        'xǁEventBroadcasterǁ_handle_dead_listener_26': 'TG-dead-listener-restart-task',
+        'xǁEventBroadcasterǁ_handle_dead_listener_27': 'TG-dead-listener-restart-task',
+        'xǁEventBroadcasterǁ_handle_dead_listener_28': 'TG-dead-listener-restart-task',
+        'xǁEventBroadcasterǁ_resubscribe_for_supervisor_2': 'LV-resubscribe-channel-arg',
+        'xǁEventBroadcasterǁ_resubscribe_for_supervisor_4': 'TG-resubscribe-true-on-failure',
+        'xǁEventBroadcasterǁ_send_to_single_client_1': 'LV-send-single-if-or',
+        'xǁEventBroadcasterǁconnect_2': 'TG-client-format-map',
+        'xǁEventBroadcasterǁdisconnect_5': 'TG-client-format-map',
+        'xǁEventBroadcasterǁstop_3': 'TG-stop-listener-health-flag',
+        'xǁEventBroadcasterǁstop_4': 'TG-stop-listener-health-flag',
+        'x_broadcast_alert_with_retry_background_10': 'TG-background-alert-lambda-args',
+        'x_broadcast_alert_with_retry_background_11': 'TG-background-alert-lambda-args',
+        'x_broadcast_alert_with_retry_background_12': 'TG-background-alert-lambda-args',
+        'x_broadcast_alert_with_retry_background_13': 'TG-background-alert-lambda-args',
+        'x_broadcast_alert_with_retry_background_2': 'LV-background-message-type-none',
+    }
+    k2 = r['key'].split('.event_broadcaster.')[1]
+    k3 = k2.replace('__mutmut_', '_')
+    if k3 in ov:
+        return ov[k3]
+    # ---- generic rules
+    if 'model_dump(mode=' in so:
+        return 'TG-model-dump-mode'
+    if '.publish(' in so or so.startswith('subscriber_count = await'):
+        return 'TG-publish-call-args'
+    if so.startswith('validated_message =') or so.startswith('validated_data =') or so.startswith('validated_message_union ='):
+        return 'TG-validation-pipeline-bypass'
+    if so.startswith('validated_message = WebSocketServiceStatusMessage(') :
+        return 'TG-validation-pipeline-bypass'
+    if so.startswith('if "type" not in') or so.startswith('data_dict = batch_data.get'):
+        return 'TG-batch-envelope-guard'
+    if so.startswith('worker_status_data =') or so.startswith('data_dict["type"]') or so.startswith('data_dict ='):
+        return 'TG-payload-literal-shape'
+    if fn.endswith('broadcast_degraded_state'):
+        if c.startswith(LOGCTX):
+            return 'EQ-log-message-text' if case_variant(o, n) else 'LV-log-extras-and-flags'
+        return 'TG-degraded-payload-literal'
+    if fn.endswith('ǁstop'):
+        if c.startswith(LOGCTX):
+            return 'EQ-log-message-text' if case_variant(o, n) else 'LV-log-extras-and-flags'
+        if '_listener_healthy' in so:
+            return 'TG-stop-listener-health-flag'
+        return 'TG-shutdown-payload-literal'
+    if fn.endswith('_send_to_all_clients'):
+        if 'track_stats' in so or 'return_exceptions' in so:
+            return 'LV-send-all-format-stats-flags'
+        return 'TG-send-all-format-and-payload'
+    if fn.endswith('_send_to_single_client'):
+        return 'EQ-log-message-text'
+    if fn.endswith('ǁconnect'):
+        return 'LV-log-extras-and-flags' if case_variant(o, n) is False and 'extra' in c else 'EQ-log-message-text'
+    if fn.endswith('broadcast_service_status') and 'WebSocketServiceStatusMessage(' in so:
+        return 'TG-validation-pipeline-bypass'
+    if fn.endswith('broadcast_ai_threat_detected') or True:
+        pass
+    # logger context / f-string log continuation lines
+    if c.startswith(LOGCTX) or (so.startswith('f"') and '{' in so and c in ('TOP', '') ) or 'logger' in c:
+        # payload.get/data_dict.get inside f-string logs are still log-only
+        return 'EQ-log-message-text' if case_variant(o, n) else 'LV-log-extras-and-flags'
+    # broadcast_* data_dict.get('field', {}) defaults
+    if '.get(' in so and fn.startswith('xǁEventBroadcasterǁbroadcast_'):
+        return 'TG-payload-literal-shape'
+    # get_instance exception text
+    if 'RuntimeError(' in c or so.startswith('"EventBroadcaster'):
+        return 'EQ-exception-message-text'
+    if 'logger' in c:
+        return 'EQ-log-message-text'
+    return 'UNASSIGNED::' + fn + '::' + so[:40]
 
+# per-survivor: pick highest-priority bucket among hunks (TG > LV > EQ)
+prio = lambda b: 0 if b.startswith('TG') else (1 if b.startswith('LV') else 2)
+per_key = {}
+for r in recs:
+    bs = [bucket(r, h) for h in r['hunks']]
+    bs.sort(key=prio)
+    per_key[r['key']] = bs[0]
 
-def final_family(r):
-    old, new = r['old'], r['new']
-    if len(old) != 1 or len(new) != 1:
-        # multi-line: mostly argument deletion / call removal
-        o = '\n'.join(old)
-        n = '\n'.join(new)
-        if len(new) < len(old):
-            return 'MULTI-arg-or-block-deleted'
-        return 'MULTI-other'
-    o, n = old[0], new[0]
-
-    f = str_variant(o, n)
-    if f:
-        return f
-    # multi-token string clobbers that also touched adjacent token: check strings only differ
-    so = re.findall(BOTH, o)
-    sn = re.findall(BOTH, n)
-    if so and sn and len(so) == len(sn):
-        stripped_o = [s for s in so]
-        stripped_n = [s for s in sn]
-        if stripped_o != stripped_n and re.sub(BOTH, 'S', o) == re.sub(BOTH, 'S', n):
-            return 'STR-XXwrap/UPPER-multi'
-
-    # exc_info True -> None/False
-    if 'exc_info=True' in o and ('exc_info=None' in n or 'exc_info=False' in n):
-        return 'LOG-exc_info-killed'
-
-    # condition boolean adders/removers
-    if re.search(r'\b(and|or)\s+(False|True)\b', n) and not re.search(r'\b(and|or)\s+(False|True)\b', o):
-        return 'COND-andFalse-orTrue'
-    if is_not_flip(o, n):
-        return 'COND-isNotNone-flip'
-    # 'if X:' -> 'if not X:' and inverse
-    if (n.replace(' not ', ' ', 1) == o or o.replace(' not ', ' ', 1) == n) and re.match(r'^\s*(if|elif|while|assert)\b', o):
-        return 'COND-not-added-removed'
-
-    if re.match(r'^\s*(continue|break)\s*$', o) and re.match(r'^\s*(continue|break)\s*$', n) and o != n:
-        return 'FLOW-continue-break'
-
-    # True -> False / False -> True literals (value positions)
-    if 'True' in o and 'False' in n and o.replace('True', 'X') == n.replace('False', 'X'):
-        return 'BOOL-True-to-False'
-    if 'False' in o and 'True' in n and o.replace('False', 'X') == n.replace('True', 'X'):
-        return 'BOOL-False-to-True'
-
-    # result of a call/await replaced by None:  X = <call>  ==>  X = None
-    m = re.match(r'^(\s*[\w.\[\]]+\s*(:[^=]+)?= )(.+)$', o)
-    if m and n.strip().startswith(m.group(1)) and re.match(r'^(\s*[\w.\[\]]+\s*(:[^=]+)?= )(None)\s*,?\s*$', n):
-        return 'DATA-call-to-None'
-
-    # kwarg X=expr -> X=None (or arg removed entirely -> ')')
-    if re.search(r'(\w+)=', o):
-        m2 = re.match(r'.*?(\w+)=.*$', o)
-        mm = re.findall(r'(\w+)=', o)
-        mn = re.findall(r'(\w+)=', n)
-        if n.strip() in (')',):
-            return 'DATA-kwarg-removed'
-        if 'None' in n:
-            m3 = re.match(r'.*(\w+)=None\s*,?\s*$', n)
-            if m3 and m3.group(1) in mm:
-                return 'DATA-kwarg-to-None'
-    if n.strip() in (')',):
-        return 'DATA-kwarg-removed'
-
-    # default-arg removal: .get("k", 0) -> .get("k", )
-    if re.search(r'\w\.get\([^()]*,\s*\)', n) or re.search(r'\w\([^()]*,\s*\)', n):
-        if ', )' in n and ', )' not in o:
-            return 'DATA-default-removed'
-    if re.search(r'index_elements=\[[^\]]*\]\)?', o) and 'index_elements=None' in n:
-        return 'DATA-kwarg-to-None'
-
-    # call positional arg -> None: f(a, b) -> f(a, None)
-    if 'None' in n and 'None' not in o:
-        to = re.sub(r'[A-Za-z_]\w*', 'V', o)
-        tn = re.sub(r'[A-Za-z_]\w*', 'V', n)
-        # allow None to have replaced a token V
-        if to.count('V') == tn.count('V') + n.count('None'):
-            return 'DATA-arg-to-None'
-        return 'DATA-to-None-other'
-    if 'None' in o and 'None' not in n:
-        return 'DATA-None-to-expr'
-
-    # operator flips
-    to = re.findall(r'\*\*|//|<=|>=|==|!=|<-|->|[-+*/<>=&|^%]|\band\b|\bor\b|is not|is|\bnot\b|[A-Za-z_][\w.]*|"[^"]*"|\d+\.\d+|\d+|.', o)
-    tn = re.findall(r'\*\*|//|<=|>=|==|!=|<-|->|[-+*/<>=&|^%]|\band\b|\bor\b|is not|is|\bnot\b|[A-Za-z_][\w.]*|"[^"]*"|\d+\.\d+|\d+|.', n)
-    if len(to) == len(tn):
-        diffs = [(a, b) for a, b in zip(to, tn) if a != b]
-        if len(diffs) == 1:
-            a, b = diffs[0]
-            if re.fullmatch(r'\d+(\.\d+)?', a) and re.fullmatch(r'\d+(\.\d+)?', b):
-                return 'NUM-tweak'
-            if a in ('<', '<=', '>', '>=', '==', '!=') and b in ('<', '<=', '>', '>=', '==', '!='):
-                return 'OP-comparison-flip'
-            if a in ('and', 'or') and b in ('and', 'or'):
-                return 'OP-and-or-flip'
-            if a in ('is', 'is not') or b in ('is', 'is not'):
-                return 'OP-is-flip'
-            if a in ('+', '-', '*', '/', '**') or b in ('+', '-', '*', '/', '**'):
-                return 'OP-arith-flip'
-            if a == b:
-                return 'X-identical'
-            return 'TOK-other:' + a + '->' + b
-    return 'Z-rest'
-
-
-def is_not_flip(o, n):
-    pairs = [('is not None', 'is None'), ('is None', 'is not None')]
-    for a, b in pairs:
-        if a in o and b in n and o.replace(a, '#') == n.replace(b, '#'):
-            return True
-    return False
-
-
-fam = defaultdict(list)
-for r in rows:
-    fam[final_family(r)].append(r)
-
-tot = 0
-for k in sorted(fam, key=lambda k: -len(fam[k])):
-    print('%5d  %s' % (len(fam[k]), k))
-    tot += len(fam[k])
-print('TOTAL', tot)
-
-json.dump({k: [{'func': r['func'], 'idx': r['idx'], 'old': r['old'], 'new': r['new']} for r in v]
-           for k, v in fam.items()},
-          open('/tmp/wp25/wp44-triage/final.json', 'w'))
-
-# cross-tab top families x functions
+cnt = collections.Counter(per_key.values())
+un = {k: v for k, v in per_key.items() if v.startswith('UNASSIGNED')}
+print('assigned', len(per_key) - len(un), 'unassigned', len(un))
+for k, v in un.items():
+    print('UN', k, v)
+json.dump(per_key, open('eb_per_key.json', 'w'), indent=1)
 print()
-print('=== Z-rest / TOK-other leftovers sample ===')
-for k in fam:
-    if k.startswith('Z-rest') or k.startswith('TOK-other'):
-        cnt = Counter((r['func'], tuple(r['old'])[:1], tuple(r['new'])[:1]) for r in fam[k])
-        print('---', k, len(fam[k]))
-        for (f, o, n), c in cnt.most_common(12):
-            print('   ', c, f, ' | ', str(o)[:80], '==>', str(n)[:80])
+tot = 0
+for b, c in sorted(cnt.items()):
+    if b.startswith('UN'): continue
+    tot += c
+    print(f'{c:4d}  {b}')
+print('TOTAL', tot)

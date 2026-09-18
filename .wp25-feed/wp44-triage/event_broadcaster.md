@@ -1,387 +1,410 @@
-# WP4.4 triage dossier — backend/services/event_broadcaster.py
+# WP4.4 Triage Dossier — backend/services/event_broadcaster.py
 
-Wave: serial triage lane (event_broadcaster), 2026-09-17. UNVERIFIED throughout —
-no tests were run; a live `mutmut run` owns the machine.
+**Source of truth**: `mutants/backend/services/event_broadcaster.py.meta` — 1288 keys, **590 survived** (exit_code 0), 0 unchecked.
+**Method**: diffs extracted by diffing each `x<fn>__mutmut_N` block against `__mutmut_orig` inside the mutant copy (mutmut cache was concurrently owned, so `mutmut show` was not used; 590/590 keys diffed). Per-survivor assignment machine-checked: cluster counts sum exactly to 590 (TG 155 / LV 143 / EQ 292).
+**Covering tests** (from `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`): primary files are `backend/tests/unit/services/test_event_broadcaster.py` (helpers `_FakeRedis` L34-45), `test_broadcast_retry.py`, `test_message_buffer.py`, `test_event_broadcaster_new_events.py`, `test_batch_aggregator.py` (indirect only), `test_event_broadcaster_worker.py`, `test_event_broadcaster_summary.py`.
 
-- Survivors at extraction: **104** (meta snapshot 2026-09-17 14:08: 1288 keys —
-  148 killed, 104 survived, 1036 unchecked). Counts/keys shift as the run
-  advances; clusters are pattern-based and hold for later verdicts on the same
-  shapes.
-- Survivor functions/indices (exact, from eb_diffs.json):
-  to_dict {9,10,17,19}; _resubscribe_for_supervisor {2,4}; record_ack {6,7};
-  broadcast_alert {17,18,19,25,26,27,28,29,31}; broadcast_summary_update
-  {2,3,4,5,12,13,14,15,23,24,25,26,33,34,35,41..57}; broadcast_zone_dwell_started
-  /_dwell_alert /_zone_approach /broadcast_entity_track_updated
-  /broadcast_ai_action_recognized {10,11,12,14,18..24 each}.
-- Source: `backend/services/event_broadcaster.py` (2445 lines)
-- Full machine-readable diffs: `/tmp/wp25/wp44-triage/eb_diffs.json`
-  (key → unified diff of the mutant function vs its `__mutmut_orig`).
+## Key semantic rulings (evidence, not vibes)
 
-## Extraction method (tooling caveat — `mutmut show` is broken under the live run)
+- **`model_dump(mode=...)` mutants (68) are EQUIVALENT.** Probed against the project venv (pydantic 2.13.5): `mode=None`, `"JSON"`, `"XXjsonXX"` all fall back to python-mode silently (no warning). Every broadcast schema in `backend/api/schemas/websocket.py` declares timestamps as `str` (`WebSocketDetectionNewData.timestamp: str`, `WebSocketSummaryData.window_start: str`, alert `id: str`), so python-mode == json-mode output for all validated messages. No observable difference → cannot be killed; equivalent, not a test gap.
+- **Wrap-envelope `{"type": ...}` literal mutants (36) are EQUIVALENT.** In `broadcast_*`, the literal type string only applies when the caller omits `"type"`; tests always pass a pre-typed envelope, and the validated message's own default (`WebSocketDetectionNewMessage.type` etc.) re-overrides it on the published dict. Verified shape: surviving change is key `"type"`→`"TYPE"`/value case only.
+- **`.get("data", {})` default mutants (20) are EQUIVALENT** — default only fires when `"data"` key is absent, which validation would reject anyway (guard path is on the other cluster).
+- **`requires_ack` default mutants (4) EQUIVALENT**: `data.get("risk_score", 1)`, `risk_level` default `None`/`""`/`"XXXX"` — all still compare `>= 80` / `== "critical"` identically for present/absent keys.
+- **`record_ack` `>`→`>=` (mutmut_7) EQUIVALENT** — assignment stores the same value when equal.
+- **`if retry_count in ...` flip (record_success mutmut_9) EQUIVALENT** — else-branch is `retry_counts[k] = 1`, same as the if-branch increments from 0.
+- **`break`→`return` in `_listen_for_events`/`_supervise_listener` (3) EQUIVALENT** — no code follows the loop.
 
-`uv run mutmut show <key>` raises `FileNotFoundError: Could not find original
-function "to_dict"` — the live run resets every `mutants/**.py` copy to a plain
-source copy during generation/check phases, so the trampoline copies
-(`x...__mutmut_N`) are absent from the file `show` parses; its spans fallback
-then fails because the on-disk copy (2445 lines) is not the 79,067-line mutated
-file the `.spans` index describes.
+## Cluster table (counts sum = 590)
 
-Workaround (read-only, no cache touched):
+| # | Cluster | Class | N | Example keys (suffix) | Note |
+|---|---------|-------|---|----------------------|------|
+| 1 | EQ-log-message-text (case/XX/identical renames of logger & error strings) | EQUIVALENT | 152 | xǁEventBroadcasterǁǁ_event_broadcaster__init__: `x_get_broadcaster__mutmut_7..10`, `xǁEventBroadcasterǁstart__mutmut_2/3`, `xǁEventBroadcasterǁ_handle_dead_listener__mutmut_2/3/4` | Pure log text incl. `logger.info(None)`; no log-content assertions anywhere |
+| 2 | EQ-model-dump-mode-noop (`mode="json"`→None/"JSON"/"XXjsonXX") | EQUIVALENT | 68 | `xǁEventBroadcasterǁbroadcast_ai_action_recognized__mutmut_10/11/12` | Pydantic silently falls back to python mode; schemas carry str timestamps (see ruling above) |
+| 3 | EQ-wrap-envelope-type-literal-overridden | EQUIVALENT | 36 | `xǁEventBroadcasterǁbroadcast_batch_analysis_completed__mutmut_5/6/7` | Type literal only used on untyped-input path; schema default re-overrides |
+| 4 | LV-log-structure (dropped `extra=`, `exc_info=`, attempt-counter text in log payload) | LOW-VALUE | 126 | `x_broadcast_alert_with_retry_background__mutmut_14/15/17`, `x_broadcast_with_retry__mutmut_42..87` | Structured-log-field changes; nobody should assert logging config |
+| 5 | EQ-envelope-get-data-default | EQUIVALENT | 20 | `xǁEventBroadcasterǁbroadcast_batch_analysis_completed__mutmut_13/15` | `.get("data", {})`→`.get("data", None)`; key always present in valid payloads |
+| 6 | EQ-comment-text / dead-init-assignments / break-vs-return / to_dict-key / requires_ack-defaults / record_ack-ge / record_success-membership | EQUIVALENT | 16 | `x_broadcast_with_retry__mutmut_1`, `xǁEventBroadcasterǁ_listen_for_events__mutmut_12`, `xǁEventBroadcasterǁbroadcast_detection_batch__mutmut_43` | 3+3+2+2+4+1+1, all semantically inert (details above) |
+| 7 | **TG-broadcast-publish-call-args** (`_redis.publish(...)` channel/payload args → None/dropped, return forced None) | TEST-GAP | 17 | `xǁEventBroadcasterǁbroadcast_detection_batch__mutmut_26`, `xǁEventBroadcasterǁbroadcast_ai_action_recognized__mutmut_14`, `xǁEventBroadcasterǁbroadcast_zone_dwell_started__mutmut_9` | `test_event_broadcaster_new_events.py` (L100s) asserts `published["type"]` but NOT `channel` for dwell_started/dwell_alert/approach/entity_track_updated/ai_action; detection_new/batch have no direct test at all (only via `test_batch_aggregator.py`, which mocks the broadcaster — `backend/tests/unit/core/test_websocket.py:373`) |
+| 8 | **TG-broadcast-payload-literal-shape** (wrap dict `"data"` key, envelope `.get(None...)`, data_dict=None) | TEST-GAP | 20 | `xǁEventBroadcasterǁbroadcast_detection_batch__mutmut_4/10`, `xǁEventBroadcasterǁbroadcast_detection_new__mutmut_7` | Same direct-call gap as #7 |
+| 9 | **TG-batch-envelope-guard** (`if "type" not in batch_data:` → "TYPE"/"XXtypeXX"/`in`; `batch_data = None`) | TEST-GAP | 23 | `xǁEventBroadcasterǁbroadcast_batch_analysis_completed__mutmut_1/2`, `xǁEventBroadcasterǁbroadcast_detection_new__mutmut_2` | The wrap-when-untyped path is never exercised directly |
+| 10 | **TG-validation-pipeline-bypass** (`validated_*`/`model_validate(...)` → None) | TEST-GAP | 8 | `xǁEventBroadcasterǁbroadcast_detection_batch__mutmut_18/19/20` | Would raise ValueError at publish time — only killed by a direct happy-path call |
+| 11 | **TG-stop-shutdown-payload-literal** (`system.shutdown` json + send_text args in `stop()` L675-685) | TEST-GAP | 17 | `xǁEventBroadcasterǁstop__mutmut_11/12/13` | `test_event_broadcaster.py::test_stop_unsubscribes_and_disconnects_all_connections` (L239-261) never inspects what `ws.send_text` received |
+| 12 | **TG-degraded-payload-literal** (`_broadcast_degraded_state` dict keys/values L2211-2221) | TEST-GAP | 20 | `xǁEventBroadcasterǁ_broadcast_degraded_state__mutmut_10..16` | `test_event_broadcaster.py::test_broadcast_degraded_state_to_clients` (L2058-2081) asserts only substrings `"service_status" in msg` / `"degraded" in msg` — survives key renames & value casing where substring still appears |
+| 13 | **TG-supervisor-handle-dead-listener** (return-flag swaps 4, `+=1` arithmetic 3, restart-task 4, resubscribe-cond 1) | TEST-GAP | 12 | `xǁEventBroadcasterǁ_handle_dead_listener__mutmut_10/16/17/25` | `test_event_broadcaster.py::test_supervise_listener_detects_dead_listener` (L1345) / `respects_max_attempts` (L1388) assert only log substrings + `_is_listening`; never the return value, `_recovery_attempts` value, or the restarted task identity |
+| 14 | **TG-supervisor-handle-healthy-listener** (flag→False/None 2, `>0` gate →`>=0`/`>1` 2) | TEST-GAP | 4 | `xǁEventBroadcasterǁ_handle_healthy_listener__mutmut_1/3` | `test_supervise_listener_resets_recovery_on_healthy` (L1420) starts at 3 so `>1` still resets; nothing asserts `_listener_healthy is True` after the call; `>=0` spams the recovery log when already 0 — unasserted |
+| 15 | **TG-stop-listener-health-flag** (`stop()` `_listener_healthy=False`→True/None) | TEST-GAP | 2 | `xǁEventBroadcasterǁstop__mutmut_3/4` | No stop() test touches `_listener_healthy`/`is_listener_healthy` |
+| 16 | **TG-init-circuit-breaker-config** (ctor kwargs to `WebSocketCircuitBreaker`: threshold 5→removed(3)/None, timeout 30→31/None, half_open/success 1→2/None) + `_listener_healthy` init None/True | TEST-GAP | 11 | `xǁEventBroadcasterǁ__init____mutmut_12/13/22` | No test reads `broadcaster.circuit_breaker.failure_threshold` / `_recovery_timeout` / `_half_open_max_calls` / `_success_threshold`; some None-arg mutants also blow up only in half-open state |
+| 17 | **TG-metrics-counter-reset** (`+=`→`=1` in record_success/record_failure + `record_failure(attempt+1)`→`attempt±1`) | TEST-GAP | 5 | `xǁBroadcastRetryMetricsǁrecord_failure__mutmut_3/6`, `x_broadcast_with_retry__mutmut_68/69`, `xǁBroadcastRetryMetricsǁrecord_success__mutmut_10` | `test_broadcast_retry.py::test_record_failure` (L62) records ONE failure then asserts `== 1` — reset-vs-increment indistinguishable; `retry_counts[0]` checked once-only (L49) |
+| 18 | **TG-metrics-success_rate-guard** (`>0`→`>1`, `+`→`-` in guard) | TEST-GAP | 2 | `xǁBroadcastRetryMetricsǁto_dict__mutmut_17/19` | `test_to_dict` (L72) uses s=2,f=1 (1/3 vs -1/3 both ≈ guarded?) — mutant `-` gives guard-false 0.0 only when f>s; `test_success_rate_zero_broadcasts` (L89) only checks the 0/0 case |
+| 19 | **TG-record-ack-baseline-one** (`_client_acks.get(ws, 0)`→`get(ws, 1)`) | TEST-GAP | 1 | `xǁEventBroadcasterǁrecord_ack__mutmut_6` | `test_message_buffer.py::test_record_ack_stores_sequence` (L277) acks 42; first-ACK-of-0 (legit seq-0) never acked — mutant silently refuses to store seq 0 |
+| 20 | **TG-client-format-negotiation** (`connect`: `_client_formats[ws]=None`; `disconnect`: `pop(None,None)` leaks entry) | TEST-GAP | 2 | `xǁEventBroadcasterǁconnect__mutmut_2`, `xǁEventBroadcasterǁdisconnect__mutmut_5` | `test_event_broadcaster.py::test_connect_accepts_websocket_and_registers` (L363) never asserts `_client_formats`/`get_client_format`; no disconnect format-cleanup test |
+| 21 | **TG-background-alert-lambda-args** (`broadcast_alert(alert_data, event_type)` arg→None/drop) | TEST-GAP | 4 | `x_broadcast_alert_with_retry_background__mutmut_10/11/12/13` | `test_broadcast_retry.py::test_successful_broadcast` (L289) asserts `assert_called_once()` only — not with-args |
+| 22 | **TG-resubscribe-true-on-failure** (`_resubscribe_for_supervisor` returns True on failure) | TEST-GAP | 1 | `xǁEventBroadcasterǁ_resubscribe_for_supervisor__mutmut_4` | Covered via `test_event_broadcaster.py` (only 1 covering test, supervisor happy-path); failure path asserts nothing |
+| 23 | **TG-listen-recovery-gate** (`_recovery_attempts <= MAX`→`<`) | TEST-GAP | 1 | `xǁEventBroadcasterǁ_listen_for_events__mutmut_43` | `test_listen_for_events_recovery_bounded` (L1233) never lands exactly on attempts==MAX-1→MAX to see the extra restart |
+| 24 | LV-send-all-stats-flags (`track_stats=`, `return_exceptions=`, `format=` kwargs) | LOW-VALUE | 8 | `xǁEventBroadcasterǁ_send_to_all_clients__mutmut_19/20/22` | Compression-stats flags + gather mode; real behavior only under multi-client failure/telemetry nobody asserts |
+| 25 | TG-send-all-format-payload (`_client_formats.get(None...)`, message_dict/str=None) | TEST-GAP | 5 | `xǁEventBroadcasterǁ_send_to_all_clients__mutmut_4/11/26` | Format-negotiation cache path only exercised in test_event_broadcaster.py with default-JSON clients |
+| 26 | LV-listener-backoff-constants (`2**`→`3**`, cap 30→31), LV-supervisor-sleep-arg, LV-resubscribe/listen-channel-arg, LV-send-single-if-or, LV-retry-log-gates(2), LV-background-message-type(1) | LOW-VALUE | 9 | `xǁEventBroadcasterǁ_listen_for_events__mutmut_50/53`, `xǁEventBroadcasterǁ_supervise_listener__mutmut_5`, `x_broadcast_with_retry__mutmut_10/11` | Timing/backoff constants & sleep args — asserted nowhere and timing asserts would be flaky; recommend baseline exclusion |
+| | **TOTAL** | | **590** | | TG=155, LV=143, EQ=292 |
 
-1. Waited for the window where the live run rewrites
-   `mutants/backend/services/event_broadcaster.py` back to its mutated form (it
-   does this right before checking that module's mutants) and captured it:
-   79,067 lines, consistent with `event_broadcaster.py.spans` (07:43, max span
-   line 79063) and the 1288-key meta — same generation pass.
-2. Extracted each survivor's diff per-function from the captured copy using the
-   spans index (same algorithm as `mutmut/mutation/diff_apply.py`).
-3. **Cross-validation:** re-generated all mutants independently in-process with
-   `mutmut.mutation.file_mutation.mutate_file_contents` over the pristine source
-   (1452 candidates, no coverage filter; the live set is the coverage-filtered
-   1288). Every one of the 1288 live-mutant diffs matched a diff in the
-   independent set (0 misses), so the captured file is the file the meta was
-   checked against, and every key→diff mapping below is verified against two
-   independent generations. (Coverage-filter renumbering explains index gaps:
-   e.g. live `broadcast_alert__mutmut_17` sits at 29 in the unfiltered order —
-   do NOT assume unfiltered indices.)
+## Drafted tests (top 6 TEST-GAP clusters) — // UNVERIFIED - not yet run red/green
 
-## Cluster table (104 = 91 EQUIVALENT + 13 TEST-GAP + 0 LOW-VALUE)
+TDD procedure (same for all): apply each mutant of the target cluster to the source, run the new test — it must FAIL (red); revert to original, run — must PASS (green).
 
-| # | Pattern (kind × function/concern) | Count | Class | Kill | Example keys (≤3) |
-|---|-----------------------------------|------:|-------|------|-------------------|
-| C1 | log-text mutants (`None` whole f-string; `payload.get('k')` → `None`/`'XXkXX'`/`'K'`) in the 5 new-event fns (dwell_started/dwell_alert/zone_approach/entity_track_updated/ai_action_recognized), indices 18–24 | 35 | EQUIVALENT | — | `...ǁbroadcast_zone_dwell_started__mutmut_18`, `..._20`, `...ǁbroadcast_ai_action_recognized__mutmut_23` |
-| C2 | `model_dump(mode="json")` → `None`/`"JSON"`/`"XXjsonXX"`: 5 new-event fns `_10-12` (15) + alert `_17-19` (3) + summary hourly `_12-14`, daily `_23-25`, envelope `_33-35` (9) | 27 | EQUIVALENT | — | `...ǁbroadcast_alert__mutmut_17`, `...ǁbroadcast_summary_update__mutmut_33`, `...ǁbroadcast_entity_track_updated__mutmut_10` |
-| C6 | alert/summary Redis-publish debug-log text: `broadcast_data.get('type')` key mutants, whole message → `None`, and the yes/no ternary text (incl. `and False`/`or True` arms) — all inside the log f-string | 20 | EQUIVALENT | — | `...ǁbroadcast_alert__mutmut_25`, `...ǁbroadcast_summary_update__mutmut_42`, `..._45` |
-| C4 | `logger.error(f"...")` → `logger.error(None)` in except-hands of alert/summary (message text only; re-raise untouched) | 5 | EQUIVALENT | — | `...ǁbroadcast_alert__mutmut_29`, `..._31`, `...ǁbroadcast_summary_update__mutmut_15` |
-| C3 | `broadcast_summary_update` init `data_dict = {"hourly": None, "daily": None}` key strings mutated — dead write, overwritten/validated before use | 4 | EQUIVALENT | — | `...ǁbroadcast_summary_update__mutmut_2`, `..._3`, `..._4` |
-| C5 | `to_dict` success_rate arithmetic: guard `(successful + failed) > 0` → `-` (`_17`) / `> 1` (`_19`) — changes when the rate is computed vs `0.0` fallback | 2 | **TEST-GAP** | D1, D2 | `...ǁBroadcastRetryMetricsǁto_dict__mutmut_17`, `..._19` |
-| C7 | `to_dict` `"retry_counts"` key → `"XXretry_countsXX"`/`"RETRY_COUNTS"` — drops `retry_counts` from the `get_broadcast_metrics()` monitoring payload | 2 | **TEST-GAP** (contract drop; no in-repo reader of the key) | D3 | `...ǁBroadcastRetryMetricsǁto_dict__mutmut_9`, `..._10` |
-| C8 | new-event fns `publish(self._channel_name, ...)` → `publish(None, ...)` (index `_14` × 5 fns) — wrong Redis channel | 5 | **TEST-GAP** | D6 | `...ǁbroadcast_zone_dwell_started__mutmut_14`, `...ǁbroadcast_zone_approach__mutmut_14`, `...ǁbroadcast_ai_action_recognized__mutmut_14` |
-| C9 | `_resubscribe_for_supervisor`: `subscribe(self._channel_name)` → `subscribe(None)` (`_2`) and failure-arm `return False` → `True` (`_4`) — success path never exercised; return value only consumed by `_handle_dead_listener` and never asserted (covering test asserts the error log text, which both mutants preserve) | 2 | **TEST-GAP** | D7 | `...ǁ_resubscribe_for_supervisor__mutmut_2`, `..._4` |
-| C10a | `record_ack` default `_client_acks.get(websocket, 0)` → `1` — a fresh client's ack of sequence **1** silently no-ops (first buffered message dropped) | 1 | **TEST-GAP** | D4 | `...ǁrecord_ack__mutmut_6` |
-| C10b | `record_ack` `if sequence > current` → `>=` — re-records equal acks, violating the documented monotonic "only updates if higher" contract (observable when current is the implicit 0) | 1 | **TEST-GAP** | D5 | `...ǁrecord_ack__mutmut_7` |
-
-**Coverage sanity:** the 4 surviving-index functions with no unit tests at all
-(`broadcast_detection_batch/_new`, `broadcast_worker_status`,
-`broadcast_infrastructure_alert` — `tests_by_mangled_function_name = ∅`) have
-**no checked keys yet** in the 14:08 meta snapshot, so they contribute zero
-survivors to this snapshot; when the run reaches them, expect this module's
-signature pattern: mode mutants (equiv) + publish-channel mutants (**the same
-`_14` shape as C8 — D6-style channel asserts in whatever tests get written**) +
-log text (equiv).
-
-### EQUIVALENT receipts (do-not-delete-without-record)
-
-- **C2 — every `mode` variant is a no-op for these schemas.** Verified
-  empirically on the repo's pydantic 2.13.5: `model_dump(mode=None)`,
-  `mode="JSON"`, `mode="XXjsonXX"` all behave as *non-json* mode (only the exact
-  string `"json"` selects json mode; pydantic warns but does not raise). Every
-  schema broadcast here holds only JSON-stable fields or `str`-valued enums:
-  `WebSocketAlertData`/`WebSocketAlertDeletedData` (created_at/updated_at are
-  **`str`**, not `datetime`; severity/status are `StrEnum`),
-  `WebSocketSummaryData` (window_start/end/generated_at are `str`), the zone/
-  entity/AI `BasePayload` schemas (`timestamp: str`, plain int/float/dict
-  fields, `use_enum_values`). Direct check:
-  `json.dumps(m.model_dump(mode=X))` is **byte-identical for X ∈ {"json", None,
-  "JSON", "XXjsonXX"}` (asserted True on `WebSocketAlertCreatedMessage`); the
-  remaining schemas are str/int/float-only where both modes are the identity
-  map. The payload tests observe on `redis.publish` is unchanged. Real-world
-  divergence would need a `datetime`/UUID field or a non-str enum in a broadcast
-  schema — none exists today (that would be a schema-change tripwire worth a
-  comment, not a test).
-- **C1/C4/C6 — log text.** Mutants only change the f-string argument to
-  `logger.debug`/`logger.error`; control flow, return values and re-raises are
-  identical. `logger.error(None)` still logs (msg-only arg) and the adjacent
-  `raise ... from ve` / `raise` is untouched.
-- **C3 — dead write.** `data_dict`'s mutated keys are overwritten on the next
-  lines when the arg is non-None, and when None the values are irrelevant to
-  `WebSocketSummaryUpdateData.model_validate` (fields come from the
-  `data_dict["hourly"]`/`["daily"]` assignments). No path publishes the literal
-  initialization.
-
-### TEST-GAP notes
-
-- **C5** — `backend/services/event_broadcaster.py:135` (`to_dict`). Covering:
-  `backend/tests/unit/services/test_broadcast_retry.py:72` (`test_to_dict`:
-  2 succ / 1 fail → ~0.666) and `:89` (`test_success_rate_zero_broadcasts`:
-  0/0 → 0.0). `_17` would compute `2/(2-1)=2.0` in `test_to_dict` and `_19`
-  breaks only at the total==1 boundary — and **both survived**, which means
-  neither test actually ran under this module's mutant checking (per-function
-  dependency selection picked no runner that imports them; same story the 1036
-  still-unchecked keys tell). Re-verify must confirm the tests execute; if
-  selection still skips `test_broadcast_retry.py`, that is a mutmut-dependency
-  finding in itself. The existing `abs(rate-0.666)<0.01` assertion also never
-  pins the formula (a `/(2*s)` mutant passes it). D1/D2 assert exact values at
-  the s=1/f=1 and total==1 boundaries.
-- **C7** — same `to_dict`; covering also
-  `test_broadcast_retry.py::TestEventBroadcasterMetricsIntegration::test_get_broadcast_metrics`
-  (asserts only `successful_broadcasts`, `failed_broadcasts`, `"success_rate" in`).
-  D3 pins the full key set + `retry_counts` value.
-- **C8** — `backend/tests/unit/services/test_event_broadcaster_new_events.py`:
-  only `test_broadcast_zone_crossing_event` asserts the channel (`assert channel
-  == broadcaster.CHANNEL_NAME` at :85); the dwell_started/dwell_alert/approach/
-  entity/ai tests (`:87`, `:110`, `:140`, `:202`, `:262`) never assert it — that
-  is precisely why 5× `_14` survived. D6 adds the channel assert for all five.
-  Note `broadcaster._channel_name` and `CHANNEL_NAME` both derive from
-  `get_settings().redis_event_channel` (event_broadcaster.py:375-389), so the
-  crossing test passes with `publish(None,...)`? No — it passes only because it
-  covers `zone.crossing`, whose `_14` variant was killed by that assert; the
-  five surviving functions simply lack it.
-- **C9** — `backend/tests/unit/services/test_event_broadcaster.py:2205`
-  (`test_handle_dead_listener_resubscribe_failure`) drives `_resubscribe_for_supervisor`
-  only through `_supervise_listener` with `subscribe` raising, and asserts
-  `"Failed to re-subscribe" in caplog.text`. `_2` (`subscribe(None)`) raises
-  identically under that FakeRedis; `_4` (`return True`) changes only the return
-  value the supervisor ignores in that flow (it re-loops because `_is_listening`
-  goes False via the fake sleep). A direct-call pair (D7) kills both.
-- **C10** — `backend/services/event_broadcaster.py:560` (`record_ack`). Covering:
-  `backend/tests/unit/services/test_message_buffer.py::TestEventBroadcasterAckTracking`
-  (`:249`; `test_record_ack_stores_sequence` :277 acks 42 — default 0-vs-1
-  unobservable; `test_record_ack_ignores_equal_sequence` :300 acks 20→20 —
-  `>`-vs-`>=` unobservable, both end with `get_last_ack()==20`). The mutants
-  flip exactly the two inputs the suite never exercises: sequence **1** on a
-  fresh client, and an equal ack while current is the implicit **0**. D4/D5 add
-  those cases.
-
-## Drafted tests (UNVERIFIED — not yet run red/green)
-
-TDD procedure for each: apply the cluster's mutant diff (or `mutmut`-apply the
-key), run the new test — it must FAIL (red); restore the original, run — PASS
-(green); then run the whole test file once to catch fixture drift.
-
-### D1 — kills C5 (`to_dict__mutmut_17`): exact success-rate value
-
-Append to class `TestBroadcastRetryMetrics` in
-`backend/tests/unit/services/test_broadcast_retry.py` (after
-`test_success_rate_zero_broadcasts`, ~:96). On the `-` mutant the guard is
-`1-1 > 0` → False → `0.0` (assert fails red); original → `0.5` green.
+### T1 — `test_stop_sends_system_shutdown_notice` (kills cluster 11, TG-stop-shutdown-payload-literal, 17)
+Target file: `backend/tests/unit/services/test_event_broadcaster.py` (after `test_stop_unsubscribes_and_disconnects_all_connections`, L262).
 
 ```python
-    def test_success_rate_exact_value(self) -> None:
-        """success_rate must equal successful/(successful+failed) exactly."""
-        metrics = BroadcastRetryMetrics()
-        metrics.record_success(attempts=1)
-        metrics.record_failure(attempts=3)
+@pytest.mark.asyncio
+async def test_stop_sends_system_shutdown_notice() -> None:
+    """NEM-4987: stop() must send a system.shutdown notice with reconnect=True
+    to every connected client BEFORE disconnecting them."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._pubsub = _FakePubSub()
 
-        result = metrics.to_dict()
+    ws1 = AsyncMock()
+    ws2 = AsyncMock()
+    ws1.close = AsyncMock(return_value=None)
+    ws2.close = AsyncMock(return_value=None)
+    broadcaster._connections = {ws1, ws2}  # type: ignore[assignment]
 
-        assert result["success_rate"] == 0.5
+    await broadcaster.stop()
+
+    for ws in (ws1, ws2):
+        ws.send_text.assert_awaited_once()
+        payload = json.loads(ws.send_text.await_args.args[0])
+        assert payload["type"] == "system.shutdown"
+        assert payload["data"]["reason"] == "Server shutting down"
+        assert payload["data"]["reconnect"] is True
 ```
+Add `import json` to the test file header. Red on any key/value casing or None-payload mutant (`json.loads(None)` raises; `"type"` key rename → KeyError; `reconnect: False`/`"SYSTEM.SHUTDOWN"` → assert fails). Green on original.
 
-### D2 — kills C5 (`to_dict__mutmut_19`): boundary where total == 1
-
-Same class/file. `> 1` mutant: `1 > 1` False → `0.0` red; original `1.0` green.
+### T2 — `test_broadcast_degraded_state_payload_structure` (kills cluster 12, TG-degraded-payload-literal, 20)
+Target file: `backend/tests/unit/services/test_event_broadcaster.py` (next to `test_broadcast_degraded_state_to_clients`, L2058).
 
 ```python
-    def test_success_rate_single_broadcast_is_one(self) -> None:
-        """One broadcast, zero failures: rate is 1.0, not the 0.0 fallback."""
-        metrics = BroadcastRetryMetrics()
-        metrics.record_success(attempts=1)
+@pytest.mark.asyncio
+async def test_broadcast_degraded_state_payload_structure() -> None:
+    """Degraded notice must be a structured service_status message:
+    type/data.service/data.status/data.message/data.circuit_state — not just
+    substring-matched text."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
 
-        assert metrics.to_dict()["success_rate"] == 1.0
+    ws = AsyncMock()
+    ws.send_text = AsyncMock(return_value=None)
+    ws.close = AsyncMock(return_value=None)
+    broadcaster._connections = {ws}  # type: ignore[assignment]
+
+    await broadcaster._broadcast_degraded_state()
+
+    ws.send_text.assert_awaited_once()
+    msg = json.loads(ws.send_text.await_args.args[0])
+    assert msg["type"] == "service_status"
+    assert msg["data"]["service"] == "event_broadcaster"
+    assert msg["data"]["status"] == "degraded"
+    assert isinstance(msg["data"]["message"], str) and msg["data"]["message"]
+    assert msg["data"]["circuit_state"] in {"closed", "open", "half_open"}
 ```
+Kills every key-rename/case mutant (subscript on renamed key raises, value casing fails assert). Green on original.
 
-### D3 — kills C7 (`to_dict__mutmut_9/_10`): full metrics-dict contract
-
-Same class/file. Mutants drop `"retry_counts"` → KeyError red; original green.
-
-```python
-    def test_to_dict_key_set_and_retry_counts(self) -> None:
-        """to_dict is the monitoring payload: pin every key and its value."""
-        metrics = BroadcastRetryMetrics()
-        metrics.record_success(attempts=1)  # retry_counts[0] = 1
-        metrics.record_failure(attempts=3)  # retries_exhausted += 1
-
-        result = metrics.to_dict()
-
-        assert set(result) == {
-            "total_attempts",
-            "successful_broadcasts",
-            "failed_broadcasts",
-            "retries_exhausted",
-            "retry_counts",
-            "success_rate",
-        }
-        assert result["retry_counts"] == {0: 1, 1: 0, 2: 0, 3: 0}
-```
-
-### D4 — kills C10a (`record_ack__mutmut_6`): ack of sequence 1 on a fresh client
-
-Append to `TestEventBroadcasterAckTracking` in
-`backend/tests/unit/services/test_message_buffer.py` (fixtures `broadcaster`/
-`mock_websocket` already exist there; `MagicMock` already imported). Mutant
-default 1: `1 > 1` False → nothing stored → `get_last_ack` returns 0 → red;
-original stores → 1 → green.
+### T3 — `TestDirectDetectionBroadcasting` (kills clusters 7+8+9+10 = 68: publish args, payload literal shape, envelope guard, validation bypass)
+Target file: `backend/tests/unit/services/test_event_broadcaster.py` (new class after L2114).
 
 ```python
-    def test_record_ack_accepts_first_sequence_one(
-        self, broadcaster: EventBroadcaster, mock_websocket: MagicMock
-    ) -> None:
-        """A brand-new client acking sequence 1 must be recorded.
+class TestDirectDetectionBroadcasting:
+    """Direct-call coverage for broadcast_detection_new / broadcast_detection_batch.
 
-        record_ack falls back to 0 for unknown clients, so sequence 1 (the
-        first buffered message) is strictly higher and must win — a 1-default
-        silently drops it.
-        """
-        broadcaster.record_ack(mock_websocket, 1)
-
-        assert broadcaster.get_last_ack(mock_websocket) == 1
-```
-
-### D5 — kills C10b (`record_ack__mutmut_7`): equal ack at the default is a true no-op
-
-Same class/file. Original `>`: `0 > 0` False → no write → key absent → green;
-mutant `>=`: writes `_client_acks[ws] = 0` → key present → `in` True → red.
-
-```python
-    def test_record_ack_equal_sequence_does_not_touch_state(
-        self, broadcaster: EventBroadcaster, mock_websocket: MagicMock
-    ) -> None:
-        """Equal-sequence acks must not rewrite the ack map.
-
-        With no prior ack the client's current value is the implicit 0; the
-        monotonic "only updates if higher" contract forbids a write at
-        sequence == 0 (mutant >= re-records it).
-        """
-        broadcaster.record_ack(mock_websocket, 0)
-
-        assert mock_websocket not in broadcaster._client_acks
-        assert broadcaster.get_last_ack(mock_websocket) == 0
-```
-
-### D6 — kills C8 (`_14` channel → None × 5): channel assert for all five new-event fns
-
-Append to `backend/tests/unit/services/test_event_broadcaster_new_events.py`
-(reuses the file's `_FakeRedis`; payloads are the existing tests' valid ones —
-extras are ignored by the schemas). Mutant publishes on None → assert red;
-original green.
-
-```python
-# ==============================================================================
-# Redis-channel contract for the NEM-5073 events (WP4.4 kill-draft)
-# ==============================================================================
-
-NEW_EVENT_CHANNEL_CASES = [
-    (
-        "broadcast_zone_dwell_started",
-        {
-            "zone_id": "zone-456",
-            "entity_id": "entity-789",
-            "camera_id": "loading_dock",
-            "timestamp": "2026-02-01T12:00:00Z",
-        },
-    ),
-    (
-        "broadcast_zone_dwell_alert",
-        {
-            "zone_id": "zone-789",
-            "entity_id": "entity-123",
-            "camera_id": "restricted_cam",
-            "timestamp": "2026-02-01T12:05:00Z",
-            "dwell_duration_seconds": 300,
-            "threshold_seconds": 180,
-        },
-    ),
-    (
-        "broadcast_zone_approach",
-        {
-            "zone_id": "zone-999",
-            "entity_id": "entity-555",
-            "camera_id": "entry_cam",
-            "timestamp": "2026-02-01T12:00:00Z",
-            "direction": "north",
-            "speed": 2.5,
-            "eta_seconds": 15,
-        },
-    ),
-    (
-        "broadcast_entity_track_updated",
-        {
-            "entity_id": "entity-789",
-            "camera_id": "back_yard",
-            "timestamp": "2026-02-01T12:00:00Z",
-            "position": {"x": 100.0, "y": 200.0},
-            "bbox": {"x": 90.0, "y": 190.0, "width": 50.0, "height": 100.0},
-        },
-    ),
-    (
-        "broadcast_ai_action_recognized",
-        {
-            "detection_id": "det-456",
-            "camera_id": "garage",
-            "timestamp": "2026-02-01T12:00:00Z",
-            "action_type": "climbing",
-            "confidence": 0.88,
-        },
-    ),
-]
-
-
-class TestNewEventPublishChannel:
-    """Every new-event broadcast must publish on the configured Redis channel.
-
-    The per-event tests assert the envelope but (except zone.crossing) not the
-    channel — a mutant publishing to None survives them.
+    These were only exercised indirectly via batch_aggregator tests, which mock
+    the broadcaster — so publish() args, the envelope guard and the validation
+    pipeline were never asserted end to end.
     """
 
+    _NEW = {
+        "detection_id": 123,
+        "batch_id": "batch_abc123",
+        "camera_id": "front_door",
+        "label": "person",
+        "confidence": 0.95,
+        "timestamp": "2026-01-13T12:00:00.000Z",
+    }
+
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("method_name,payload", NEW_EVENT_CHANNEL_CASES)
-    async def test_publishes_to_configured_channel(
-        self, method_name: str, payload: dict[str, Any]
-    ) -> None:
+    async def test_broadcast_detection_new_publishes_validated_envelope(self) -> None:
         redis = _FakeRedis()
         broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
 
-        await getattr(broadcaster, method_name)(payload)
+        count = await broadcaster.broadcast_detection_new(dict(self._NEW))
 
-        channel = redis.publish.await_args.args[0]
-        assert channel == broadcaster.CHANNEL_NAME
+        assert count == 1
+        redis.publish.assert_awaited_once()
+        channel, published = redis.publish.await_args.args
+        assert channel == broadcaster.channel_name
+        assert published["type"] == "detection.new"
+        assert published["data"]["detection_id"] == 123
+        assert published["data"]["label"] == "person"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_detection_new_with_full_envelope(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+        envelope = {"type": "detection.new", "data": dict(self._NEW)}
+        count = await broadcaster.broadcast_detection_new(envelope)
+
+        assert count == 1
+        _, published = redis.publish.await_args.args
+        assert published["type"] == "detection.new"
+        assert published["data"]["batch_id"] == "batch_abc123"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_detection_batch_publishes_validated_envelope(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+        batch = {
+            "batch_id": "batch_abc123",
+            "camera_id": "front_door",
+            "detection_ids": [123, 124],
+            "detection_count": 2,
+            "started_at": "2026-01-13T12:00:00.000Z",
+            "closed_at": "2026-01-13T12:01:30.000Z",
+            "close_reason": "timeout",
+        }
+        count = await broadcaster.broadcast_detection_batch(batch)
+
+        assert count == 1
+        channel, published = redis.publish.await_args.args
+        assert channel == broadcaster.channel_name
+        assert published["type"] == "detection.batch"
+        assert published["data"]["detection_count"] == 2
+        assert published["data"]["close_reason"] == "timeout"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_detection_new_rejects_invalid_payload(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+        bad = dict(self._NEW)
+        del bad["confidence"]
+        with pytest.raises(ValueError):
+            await broadcaster.broadcast_detection_new(bad)
+        redis.publish.assert_not_awaited()
+```
+The happy-path `count == 1` + `channel ==` asserts kill publish-arg mutants (channel→None, payload→None, return forced); `published["data"]` subscript kills envelope-guard `.get("data", None)` and `data_dict=None` mutants that reach publish; `pytest.raises(ValueError)` + `publish.assert_not_awaited()` kills validation-pipeline-bypass mutants (a None `validated_data` produces a ValidationError→ValueError path the original raises through). Green on original.
+
+### T4 — `TestSupervisorListenerFlags` (kills clusters 13+14+15+22 = 19)
+Target file: `backend/tests/unit/services/test_event_broadcaster.py` (new class near the supervisor tests, ~L1465).
+
+```python
+class TestSupervisorListenerFlags:
+    """_handle_dead_listener / _handle_healthy_listener / stop() flags and return values.
+
+    Existing supervisor tests assert log substrings only; the boolean contract
+    (break-the-loop vs keep-retrying) and the recovery counter arithmetic were
+    never asserted.
+    """
+
+    @pytest.mark.asyncio
+    async def test_handle_dead_listener_recovers_with_exact_attempt_increment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        broadcaster._is_listening = True
+        broadcaster._pubsub = _FakePubSub()
+        broadcaster._recovery_attempts = 2
+
+        result = await broadcaster._handle_dead_listener()
+
+        assert result is False  # keep supervising
+        assert broadcaster._recovery_attempts == 3  # exactly +1
+        assert broadcaster._listener_task is not None
+        assert broadcaster._listener_healthy is True
+        broadcaster._listener_task.cancel()
+
+    @pytest.mark.asyncio
+    async def test_handle_dead_listener_gives_up_at_max(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        broadcaster._is_listening = True
+        broadcaster._pubsub = _FakePubSub()
+        broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS
+
+        result = await broadcaster._handle_dead_listener()
+
+        assert result is True  # supervision loop must break
+        assert broadcaster.is_degraded() is True
+
+    @pytest.mark.asyncio
+    async def test_handle_dead_listener_resubscribes_when_pubsub_missing(
+        self,
+    ) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        broadcaster._is_listening = True
+        broadcaster._pubsub = None
+
+        result = await broadcaster._handle_dead_listener()
+
+        assert result is False
+        redis.subscribe.assert_awaited_once_with(broadcaster.channel_name)
+        assert broadcaster._listener_task is not None
+        broadcaster._listener_task.cancel()
+
+    @pytest.mark.asyncio
+    async def test_handle_healthy_listener_sets_flags_without_spurious_log(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        broadcaster._recovery_attempts = 0
+
+        await broadcaster._handle_healthy_listener()
+
+        assert broadcaster._listener_healthy is True
+        assert broadcaster.is_listener_healthy() is False  # not listening yet
+        # recovery-attempt 0 must NOT log a "recovered" message
+        assert not any("recovered" in r.message.lower() for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_handle_healthy_listener_resets_single_recovery_attempt(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        broadcaster._recovery_attempts = 1  # exactly 1: kills '>1' gate mutant
+
+        await broadcaster._handle_healthy_listener()
+
+        assert broadcaster._recovery_attempts == 0
+
+    @pytest.mark.asyncio
+    async def test_stop_marks_listener_unhealthy(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        broadcaster._is_listening = True
+
+        await broadcaster.stop()
+
+        assert broadcaster._listener_healthy is False
+        assert broadcaster.is_listener_healthy() is False
+
+    @pytest.mark.asyncio
+    async def test_resubscribe_for_supervisor_reports_failure(self) -> None:
+        redis = _FakeRedis()
+        broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+        redis.subscribe = AsyncMock(side_effect=ConnectionError("redis down"))
+
+        ok = await broadcaster._resubscribe_for_supervisor()
+
+        assert ok is False  # mutant returns True → supervision wrongly proceeds
+        assert broadcaster._pubsub is None
+```
+Note: `is_listener_healthy()` returning exactly `False` (not `None`) kills the `= None` flag mutants via `is False`/`is True` identity checks. `test_handle_dead_listener_gives_up_at_max` returns-True mutants (`return False`) flip the assert. Red/green per mutant.
+
+### T5 — `test_broadcast_metrics_accumulate_across_events` + `test_broadcaster_circuit_breaker_configuration` (kills clusters 17+18+16 = 18)
+Target files: `backend/tests/unit/services/test_broadcast_retry.py` (metrics test, class `TestBroadcastRetryMetrics`, after L95) and `backend/tests/unit/services/test_event_broadcaster.py` (config test, near L1777 `test_get_circuit_state`).
+
+```python
+def test_broadcast_metrics_accumulate_across_events(self) -> None:
+    """Success/failure counters must ACCUMULATE across repeated events —
+    a mutant that reassigns (=1) instead of increments (+=1) passes the
+    single-event tests but breaks here."""
+    metrics = BroadcastRetryMetrics()
+
+    metrics.record_success(attempts=1)
+    metrics.record_success(attempts=1)
+    metrics.record_failure(attempts=4)
+    metrics.record_failure(attempts=4)
+
+    assert metrics.total_attempts == 10  # 1 + 1 + 4 + 4
+    assert metrics.successful_broadcasts == 2
+    assert metrics.failed_broadcasts == 2
+    assert metrics.retries_exhausted == 2
+    assert metrics.retry_counts[0] == 2
+
+    result = metrics.to_dict()
+    assert result["success_rate"] == 0.5
+
+def test_success_rate_with_single_success(self) -> None:
+    """Guard `>0` vs `>1`: one broadcast must already yield a real rate."""
+    metrics = BroadcastRetryMetrics()
+    metrics.record_success(attempts=1)
+
+    assert metrics.to_dict()["success_rate"] == 1.0
+
+def test_all_failures_success_rate_is_zero(self) -> None:
+    """Guard `+`→`-` mutant: s=0,f=2 gives (0-2)>0 false → same 0.0, but
+    s=1,f=2 must be 1/3 not guarded away."""
+    metrics = BroadcastRetryMetrics()
+    metrics.record_failure(attempts=4)
+    metrics.record_success(attempts=1)
+
+    assert abs(metrics.to_dict()["success_rate"] - (1 / 3)) < 1e-9
 ```
 
-(No new imports needed: the file already imports `Any`, `pytest`,
-`EventBroadcaster`; `_FakeRedis` and the autouse `_reset_broadcaster_state`
-fixture are in-file.)
+```python
+def test_broadcaster_circuit_breaker_configuration() -> None:
+    """Circuit breaker must be tuned to MAX_RECOVERY_ATTEMPTS with the
+    documented one-shot half-open policy."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    breaker = broadcaster.circuit_breaker
 
-### D7 — kills C9 (`_resubscribe_for_supervisor__mutmut_2/_4`): direct-call pair
+    assert breaker.failure_threshold == EventBroadcaster.MAX_RECOVERY_ATTEMPTS
+    assert breaker._recovery_timeout == 30.0
+    assert breaker._half_open_max_calls == 1
+    assert broadcaster._listener_healthy is False  # kills __init__ None/True mutant
+    assert breaker._success_threshold == 1
+```
+(For the two `record_failure(attempt±1)` mutants in cluster 17 also assert `metrics.total_attempts == max_retries + 1` inside the existing failure path — `test_failure_after_all_retries` currently checks only counts; extend it with `assert metrics.total_attempts == 4`.)
 
-Append to `backend/tests/unit/services/test_event_broadcaster.py` (module-level
-async tests, `_FakeRedis` in-file, `AsyncMock` already imported there).
-`_2`: `subscribe(None)` breaks the awaited-with-channel assert → red. `_4`:
-failure arm returns True → red.
+### T6 — `TestAckAndFormatTracking` (kills clusters 19+20 = 3)
+Target file: `backend/tests/unit/services/test_message_buffer.py` (append to the ACK class, after `test_acks_are_per_client` L317) — format part in `backend/tests/unit/services/test_event_broadcaster.py` (after `test_connect_accepts_websocket_and_registers` L404).
+
+```python
+def test_record_ack_stores_zero_sequence(
+    self, broadcaster: EventBroadcaster, mock_websocket: MagicMock
+) -> None:
+    """Sequence 0 is a legal first ACK and must be stored — a baseline default
+    of 1 instead of 0 silently drops it."""
+    broadcaster.record_ack(mock_websocket, 0)
+
+    assert mock_websocket in broadcaster._client_acks
+    assert broadcaster.get_last_ack(mock_websocket) == 0
+```
 
 ```python
 @pytest.mark.asyncio
-async def test_resubscribe_for_supervisor_success_uses_channel() -> None:
-    """Success path: subscribes the configured channel and reports success."""
+async def test_connect_records_client_format_and_disconnect_clears_it() -> None:
+    """NEM-3737: connect() must store the negotiated format per client, and
+    disconnect() must clean the entry up (no dict leak)."""
+    from backend.api.schemas.websocket import SerializationFormat
+
     redis = _FakeRedis()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    ws = AsyncMock()
 
-    assert await broadcaster._resubscribe_for_supervisor() is True
+    await broadcaster.connect(ws, format=SerializationFormat.MSGPACK)
+    assert broadcaster.get_client_format(ws) is SerializationFormat.MSGPACK
+    assert broadcaster._client_formats[ws] is SerializationFormat.MSGPACK
 
-    redis.subscribe.assert_awaited_once_with(broadcaster._channel_name)
-
-
-@pytest.mark.asyncio
-async def test_resubscribe_for_supervisor_failure_returns_false() -> None:
-    """Failure path must return False so the supervisor keeps retrying.
-
-    A mutant returning True here would let the supervisor treat a dead
-    subscription as recovered and recreate the listener on a missing pubsub.
-    """
-    redis = _FakeRedis()
-    redis.subscribe = AsyncMock(side_effect=RuntimeError("Subscription failed"))
-    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
-
-    assert await broadcaster._resubscribe_for_supervisor() is False
+    await broadcaster.disconnect(ws)
+    assert ws not in broadcaster._client_formats
 ```
 
-## Covering test files (file:line anchors)
+## Where the covering tests fall short (file:line)
 
-| Function | Covering test file | Anchor |
+| Cluster | Test that executes but under-asserts | Misses |
 |---|---|---|
-| `BroadcastRetryMetrics.to_dict` | `backend/tests/unit/services/test_broadcast_retry.py` | `test_to_dict` :72, `test_success_rate_zero_broadcasts` :89, integration `test_get_broadcast_metrics` ~:360 |
-| `EventBroadcaster.record_ack` | `backend/tests/unit/services/test_message_buffer.py` | `TestEventBroadcasterAckTracking` :249 (`test_record_ack_stores_sequence` :277, `..._ignores_equal_sequence` :300) |
-| `EventBroadcaster._resubscribe_for_supervisor` | `backend/tests/unit/services/test_event_broadcaster.py` | `test_handle_dead_listener_resubscribe_failure` :2205 (log-text only; success path + return value unasserted) |
-| `broadcast_alert` | `backend/tests/unit/services/test_event_broadcaster_alert.py` | `TestBroadcastAlert` :79+ (18 tests) |
-| `broadcast_summary_update` | `backend/tests/unit/services/test_event_broadcaster_summary.py` | `TestBroadcastSummaryUpdate` (11 tests) + `TestBroadcastSummaryUpdateMessageFormat` |
-| 5 new-event fns | `backend/tests/unit/services/test_event_broadcaster_new_events.py` | crossing :60 (channel assert :85), dwell_started :87, dwell_alert :110, approach :140, entity :202, ai :262 |
+| shutdown notice (11) | `test_event_broadcaster.py:239` `test_stop_unsubscribes...` | `ws.send_text` payload at all (stop also sends via L683) |
+| degraded payload (12) | `test_event_broadcaster.py:2058` | structural keys; uses substring `in msg` |
+| detection publish/envelope/validation (68) | `test_batch_aggregator.py` (indirect; broadcaster mocked, see `test_event_broadcaster.py` absence) | direct invocation of broadcast_detection_new/batch |
+| supervisor flags (13/14/15/22) | `test_event_broadcaster.py:1345/1388/1420` | return values, `_recovery_attempts` arithmetic, task identity, `_listener_healthy` |
+| init breaker (16) | `test_event_broadcaster.py:1777` `test_get_circuit_state` | threshold/timeout/half-open config values |
+| metrics accumulate (17/18) | `test_broadcast_retry.py:40-95` | repeated events (>1 record_* call), 1-of-1 and 1-of-3 success_rate cases |
+| record_ack seq 0 (19) | `test_message_buffer.py:277-306` | storing sequence 0 |
+| client format map (20) | `test_event_broadcaster.py:363` | `_client_formats` after connect/disconnect |
+| zone publish channel (7) | `test_event_broadcaster_new_events.py:80-120` | `channel` arg for dwell_started/dwell_alert/approach/entity_track_updated/ai_action (crossing/entity_matched/ai_threat already assert it) |
+
+**Baseline hygiene recommendation**: clusters 1+4 (278 EQ/LV log-text mutants) and cluster 2 (68 model_dump mutants) are 60% of this module's survivors. Consider mutmut config exclusions for logger-call text args, or accept them as documented EQUIVALENT in the score.

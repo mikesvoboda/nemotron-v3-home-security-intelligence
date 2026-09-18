@@ -1,90 +1,116 @@
 import json, collections
-d=json.load(open('/tmp/wp25/wp44-triage/variant_diffs.json'))
-PRE='backend.services.depth_anything_loader.'
-allkeys={}
+
+d = json.load(open('/tmp/wp25/wp44-triage/export_service_diffs.json'))
+surv = collections.defaultdict(list)
 for k in d:
-    fn=k[len(PRE):].rsplit('__mutmut_',1)[0]
-    n=int(k.rsplit('__mutmut_',1)[1])
-    allkeys.setdefault(fn,set()).add(n)
+    tail = k.split('export_service.')[1]
+    fn, num = tail.rsplit('__mutmut_', 1)
+    surv[fn].append(int(num))
 
-def R(fn, nums): return {(fn,n) for n in nums}
+P = 'xǁExportServiceǁexport_events_with_progress'
+W = 'xǁExportServiceǁexport_events_with_websocket'
+E = 'x_events_to_excel'
 
-C=[]  # (pattern, classification, members, note)
-AD='x_analyze_depth'
-C.append(("analyze_depth: dict.get key/default mutations on det_id extraction ('id' fallback, empty-string default) — fallback & skip paths never fed to analyze_depth","TEST-GAP",R(AD,[23,25,28,29,30,31,32,33,34]),""))
-C.append(("analyze_depth: dict.get key/default mutations on class_name extraction ('label' fallback, 'object' default)","TEST-GAP",R(AD,[35,36,37,38,39,40,41,42,43,44,45,46,47,48,49]),""))
-C.append(("analyze_depth: depth_pipeline called with None instead of image — mock returns depth map regardless of argument","TEST-GAP",R(AD,[4]),""))
-C.append(("analyze_depth: logger.error call mutations on estimation-failure path (msg->None, exc_info tweaks) — message still logged, re-raise unchanged","EQUIVALENT",R(AD,[10,11,13,14]),""))
-C.append(("analyze_depth: logger.error(exc_info=True) drops positional msg — if stdlib logger, TypeError replaces re-raise on pipeline-failure path (never exercised)","TEST-GAP",R(AD,[12]),""))
-C.append(("analyze_depth: closest-detection tracking edge seeds/ties (init None->'', min_depth 1.0->2.0, < -> <=)","TEST-GAP",R(AD,[17,19,99]),""))
-C.append(("analyze_depth: bbox/id skip-guard and list-arity mutations ('or'->'and', len>=4 'and'->'or', bbox[:4]->[:5]) — short/oversized bbox and missing-id paths untested","TEST-GAP",R(AD,[54,63,68]),""))
-C.append(("analyze_depth: to_tuple duck-typing attribute mutations — BoundingBox-like bbox never passed by any test","TEST-GAP",R(AD,[57,61,62]),""))
-C.append(("analyze_depth: depth_sampling_method kwarg dropped when calling get_depth_at_bbox — callers never pass a non-default method","TEST-GAP",R(AD,[75]),""))
-C.append(("analyze_depth: DetectionDepth record fields set to None / is_approaching flipped — tests never assert per-detection field values","TEST-GAP",R(AD,[82,85,86,87,88,89,97]),""))
-C.append(("analyze_depth: is_approaching=False kwarg removed — equals dataclass default","EQUIVALENT",R(AD,[95]),""))
-C.append(("analyze_depth: has_close_objects computation mutations (in->not in, label-case literals, ->None, kwarg removed->default False) — has_close_objects never asserted","TEST-GAP",R(AD,[102,104,105,106,107,108,125,130]),""))
-C.append(("analyze_depth: average_depth computation mutations (->None, ternary guard collapse, else 0.5->1.5, kwarg ->None/removed) — average_depth never asserted","TEST-GAP",R(AD,[109,110,111,114,126,131]),""))
-C.append(("analyze_depth: depth_variance computation mutations (->None, guard flips, >1->>2, else 0.0->1.0, kwarg ->None/removed) — depth_variance never asserted","TEST-GAP",R(AD,[115,116,117,121,122,127,132]),""))
-C.append(("analyze_depth: variance guard len>1 -> len>=1 — np.var([x]) == 0.0 equals original else-branch","EQUIVALENT",R(AD,[120]),""))
-DF='x_depth_to_feet'
-C.append(("depth_to_feet: calibration_points default [] -> None/removed — 'if not calibration_points' early-return makes it identical","EQUIVALENT",R(DF,[4,6]),""))
-C.append(("depth_to_feet: bracketing boundary comparisons (<= -> <, >= -> >) — interpolation at an exact calibration node returns the same distance either way","EQUIVALENT",R(DF,[24,29]),""))
-C.append(("depth_to_feet: multi-point bracketing degradation (lower/upper assignment & 'first>=depth' guard flips) — every test uses 2-point calibration so edge-pair fallback == bracket pair","TEST-GAP",R(DF,[25,26,30,31]),""))
-C.append(("depth_to_feet: below-range extrapolation picks points[1] twice -> depth_range==0 -> returns wrong point's distance","TEST-GAP",R(DF,[34]),""))
-C.append(("depth_to_feet: 'elif upper_point is None' -> 'is not None' -> above-range depth dereferences None (TypeError) instead of extrapolating","TEST-GAP",R(DF,[36]),""))
-C.append(("depth_to_feet: clamp floor max(0.1, result) -> max(1.1, result)","TEST-GAP",R(DF,[69]),""))
-C.append(("estimate_relative_distances: method kwarg dropped when calling get_depth_at_bbox — method pass-through untested","TEST-GAP",R('x_estimate_relative_distances',[6]),""))
-FM='x_format_depth_for_nemotron'
-C.append(("format_depth_for_nemotron: length-mismatch warning condition inverted / warning msg -> None — logging-only","EQUIVALENT",R(FM,[7,8]),""))
-C.append(("format_depth_for_nemotron: zip strict=False -> None / kwarg removed — falsy/default identical","EQUIVALENT",R(FM,[12,15]),""))
-C.append(("format_depth_for_nemotron: early-return guard 'not dets or not depths' -> 'and' — one-empty partial input no longer returns the sentinel string","TEST-GAP",R(FM,[1]),""))
-WD='x_format_depth_for_nemotron_with_distances'
-C.append(("format_depth_for_nemotron_with_distances: early-return guard 'or' -> 'and'","TEST-GAP",R(WD,[1]),""))
-C.append(("format_depth_for_nemotron_with_distances: min-count 'count' arg removals & zip strict mutations — slice-to-min then zip-shortest yields identical output; all lists equal length post-slice","EQUIVALENT",R(WD,[4,8,9,10,18,22,23]),""))
-C.append(("Nemotron formatters: class_name fallback mutations (key case, 'label'->None/wrong key, 'object' default -> None/wrong string) — fallback path either untested (with_distances) or asserted only via substring","TEST-GAP",R(FM,[30])|R(WD,[26,28,31,32,33,34,35,36,37,38]),""))
-C.append(("Nemotron formatters: prompt prefix/join-separator literal mutations pass loose substring asserts (tests check membership, never exact string)","TEST-GAP",R(FM,[36,40])|R(WD,[46,47,48,50]),""))
-BB='x_get_depth_at_bbox'
-C.append(("get_depth_at_bbox: shape[:2] -> shape[:3] — 2-D contract means slice still yields (h, w)","EQUIVALENT",R(BB,[3]),""))
-C.append(("get_depth_at_bbox: upper clamp w-1 -> w+1 / h-1 -> h+1 — oversized x1/y1 always falls into invalid-bbox 0.5 branch anyway","EQUIVALENT",R(BB,[15,28]),""))
-C.append(("get_depth_at_bbox: clamp w-1 -> w-2 / h-1 -> h-2 — bbox touching last column/row samples different region","TEST-GAP",R(BB,[16,29]),""))
-C.append(("get_depth_at_bbox: x2/y2 lower clamp 0 -> 1 — bbox fully off-image-left returns edge pixel instead of 0.5 sentinel","TEST-GAP",R(BB,[35,48]),""))
-C.append(("get_depth_at_point: shape[:2] -> shape[:3] — 2-D contract","EQUIVALENT",R('x_get_depth_at_point',[2]),""))
-LD='x_load_depth_model'
-C.append(("load_depth_model: logger.info/warning/error message & exc_info/extra mutations — log payloads only; control flow and raised exceptions unchanged","EQUIVALENT",R(LD,[6,11,12,13,14,17,31,32,39,40,41,43,44,45,46,47,48,49,50]),""))
-C.append(("load_depth_model: is_local = Path(model_path).is_dir() -> None — local-directory branch (explicit from_pretrained) never taken; no test uses a real local dir","TEST-GAP",R(LD,[15]),""))
-C.append(("load_depth_model: CUDA-guard / ImportError exception message case & XX mutations — user-facing text only, tests substring-match the key phrase","LOW-VALUE",R(LD,[3,33,34,36]),""))
-NM='x_normalize_depth_map'
-C.append(("normalize_depth_map: .get('depth', default) default -> None/removed — dict lacking 'depth' crashes via np.array in both original and mutant (no assertable behavior)","LOW-VALUE",R(NM,[9,11]),""))
-C.append(("normalize_depth_map: PIL-detect hasattr 'convert' broken/renamed — both branches execute the identical np.array(depth_data, float32) conversion","EQUIVALENT",R(NM,[15,19,20]),""))
-C.append(("normalize_depth_map: 'max-min > 0' -> '> 1' — any depth map with range <=1 is returned as all zeros","TEST-GAP",R(NM,[27]),""))
-RK='x_rank_detections_by_proximity'
-C.append(("rank_detections_by_proximity: zip strict=True -> None/False/kwarg removed — lengths already equalized by the explicit length check above","EQUIVALENT",R(RK,[10,13,14]),""))
-C.append(("rank_detections_by_proximity: ValueError message XX-wrapped — pytest.raises match substring still passes","LOW-VALUE",R(RK,[3]),""))
-TDC='xǁDepthAnalysisResultǁto_dict'
-C.append(("DepthAnalysisResult.to_dict: 'average_depth'/'depth_variance' output keys renamed/case-changed — test asserts only detection_depths/closest_detection_id/has_close_objects","TEST-GAP",R(TDC,[7,8,9,10]),""))
-TCC='xǁDepthAnalysisResultǁto_context_string'
-C.append(("to_context_string: sort key removal (key=None / kwarg dropped) — output ordering silently switches from depth-ordered to det_id-ordered; no order assertion","TEST-GAP",R(TCC,[11,13]),""))
-C.append(("to_context_string: risk_note default '' -> None/'XXXX' — every non-risk line gains 'None'/'XXXX' garbage; substring asserts never notice","TEST-GAP",R(TCC,[16,17]),""))
-C.append(("to_context_string: line joiner '\\n' -> literal 'XX\\nXX' — multi-line layout broken; no structural assert","TEST-GAP",R(TCC,[36]),""))
-C.append(("to_context_string: header/risk-marker/blank-line literal mutations — cosmetic prompt text; substring asserts still match","LOW-VALUE",R(TCC,[6,22,25,33]),""))
+clusters = {}
+def C(cid, cls, fn, nums):
+    clusters[cid] = {'class': cls, 'fn': fn, 'nums': set(nums)}
 
-seen=collections.Counter()
-dup=[]
-for pat,cls,mem,note in C:
-    for m in mem:
-        seen[m]+=1
-        if seen[m]>1: dup.append(m)
-allset={ (fn,n) for fn,s in allkeys.items() for n in s }
-missing=allset-set(seen); extra=set(seen)-allset
-print('clusters',len(C),'assigned',sum(len(m) for _,_,m,_ in C),'dups',dup)
-print('missing:',sorted(missing))
-print('extra:',sorted(extra))
-tot=collections.Counter(cls for _,cls,_,_ in C)
-sg=collections.Counter()
-for _,cls,m,_ in C: sg[cls]+=len(m)
-print('per-class counts:',dict(sg),'total',sum(sg.values()))
-# per-function missing detail
-for fn,s in allkeys.items():
-    got={n for _,_,m,_ in C for f,n in m if f==fn}
-    l=sorted(s-got)
-    if l: print('MISSING',fn,l)
+# ---- progress method ----
+C('PROG-ERRMSG','LOW-VALUE',P,[3])
+C('SQL-FILTER','TEST-GAP',P,[7,11,13,14,15,17,18,30,31,43,44,45,47,48,78])
+C('SQL-COUNT','TEST-GAP',P,[49,51,53])
+C('ZREPLACE','EQUIVALENT',P,[26,27,39,40])
+C('PROG-PCT','TEST-GAP',P,[54,56,59,60,62,63,64,65,76,126,127,128,129,130,137,221])
+C('PROG-MSG','LOW-VALUE',P,[61,66,67,68,72,75,133,136,138,217,220,222,223,224])
+C('ROW-FIELDS-P','TEST-GAP',P,[85,86,87,88,90,91,92,93,94,95,96,97,98,99,
+                              100,101,102,103,104,105,106,107,108,109,110,120,121,122,123,124,125])
+C('FILENAME-P','TEST-GAP',P,[139,142,143])
+C('TZNIVE','LOW-VALUE',P,[141])
+C('COLUMNS','TEST-GAP',P,[145,146,152,154])
+C('FILE-CONTENT-P','TEST-GAP',P,[153,167,168,169,179,190,191,210])
+C('ENCODING','EQUIVALENT',P,[159,161,163,176,178,185])
+C('JSON-INDENT','LOW-VALUE',P,[180,182,183,211,213,214])
+C('ZIP-METHOD','LOW-VALUE',P,[203])
+C('LOG-EXTRA-P','LOW-VALUE',P,[226,227,229,230,231,232,233,234,235,236,237,238,239,240])
+
+# ---- websocket method ----
+C('WS-ERRMSG','LOW-VALUE',W,[3])
+C('SQL-FILTER-W','TEST-GAP',W,[22,26,27,30,58])
+C('SQL-COUNT-W','TEST-GAP',W,[31,33,35])
+C('WS-META','TEST-GAP',W,[9,10,11,12,13,14,15,16,17,18,19,20])
+C('WS-PROG','TEST-GAP',W,[38,39,40,41,42,43,44,45,46,106,108,109,110,111,112,113,115,117,118,
+                          119,121,122,123,124,125,158,160,161,162,163,164,199])
+C('WS-MSG','LOW-VALUE',W,[114,116,120,126,127,159,165,166,167,168])
+C('WS-EMPTY','TEST-GAP',W,[51,52,53,54,55,56])
+C('ROW-FIELDS-W','TEST-GAP',W,[65,66,67,68,70,71,72,73,74,75,76,77,78,79,
+                               80,81,82,83,84,85,86,87,88,89,90,100,101,102,103,104,105])
+C('FILENAME-W','TEST-GAP',W,[128,131,132])
+C('TZ-NAIVE-W','LOW-VALUE',W,[130])
+C('FILE-CONTENT-W','TEST-GAP',W,[139,140,141])
+C('ENCODING-W','EQUIVALENT',W,[146,148,150])
+C('FMT-BRANCH','TEST-GAP',W,[152,153,155,156])
+C('WS-RESULT','TEST-GAP',W,[169,172,173,174,175,176,177,178,179])
+C('LOG-EXTRA-W','LOW-VALUE',W,[182,183,185,186,187,188,189,190,191,192,193,194,195,196,197,198])
+C('WS-FAIL','TEST-GAP',W,[201,204])
+C('WS-FAIL-EQ','EQUIVALENT',W,[203])
+
+# ---- excel ----
+C('XL-STYLE','LOW-VALUE',E,[6,7,8,9,10,11,13,15,16,17,18,19,20,22,24,27,28,29,30,31,32,33,38,
+                            39,40,41,42,43,44,45,46,47,48,51,54,57,61,62,63,64,65,66,68,70,
+                            87,89,90,136,166,168])
+C('XL-CELLS','TEST-GAP',E,[112,113,114,115,116,117,118,119,120,121,124])
+C('XL-WIDTH','LOW-VALUE',E,[101,102,143,144,145,146,148,150,151,156,161,164,165])
+C('XL-STRIPE','LOW-VALUE',E,[137,138,139,140])
+C('XL-GETATTR','EQUIVALENT',E,[111])
+
+# ---- helpers ----
+C('DJ-COLS','TEST-GAP','x_detections_to_json',[1,2])
+C('DJ-CONTENT','TEST-GAP','x_detections_to_json',[3,4])
+C('DJ-INDENT','LOW-VALUE','x_detections_to_json',[5,7,8])
+C('CSV-SEEK','TEST-GAP','x_events_to_csv_streaming',[10,19])
+C('FD-VALUE','TEST-GAP','x_filter_row_to_dict',[2,4,5,11])
+C('FD-GETATTR','EQUIVALENT','x_filter_row_to_dict',[9])
+C('FEV-GETATTR','EQUIVALENT','x_format_export_value',[6])
+C('FILENAME-GEN','TEST-GAP','x_generate_export_filename',[1])
+C('SINGLETON','TEST-GAP','x_get_export_service',[1,2])
+C('SINGLETON-R','TEST-GAP','x_reset_export_service',[1])
+C('ACCEPT','TEST-GAP','x_parse_accept_header',[6,7,10])
+C('ACCEPT-WILD','EQUIVALENT','x_parse_accept_header',[11,12,13])
+C('INIT-MKDIR','EQUIVALENT','xǁExportServiceǁ__init__',[2,4,6])
+C('EMPTY-CONTENT','TEST-GAP','xǁExportServiceǁ_create_empty_export',[15,22,35,57])
+C('EMPTY-ENC','EQUIVALENT','xǁExportServiceǁ_create_empty_export',[18,20,24,32,34,37])
+C('EMPTY-FILENAME','TEST-GAP','xǁExportServiceǁ_create_empty_export',[1,4,5])
+C('EMPTY-TZ','LOW-VALUE','xǁExportServiceǁ_create_empty_export',[3])
+C('EMPTY-ZIP','LOW-VALUE','xǁExportServiceǁ_create_empty_export',[50])
+C('EE-COLUMNS','TEST-GAP','xǁExportServiceǁexport_events',[3,5,7,9])
+C('GF-PREFIX','TEST-GAP','xǁExportServiceǁget_filename',[1])
+
+# verify coverage
+assigned = collections.defaultdict(set)
+for cid, c in clusters.items():
+    assigned[c['fn']] |= c['nums']
+
+problems = 0
+for fn, nums in surv.items():
+    a = assigned.get(fn, set())
+    missing = set(nums) - a
+    extra = a - set(nums)
+    if missing or extra:
+        problems += 1
+        print(f'!! {fn}: unassigned={sorted(missing)} phantom={sorted(extra)}')
+print('problems:', problems)
+
+# totals
+tot = sum(len(c['nums']) for c in clusters.values())
+bycls = collections.Counter()
+for c in clusters.values():
+    bycls[c['class']] += len(c['nums'])
+print('total assigned:', tot)
+print('by class:', dict(bycls))
+for cid, c in sorted(clusters.items(), key=lambda x: -len(x[1]['nums'])):
+    print(f"{len(c['nums']):4d} {c['class']:12s} {cid:16s} {c['fn']}")
+
+with open('/tmp/wp25/wp44-triage/clusters_assigned.json','w') as f:
+    json.dump({cid: {'class': c['class'], 'fn': c['fn'],
+                     'keys': ['backend.services.export_service.' + c['fn'] + '__mutmut_' + str(n) for n in sorted(c['nums'])]}
+               for cid, c in clusters.items()}, f, indent=1)

@@ -1,0 +1,12 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -12,8 +12,7 @@
+         url=settings.yolo26_url,
+         enabled=True,
+         model_version="yolo26m",
+-        description="YOLO26 TensorRT object detection model for real-time security monitoring",
+-    )
++        )
+     registry.register(yolo26_config)
+ 
+     # Register YOLOv8 (alternative detector - disabled by default until configured)

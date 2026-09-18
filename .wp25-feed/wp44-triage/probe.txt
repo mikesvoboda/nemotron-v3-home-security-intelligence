@@ -1,12 +1,59 @@
-# backend.services.xclip_loader.x_load_xclip_model__mutmut_6: survived
---- backend/services/xclip_loader.py
-+++ backend/services/xclip_loader.py
-@@ -29,7 +29,7 @@
-                 "Skipping on CPU-only host."
-             )
- 
--        logger.info(f"Loading X-CLIP model from {model_path}")
-+        logger.info(None)
- 
-         loop = asyncio.get_running_loop()
- 
+# backend.services.redis_json.xǁBatchMetadataǁfrom_dict__mutmut_6: survived
+--- backend/services/redis_json.py
++++ backend/services/redis_json.py
+@@ -7,7 +7,7 @@
+         status=data.get("status", "open"),
+         detection_ids=data.get("detection_ids", []),
+         detection_count=data.get("detection_count", 0),
+-        started_at=data.get("started_at", time.time()),
++        started_at=None,
+         last_activity=data.get("last_activity", time.time()),
+         closed_at=data.get("closed_at"),
+         pipeline_start_time=data.get("pipeline_start_time"),
+# backend.services.redis_json.xǁBatchMetadataǁfrom_dict__mutmut_7: survived
+--- backend/services/redis_json.py
++++ backend/services/redis_json.py
+@@ -8,7 +8,7 @@
+         detection_ids=data.get("detection_ids", []),
+         detection_count=data.get("detection_count", 0),
+         started_at=data.get("started_at", time.time()),
+-        last_activity=data.get("last_activity", time.time()),
++        last_activity=None,
+         closed_at=data.get("closed_at"),
+         pipeline_start_time=data.get("pipeline_start_time"),
+         close_reason=data.get("close_reason"),
+# backend.services.redis_json.xǁBatchMetadataǁfrom_dict__mutmut_8: survived
+--- backend/services/redis_json.py
++++ backend/services/redis_json.py
+@@ -9,7 +9,7 @@
+         detection_count=data.get("detection_count", 0),
+         started_at=data.get("started_at", time.time()),
+         last_activity=data.get("last_activity", time.time()),
+-        closed_at=data.get("closed_at"),
++        closed_at=None,
+         pipeline_start_time=data.get("pipeline_start_time"),
+         close_reason=data.get("close_reason"),
+         processing_metadata=data.get("processing_metadata", {}),
+# backend.services.redis_json.xǁBatchMetadataǁfrom_dict__mutmut_9: survived
+--- backend/services/redis_json.py
++++ backend/services/redis_json.py
+@@ -10,7 +10,7 @@
+         started_at=data.get("started_at", time.time()),
+         last_activity=data.get("last_activity", time.time()),
+         closed_at=data.get("closed_at"),
+-        pipeline_start_time=data.get("pipeline_start_time"),
++        pipeline_start_time=None,
+         close_reason=data.get("close_reason"),
+         processing_metadata=data.get("processing_metadata", {}),
+     )
+# backend.services.redis_json.xǁBatchMetadataǁfrom_dict__mutmut_17: survived
+--- backend/services/redis_json.py
++++ backend/services/redis_json.py
+@@ -7,7 +7,6 @@
+         status=data.get("status", "open"),
+         detection_ids=data.get("detection_ids", []),
+         detection_count=data.get("detection_count", 0),
+-        started_at=data.get("started_at", time.time()),
+         last_activity=data.get("last_activity", time.time()),
+         closed_at=data.get("closed_at"),
+         pipeline_start_time=data.get("pipeline_start_time"),

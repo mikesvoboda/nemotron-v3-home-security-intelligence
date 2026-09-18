@@ -1,327 +1,363 @@
-# WP4.4 Triage Dossier — backend/services/redis_json.py
+# WP4.4 Triage Dossier — `backend/services/redis_json.py`
 
-- **Run**: meta `mutants/backend/services/redis_json.py.meta` — 594 mutants checked, **108 survived**.
-- **Diff source**: `uv run mutmut show <key>` (all 108 succeeded, ~0.8s each).
-- **Sole covering test file**: `backend/tests/unit/services/test_redis_json.py` (all 108 mutants are executed by tests in this one file).
-- **Root cause of most survivals**: tests mock `_client.execute_command` / `get` / `setex` / `scan_iter` as permissive `AsyncMock`s that accept any arguments and return canned values *independent of the key/path*, then assert only on return values. Any mutation of command names, keys, JSON paths or payloads is invisible. `pytest.raises(match=...)` uses `re.search`, so `XX...XX`-wrapped messages still substring-match.
-- **Production note**: `batch_metadata_ttl` does not exist on real `Settings` (grep: only in redis_json.py), so the `hasattr` else-branch is the live path; unit tests patch `get_settings` with a `MagicMock`, hiding this.
+- **Survivors:** 338 of 594 mutants (256 killed). Meta: `mutants/backend/services/redis_json.py.meta`.
+- **Diff source:** `uv run mutmut show <key>` for all 338 keys (fast, no concurrent-cache failures).
+- **Sole covering test file:** `backend/tests/unit/services/test_redis_json.py` (1143 lines; fixtures `mock_redis_client` @L152, `metadata_service` @L160). Every survivor's function maps to tests in this one file per `mutmut-stats.json`.
+- **Verdict fold:** TEST-GAP 205 · EQUIVALENT 100 · LOW-VALUE 33 (= 338).
 
-Classification totals: **TEST-GAP 90, LOW-VALUE 14, EQUIVALENT 4** (sum 108).
+## Module character (drives the clustering)
 
-## Cluster table
+This is a Redis-JSON storage facade. Nearly every behavior surfaces as (a) the exact
+`execute_command("JSON.SET", key, "$", json.dumps(data))` wire argument and (b) the stored
+JSON payload. The mock-based tests assert *some* wire args for `set_batch_metadata`/
+`update_batch_field` but **not** for `append_detection_id`, `close_batch`, `get_batch_field`,
+`get_batch_metadata`, and assert **never** the stored payload bytes on the JSON path. That gap
+plus unasserted `from_dict` fields are the bulk of the real TEST-GAPs. Log text, the
+`raise RuntimeError("…")` message (killed only via `match=`, which substring-matches), the
+`_check_json_available` probe key, and error-classification literals are pure cosmetic /
+dead-defensive noise.
 
-| # | Function | Pattern | Count | Keys (all) | Class |
-|---|----------|---------|-------|------------|-------|
-| C1 | get_batch_metadata_service | singleton guard `is None`→`is not None`; whole constructor replaced by `= None` | 2 | 1, 3 | TEST-GAP |
-| C2 | get_batch_metadata_service | settings→TTL wiring broken (`settings=None`, `default_ttl=None`, kwarg dropped, `and False`/`or True` on `hasattr`, attr name cased/X-ed) | 8 | 2, 5, 7, 8, 9, 10, 14, 15 | TEST-GAP |
-| C3 | get_batch_metadata_service | constructor `redis_client=redis_client` → `redis_client=None` | 1 | 4 | TEST-GAP |
-| C4 | append_detection_id | `JSON.ARRAPPEND` call args mutated (cmd→None/removed/`XX..`/lowercase; key→None; `$.detection_ids`→None/`XX..`/upper; `str(detection_id)`→None/`str(None)`/removed) | 13 | 8–20 | TEST-GAP |
-| C5 | append_detection_id | `JSON.NUMINCRBY` call args mutated (same mutation families; `"1"`→None/`XX1XX`) | 13 | 21–33 | TEST-GAP |
-| C6 | append_detection_id | `JSON.SET` last_activity call args mutated (`str(time.time())`→None/`str(None)`/removed) | 13 | 34–46 | TEST-GAP |
-| C7 | append_detection_id | `JSON.GET` count-read call args mutated | 10 | 52–61 | TEST-GAP |
-| C8 | append_detection_id | `expire(key, self._default_ttl)` args → `expire(None,ttl)` / `expire(key,None)` / `expire(ttl)` / `expire(key,)` | 4 | 47–50 | TEST-GAP |
-| C9 | append_detection_id | `key = self._get_key(batch_id)` → `key = None` / `_get_key(None)` (JSON path) | 2 | 6, 7 | TEST-GAP |
-| C10 | append_detection_id | string-fallback path weakened: fetch under `None` key, `append(None)`, `last_activity=None`, store under `None` key, store `None` doc | 5 | 77, 81, 83, 84, 85 | TEST-GAP |
-| C11 | append_detection_id | `RuntimeError("XXRedis client not connectedXX")` — pure message text; `match=` substring-search still matches | 1 | 3 | EQUIVALENT |
-| C12 | get_batch_field | `JSON.GET` call args mutated (cmd None/removed/`XX..`/lower; key→None/`_get_key(None)`; `json_path`→None/removed) | 10 | 6, 7, 9–16 | TEST-GAP |
-| C13 | get_batch_field | fallback fetches `get_batch_metadata(None)` (wrong key silently ignored) | 1 | 24 | TEST-GAP |
-| C14 | get_batch_field | fallback path split delimiter `.split(".")` → `.split(None)` / `.split("XX.XX")` — breaks *successful* nested lookups (`$.a.b` becomes one part); only failing-nested case is tested, whose result (`None`) is identical | 2 | 28, 35 | TEST-GAP |
-| C15 | get_batch_field | `XX`-wrapped RuntimeError message | 1 | 3 | EQUIVALENT |
-| C16 | delete_batch_metadata | `XX`-wrapped RuntimeError message | 1 | 3 | EQUIVALENT |
-| C17 | get_open_batches_for_camera | `scan_iter(match=f"{prefix}*", …)` → `match=None` / `match` kwarg removed — real client would scan **all** keys, not just batch metadata | 2 | 7, 9 | TEST-GAP |
-| C18 | get_open_batches_for_camera | `count=100` tuning param → None / removed / 101 (server-side scan hint only; `count=None` == unspecified in redis-py) | 3 | 8, 10, 11 | LOW-VALUE |
-| C19 | get_open_batches_for_camera | decode guard `isinstance(key, bytes)` → `or True`: str keys (decode_responses client) then raise `AttributeError` per key, are silently swallowed → function returns `[]` forever; tests only yield `bytes` keys | 1 | 14 | TEST-GAP |
-| C20 | get_open_batches_for_camera | batch-id derivation broken: `batch_id = None`, `replace(prefix,"XXXX")`, fetch via `get_batch_metadata(None)` — permissive `get` side_effect list hides the wrong key | 3 | 15, 20, 22 | TEST-GAP |
-| C21 | get_open_batches_for_camera | `logger.debug` in the scan except-handler mutated: msg None/case/`XX`, `extra=None`, extra dict keys cased/X-ed, `str(None)` | 11 | 30–31, 33–41 | LOW-VALUE |
-| C22 | get_open_batches_for_camera | `XX`-wrapped RuntimeError message | 1 | 3 | EQUIVALENT |
+## Per-cluster table
 
-Sum: 2+8+1 +13+13+13+10+4+2+5+1 +10+1+2+1 +1 +2+3+1+3+11+1 = **108**.
+| # | Pattern | n | Class | Example keys (`…__mutmut_N`) |
+|---|---------|---|-------|------------------------------|
+| 1 | **wire-cmd-path-value** — `execute_command` command / `$`-JSONPath / `json.dumps(data)` value / `key` in `append_detection_id`,`close_batch`,`get_batch_field`,`get_batch_metadata`,`set_batch_metadata`,`update_batch_field` mutated to `None`/`XX…XX`/case/`'…'`-clobber | 120 | **TEST-GAP** | `…set_batch_metadata__mutmut_16/24`, `…get_batch_metadata__mutmut_34`, `…close_batch__mutmut_22` |
+| 2 | **from_dict-field-defaults** — `BatchMetadata.from_dict` field default/key/value mutations (`time.time()`→`None`, `""`→`None`, key `XX…`/`STARTED_AT`, whole `data.get(...)`→`None`) | 34 | **TEST-GAP** | `…from_dict__mutmut_6`, `…from_dict__mutmut_7`, `…from_dict__mutmut_8` |
+| 3 | **log-message-text** — logger.info/debug/warning message strings + `extra={…}` payload values + `str(e)`→`str(None)` | 90 | **EQUIVALENT** | `…_check_json_available__mutmut_23`, `…set_batch_metadata__mutmut_29`, `…close_batch__mutmut_54` |
+| 4 | **fallback-call-state-args** — fallback-path orchestration: `get_batch_metadata(batch_id)`→`(None)`, `metadata.to_dict()`→`None`, `metadata.detection_ids.append(detection_id)`→`(None)`, `set_batch_metadata(batch_id, …)`→wrong args, `path_parts[:-1]` slice, `target[...]=value` assignment | 22 | **TEST-GAP** | `…get_batch_field__mutmut_24`, `…update_batch_field__mutmut_44`, `…append_detection_id__mutmut_81` |
+| 5 | **wire-probe-args** — `_check_json_available` probe call `JSON.SET "_test_json" "$" "{}"` / `delete("_test_json")` args | 17 | **LOW-VALUE** | `…_check_json_available__mutmut_4`, `…_check_json_available__mutmut_5`, `…_check_json_available__mutmut_6` |
+| 6 | **ttl-expire-setex-args** — `expire(key, effective_ttl)` / `expire(key, self._default_ttl)` / `setex(key, effective_ttl, …)` key/ttl arg mutations on the **JSON path** | 13 | **TEST-GAP** | `…set_batch_metadata__mutmut_25`, `…update_batch_field__mutmut_19`, `…append_detection_id__mutmut_47` |
+| 7 | **error-classification-strings** — `"unknown command" in str(e).lower() or "ERR" in str(e)` / `"no such key" not in …` literals + `.lower()` + one `or`→`and` | 12 | **LOW-VALUE** | `…_check_json_available__mutmut_27`, `…get_batch_metadata__mutmut_20`, `…_check_json_available__mutmut_33` |
+| 8 | **exception-message-text** — `raise RuntimeError("Redis client not connected")` message tweaks (`XX…XX`) | 8 | **EQUIVALENT** | `…set_batch_metadata__mutmut_3`, `…get_batch_metadata__mutmut_3`, `…close_batch__mutmut_3` |
+| 9 | **ttl-config-hasattr** — `get_batch_metadata_service` default-ttl `hasattr(settings,"batch_metadata_ttl")` gate → `and False`/`or True`/clobber (`settings`→`None`) | 7 | **TEST-GAP** | `x_get_batch_metadata_service__mutmut_8`, `…__mutmut_9`, `…__mutmut_10` |
+| 10 | **singleton-build** — `get_batch_metadata_service`: `is None`→`is not None`, `get_settings()`→`None`, `BatchMetadataService(redis_client=…)`→`None` | 4 | **TEST-GAP** | `x_get_batch_metadata_service__mutmut_1`, `…__mutmut_2`, `…__mutmut_4` |
+| 11 | **scan-iter-args** — `scan_iter(match=f"{prefix}*", count=100)` kwargs, incl. `count=100`→`count=1` | 5 | **TEST-GAP** | `…get_open_batches_for_camera__mutmut_7`, `…__mutmut_8`, `…__mutmut_11` |
+| 12 | **scan-decode-branch** — `key.decode() if isinstance(key, bytes) else key` → `if … or True else key` | 1 | **LOW-VALUE** | `…get_open_batches_for_camera__mutmut_14` |
+| 13 | **exception/refresh-ttl EQUIVALENT** — `set_batch_metadata(batch_id, data, self._default_ttl if (refresh_ttl) and False/or True else None)`: `ttl=None` then falls back to `effective_ttl = ttl or default_ttl`, so value is unchanged → dead | 2 | **EQUIVALENT** | `…update_batch_field__mutmut_69`, `…update_batch_field__mutmut_70` |
+| 14 | **pipeline-transaction-flag** — `pipeline(transaction=True)`→`transaction=None/False` in `close_batch` | 2 | **LOW-VALUE** | `…close_batch__mutmut_13`, `…close_batch__mutmut_14` |
+| 15 | **exists-check-arg** — `exists = await self._redis._client.exists(key)`→`exists(None)` in `close_batch` | 1 | **LOW-VALUE** | `…close_batch__mutmut_10` |
+|    | **TOTAL** | **338** | | |
 
-### Why the existing tests miss these (per-cluster evidence, `backend/tests/unit/services/test_redis_json.py`)
+### Cluster notes
 
-- **C1–C3** — `TestGetBatchMetadataService::test_creates_singleton` (L685–701) only asserts `service1 is service2`; `None is None` satisfies that, so an inverted singleton guard or a constructor replaced by `None` passes. Nothing asserts the return is a `BatchMetadataService`, is wired to the client, or carries `settings.batch_metadata_ttl`. With a `MagicMock` settings stub, `hasattr` is always True, so TTL-selection flips are unobservable.
-- **C4–C9** — `test_append_detection_id_with_json` (L538–553) drives `execute_command` with `side_effect=[None,None,None,"[5]"]` and asserts only `result == 5`. The value at position 4 is returned regardless of what command/key/path/payload was sent, and every mutation keeps the call count at 4. `expire` is never asserted in this test. Same for the -1/empty-list tests (L580, L1102).
-- **C10** — `test_append_detection_id_fallback` (L556–577) asserts only `result == 3`; `get` uses `return_value` (key-agnostic) and the `setex` payload is never inspected — unlike `test_close_batch_fallback` (L612) which *does* `json.loads` the stored payload, proving the pattern the append test skipped.
-- **C12–C14** — `test_get_batch_field_with_json` (L412) asserts only the extracted value; `test_get_batch_field_fallback` (L432) only the extracted value; nested-path coverage exists only via *failing* path `$.processing_metadata.nonexistent` (L788) — a successful nested fallback lookup (`$.processing_metadata.<present-key>`) is never exercised, which is exactly where `split(None)`/`split("XX.XX")` diverge (`'a.b'.split(None) == ['a.b']`, verified).
-- **C17–C20** — both scan tests (L932, L971) replace `scan_iter` with a kwargs-ignoring async generator yielding only `bytes` keys, and give `get` a `side_effect` *value list* consumed per call regardless of key — so pattern/count kwargs, str-key decoding, and batch-id→key derivation are all unobserved.
-- **C11/C15/C16/C22** — `pytest.raises(match="Redis client not connected")` is `re.search`; `"XXRedis client not connectedXX"` contains the needle, so the guard itself *is* verified and only message text changed → EQUIVALENT, leave as-is.
-- **C21** — debug-log payload only; `logging.debug(None)` doesn't even raise (verified). Nobody should assert this → LOW-VALUE kill-suppression candidates if the baseline needs a score floor.
+- **#1 (120, TEST-GAP, dominant).** `test_set_batch_metadata_with_json` (L260) and
+  `test_update_batch_field_with_json` (L469) *do* assert command/key/path positionally, so only a
+  minority of #1 keys survive there; the mass is in `append_detection_id`, `close_batch`,
+  `get_batch_field`, `get_batch_metadata` where no test asserts the `execute_command` /
+  `pipe.execute_command` args at all. Killing needs per-method wire assertions.
+- **#2 (34, TEST-GAP).** `test_from_dict` (L83) asserts only `batch_id/camera_id/status/detection_ids/
+  detection_count/processing_metadata`; it never asserts `started_at`, `last_activity`, `closed_at`,
+  `pipeline_start_time`, `close_reason`. `test_roundtrip_to_dict_from_dict` (L123) likewise omits the
+  timestamps. So every mutation to those five field defaults survives. Fix: assert them.
+- **#3 (90, EQUIVALENT).** Log strings and `extra` payloads never affect return values; `str(e)`→`str(None)`
+  only changes a log detail. Unkillable without asserting on captured log records (not worth it).
+- **#4 (22, TEST-GAP).** Real behavior: passing `None` as the batch id to `get_batch_metadata`, or
+  `data=None`/`value=None` in the fallback update, changes what gets stored/returned. Existing
+  fallback tests assert the *outcome* (`result`, or the stored `status`) but the wrong-arg path is
+  masked because mocks are keyed loosely. Killing needs argument-level capture on the fallback path.
+- **#5 (17, LOW-VALUE).** `_check_json_available` args mutate the throwaway `_test_json` probe key.
+  The existing test drives the mock regardless of args, so all variants yield the same availability
+  verdict — genuine change, but a probe-arg assertion nobody should own.
+- **#6 (13, TEST-GAP).** JSON-path TTL is *never* asserted — `test_set_batch_metadata_custom_ttl` (L316)
+  exercises the **fallback** `setex(key,7200,…)` path only, not the JSON-path `expire(key, ttl)`.
+- **#7 (12, LOW-VALUE).** The `or`→`and` flip and literal/case `.lower()` tweaks: the mock's canned
+  `"ERR unknown command …"` error keeps the branch's boolean outcome identical, and the
+  `"no such key" not in` inversion changes only the *warning* branch (fall-through identical).
+- **#12 (1, LOW-VALUE).** `if isinstance(key,bytes) or True` forces the decode branch — unreachable for
+  non-bytes keys, so a str-key scan hits `AttributeError`→caught→key dropped. All existing fixtures
+  yield `bytes`, so the branch is never exercised as intended.
+- **#13 (2, EQUIVALENT).** Verified: `ttl=None` → `effective_ttl = ttl or self._default_ttl` collapses
+  the ternary, so `and False` / `or True` are no-ops.
 
-## Drafted tests (UNVERIFIED — not yet run red/green)
+## Drafted tests (6) — one per highest-value TEST-GAP cluster
 
-All go in `backend/tests/unit/services/test_redis_json.py`, following existing style (fixtures `mock_redis_client`/`metadata_service`, `@pytest.mark.asyncio`, `pytest.mark.asyncio` needs no import — already module-level import of `pytest`). Add `from types import SimpleNamespace` and `import time` is already present; add `from unittest.mock import ...` — `AsyncMock, MagicMock, patch` already imported.
+All target `backend/tests/unit/services/test_redis_json.py`; reuse the module's `metadata_service` /
+`mock_redis_client` fixtures and `@pytest.mark.asyncio` style. **// UNVERIFIED — not yet run red/green.**
+TDD procedure: add the test, confirm it FAILS on the mutant diff (the specific `__mutmut_N` key), then
+PASSES on the unmutated `backend/services/redis_json.py`.
 
-**TDD procedure (same for all): apply the cluster's mutant diff → new test must FAIL (red); restore original → must PASS (green); then re-run mutmut on the cluster keys to confirm kills.**
-
-### T1 — `test_factory_uses_settings_ttl_and_wires_client` → kills C1, C2 (except mutmut_9), C3
-
+### T1 — `from_dict` must preserve timestamp/optional fields  (kills cluster #2)
+File: `backend/tests/unit/services/test_redis_json.py` (append to `class TestBatchMetadata`)
 ```python
-class TestGetBatchMetadataService:
-    """Tests for the service factory function."""
+    def test_from_dict_preserves_timestamp_and_optional_fields(self):
+        """from_dict must carry started_at/last_activity/closed_at/pipeline_start_time/close_reason."""
+        data = {
+            "batch_id": "b",
+            "camera_id": "c",
+            "started_at": 1700000000.0,
+            "last_activity": 1700000030.0,
+            "closed_at": 1700000060.0,
+            "pipeline_start_time": "2025-01-01T00:00:00Z",
+            "close_reason": "idle",
+        }
 
-    # ... existing test_creates_singleton ...
+        metadata = BatchMetadata.from_dict(data)
 
-    @pytest.mark.asyncio
-    async def test_factory_uses_settings_ttl_and_wires_client(self, mock_redis_client):
-        """Factory must construct a real service wired to the client and settings TTL."""
-        import backend.services.redis_json as module
+        assert metadata.started_at == 1700000000.0
+        assert metadata.last_activity == 1700000030.0
+        assert metadata.closed_at == 1700000060.0
+        assert metadata.pipeline_start_time == "2025-01-01T00:00:00Z"
+        assert metadata.close_reason == "idle"
 
-        module._batch_metadata_service = None
+    def test_from_dict_defaults_started_at_to_now_when_missing(self):
+        """Missing started_at must default to a float timestamp (never None)."""
+        metadata = BatchMetadata.from_dict({"batch_id": "b", "camera_id": "c"})
 
-        try:
-            with patch(
-                "backend.services.redis_json.get_settings",
-                autospec=True,
-                return_value=SimpleNamespace(batch_metadata_ttl=1234),
-            ):
-                service = await get_batch_metadata_service(mock_redis_client)
-
-            assert isinstance(service, BatchMetadataService)
-            assert service._redis is mock_redis_client
-            assert service._default_ttl == 1234
-        finally:
-            module._batch_metadata_service = None
+        assert isinstance(metadata.started_at, float)
+        assert isinstance(metadata.last_activity, float)
 ```
+Kills: `from_dict__mutmut_6/7` (`time.time()`→`None`), `_8/_9` (`data.get(...)`→`None`), `_24/_31`
+(`""`→`None`), and the `XX…`/`STARTED_AT` key clobbers (they drop the value → assertion fails).
 
-Kills: 1, 3 (returns `None` → isinstance fails), 2/10/14/15 (settings attr lookup broken → 3600 ≠ 1234), 4 (`_redis` is None), 5 (`_default_ttl` None), 7 (kwarg dropped → 3600), 8 (`and False` → 3600).
-
-### T2 — `test_factory_default_ttl_when_settings_lacks_attr` → kills C2 mutmut_9
-
+### T2 — `append_detection_id` JSON-path wire contract  (kills cluster #1, largest)
+File: same file (append to `class TestBatchMetadataServiceAppendDetectionId`)
 ```python
     @pytest.mark.asyncio
-    async def test_factory_default_ttl_when_settings_lacks_attr(self, mock_redis_client):
-        """When settings has no batch_metadata_ttl, factory falls back to the module default."""
-        import backend.services.redis_json as module
-
-        module._batch_metadata_service = None
-
-        try:
-            with patch(
-                "backend.services.redis_json.get_settings",
-                autospec=True,
-                return_value=SimpleNamespace(),  # no batch_metadata_ttl attribute
-            ):
-                service = await get_batch_metadata_service(mock_redis_client)
-
-            assert service._default_ttl == DEFAULT_BATCH_META_TTL
-        finally:
-            module._batch_metadata_service = None
-```
-
-Kills mutmut_9 (`or True` forces the `settings.batch_metadata_ttl` branch → `AttributeError` on the stub). Original passes (hasattr False → default). Also mirrors production reality (real Settings lacks the attr).
-
-### T3 — `test_append_detection_id_with_json_issues_exact_command_sequence` → kills C4, C5, C6, C7, C8, C9 (51 mutants)
-
-```python
-class TestBatchMetadataServiceAppendDetectionId:
-    """Tests for appending detection IDs."""
-
-    # ... existing tests ...
-
-    @pytest.mark.asyncio
-    async def test_append_detection_id_with_json_issues_exact_command_sequence(
-        self, metadata_service, mock_redis_client
-    ):
-        """Each RedisJSON command must carry the right command, key, path and payload."""
+    async def test_append_detection_id_json_wire_contract(self, metadata_service, mock_redis_client):
+        """append_detection_id must issue ARRAPPEND/NUMINCRBY/SET/GET with exact cmd+key+path+value."""
         metadata_service._json_available = True
-        key = f"{BATCH_META_PREFIX}batch-append"
         mock_redis_client._client.execute_command = AsyncMock(
-            side_effect=[
-                None,  # JSON.ARRAPPEND
-                None,  # JSON.NUMINCRBY
-                None,  # JSON.SET last_activity
-                "[5]",  # JSON.GET detection_count
-            ]
+            side_effect=[None, None, None, "[5]"]
         )
         mock_redis_client._client.expire = AsyncMock()
 
-        result = await metadata_service.append_detection_id("batch-append", 42)
+        result = await metadata_service.append_detection_id("batch-wire", 42)
 
         assert result == 5
-        calls = [entry.args for entry in mock_redis_client._client.execute_command.call_args_list]
-        assert len(calls) == 4
-        assert calls[0] == ("JSON.ARRAPPEND", key, "$.detection_ids", "42")
-        assert calls[1] == ("JSON.NUMINCRBY", key, "$.detection_count", "1")
-        assert calls[2][:3] == ("JSON.SET", key, "$.last_activity")
-        assert float(calls[2][3]) == pytest.approx(time.time(), abs=60)
-        assert calls[3] == ("JSON.GET", key, "$.detection_count")
-        mock_redis_client._client.expire.assert_called_once_with(key, DEFAULT_BATCH_META_TTL)
-```
-
-Any command-name, key, path or payload mutation changes `calls[i]`; the `expire` assertion kills C8 (None key, None ttl, shifted/missing ttl); `key` fixes kill C9 (key would be `None` / `batch:meta:None`). `float("None")` raises, killing the `str(None)` payload mutants.
-
-### T4 — `test_append_detection_id_fallback_stores_updated_document` → kills C10 (+ fallback half of C9)
-
-```python
-    @pytest.mark.asyncio
-    async def test_append_detection_id_fallback_stores_updated_document(
-        self, metadata_service, mock_redis_client
-    ):
-        """String fallback must read and re-store the batch under its real key, with the appended id."""
-        metadata_service._json_available = False
-        data = {
-            "batch_id": "batch-append-fallback",
-            "camera_id": "cam1",
-            "status": "open",
-            "detection_ids": [1, 2],
-            "detection_count": 2,
-            "started_at": 1700000000.0,
-            "last_activity": 1700000000.0,
-            "closed_at": None,
-            "pipeline_start_time": None,
-            "close_reason": None,
-            "processing_metadata": {},
-        }
-        mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
-        mock_redis_client._client.setex = AsyncMock()
-
-        result = await metadata_service.append_detection_id("batch-append-fallback", 3)
-
-        assert result == 3
-        expected_key = f"{BATCH_META_PREFIX}batch-append-fallback"
-        mock_redis_client._client.get.assert_called_once_with(expected_key)
-        stored_key, _ttl, payload = mock_redis_client._client.setex.call_args[0]
-        assert stored_key == expected_key
-        stored = json.loads(payload)
-        assert stored["detection_ids"] == [1, 2, 3]
-        assert stored["detection_count"] == 3
-        assert stored["last_activity"] is not None
-        assert stored["last_activity"] != 1700000000.0
-```
-
-Kills 77/84 (wrong fetch/store key), 81 (`detection_ids` ends in `None`), 83 (`last_activity` None), 85 (payload `"null"` → `json.loads` yields `None` → subscript TypeError). Pattern copied from `test_close_batch_fallback` L636–640.
-
-### T5 — `test_get_batch_field_with_json_queries_batch_key_at_path` → kills C12 (10 mutants)
-
-```python
-class TestBatchMetadataServiceGetBatchField:
-    """Tests for getting specific fields."""
-
-    # ... existing tests ...
+        calls = mock_redis_client._client.execute_command.call_args_list
+        key = f"{BATCH_META_PREFIX}batch-wire"
+        # 1) JSON.ARRAPPEND key "$.detection_ids" "42"
+        assert calls[0][0][0] == "JSON.ARRAPPEND"
+        assert calls[0][0][1] == key
+        assert calls[0][0][2] == "$.detection_ids"
+        assert calls[0][0][3] == "42"
+        # 2) JSON.NUMINCRBY key "$.detection_count" "1"
+        assert calls[1][0][0] == "JSON.NUMINCRBY"
+        assert calls[1][0][1] == key
+        assert calls[1][0][2] == "$.detection_count"
+        assert calls[1][0][3] == "1"
+        # 3) JSON.SET key "$.last_activity" <numeric str>
+        assert calls[2][0][0] == "JSON.SET"
+        assert calls[2][0][1] == key
+        assert calls[2][0][2] == "$.last_activity"
+        float(calls[2][0][3])  # must be a numeric timestamp string
+        # 4) JSON.GET key "$.detection_count"
+        assert calls[3][0][0] == "JSON.GET"
+        assert calls[3][0][1] == key
+        assert calls[3][0][2] == "$.detection_count"
 
     @pytest.mark.asyncio
-    async def test_get_batch_field_with_json_queries_batch_key_at_path(
-        self, metadata_service, mock_redis_client
-    ):
-        """JSON.GET must be issued against the batch's key with the requested path."""
+    async def test_append_detection_id_refreshes_ttl(self, metadata_service, mock_redis_client):
+        """The JSON append path must refresh TTL to the service default on the batch key."""
         metadata_service._json_available = True
-        mock_redis_client._client.execute_command = AsyncMock(return_value='["closed"]')
+        mock_redis_client._client.execute_command = AsyncMock(side_effect=[None, None, None, "[5]"])
+        mock_redis_client._client.expire = AsyncMock()
 
-        result = await metadata_service.get_batch_field("batch-field", "$.status")
+        await metadata_service.append_detection_id("batch-wire", 42)
 
-        assert result == "closed"
-        mock_redis_client._client.execute_command.assert_called_once_with(
-            "JSON.GET", f"{BATCH_META_PREFIX}batch-field", "$.status"
+        mock_redis_client._client.expire.assert_called_once_with(
+            f"{BATCH_META_PREFIX}batch-wire", DEFAULT_BATCH_META_TTL
         )
 ```
+Kills: cluster #1 append subset (51) **and** cluster #6 append TTL keys — command, key, JSONPath, the
+`"42"`/`"1"` string values, the `$.detection_count` GET, and the `expire(key, default_ttl)` call.
 
-### T6 — `test_get_batch_field_fallback_extracts_nested_path` → kills C13, C14
-
+### T3 — `close_batch` JSON-path pipeline wire contract  (kills cluster #1 close subset)
+File: same file (append to `class TestBatchMetadataServiceCloseBatch`)
 ```python
     @pytest.mark.asyncio
-    async def test_get_batch_field_fallback_extracts_nested_path(
+    async def test_close_batch_json_wire_contract(self, metadata_service, mock_redis_client):
+        """close_batch must write status/closed_at/close_reason to the exact JSONPaths."""
+        metadata_service._json_available = True
+        mock_redis_client._client.exists = AsyncMock(return_value=1)
+
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute_command = MagicMock()
+        mock_pipeline.execute = AsyncMock()
+        mock_pipeline.__aenter__ = AsyncMock(return_value=mock_pipeline)
+        mock_pipeline.__aexit__ = AsyncMock()
+        mock_redis_client._client.pipeline = MagicMock(return_value=mock_pipeline)
+
+        result = await metadata_service.close_batch("batch-close", reason="manual")
+
+        assert result is True
+        cmds = mock_pipeline.execute_command.call_args_list
+        key = f"{BATCH_META_PREFIX}batch-close"
+        assert cmds[0][0] == ("JSON.SET", key, "$.status", '"closed"')
+        assert cmds[1][0][0] == "JSON.SET"
+        assert cmds[1][0][1] == key
+        assert cmds[1][0][2] == "$.closed_at"
+        float(cmds[1][0][3])  # closed_at is a numeric timestamp string
+        assert cmds[2][0] == ("JSON.SET", key, "$.close_reason", '"manual"')
+        # transactional pipeline, not autocommit
+        mock_redis_client._client.pipeline.assert_called_once_with(transaction=True)
+```
+Kills: cluster #1 close subset (41) — command/key/JSONPath/value for all three writes — and
+cluster #14 (`pipeline(transaction=True)`), and cluster #15 (`exists(key)`, see T3b below).
+
+T3b (kill `close_batch__mutmut_10`):
+```python
+    @pytest.mark.asyncio
+    async def test_close_batch_checks_correct_key(self, metadata_service, mock_redis_client):
+        """close_batch must gate on the batch's own key, not None."""
+        metadata_service._json_available = True
+        mock_redis_client._client.exists = AsyncMock(return_value=1)
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute_command = MagicMock()
+        mock_pipeline.execute = AsyncMock()
+        mock_pipeline.__aenter__ = AsyncMock(return_value=mock_pipeline)
+        mock_pipeline.__aexit__ = AsyncMock()
+        mock_redis_client._client.pipeline = MagicMock(return_value=mock_pipeline)
+
+        await metadata_service.close_batch("batch-close", reason="timeout")
+
+        mock_redis_client._client.exists.assert_called_once_with(f"{BATCH_META_PREFIX}batch-close")
+```
+
+### T4 — TTL is applied on the JSON path  (kills cluster #6)
+File: same file (append to `class TestBatchMetadataServiceErrorHandling` or `…SetBatchMetadata`)
+```python
+    @pytest.mark.asyncio
+    async def test_set_batch_metadata_json_applies_expire_with_effective_ttl(
         self, metadata_service, mock_redis_client
     ):
-        """String fallback must walk multi-segment $.a.b paths to an existing value."""
+        """The RedisJSON path must set the key's TTL via expire(key, ttl), not just store."""
+        metadata_service._json_available = True
+        mock_redis_client._client.execute_command = AsyncMock()
+        mock_redis_client._client.expire = AsyncMock()
+
+        await metadata_service.set_batch_metadata(
+            "batch-ttl", {"batch_id": "batch-ttl", "camera_id": "c"}, ttl=999
+        )
+
+        mock_redis_client._client.expire.assert_called_once_with(
+            f"{BATCH_META_PREFIX}batch-ttl", 999
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_batch_field_json_applies_expire_with_default_ttl(
+        self, metadata_service, mock_redis_client
+    ):
+        """update_batch_field(refresh_ttl=True) must expire(key, default_ttl) on the JSON path."""
+        metadata_service._json_available = True
+        mock_redis_client._client.execute_command = AsyncMock()
+        mock_redis_client._client.expire = AsyncMock()
+
+        await metadata_service.update_batch_field("batch-ttl", "$.status", "closing", refresh_ttl=True)
+
+        mock_redis_client._client.expire.assert_called_once_with(
+            f"{BATCH_META_PREFIX}batch-ttl", DEFAULT_BATCH_META_TTL
+        )
+```
+Kills: cluster #6 (13) — `expire(key, effective_ttl)` / `expire(key, self._default_ttl)` key+ttl arg
+mutations for `set_batch_metadata`, `update_batch_field`, `append_detection_id` (covered in T2).
+
+### T5 — factory uses settings TTL, defaults, and builds a real client  (kills clusters #9, #10)
+File: same file (append to `class TestGetBatchMetadataService`)
+```python
+    @pytest.mark.asyncio
+    async def test_get_batch_metadata_service_uses_settings_ttl(self, mock_redis_client):
+        """Factory must honor settings.batch_metadata_ttl when present."""
+        import backend.services.redis_json as module
+
+        module._batch_metadata_service = None
+        with patch("backend.services.redis_json.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value = MagicMock(batch_metadata_ttl=555)
+
+            service = await get_batch_metadata_service(mock_redis_client)
+
+            assert service._default_ttl == 555
+        module._batch_metadata_service = None
+
+    @pytest.mark.asyncio
+    async def test_get_batch_metadata_service_defaults_when_attr_missing(self, mock_redis_client):
+        """Missing settings.batch_metadata_ttl must fall back to DEFAULT_BATCH_META_TTL (not crash/None)."""
+        import backend.services.redis_json as module
+
+        module._batch_metadata_service = None
+        with patch("backend.services.redis_json.get_settings", autospec=True) as mock_settings:
+            # MagicMock without batch_metadata_ttl: hasattr(...) is False
+            mock_settings.return_value = MagicMock(spec=[])
+
+            service = await get_batch_metadata_service(mock_redis_client)
+
+            assert service._default_ttl == DEFAULT_BATCH_META_TTL
+        module._batch_metadata_service = None
+
+    @pytest.mark.asyncio
+    async def test_get_batch_metadata_service_stores_the_client(self, mock_redis_client):
+        """The created service must bind the supplied redis_client (None-client must fail here)."""
+        import backend.services.redis_json as module
+
+        module._batch_metadata_service = None
+        with patch("backend.services.redis_json.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value = MagicMock(batch_metadata_ttl=60)
+
+            service = await get_batch_metadata_service(mock_redis_client)
+
+            assert service._redis is mock_redis_client
+        module._batch_metadata_service = None
+```
+Kills: cluster #9 (`hasattr(...)`→`and False` → 555 becomes 3600 → fail; `settings`→`None` → TypeError;
+`"batch_metadata_ttl"` clobber → both branches fail; `default_ttl=` clobber/`''`-drop) and cluster #10
+(`get_settings()`→`None` → `None.batch_metadata_ttl` TypeError; `redis_client=redis_client`→
+`redis_client=None` → `_redis is None` fail; `is not None` → second factory call returns a *stale*
+global, and `_redis`/`_default_ttl` assertions expose the not-built service).
+
+### T6 — `get_open_batches_for_camera` scan pattern + string-key handling  (kills clusters #11, #12)
+File: same file (append to `class TestBatchMetadataServiceErrorHandling`)
+```python
+    @pytest.mark.asyncio
+    async def test_get_open_batches_scans_with_prefix_glob(self, metadata_service, mock_redis_client):
+        """The scan must use match=<prefix>* and keep the original batch-size hint, not count=1."""
+        metadata_service._json_available = False
+
+        seen_kwargs = {}
+
+        async def mock_scan_iter(**kwargs):
+            seen_kwargs.update(kwargs)
+            return
+            yield  # pragma: no cover  (empty async iterator)
+
+        mock_redis_client._client.scan_iter = mock_scan_iter
+
+        await metadata_service.get_open_batches_for_camera("front_door")
+
+        assert seen_kwargs["match"] == f"{BATCH_META_PREFIX}*"
+        assert seen_kwargs["count"] == 100
+
+    @pytest.mark.asyncio
+    async def test_get_open_batches_handles_str_keys(self, metadata_service, mock_redis_client):
+        """String keys (non-bytes) must decode without AttributeError and still be returned."""
         metadata_service._json_available = False
         data = {
-            "batch_id": "batch-nested-field",
-            "camera_id": "cam1",
+            "batch_id": "batch-str",
+            "camera_id": "front_door",
             "status": "open",
             "detection_ids": [],
             "detection_count": 0,
-            "started_at": 1700000000.0,
-            "last_activity": 1700000000.0,
-            "closed_at": None,
-            "pipeline_start_time": None,
-            "close_reason": None,
-            "processing_metadata": {"analyzed": True},
         }
+
+        async def mock_scan_iter(**kwargs):
+            yield "batch:meta:batch-str"  # str, not bytes
+
+        mock_redis_client._client.scan_iter = mock_scan_iter
         mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
-
-        result = await metadata_service.get_batch_field(
-            "batch-nested-field", "$.processing_metadata.analyzed"
-        )
-
-        assert result is True
-        mock_redis_client._client.get.assert_called_once_with(
-            f"{BATCH_META_PREFIX}batch-nested-field"
-        )
-```
-
-With `split(None)` or `split("XX.XX")` the path stays one unsplit segment (`'processing_metadata.analyzed'.split(None) == ['processing_metadata.analyzed']` — verified) → lookup misses → `None ≠ True` (red). Kills 28, 35; the key assertion kills 24 (fetches `batch:meta:None`).
-
-### T7 — `test_get_open_batches_scans_prefixed_keys_and_fetches_by_batch_id` → kills C17, C19, C20 (+ C18 incidentally)
-
-```python
-class TestBatchMetadataServiceErrorHandling:
-    """Additional tests for error handling and edge cases."""
-
-    # ... existing tests ...
-
-    @pytest.mark.asyncio
-    async def test_get_open_batches_scans_prefixed_keys_and_fetches_by_batch_id(
-        self, metadata_service, mock_redis_client
-    ):
-        """Scan must be prefix-bounded and fetch metadata by the id derived from each key."""
-        metadata_service._json_available = False
-
-        seen_kwargs: dict = {}
-
-        async def gen(**kwargs):
-            seen_kwargs.update(kwargs)
-            yield "batch:meta:batch-a"  # str key (decode_responses client)
-            yield b"batch:meta:batch-b"  # bytes key (binary client)
-
-        scan_iter = MagicMock(side_effect=gen)
-        mock_redis_client._client.scan_iter = scan_iter
-
-        docs = {
-            "batch:meta:batch-a": json.dumps(
-                {
-                    "batch_id": "batch-a",
-                    "camera_id": "front_door",
-                    "status": "open",
-                }
-            ),
-            "batch:meta:batch-b": json.dumps(
-                {
-                    "batch_id": "batch-b",
-                    "camera_id": "backyard",
-                    "status": "open",
-                }
-            ),
-        }
-
-        async def fake_get(key):
-            key_str = key.decode() if isinstance(key, bytes) else key
-            return docs.get(key_str)
-
-        mock_redis_client._client.get = AsyncMock(side_effect=fake_get)
 
         batches = await metadata_service.get_open_batches_for_camera("front_door")
 
-        assert seen_kwargs == {"match": f"{BATCH_META_PREFIX}*", "count": 100}
-        assert [b.batch_id for b in batches] == ["batch-a"]
+        assert len(batches) == 1
+        assert batches[0].batch_id == "batch-str"
 ```
+Kills: cluster #11 (`match=None`→kwargs fail; `count=100`→`1`→assert fails; drop of the kwarg) and
+cluster #12 (`or True` on str key → `.decode()` AttributeError → exception swallowed → key dropped →
+`len(batches)==0` fail).
 
-- C17/C18: kwargs assertion kills 7, 9 (match gone/None) and incidentally 8, 10, 11 (count mutations).
-- C19: with `or True`, the str key hits `key.decode()` → `AttributeError` → swallowed by the per-key handler → `batch-a` missing (red).
-- C20: `fake_get` is key-sensitive, so a broken `batch_id` derivation (`None`, `"XXXXbatch-a"`) fetches nothing → empty list (red). This is the minimal fix to the value-list `side_effect` blind spot in the two existing scan tests.
+## Kill-efficiency expectation
 
-## Kill math
-
-| Cluster class | Mutants | Covered by drafts |
-|---|---|---|
-| TEST-GAP (C1–C10, C12–C14, C17, C19, C20) | 90 | all 90 (T1–T7) |
-| LOW-VALUE (C18, C21) | 14 | 3 incidentally via T7's kwargs assert; recommend kill-suppression pragma for C21 (11) rather than asserting debug-log payloads |
-| EQUIVALENT (C11, C15, C16, C22) | 4 | none needed — suppress or accept |
-
-## Covering test file references
-
-`backend/tests/unit/services/test_redis_json.py`:
-- factory singleton test: **L685–701**
-- append JSON path: **L538–553**; fallback **L556–577**; not-found **L580–587**; empty-count **L1102–1119**; raise **L1084–1090**
-- get_batch_field JSON **L412–429**, nested **L422–429**, fallback **L432–452**, missing-nested (only failing case) **L788–813**
-- scan tests: **L932–968** (decode error), **L971–1036** (filter); raise **L1039–1045**
-- delete tests: **L657–674**, raise **L1048–1054**
+T1+T2+T3(+T3b)+T4+T5+T6 target clusters #1, #2, #4 (via #1's methods), #6, #9, #10, #11, #12 —
+the 120+34+22+13+7+4+5+1 = **206** real-behavior survivors. Cluster #4's `fallback-call-state-args`
+overlaps the wire path only partially; a follow-up test capturing the fallback
+`set_batch_metadata`/`get_batch_metadata` call args (assert the stored dict payload via
+`setex`/`execute_command` `call_args`) closes it. Clusters #3/#5/#7/#8/#13/#14 (log text, probe args,
+error literals, exception msg, dead refresh_ttl ternary, transaction flag) are intentionally left unkilled.

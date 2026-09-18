@@ -1,194 +1,760 @@
 {
- "D1 dropped trunc kwarg": [
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_10",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_11",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_22",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_23",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_24",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_25",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_9"
- ],
- "C1 window-start nonzero": [
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_12",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_13",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_14",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_26",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_27",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_28",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_29"
- ],
- "B1 window-compare": [
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_15",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_16",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_17",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_3",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_4",
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_5"
- ],
- "A1 tz-arg": [
-  "backend.services.unique_counter_service.x__get_window_start__mutmut_2"
- ],
- "J1 pfadd key arg": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_9",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_9",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_9",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_9",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_9"
- ],
- "K1 pfadd ttl arg": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_12",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_10",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_10",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_10",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_10",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_10"
- ],
- "L1 pfadd value arg": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_11",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_13",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_14"
- ],
- "M1 key=None": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_1"
- ],
- "N1 metric arg = None": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_2"
- ],
- "O1 window arg = None": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_3",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_3"
- ],
- "N1 metric arg dropped": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_4"
- ],
- "E1 other": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_9",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_15",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_9",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_7",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_5",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_7"
- ],
- "Q1 metric case/prefix": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_8",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_8",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_6"
- ],
- "F1 window_start": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_14",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_21"
- ],
- "G1 window arg dropped": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_2",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_6",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_8"
- ],
- "H1 merged-count key/arg": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_1",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_4",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_5"
- ],
- "I1 pfcount(None)": [
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_8",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_8",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_8",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_8",
-  "backend.services.unique_counter_service.x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_8"
- ]
+ "SQL-FILTER": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   7,
+   11,
+   13,
+   14,
+   15,
+   17,
+   18,
+   30,
+   31,
+   43,
+   44,
+   45,
+   47,
+   48,
+   78
+  ]
+ },
+ "SQL-COUNT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   49,
+   51,
+   53,
+   54,
+   56
+  ]
+ },
+ "PROG-PCT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   59,
+   60,
+   62,
+   63,
+   64,
+   65,
+   76,
+   126,
+   127,
+   128,
+   129,
+   130,
+   137,
+   221
+  ]
+ },
+ "ROW-FIELDS-P": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   85,
+   86,
+   87,
+   88,
+   90,
+   91,
+   92,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125
+  ]
+ },
+ "FILENAME-P": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   139,
+   142,
+   143
+  ]
+ },
+ "COLUMNS": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   145,
+   152,
+   154
+  ]
+ },
+ "FILE-CONTENT-P": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   153,
+   167,
+   168,
+   169,
+   179,
+   189,
+   190,
+   191,
+   210
+  ]
+ },
+ "PROG-MSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   61,
+   66,
+   67,
+   68,
+   72,
+   75,
+   133,
+   136,
+   138,
+   217,
+   220,
+   222,
+   223,
+   224
+  ]
+ },
+ "LOG-EXTRA-P": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   226,
+   227,
+   229,
+   230,
+   231,
+   232,
+   233,
+   234,
+   235,
+   236,
+   237,
+   238,
+   239,
+   240
+  ]
+ },
+ "JSON-INDENT": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   180,
+   182,
+   183,
+   211,
+   213,
+   214
+  ]
+ },
+ "TZ-NAIVE": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   141
+  ]
+ },
+ "ZIP-METHOD": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   203
+  ]
+ },
+ "PROG-ERRMSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   3
+  ]
+ },
+ "ENCODING": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   159,
+   161,
+   163,
+   176,
+   178,
+   185
+  ]
+ },
+ "ZREPLACE": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   26,
+   27,
+   39,
+   40
+  ]
+ },
+ "WS-META": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20
+  ]
+ },
+ "WS-PROG": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   106,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   115,
+   117,
+   118,
+   119,
+   121,
+   122,
+   123,
+   124,
+   125,
+   158,
+   160,
+   161,
+   162,
+   163,
+   164,
+   199
+  ]
+ },
+ "WS-EMPTY": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   51,
+   52,
+   53,
+   54,
+   55,
+   56
+  ]
+ },
+ "ROW-FIELDS-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   65,
+   66,
+   67,
+   68,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   80,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   100,
+   101,
+   102,
+   103,
+   104,
+   105
+  ]
+ },
+ "FILENAME-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   128,
+   131,
+   132
+  ]
+ },
+ "FILE-CONTENT-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   139,
+   140,
+   141
+  ]
+ },
+ "FMT-BRANCH": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   152,
+   153,
+   155,
+   156
+  ]
+ },
+ "WS-RESULT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   169,
+   172,
+   173,
+   174,
+   175,
+   176,
+   177,
+   178,
+   179
+  ]
+ },
+ "WS-FAIL": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   201,
+   204
+  ]
+ },
+ "SQL-FILTER-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   22,
+   26,
+   27,
+   30,
+   58
+  ]
+ },
+ "SQL-COUNT-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   31,
+   33,
+   35
+  ]
+ },
+ "WS-MSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   114,
+   116,
+   120,
+   126,
+   127,
+   159,
+   165,
+   166,
+   167,
+   168
+  ]
+ },
+ "LOG-EXTRA-W": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   182,
+   183,
+   185,
+   186,
+   187,
+   188,
+   189,
+   190,
+   191,
+   192,
+   193,
+   194,
+   195,
+   196,
+   197,
+   198
+  ]
+ },
+ "TZ-NAIVE-W": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   130
+  ]
+ },
+ "WS-ERRMSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   3
+  ]
+ },
+ "ENCODING-W": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   146,
+   148,
+   150
+  ]
+ },
+ "WS-FAIL-EQ": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "nums": [
+   203
+  ]
+ },
+ "XL-CELLS": {
+  "class": "TEST-GAP",
+  "fn": "x_events_to_excel",
+  "nums": [
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121
+  ]
+ },
+ "XL-STYLE": {
+  "class": "LOW-VALUE",
+  "fn": "x_events_to_excel",
+  "nums": [
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   13,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   22,
+   24,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   44,
+   45,
+   46,
+   47,
+   48,
+   51,
+   54,
+   57,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   68,
+   70,
+   87,
+   89,
+   90,
+   136,
+   166,
+   168
+  ]
+ },
+ "XL-WIDTH": {
+  "class": "LOW-VALUE",
+  "fn": "x_events_to_excel",
+  "nums": [
+   101,
+   102,
+   143,
+   144,
+   145,
+   146,
+   148,
+   150,
+   151,
+   156,
+   161,
+   164,
+   165
+  ]
+ },
+ "XL-STRIPE": {
+  "class": "LOW-VALUE",
+  "fn": "x_events_to_excel",
+  "nums": [
+   137,
+   138,
+   139,
+   140
+  ]
+ },
+ "XL-GETATTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_events_to_excel",
+  "nums": [
+   111
+  ]
+ },
+ "XL-EMPTYSTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_events_to_excel",
+  "nums": [
+   124
+  ]
+ },
+ "SINGLETON": {
+  "class": "TEST-GAP",
+  "fn": "x_get_export_service",
+  "nums": [
+   1,
+   2
+  ]
+ },
+ "DJ-COLS": {
+  "class": "TEST-GAP",
+  "fn": "x_detections_to_json",
+  "nums": [
+   1,
+   2
+  ]
+ },
+ "DJ-CONTENT": {
+  "class": "TEST-GAP",
+  "fn": "x_detections_to_json",
+  "nums": [
+   3,
+   4
+  ]
+ },
+ "DJ-INDENT": {
+  "class": "LOW-VALUE",
+  "fn": "x_detections_to_json",
+  "nums": [
+   5,
+   7,
+   8
+  ]
+ },
+ "CSV-SEEK": {
+  "class": "TEST-GAP",
+  "fn": "x_events_to_csv_streaming",
+  "nums": [
+   10,
+   19
+  ]
+ },
+ "FD-VALUE": {
+  "class": "TEST-GAP",
+  "fn": "x_filter_row_to_dict",
+  "nums": [
+   4,
+   5,
+   10,
+   11
+  ]
+ },
+ "FEV-GETATTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_format_export_value",
+  "nums": [
+   6
+  ]
+ },
+ "FD-GETATTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_filter_row_to_dict",
+  "nums": [
+   9
+  ]
+ },
+ "SELCOLS-NONE": {
+  "class": "EQUIVALENT",
+  "fn": "x_filter_row_to_dict",
+  "nums": [
+   2
+  ]
+ },
+ "SELCOLS-NONE-P": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "nums": [
+   146
+  ]
+ },
+ "FILENAME-GEN": {
+  "class": "LOW-VALUE",
+  "fn": "x_generate_export_filename",
+  "nums": [
+   3
+  ]
+ },
+ "SINGLETON-R": {
+  "class": "EQUIVALENT",
+  "fn": "x_reset_export_service",
+  "nums": [
+   1
+  ]
+ },
+ "INIT-MKDIR": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1__init__",
+  "nums": [
+   2,
+   4,
+   6
+  ]
+ },
+ "EMPTY-CONTENT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "nums": [
+   15,
+   22,
+   35,
+   57
+  ]
+ },
+ "EMPTY-FILENAME": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "nums": [
+   1,
+   4,
+   5
+  ]
+ },
+ "EMPTY-ENC": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "nums": [
+   18,
+   20,
+   24,
+   32,
+   34,
+   37
+  ]
+ },
+ "EMPTY-TZ": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "nums": [
+   3
+  ]
+ },
+ "EMPTY-ZIP": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "nums": [
+   50
+  ]
+ },
+ "EE-COLUMNS": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events",
+  "nums": [
+   3,
+   5,
+   7,
+   9
+  ]
+ },
+ "GF-PREFIX": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1get_filename",
+  "nums": [
+   1
+  ]
+ },
+ "ACCEPT-QP": {
+  "class": "TEST-GAP",
+  "fn": "x_parse_accept_header",
+  "nums": [
+   6,
+   7
+  ]
+ },
+ "ACCEPT-WILD": {
+  "class": "EQUIVALENT",
+  "fn": "x_parse_accept_header",
+  "nums": [
+   10,
+   11,
+   12,
+   13
+  ]
+ }
 }

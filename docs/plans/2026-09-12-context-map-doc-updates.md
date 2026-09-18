@@ -5153,3 +5153,47 @@ tier retry (15-min cap, pattern never observed there — speculative), no
 `failure` retry, no ceiling moves. THE SHARD-STANDING ITSELF: #6552 merges on
 its green CI Gate; this PR gives the next cancelled attempt a machine answer
 instead of an owner escalation.
+
+## WP4.4 DECIDE 2026-09-18 — unit-probe fan-out carve-out to the one-heavy-job rule
+
+OWNER APPROVED (chat, 2026-09-18: "the fan out is approved"). The hard rule
+"ONE heavy pytest job at a time — a concurrent run voids the summary and
+collides on security_test_gwN" exists for two named hazards: mutmut's global
+cache/progress state, and integration tests colliding on per-worker
+security_test_gwN schemas. Single-file UNIT kill-probes (the WP4.4 census
+mechanic: cwd=mutants/, MUTANT_UNDER_TEST=<key>, one test file) touch neither
+— and the unit tier already proves 16-way unit concurrency nightly via -n auto.
+CARVE-OUT AS IMPLEMENTED: up to 8 concurrent single-file unit probe workers,
+ONE WORKER PER MODULE (shared mutants/ tree; module-basename collision check
+run — 57/57 unique in the current band); workers exec the venv python directly
+(sys.executable -m pytest, no uv-run venv-lock contention) with -p
+no:cacheprovider (no shared .pytest_cache under mutants/). Tier mutmut runs,
+integration pytest, and validate.sh STAY strictly serial and outrank the lane:
+the launcher polls /tmp/wp25/fanout.pause and terminates all workers while it
+exists. Tools: scripts/.wp44-killcount.py (resumable per-module JSONL verdict
+stream) + scripts/.wp44-fanout.py (launcher; dossier/recursive test-file
+resolution, never guesses). MEASURE that motivated it: serial-only census =
+10.5 s/probe -> 940-probe untouched band ≈ 2.7 h serial vs ~25 min at 7
+workers; full-G-tier censusing ≈ 35 h vs ~5 h — the parallel lane makes
+closing the whole TEST-GAP tier affordable instead of quietly scoping it out.
+/goal hard-rule sentence to be updated by owner to carry the carve-out (suggested
+wording delivered in-session 2026-09-18).
+
+## WP4.4 RECORD 2026-09-18 — container_discovery kill census (no-deletion record)
+
+MEASURE: full surviving-mutant census of backend/services/container_discovery.py
+against the CURRENT unit suite (all 696 tier-era survivors probed, one
+MUTANT_UNDER_TEST pytest run each — scripts/.wp44-killcount.py, serial lane,
+~2 h): **644 killed / 696 probed = 92.5%; 52 survivors remain**. Projected
+module tier score once kills commit and run7 re-measures: (162+644)/858 =
+**94.0%** (was 18.9%). The 52 survivor keys ARE the surviving-mutant record —
+recorded at .wp25-feed/wp44-kills/container_discovery-survivors.md; nothing in
+this module is deleted or declared covered except against that file.
+Distribution: build_service_configs 18 (regular ~27-index spacing => one
+repeating per-entry pattern — single-insight drafting candidate), discover_all
+16, \_create_managed_service 10, tail 8. First reads: log-cosmetic and
+parser-mock-absorbed families the batch deliberately did not police + a real
+residual tail for the next drafting round.
+Serial-lane note: census was ONE pytest job throughout; the owner-approved
+fan-out lane paused via /tmp/wp25/fanout.pause sentinel for validate.sh, then
+resumes — first production exercise of the carve-out hierarchy.

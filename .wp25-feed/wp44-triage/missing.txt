@@ -1,1 +1,1 @@
-backend.services.onvif_service.xǁOnvifServiceǁgoto_preset__mutmut_9
+backend.services.fashion_clip_loader.x_load_fashion_clip_model__mutmut_6

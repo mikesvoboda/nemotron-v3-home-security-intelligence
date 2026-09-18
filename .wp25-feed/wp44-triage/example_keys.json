@@ -1,0 +1,162 @@
+{
+ "AI1": [
+  "_check_ai_health__mutmut_13",
+  "_check_ai_health__mutmut_15",
+  "_check_ai_health__mutmut_6"
+ ],
+ "AI2": [
+  "_check_ai_health__mutmut_36",
+  "_check_ai_health__mutmut_39"
+ ],
+ "C1": [
+  "_broadcast_loop__mutmut_6",
+  "_broadcast_loop__mutmut_8",
+  "_broadcast_loop__mutmut_9"
+ ],
+ "C2": [
+  "fn:x_get_system_broadcaster_async__mutmut_14",
+  "fn:x_get_system_broadcaster_async__mutmut_15",
+  "fn:x_get_system_broadcaster_async__mutmut_16"
+ ],
+ "CB": [
+  "__init____mutmut_18",
+  "__init____mutmut_19",
+  "__init____mutmut_20"
+ ],
+ "DG1": [
+  "_broadcast_degraded_state__mutmut_17",
+  "_broadcast_degraded_state__mutmut_18",
+  "_broadcast_degraded_state__mutmut_22"
+ ],
+ "DP1": [
+  "_get_health_status__mutmut_1",
+  "_get_health_status__mutmut_3"
+ ],
+ "EQ1": [
+  "_broadcast_loop__mutmut_4",
+  "_listen_for_updates__mutmut_18"
+ ],
+ "EQ2": [
+  "__init____mutmut_3",
+  "__init____mutmut_8",
+  "_reset_pubsub_connection__mutmut_14"
+ ],
+ "G1a": [
+  "get_performance_history__mutmut_13"
+ ],
+ "G1b": [
+  "get_performance_history__mutmut_31",
+  "get_performance_history__mutmut_33",
+  "get_performance_history__mutmut_34"
+ ],
+ "G2": [
+  "get_performance_history__mutmut_17",
+  "get_performance_history__mutmut_25",
+  "get_performance_history__mutmut_8"
+ ],
+ "G3": [
+  "get_performance_history__mutmut_18",
+  "get_performance_history__mutmut_19",
+  "get_performance_history__mutmut_26"
+ ],
+ "G4": [
+  "get_performance_history__mutmut_12",
+  "get_performance_history__mutmut_21",
+  "get_performance_history__mutmut_29"
+ ],
+ "G5a": [
+  "get_performance_history__mutmut_35",
+  "get_performance_history__mutmut_37",
+  "get_performance_history__mutmut_40"
+ ],
+ "G5b": [
+  "get_performance_history__mutmut_36",
+  "get_performance_history__mutmut_38",
+  "get_performance_history__mutmut_41"
+ ],
+ "H1": [
+  "_attempt_listener_recovery__mutmut_14",
+  "_attempt_listener_recovery__mutmut_4"
+ ],
+ "H2": [
+  "_attempt_listener_recovery__mutmut_21",
+  "_attempt_listener_recovery__mutmut_23",
+  "_attempt_listener_recovery__mutmut_29"
+ ],
+ "H3": [
+  "_attempt_listener_recovery__mutmut_47"
+ ],
+ "IID": [
+  "__init____mutmut_15"
+ ],
+ "IV1a": [
+  "start_broadcasting__mutmut_10"
+ ],
+ "IV1b": [
+  "start__mutmut_1",
+  "start_broadcasting__mutmut_1"
+ ],
+ "K1": [
+  "__init____mutmut_12",
+  "_start_pubsub_listener__mutmut_18",
+  "_start_pubsub_listener__mutmut_19"
+ ],
+ "L2": [
+  "_listen_for_updates__mutmut_19",
+  "_listen_for_updates__mutmut_20"
+ ],
+ "L3": [
+  "_listen_for_updates__mutmut_37",
+  "_listen_for_updates__mutmut_38",
+  "_listen_for_updates__mutmut_39"
+ ],
+ "L4": [
+  "_listen_for_updates__mutmut_16",
+  "_listen_for_updates__mutmut_26",
+  "_listen_for_updates__mutmut_36"
+ ],
+ "NP1": [
+  "_broadcast_loop__mutmut_2",
+  "connect__mutmut_3"
+ ],
+ "PP1": [
+  "broadcast_performance__mutmut_13",
+  "broadcast_performance__mutmut_14",
+  "broadcast_performance__mutmut_15"
+ ],
+ "PS1": [
+  "_reset_pubsub_connection__mutmut_10",
+  "_reset_pubsub_connection__mutmut_11",
+  "_reset_pubsub_connection__mutmut_16"
+ ],
+ "SD1": [
+  "stop_broadcasting__mutmut_10",
+  "stop_broadcasting__mutmut_11",
+  "stop_broadcasting__mutmut_12"
+ ],
+ "SG1": [
+  "fn:x_get_system_broadcaster_async__mutmut_11",
+  "fn:x_get_system_broadcaster_async__mutmut_13",
+  "fn:x_get_system_broadcaster_async__mutmut_9"
+ ],
+ "SQL1": [
+  "_get_latest_gpu_stats_with_session__mutmut_1",
+  "_get_latest_gpu_stats_with_session__mutmut_2",
+  "_get_latest_gpu_stats_with_session__mutmut_3"
+ ],
+ "SQL2": [
+  "_get_camera_stats_with_session__mutmut_1",
+  "_get_camera_stats_with_session__mutmut_10",
+  "_get_camera_stats_with_session__mutmut_11"
+ ],
+ "SS1": [
+  "_get_latest_gpu_stats__mutmut_13",
+  "_get_latest_gpu_stats__mutmut_14",
+  "_get_latest_gpu_stats__mutmut_15"
+ ],
+ "SS2": [
+  "_get_system_status__mutmut_1",
+  "_get_system_status__mutmut_3",
+  "_get_system_status__mutmut_30"
+ ]
+}

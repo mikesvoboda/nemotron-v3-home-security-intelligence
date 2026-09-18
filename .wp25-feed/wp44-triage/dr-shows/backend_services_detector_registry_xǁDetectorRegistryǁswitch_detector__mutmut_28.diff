@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -40,7 +40,7 @@
+     logger.info(
+         f"Switched detector from {old_active} to {detector_type}",
+         extra={
+-            "old_detector": old_active,
++            "OLD_DETECTOR": old_active,
+             "new_detector": detector_type,
+             "forced": force,
+         },

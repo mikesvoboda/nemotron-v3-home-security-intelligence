@@ -1,501 +1,381 @@
-# WP4.4 triage dossier — backend/services/webhook_service.py
+# WP4.4 Triage Dossier — backend/services/webhook_service.py
 
-Surviving mutants: **158** of 1075 checked (770 not yet run). Diff source: `uv run mutmut show` per key
-(captured in `/tmp/wp25/wp44-triage/webhook-diffs.txt`; every survivor anchored to a source line by
-diff-hunk context — mapping at `/tmp/wp25/wp44-triage/assign.pkl`, placement at `placement.pkl`).
+- **Source:** `backend/services/webhook_service.py` (1,278 lines) · Mutant copy: `mutants/backend/services/webhook_service.py`
+- **Verdict file:** `mutants/backend/services/webhook_service.py.meta` — 1,075 keys, **571 survived** (exit_code 0), 504 killed, 0 unchecked.
+- **Method:** all 571 per-mutant diffs extracted mechanically by diffing each `…__mutmut_N` variant body against its `__mutmut_orig` in the mutant copy (truncating mutmut's trailing registration lines). Cluster counts below partition 571 exactly (sum verified programmatically). No tests were run; all drafted tests are **UNVERIFIED**.
+- **Key structural fact:** `WebhookEventType` and `IntegrationType` are `StrEnum`. `str(member) == member.value` in Python 3.11+ (verified), so every mutation of the defensive pattern `X.value if hasattr(X,"value") else str(X)` is semantically a no-op for the actual inputs (`hasattr` → False, key renamed, `or True`/`and False`, receiver → None, `str(None)` → `'None'` which equals `str(event_type)` — all collapse to the same string).
+- **Another dead field:** `self._http_client` is written in `__init__` and **never read anywhere in the module** (verified: only the docstring and the assignment reference it) — `__init__` mutants are unkillable through any observable behavior.
 
-Cluster counts sum to 158 (±0). Full per-cluster key lists in Appendix A.
+## Covering test files (from `tests_by_mangled_function_name`, filtered to webhook tests)
 
-## Why 93 of 158 survivors are structurally unkillable by the current unit tests
+| File | Role | Key anchor tests (line) |
+|---|---|---|
+| `backend/tests/unit/services/test_webhook_service.py` | primary unit suite for every `WebhookService` method | `test_get_health_summary` :870 (scalar mocks only), `test_deliver_webhook_success` :447, `test_get_deliveries` :934, `test_send_request_with_signature` :1334, `test_format_slack_payload` :1050, `test_format_discord_payload` :1068, `test_format_teams_payload` :1087, `test_build_payload_*` :983–1048, `test_build_test_event_data_*` :1419–1451, `test_get_webhook_service_singleton` :1459, `test_trigger_webhook_background_*` :1470/:1498 |
+| `backend/tests/unit/services/test_webhook_integration.py` | call-site integration (alert engine → webhook trigger) | :79–:417 |
+| `backend/tests/integration/test_webhook_service.py` | real-DB CRUD/trigger/health | `TestWebhookServiceCRUD` :50, `TestWebhookServiceHealth` :381 |
+| `backend/tests/unit/api/routes/test_webhooks.py` | route layer | (appears in several functions' test lists) |
 
-The whole mutation run executes **unit tests only** (`pyproject.toml [tool.mutmut]
-pytest_add_cli_args_test_selection = ["backend/tests/unit"]`). Every unit DB test passes an
-`AsyncMock` session whose `execute` is stubbed (`backend/tests/conftest.py:1930 mock_db_session`), so
-the SQLAlchemy statements the service builds are **never compiled or inspected**. Any mutant that
-changes a statement's shape — `.where(...)` predicates, `.limit()/.offset()`, table/order args, or the
-whole statement expression → `None` — produces identical return values under the mock and survives by
-construction. Real-SQL coverage exists in `backend/tests/integration/test_webhook_service.py`
-(`test_db` fixture), but that tree is not in the mutmut selection — hence the same functions have
-integration tests that would kill some of these (e.g. `None`-statement mutants raise at execute) yet
-count as survivors.
+**Recurring weakness (why so many TEST-GAPs):** every CRUD/delivery/health test stubs `mock_db_session.execute` with canned `MagicMock` results (`test_webhook_service.py:226–235` etc.) and only asserts the canned values flow through — the SQL text (where/order/limit/avg/status predicates) is never inspected. And shape asserts on payloads are existence-only (`"fields" in result["embeds"][0]`), never full-shape equality, so key renames/case flips/`inline:False`/list-cap changes all survive.
 
-Test files that DO execute these functions (all unit, mock-session):
-`backend/tests/unit/services/test_webhook_service.py` — lines 254/272 (`test_list_webhooks_*`),
-408/427 (`test_delete_webhook_*`), 870 (`test_get_health_summary`), 934 (`test_get_deliveries`),
-963 (`test_get_delivery`), 1050/1068/1087 (`test_format_{slack,discord,teams}_payload`).
-Their assertions are loose: membership/`in` checks on partial output, `>=` on SQL-backed counts, and
-zero assertion on the built query.
+## Cluster table (sums to 571)
 
-## Cluster table
+| # | Cluster | Count | Class | Example keys (short) | Verdict basis |
+|---|---|---|---|---|---|
+| 1 | bted-values: `_build_test_event_data` literal dict keys/values changed (`XX…XX`, `UPPER`, `1.95`/`1.87` floats) | 87 | TEST-GAP | WS._build_test_event_data#22, #75, #100 | tests :1419–1451 assert only `"alert_id" in data` membership, never equality of the canned sample payloads |
+| 2 | query-build: CRUD/delivery SELECTs mutated (`select(None)`, `where(None)`, `==`→`!=`, `is_(True)`→`is_(False/None)`, `order_by(None)`, `limit/offset(None)`, `db.execute(None)`, `get_webhook(db, None)`) | 45 | TEST-GAP | WS.delete_webhook#3, WS.get_deliveries#12, WS.list_webhooks#6 | mock-session execute never inspects the statement; DB-side tests only happy-path |
+| 3 | health-queries: `get_health_summary` count/avg statements mutated (`where(None)`, `>=`→`>`, `==SUCCESS/FAILED`→`!=`, `.is_(None/False)`, `and_` args dropped) | 40 | TEST-GAP | WS.get_health_summary#13, #27, #41 | test :870 mocks every scalar; SQL text never asserted |
+| 4 | delivery-record: `deliver_webhook`/`retry`/`test`/`trigger` call+construction args → None (payload, webhook_id, event_type, event_id, `request_payload`, `_build_payload(None,…)`, `_send_request(None,…)`, positional drops) | 34 | TEST-GAP | WS.deliver_webhook#1, #11, #13 | `test_deliver_webhook_success` asserts status/stats but never `delivery.webhook_id/event_type/event_id/request_payload` or that the built payload reached `_send_request` |
+| 5 | fmt-discord: `_format_discord_payload` keys/values/limits mutated (`"name"`→`"NAME"`, `inline:True`→`False`, `fields[:25]`→`[:26]`, timestamp lookup broken, whole field-dict → None) | 30 | TEST-GAP | WS._format_discord_payload#26, #39, #54 | test :1068 checks only `"embeds" in`, title, `"fields" in` |
+| 6 | fmt-teams: `_format_teams_payload` same pattern (`@context`/`themeColor`/`summary` keys+values, `facts[:10]`→`[:11]`) | 29 | TEST-GAP | WS._format_teams_payload#36, #45, #58 | test :1087 checks `@type`, title, `"facts" in` only |
+| 7 | fmt-slack: `_format_slack_payload` blocks keys/values mutated (`"type":"section"`→`"SECTION"`, nested `"text"`→`"TEXT"`, `mrkdwn`→`MRKDWN`) | 18 | TEST-GAP | WS._format_slack_payload#24, #31, #34 | test :1050 checks only `"text" in`/`"blocks" in`/substring |
+| 8 | stats: webhook counters `+= 1`→`= 1`/`-= 1`/`+= 2`, `last_delivery_at = None` in success/failure/retry paths | 16 | TEST-GAP | WS.deliver_webhook#46, #90, WS.retry_delivery#47 | fixture starts counters at 0 so `+=1`==`=1`; `last_delivery_at` never asserted |
+| 9 | signature: `_sign_payload` json canonicalization kwargs mutated (`sort_keys`→False/None, `separators`, receiver None) and `_send_request` `X-Webhook-Signature*` headers → None | 14 | TEST-GAP | WS._send_request#83, #92, WS._sign_payload#9 | test :1334 asserts only key presence + `sha256=` prefix; signature never recomputed/compared |
+| 10 | resp-fields: `delivery.response_body=None`, `response_time_ms=None`, `error_message=str(e)[:500]`→`[:501]` (deliver/retry/test) | 14 | TEST-GAP | WS.deliver_webhook#67, #78, WS.test_webhook#54 | success test asserts response_time but survives per verdicts — assertion set doesn't cover every assignment path; truncation never checked |
+| 11 | create-fields: `create_webhook` stores `integration_type/payload_template/max_retries/retry_delay_seconds = None` (or kwarg dropped) | 8 | TEST-GAP | WS.create_webhook#8, #13, #24 | test :124 asserts name/url/event_types/enabled/secret only |
+| 12 | int-routing: `_format_for_integration` comparison targets `"slack"/"discord"/"teams"` renamed (falls through to generic passthrough) | 6 | TEST-GAP | WS._format_for_integration#11, #15, #17 | no test routes a non-generic `integration_type` through `_format_for_integration`/`_build_payload` |
+| 13 | boundary300: `200 <= status < 300` → `<= 300` / `< 301` (deliver/retry/test success classification) | 6 | TEST-GAP | WS.deliver_webhook#39, WS.retry_delivery#30, WS.test_webhook#33 | no test uses status 300 |
+| 14 | health-boundary: `total_deliveries > 0`→`> 1`, `>= 0.9`→`> 0.9`, `< 0.5`→`<= 0.5`, `count += 1`→`= 1`, avg-truthiness `if x`→`if x or True` | 6 | TEST-GAP | WS.get_health_summary#80, #85, #107 | test uses rates .95/.80/.45 — never the exact .9/.5/.0 or avg==0 edges |
+| 15 | or-default: `scalar() or 0`→`or 1` (health summary counts, `get_deliveries` total) | 6 | TEST-GAP | WS.get_health_summary#17, WS.get_deliveries#9 | tests mock scalar to nonzero; zero-count path never fed |
+| 16 | jinja-context: `template.render(event_type=…, timestamp=…, webhook_id=…)` values → None / kwargs dropped (silent jinja Undefined → empty string) | 6 | TEST-GAP | WS._build_payload#28, #30, #32 | template tests :1000/:1574 only use `data.*`/direct fields, never `event_type`/`webhook_id`/`timestamp` |
+| 17 | db-args: `db.add(None)`, `db.refresh(None)` (create/deliver/retry/update) | 6 | TEST-GAP | WS.create_webhook#40, WS.deliver_webhook#105 | tests assert `add.assert_called_once()` without arguments |
+| 18 | post-args: `client.post(webhook.url, json=payload)` → url/json None or dropped; `AsyncClient(timeout=DEFAULT_TIMEOUT)`→`timeout=None` | 5 | TEST-GAP | WS._send_request#100, #101, #98 | `post.assert_called_once()` + status echo only; url/json/timeout unasserted |
+| 19 | singleton: `get_webhook_service` `is None`→`is not None`, instance → None (returns None service) | 2 | TEST-GAP | get_webhook_service#1, #2 | :1459 asserts `service1 is service2` — true for None==None and for the not-None flip after first call |
+| 20 | bted-fallback: `event_specific_data.get(value, {})` → `None` / arg dropped (unknown event types raise TypeError on merge) | 2 | TEST-GAP | WS._build_test_event_data#125, #127 | :1443 mislabels its input: `SYSTEM_HEALTH_CHANGED` IS a mapped key; no truly-unknown enum (`BATCH_ANALYSIS_*`) tested |
+| 21 | timing-formula: `* 1000` → `/ 1000` / `* 1001` in `_send_request` ms conversion | 2 | TEST-GAP | WS._send_request#110, #112 | test asserts only `response_time >= 0` (mocked call ≈0 ms, all formulas agree) |
+| 22 | tw-body: `test_webhook` response_body `if response_body else None` → always None / condition removed / `and False` | 3 | TEST-GAP | WS.test_webhook#37, #42, #44 | :659 success test never asserts `result.response_body` |
+| 23 | hdrs-names: `_send_request` headers dict **keys** renamed (`"XXContent-TypeXX"`, `"XXUser-AgentXX"`) | 3 | TEST-GAP | WS._send_request#2, #5, #7 | tests inspect only auth/signature header keys |
+| 24 | auth-defaults: `.get("type"/"token"/"username"/…,"")` default tweaks (`None`, `"XXXX"`, missing kwarg) | 19 | LOW-VALUE | WS._send_request#16, #33, #56 | most pairs are true equivalents (`""`/missing/`None` all yield the same header value or skip path); the rest fire only on malformed auth_config (schema types make `None` values unrepresentable through validated creation); auth-header behavior is asserted where observable (:1176/:1213/:1255) |
+| 25 | UA-string: `User-Agent` value → `XXNemotronWebhook/1.0XX`/lower/upper | 3 | LOW-VALUE | WS._send_request#10, #11, #12 | cosmetic client identification string; nobody should assert exact casing |
+| 26 | tw-body-edge: `response_body = X if X or True else None` (`''` stays `''` instead of `None`) | 1 | LOW-VALUE | WS.test_webhook#45 | behavior differs only for empty-string response bodies — unspecified |
+| 27 | log: all `logger.*` message strings → None, `extra` dicts → None/removed, extra-dict key renames (`XXwebhook_idXX`, `WEBHOOK_ID`), `exc_info=True`→None/False (16 functions) | 88 | EQUIVALENT | trigger_webhook_background#10, WS.deliver_webhook#54, WS.create_webhook#43 | pure observability; no test should assert log text |
+| 28 | strvalue: `X.value if hasattr(X,"value") else str(X)` defensive mutations (StrEnum ⇒ `str(e)=="alert_fired"`) — build_payload/bted/deliver/create/update/trigger/format_for_integration | 45 | EQUIVALENT | WS._build_payload#3, WS.trigger_webhooks_for_event#9, WS.create_webhook#28 | `StrEnum.__str__ == value` (verified in this Python); mutants produce identical output |
+| 29 | updated-fields: `updated_fields.append("name"/"url"/…)` text mutations (list flows only into `logger.debug` extra) | 15 | EQUIVALENT | WS.update_webhook#11, #32, #45 | never returned or persisted; log-only sink |
+| 30 | dead-store: writes immediately overwritten/never read (`status=PENDING`→None (column default is PENDING, `models/outbound_webhook.py:285`; later overwritten before flush), retry `status=None`→then overwritten, `_handle_delivery_failure(db→None)` (param is `# noqa: ARG002` unused)) | 5 | EQUIVALENT | WS.deliver_webhook#12, #18, WS.deliver_webhook#70 | no observable state change |
+| 31 | hdr-case: HTTP header **keys** case variants (`content-type`, `USER-AGENT`) | 5 | EQUIVALENT | WS._send_request#3, #8 | httpx `Headers` is case-insensitive; wire format canonicalizes |
+| 32 | tokenhex-default: `secrets.token_hex(32)` → `token_hex(None)` | 1 | EQUIVALENT | WS.create_webhook#2 | CPython default for `nbytes` is 32 — identical output distribution (verified) |
+| 33 | init: `self._http_client = http_client` → `= None` | 1 | EQUIVALENT | WS.__init__#1 | `_http_client` never read anywhere (verified by grep) — dead attribute |
 
-| ID | Function : lines | Pattern (count) | Class | Kill plan |
-|----|------------------|-----------------|-------|-----------|
-| C1 | `_format_discord_payload` :985,986,993; `_format_teams_payload` :1020,1027 (13) | Formatter data/timestamp lookup broken or whole field-dict literal → `None`: `payload.get("data",{})`→`get(None,…)`, key-clobber, `get("data",None)`, `timestamp`→`None`, `fields.append({...})`→`append(None)` (Teams: `data`, facts dict) | TEST-GAP | `test_format_embed_shapes_and_timestamp` (Draft D1) — existing test builds the `data` dict but never reads `embeds[0]["fields"]` / `sections[0]["facts"]` |
-| C2 | `_format_slack_payload` :966-969 (12) | Slack BlockKit structure keys/values (`"type":"section"`, outer `"text"` key, `"type":"mrkdwn"`, inner `"text":text`) clobbered | TEST-GAP | `test_format_slack_blockkit_structure` (Draft D2) — existing test asserts only `"blocks" in result` |
-| C3 | `_format_discord_payload` :994-996,1004; `_format_teams_payload` :1028,1029 (19) | Field/fact entry rendering: key→value swaps, `"XX_XX"`/`"XX XX"` replace-args (titles come out snake_case/uppercase), `str(None)` value, `"inline":True`→`False`, `"timestamp"` key clobber | TEST-GAP | shared by Draft D1 (assert exact `fields`/`facts` dicts + `embeds[0]["timestamp"]`) |
-| C4 | `_format_teams_payload` :1035-1037 (11) | Teams MessageCard protocol constants: `"@context"` value (`https://schema.org/extensions`) swapped, `"summary": event_type` key clobbered, `"themeColor":"0076D7"` key-case/value-case clobbered | TEST-GAP | `test_format_teams_messagecard_protocol` (Draft D3) — existing test never reads these three keys |
-| C5 | `_format_discord_payload` :1005; `_format_teams_payload` :1041 (2) | Truncation caps off-by-one: `fields[:25]`→`[:26]`, `facts[:10]`→`[:11]` (documented Discord limit) | TEST-GAP | `test_format_field_and_fact_caps` (Draft D4) |
-| C6 | `_format_{slack,discord,teams}_payload` :953-954,984-986,1019-1020 (20) | Fallback defaults + redundant-key mutants: `get("event_type","event")` tweaks (×12), `get(…, None)`/bare-get (×7), `get("timestamp", default)`→`get(default)` (1). `_build_payload` (:~864-869) **always** emits `event_type`/`data`/`timestamp`, and the only reachable caller path passes it that payload → defaults unreachable; bare-get returns the same present key | EQUIVALENT | none — dead defensive tweaks under the real call contract |
-| H1 | `get_health_summary` :716,720,730,737,749,762,773 (14) | Whole `db.execute(…)` statement arg → `None` / `select(None)` / `func.count()`→`func.avg(None)` (aggregate args); mock `execute` ignores the arg, `MagicMock.scalar()` returns the canned value | TEST-GAP (mock-blind) | `test_get_health_summary_builds_expected_queries` (Draft D5) — capture-and-compile; integration tests would also kill most (attribute access on `None` raises) but are outside selection |
-| H2 | `get_health_summary` :722 (3) | Enabled-filter predicate weakened: `.where(None)`, `enabled.is_(None)`, `enabled.is_(False)` | TEST-GAP | Draft D5 |
-| H3 | `get_health_summary` :727 (2) | 24h window sign/width: `utc_now() - timedelta(hours=24)` → `+ 24h` (future cutoff!) / `25h` | TEST-GAP | Draft D5 + integration Draft D9 (out-of-window delivery must be excluded) |
-| H4 | `get_health_summary` :732,740-742,752-754,763-765 (22) | `and_(...)` clauses / whole `.where()` → `None`, clause removed, `created_at >= cutoff`→`> cutoff` (23/24 boundary), `status == SUCCESS/FAILED`→`!=` (flips success vs failed counts) | TEST-GAP | Draft D5 + Draft D9 |
-| H5 | `get_health_summary` :717,724,734,746,758; `get_deliveries` :822 (6) | `scalar() or 0` → `scalar() or 1` — fires whenever a count query returns 0/NULL, i.e. every empty-table first-run deployment: summary reports 1 webhook/delivery that does not exist | TEST-GAP | `test_get_health_summary_empty_database_reports_zeros` (Draft D7) + `test_get_deliveries_empty_history_returns_zero_total` (Draft D8) |
-| H6 | `get_health_summary` :778,780,781,782,783 (5) | Health classification: `total_deliveries > 0`→`> 1` (1-delivery webhook unclassified), `>= 0.9`→`> 0.9` (exactly-90% lost), `< 0.5`→`<= 0.5` (exactly-50% wrongly unhealthy), `+= 1`→`= 1` (multi-webhook counts collapse) | TEST-GAP | `test_get_health_summary_classifies_success_rate_boundaries` (Draft D6) |
-| H7 | `get_health_summary` :793 (1) | Truthiness guard `if avg_response_time else None` → `if avg_response_time or True else None` — always-truthy branch; with `avg = 0` the original yields `None`, mutant yields `0.0` | TEST-GAP | Draft D6 (patched `list_webhooks` + avg scalar 0 → assert `average_response_time_ms is None`) |
-| D1 | `get_deliveries` :818,820,826-830 (11) | Per-webhook isolation + paging: `webhook_id == → !=` (and whole clause/`.where()`/statement → `None` — leak every webhook's history), `.limit(None)` (cap lost), `.offset(None)`, `.order_by(None)` (recency sort lost) | TEST-GAP | `test_get_deliveries_filters_sorts_and_pages` (Draft D8) + integration Draft D9 |
-| D2 | `get_delivery` :852 (4) | ID lookup predicate `id == delivery_id` → `!=` (returns the wrong delivery when several exist), clause/statement → `None` | TEST-GAP | `test_get_delivery_selects_by_id` (Draft D11) |
-| W1 | `list_webhooks` :199,201,203,204 (7) | `enabled_only` filter dropped/inverted (`.where(None)`, `is_(None)`, `is_(False)`), order → `None`, statement → `None`/`select(None)` | TEST-GAP | `test_list_webhooks_query_construction` (Draft D10) + integration `test_list_enabled_webhooks_only` (outside selection) |
-| W2 | `delete_webhook` :309 (1) | `await self.get_webhook(db, webhook_id)` → `get_webhook(db, None)` — the lookup key is lost: on a real DB the delete targets nothing → returns False while the webhook survives; mock hides it | TEST-GAP | `test_delete_webhook_looks_up_by_given_id` (Draft D12) — assert `webhook_id == …` (not `IS NULL`) in the executed SQL |
-| W3 | `delete_webhook` :317-318 (5) | Audit-log only: log message f-string → `None`, `extra={"webhook_id": …}` removed/clobbered | LOW-VALUE | optional Draft D13 (caplog) — deletion behaviour unchanged; log identity matters for audit trail only |
+**Totals:** TEST-GAP 388 · EQUIVALENT 160 · LOW-VALUE 23 · **sum 571** (partition verified against the 33-cluster JSON).
 
-**Totals: TEST-GAP 133 / EQUIVALENT 20 / LOW-VALUE 5 = 158.**
+## Drafted kill-tests (UNVERIFIED — not yet run red/green)
 
-## Drafted tests (highest-value clusters)
+Target file for all six: `backend/tests/unit/services/test_webhook_service.py` (append; fixtures `webhook_service`, `sample_webhook`, `mock_db_session` and imports already exist there — additions needed are `DEFAULT_TIMEOUT` from the service module and `re`).
 
-All in `backend/tests/unit/services/test_webhook_service.py`, following its existing
-Arrange/Act/Assert + `mock_db_session` style. **Each marked UNVERIFIED — not yet run red/green.**
-TDD procedure (same for all): apply the draft, run it against the ORIGINAL module (must be GREEN),
-then against each cluster mutant copy (assertion must go RED on every key in the cluster);
-`uv run pytest <target>::<test> -p no:randomly` both ways.
+TDD procedure (same for all): apply the mutant diff → the new assert fails; original source → passes (green); then re-run the module's mutants against the test to confirm kills.
 
-### D1 — kills C1 + C3 (13 + 19 mutants): assert full embed/fact rendering
+### D1 — kills cluster #1 bted-values (87) + #20 bted-fallback (2)
+
 ```python
-def test_format_embed_shapes_and_timestamp(webhook_service):
-    """Discord fields / Teams facts must carry humanized titles, stringified values and the payload timestamp."""
-    # Arrange
-    payload = {
-        "event_type": "alert_fired",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "data": {"alert_id": "evt-123", "severity": "high", "count": 3, "debug_id": None},
-    }
+def test_build_test_event_data_exact_payloads(webhook_service):
+    """UNVERIFIED - not yet run red/green. Kills key/value text mutations in the
+    sample-event-data table (XX…XX, case flips, 1.95/1.87) and the .get(default={}) loss."""
+    fired = webhook_service._build_test_event_data(WebhookEventType.ALERT_FIRED)
+    assert fired["alert_id"] == "test-alert-001"
+    assert fired["severity"] == "high"
+    assert fired["camera_id"] == "front_door"
+    assert fired["description"] == "Test alert triggered"
+    for et, key in [
+        (WebhookEventType.ALERT_DISMISSED, "alert_id"),
+        (WebhookEventType.ALERT_ACKNOWLEDGED, "alert_id"),
+    ]:
+        assert webhook_service._build_test_event_data(et)[key] == "test-alert-001"
+    created = webhook_service._build_test_event_data(WebhookEventType.EVENT_CREATED)
+    assert created["event_id"] == "test-event-001"
+    assert created["camera_id"] == "front_door"
+    assert created["event_type"] == "motion_detected"
+    enriched = webhook_service._build_test_event_data(WebhookEventType.EVENT_ENRICHED)
+    assert enriched["event_id"] == "test-event-001"
+    assert enriched["enrichment_type"] == "person_detection"
+    assert enriched["confidence"] == 0.95
+    entity = webhook_service._build_test_event_data(WebhookEventType.ENTITY_DISCOVERED)
+    assert entity["entity_id"] == "test-entity-001"
+    assert entity["entity_type"] == "person"
+    assert entity["label"] == "Unknown Person"
+    anomaly = webhook_service._build_test_event_data(WebhookEventType.ANOMALY_DETECTED)
+    assert anomaly["anomaly_id"] == "test-anomaly-001"
+    assert anomaly["zone_id"] == "driveway"
+    assert anomaly["anomaly_type"] == "unusual_activity"
+    assert anomaly["score"] == 0.87
+    health = webhook_service._build_test_event_data(WebhookEventType.SYSTEM_HEALTH_CHANGED)
+    assert health["component"] == "ai-yolo26"
+    assert health["status"] == "degraded"
+    assert health["message"] == "High latency detected"
 
-    # Act
-    discord = webhook_service._format_discord_payload(payload)
-    teams = webhook_service._format_teams_payload(payload)
-
-    # Assert - Discord embed shape: snake_case keys humanized, all values stringified
-    embed = discord["embeds"][0]
-    assert embed["title"] == "Alert Fired"
-    assert embed["timestamp"] == "2024-01-01T00:00:00Z"
-    assert embed["fields"] == [
-        {"name": "Alert Id", "value": "evt-123", "inline": True},
-        {"name": "Severity", "value": "high", "inline": True},
-        {"name": "Count", "value": "3", "inline": True},
-    ]
-
-    # Assert - Teams facts shape: same keys rendered as title/value facts
-    facts = teams["sections"][0]["facts"]
-    assert facts == [
-        {"title": "Alert Id", "value": "evt-123"},
-        {"title": "Severity", "value": "high"},
-        {"title": "Count", "value": "3"},
-    ]
+def test_build_test_event_data_unmapped_event_returns_base_only(webhook_service):
+    """UNVERIFIED - not yet run red/green. BATCH_ANALYSIS_STARTED is in the enum but
+    absent from the lookup table: must merge {} (no raise, no None)."""
+    data = webhook_service._build_test_event_data(WebhookEventType.BATCH_ANALYSIS_STARTED)
+    assert data["test"] is True
+    assert set(data) == {"test", "timestamp"}
 ```
-Kills: C1 `data`→None/None-default/`get(None)`/key-clobber and `append(None)` (fields/facts become
-`[]` or `[None]`), C1 timestamp mutants (`embed["timestamp"]` None / key swap → KeyError), C3
-`XX_XX`/`XX XX` replace-args (names stay `Alert_Id`/`ALERT ID`), key/value swaps, `str(None)`,
-`inline: False`, `"XXtimestampXX"` KeyError.
 
-### D2 — kills C2 (12 mutants): Slack BlockKit exact structure
+### D2 — kills cluster #2 query-build (45, incl. every `get_webhook(db, None)` member) + #15 or-default `get_deliveries` member
+
 ```python
-def test_format_slack_blockkit_structure(webhook_service):
-    """Slack payload must expose blocks[0] as an exact section/mrkdwn block mirroring the text."""
-    # Arrange
-    payload = {
-        "event_type": "alert_fired",
-        "data": {"alert_id": "test-123", "severity": "high"},
-    }
+def _sql(stmt):
+    return str(stmt.compile(compile_kwargs={"literal_binds": True}))
 
-    # Act
-    result = webhook_service._format_slack_payload(payload)
+@pytest.mark.asyncio
+async def test_query_builders_filter_order_and_page(webhook_service, mock_db_session, sample_webhook):
+    """UNVERIFIED - not yet run red/green. Captures every statement handed to
+    db.execute() and pins id/equality predicates, enabled filter, ORDER BY, LIMIT/OFFSET,
+    and the `or 0` count fallback. Kills select(None)/where(None)/!=/is_(False/None)/
+    order_by(None)/limit|offset(None)/get_webhook(db, None)/scalar() or 1."""
+    wid = sample_webhook.id
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = sample_webhook
+    count_result = MagicMock()
+    count_result.scalar.return_value = 0          # zero-count path for `or 0`
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    page_result = MagicMock()
+    page_result.scalars.return_value = mock_scalars
 
-    # Assert
-    assert result["blocks"] == [
-        {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": result["text"]},
-        }
-    ]
-    assert result["text"].startswith("*alert_fired*")
-    assert "- alert_id: test-123" in result["text"]
+    mock_db_session.execute = AsyncMock(side_effect=[mock_result, mock_result, mock_result,
+                                                     mock_result, count_result, page_result])
+    await webhook_service.get_webhook(mock_db_session, wid)
+    await webhook_service.list_webhooks(mock_db_session, enabled_only=True)
+    await webhook_service.list_webhooks(mock_db_session, enabled_only=False)
+    await webhook_service.get_delivery(mock_db_session, wid)
+    deliveries, total = await webhook_service.get_deliveries(mock_db_session, wid, limit=50, offset=0)
+
+    stmts = [c.args[0] for c in mock_db_session.execute.call_args_list]
+    get_sql, on_sql, off_sql, getd_sql, cnt_sql, page_sql = [_sql(s) for s in stmts]
+    assert "outbound_webhooks" in get_sql and wid in get_sql and "!=" not in get_sql
+    assert "enabled IS true" in on_sql.lower()
+    assert " WHERE " not in off_sql.upper()          # enabled_only=False adds no filter
+    assert "webhook_deliveries" in getd_sql and wid in getd_sql and "!=" not in getd_sql
+    assert total == 0                                 # kills `scalar() or 1`
+    assert "webhook_deliveries" in cnt_sql and wid in cnt_sql
+    assert "LIMIT 50" in page_sql.upper() and "OFFSET 0" in page_sql.upper()
+    assert "ORDER BY" in page_sql.upper() and "DESC" in page_sql.upper()
+    assert "created_at" in page_sql
+    # same id-equality contract via delete/update/test entry points (get_webhook(db, None) mutants)
+    del_result = MagicMock()
+    del_result.scalar_one_or_none.return_value = None
+    mock_db_session.execute = AsyncMock(return_value=del_result)
+    mock_db_session.delete = AsyncMock()
+    await webhook_service.delete_webhook(mock_db_session, wid)
+    sql = _sql(mock_db_session.execute.call_args.args[0])
+    assert wid in sql, "delete must look up the webhook by the passed id"
 ```
-Kills every C2 key-clobber (`"XXtypeXX"`, `"TYPE"`, `"XXtextXX"`, `"TEXT"`) and value mutation
-(`"XXsectionXX"`, `"SECTION"`, `"XXmrkdwnXX"`, `"MRKDWN"`) via exact dict equality.
 
-### D3 — kills C4 (11 mutants): Teams MessageCard protocol constants
-```python
-def test_format_teams_messagecard_protocol(webhook_service):
-    """Teams payload must be a valid MessageCard: schema.org context, event summary, blue theme color."""
-    # Arrange
-    payload = {"event_type": "anomaly_detected", "data": {}}
+### D3 — kills clusters #3 health-queries (40) + #14 health-boundary (6) + #15 or-default (5 health members)
 
-    # Act
-    result = webhook_service._format_teams_payload(payload)
-
-    # Assert - protocol constants the Teams connector validates
-    assert result["@context"] == "https://schema.org/extensions"
-    assert result["summary"] == "anomaly_detected"
-    assert result["themeColor"] == "0076D7"
-```
-Kills `"XX@contextXX"`/`"@CONTEXT"` KeyErrors, value swaps, summary key-clobbers, and all five
-`themeColor` variants (`themecolor`, `THEMECOLOR`, `XX0076D7XX`, `0076d7`).
-
-### D5 — kills H1 + H2 + H3 + H4 (41 mutants): assert the compiled SQL, not just the return
 ```python
 @pytest.mark.asyncio
-async def test_get_health_summary_builds_expected_queries(webhook_service, mock_db_session):
-    """get_health_summary must execute real aggregate queries: counts, enabled filter, 24h window, status filters."""
-    # Arrange
-    def scalar_result(value):
-        result = MagicMock()
-        result.scalar.return_value = value
-        return result
-
-    mock_db_session.execute = AsyncMock(
-        side_effect=[
-            scalar_result(5),   # total webhooks
-            scalar_result(4),   # enabled webhooks
-            scalar_result(10),  # deliveries 24h
-            scalar_result(8),   # successful 24h
-            scalar_result(2),   # failed 24h
-            scalar_result(120.5),  # avg response time
-        ]
-    )
-    cutoff = utc_now() - timedelta(hours=24)
-
-    # Act
-    with patch.object(webhook_service, "list_webhooks", new_callable=AsyncMock) as mock_list:
-        mock_list.return_value = []
-        summary = await webhook_service.get_health_summary(mock_db_session)
-
-    # Assert
-    assert summary.total_webhooks == 5
-    stmts = [call.args[0] for call in mock_db_session.execute.await_args_list]
-    sqls = [str(s) for s in stmts]
-    assert len(sqls) == 6
-    mock_list.assert_awaited_once_with(mock_db_session)  # kills get_health_summary__mutmut_71 (list_webhooks(None))
-
-    assert "FROM outbound_webhooks" in sqls[0]
-    assert "count" in sqls[0].lower()
-
-    assert "outbound_webhooks.enabled IS true" in sqls[1]  # .where(None)/is_(None)/is_(False) land here
-
-    assert "FROM webhook_deliveries" in sqls[2]
-    assert "webhook_deliveries.created_at >= :" in sqls[2]  # > cutoff or dropped clause fail
-
-    assert "webhook_deliveries.status = :" in sqls[3]  # != renders "status != :"
-    assert "webhook_deliveries.created_at >= :" in sqls[3]
-
-    assert "webhook_deliveries.status = :" in sqls[4]
-    assert "webhook_deliveries.created_at >= :" in sqls[4]
-
-    assert "avg(webhook_deliveries.response_time_ms)" in sqls[5]  # func.avg(None) has no column
-    assert "webhook_deliveries.response_time_ms IS NOT NULL" in sqls[5]
-
-    # 24h window is a PAST cutoff ~24h back: kills the +24h (future) and 25h mutants via bind params
-    window_param = next(
-        v for k, v in stmts[2].compile().params.items() if k.startswith("created_at")
-    )
-    assert window_param < utc_now()  # +24h mutant is in the future
-    assert abs((window_param - (utc_now() - timedelta(hours=24))).total_seconds()) < 5  # 25h mutant misses
-
-    # the three windowed count queries share the same >= : cutoff predicate shape
-    assert sqls[2].count("created_at >= :") == 1
-```
-Kills: all 14 H1 (statement → `None` renders `"None"`; `select(None)` lacks `FROM …` — or raises at
-construction, which also kills), all 3 H2 (no `enabled IS true`), both H3 (`+24h` param is future;
-`25h` param misses the ±5s window), and H4 predicate mutants (`==`→`!=` renders `status != :`,
-dropped clauses / whole `.where()` / `and_(…)` → `None` remove the predicate text, `>=`→`>` renders
-`created_at > :`). All renderings verified against SQLAlchemy string output:
-`'... WHERE webhook_deliveries.created_at >= :created_at_1 AND webhook_deliveries.status = :status_1'`,
-enabled filter renders `enabled IS true`, `compile().params` carries the cutoff datetime.
-
-### D6 — kills H6 + H7 (6 mutants): success-rate boundary classification + avg guard
-```python
-@pytest.mark.asyncio
-async def test_get_health_summary_classifies_success_rate_boundaries(webhook_service, mock_db_session):
-    """Exactly-90% must be healthy, exactly-50% must NOT be unhealthy, zero-delivery/webhook with 1 delivery counted."""
-    # Arrange
-    def scalar_result(value):
-        result = MagicMock()
-        result.scalar.return_value = value
-        return result
-
-    mock_db_session.execute = AsyncMock(
-        side_effect=[
-            scalar_result(5), scalar_result(5), scalar_result(0),
-            scalar_result(0), scalar_result(0), scalar_result(0),  # avg == 0
-        ]
-    )
+async def test_health_summary_query_shapes_and_thresholds(webhook_service, mock_db_session):
+    """UNVERIFIED - not yet run red/green. Pins each of the six aggregate statements
+    (table, >=cutoff, status==SUCCESS/FAILED, avg, IS NOT NULL, enabled IS true),
+    the `or 0` fallbacks (all-zero scalars), the >0/>=0.9/<0.5 health thresholds at the
+    exact boundary rates .9/.5/.0, avg==0.0 truthiness, and +=1 counters."""
+    def canned(value):
+        r = MagicMock()
+        r.scalar.return_value = value
+        return r
+    mock_db_session.execute = AsyncMock(side_effect=[
+        canned(0), canned(0), canned(0), canned(0), canned(0), canned(0.0),
+    ])
     webhooks = [
-        MagicMock(total_deliveries=10, successful_deliveries=9),   # 90% -> healthy (>= 0.9 boundary)
-        MagicMock(total_deliveries=10, successful_deliveries=5),   # 50% -> neither (< 0.5 boundary)
-        MagicMock(total_deliveries=1, successful_deliveries=1),    # 100% -> healthy (total > 0 boundary)
-        MagicMock(total_deliveries=1, successful_deliveries=0),    # 0% -> unhealthy (total > 0 boundary)
-        MagicMock(total_deliveries=2, successful_deliveries=2),    # 100% -> healthy (kills `healthy_count = 1`)
-        MagicMock(total_deliveries=2, successful_deliveries=0),    # 0% -> unhealthy (kills `unhealthy_count = 1`)
+        MagicMock(total_deliveries=100, successful_deliveries=95),   # .95 healthy
+        MagicMock(total_deliveries=100, successful_deliveries=90),   # .90 healthy (>= boundary)
+        MagicMock(total_deliveries=100, successful_deliveries=50),   # .50 neither (< boundary)
+        MagicMock(total_deliveries=100, successful_deliveries=45),   # .45 unhealthy
+        MagicMock(total_deliveries=100, successful_deliveries=30),   # .30 unhealthy
+        MagicMock(total_deliveries=0, successful_deliveries=0),      # skipped by >0
     ]
-
-    # Act
     with patch.object(webhook_service, "list_webhooks", new_callable=AsyncMock) as mock_list:
         mock_list.return_value = webhooks
         summary = await webhook_service.get_health_summary(mock_db_session)
 
-    # Assert
-    assert summary.healthy_webhooks == 3    # 90%, 100% (1 delivery), 100% (2 deliveries)
-    assert summary.unhealthy_webhooks == 2  # 0% (1 delivery), 0% (2 deliveries); 50% stays out
-    # avg scalar 0 is falsy -> original yields None; `or True` mutant yields 0.0
-    assert summary.average_response_time_ms is None
-```
-Kills `> 0.9` (healthy 2≠3), `<= 0.5` (unhealthy 3≠2), `total_deliveries > 1` (2≠3 / 1≠2),
-`healthy_count = 1`, `unhealthy_count = 1`, and the H7 `or True` guard (`0.0` ≠ `None`).
-(The `placeholder overwritten below` line should be cleaned to build the list in one literal — keep
-or fix before committing; behaviour unchanged.)
-
-### D7 + D8 — kill H5 (6 mutants): empty-table `or 0` fallback
-```python
-@pytest.mark.asyncio
-async def test_get_health_summary_empty_database_reports_zeros(webhook_service, mock_db_session):
-    """Counts that come back 0 (empty tables on first run) must surface as 0, not 1."""
-    # Arrange — every scalar() returns 0, as an empty table's COUNT(*) does
-    mock_db_session.execute = AsyncMock(side_effect=[MagicMock(scalar=MagicMock(return_value=0)) for _ in range(6)])
-
-    # Act
-    with patch.object(webhook_service, "list_webhooks", new_callable=AsyncMock) as mock_list:
-        mock_list.return_value = []
-        summary = await webhook_service.get_health_summary(mock_db_session)
-
-    # Assert
-    assert summary.total_webhooks == 0
-    assert summary.enabled_webhooks == 0
-    assert summary.total_deliveries_24h == 0
-    assert summary.successful_deliveries_24h == 0
-    assert summary.failed_deliveries_24h == 0
-
-
-@pytest.mark.asyncio
-async def test_get_deliveries_empty_history_returns_zero_total(webhook_service, mock_db_session, sample_webhook):
-    """A webhook with no deliveries must report total == 0."""
-    # Arrange
-    count_result = MagicMock()
-    count_result.scalar.return_value = 0
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = []
-    deliveries_result = MagicMock()
-    deliveries_result.scalars.return_value = mock_scalars
-    mock_db_session.execute = AsyncMock(side_effect=[count_result, deliveries_result])
-
-    # Act
-    deliveries, total = await webhook_service.get_deliveries(mock_db_session, sample_webhook.id)
-
-    # Assert
-    assert deliveries == []
-    assert total == 0
-```
-(`scalar_result` helper defined in D5/D6 is local to each test — duplicate it per test or hoist a
-module-level helper at commit time.)
-
-### D4 — kills C5 (2 mutants): Discord 25 / Teams 10 truncation caps
-```python
-def test_format_field_and_fact_caps(webhook_service):
-    """Discord embeds cap at 25 fields, Teams cards at 10 facts (documented limits)."""
-    # Arrange - 30 scalar data entries
-    payload = {"event_type": "alert_fired", "data": {f"key_{i}": i for i in range(30)}}
-
-    # Act
-    discord = webhook_service._format_discord_payload(payload)
-    teams = webhook_service._format_teams_payload(payload)
-
-    # Assert
-    assert len(discord["embeds"][0]["fields"]) == 25
-    assert len(teams["sections"][0]["facts"]) == 10
-    # and the LAST kept entry is the 25th/10th in insertion order
-    assert discord["embeds"][0]["fields"][24]["value"] == "24"
-    assert teams["sections"][0]["facts"][9]["value"] == "9"
+    stmts = [c.args[0] for c in mock_db_session.execute.call_args_list]
+    sqls = [_sql(s) for s in stmts]
+    total_sql, enabled_sql, deliv_sql, succ_sql, fail_sql, avg_sql = sqls
+    assert "outbound_webhooks" in total_sql and "enabled" not in total_sql.lower().split("where", 1)[-1]
+    assert "enabled IS true" in enabled_sql.lower()
+    for s in (deliv_sql, succ_sql, fail_sql, avg_sql):
+        assert "webhook_deliveries" in s
+        assert ">=" in s, "24h cutoff comparison must be >="
+    assert "SUCCESS" in succ_sql.upper() and "!=" not in succ_sql
+    assert "FAILED" in fail_sql.upper() and "!=" not in fail_sql
+    assert "AVG" in avg_sql.upper() and "IS NOT NULL" in avg_sql.upper()
+    assert mock_list.call_args.args[0] is mock_db_session      # kills list_webhooks(None)
+    assert summary.total_webhooks == 0 and summary.enabled_webhooks == 0
+    assert summary.total_deliveries_24h == 0 and summary.successful_deliveries_24h == 0
+    assert summary.failed_deliveries_24h == 0                  # kills `scalar() or 1`
+    assert summary.healthy_webhooks == 2                       # >0.9 → 1, +=1→=1 → 1
+    assert summary.unhealthy_webhooks == 2                     # <=0.5 → 3, =1 → 1
+    assert summary.average_response_time_ms is None            # kills `if x or True` → 0.0
 ```
 
-### D9 — (integration companion) real-DB kills for H3/H4/D1 boundary clauses
-`backend/tests/integration/test_webhook_service.py` currently asserts only `total >= 1` /
-`health.total_deliveries_24h >= 0`. Extending it (or a WP4.5 mutmut scope that adds
-`backend/tests/integration`) kills the window/status/paging predicate mutants at the SQL level —
-sketched here, needs `test_db` fixtures from that file:
+### D4 — kills clusters #4 delivery-record (34) + #8 stats (16) + #13 boundary300 (6) + #10 resp-fields (14) + #17 db-args (6)
+
 ```python
 @pytest.mark.asyncio
-async def test_get_deliveries_and_health_filter_by_window_status_and_page(
-    self, test_db, webhook_service: WebhookService, sample_webhook_data: WebhookCreate
-) -> None:
-    """Second webhook's deliveries never leak; limit/offset/DESC order are exact; health counts stay consistent."""
-    async with test_db() as session:
-        hook_a = await webhook_service.create_webhook(session, sample_webhook_data)
-        hook_b = await webhook_service.create_webhook(session, sample_webhook_data)
-        rows = []
-        for i in range(3):  # inserted OLDEST-first, so un-ordered output != DESC output
-            row = WebhookDelivery(
-                id=str(uuid4()), webhook_id=hook_a.id, event_type="alert_fired",
-                status=WebhookDeliveryStatus.SUCCESS,
-                created_at=utc_now() + timedelta(minutes=i),
-            )
-            session.add(row)
-            rows.append(row)
-        session.add(WebhookDelivery(  # second webhook - must never appear in hook_a history
-            id=str(uuid4()), webhook_id=hook_b.id, event_type="alert_fired",
-            status=WebhookDeliveryStatus.FAILED, created_at=utc_now(),
-        ))
-        await session.commit()
+async def test_delivery_record_fields_stats_and_status_boundary(
+    webhook_service, mock_db_session, sample_webhook
+):
+    """UNVERIFIED - not yet run red/green. Pre-seeds counters (7/3) so `+=1`!=`=1`/`+=2`/`-=1`,
+    asserts full WebhookDelivery construction (webhook_id/event_type/event_id/request_payload),
+    db.add/db.refresh argument identity, last_delivery_at set, response body/time stored,
+    HTTP 300 classified as success (301 not), and network errors truncated at exactly 500 chars."""
+    sample_webhook.total_deliveries = 7
+    sample_webhook.successful_deliveries = 3
+    mock_db_session.flush = AsyncMock()
+    mock_db_session.refresh = AsyncMock()
 
-    async with test_db() as session:
-        page, total = await webhook_service.get_deliveries(session, hook_a.id, limit=2, offset=0)
-        assert total == 3                                 # kills webhook_id !=/clause removal (4/4 leak)
-        assert [d.id for d in page] == [rows[2].id, rows[1].id]  # kills limit(None) & order(None)
-        tail, _ = await webhook_service.get_deliveries(session, hook_a.id, limit=5, offset=2)
-        assert [d.id for d in tail] == [rows[0].id]       # kills offset(None)
-        health = await webhook_service.get_health_summary(session)
-        assert health.total_deliveries_24h == 4
-        assert health.successful_deliveries_24h == 3
-        assert health.failed_deliveries_24h == 1           # kills status ==/!= flips
-```
-Not in mutmut's unit-only selection today — schedule when integration enters the scope; it
-otherwise permanently protects H3/H4/D1 boundary mutants.
+    with patch.object(webhook_service, "_send_request", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = (300, "multi-choice", 42)   # 300 must count as success
+        delivery = await webhook_service.deliver_webhook(
+            mock_db_session, sample_webhook, WebhookEventType.ALERT_FIRED,
+            {"alert_id": "a1"}, event_id="evt-9",
+        )
+    sent = mock_send.call_args.args
+    assert sent[0] is sample_webhook
+    assert sent[1]["event_type"] == "alert_fired"
+    assert sent[1]["data"] == {"alert_id": "a1"}
+    assert mock_db_session.add.call_args.args[0] is delivery            # kills db.add(None)
+    assert mock_db_session.refresh.call_args.args[0] is delivery        # kills refresh(None)
+    assert delivery.webhook_id == sample_webhook.id
+    assert delivery.event_type == "alert_fired"
+    assert delivery.event_id == "evt-9"
+    assert delivery.status == WebhookDeliveryStatus.SUCCESS             # kills <=300/<301
+    assert delivery.request_payload == sent[1]
+    assert delivery.response_body == "multi-choice"
+    assert delivery.response_time_ms == 42
+    assert delivery.delivered_at is not None
+    assert sample_webhook.total_deliveries == 8                          # kills =1/+=2/-=1
+    assert sample_webhook.successful_deliveries == 4
+    assert sample_webhook.last_delivery_at is not None
 
-### D10 — kills W1 (7 mutants): list_webhooks query construction
-```python
-@pytest.mark.asyncio
-async def test_list_webhooks_query_construction(webhook_service, mock_db_session, sample_webhook):
-    """enabled_only must add an enabled IS true filter; results always ordered newest-first."""
-    # Arrange
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [sample_webhook]
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    mock_db_session.execute = AsyncMock(return_value=mock_result)
+    with patch.object(webhook_service, "_send_request", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = (301, "moved", 42)
+        d301 = await webhook_service.deliver_webhook(
+            mock_db_session, sample_webhook, WebhookEventType.ALERT_FIRED, {},
+        )
+    assert d301.status == WebhookDeliveryStatus.RETRYING                 # 301 is not success
+    assert d301.status_code == 301
+    assert d301.response_body == "moved" and d301.response_time_ms == 42
 
-    # Act
-    await webhook_service.list_webhooks(mock_db_session, enabled_only=False)
-    await webhook_service.list_webhooks(mock_db_session, enabled_only=True)
-
-    # Assert - one execute per call, both real queries over outbound_webhooks
-    assert mock_db_session.execute.await_count == 2
-    all_sql, enabled_sql = (str(c.args[0]) for c in mock_db_session.execute.await_args_list)
-    assert "FROM outbound_webhooks" in all_sql
-    assert "ORDER BY outbound_webhooks.created_at DESC" in all_sql  # order_by(None) mutant drops this
-    assert "ORDER BY outbound_webhooks.created_at DESC" in enabled_sql
-    assert "outbound_webhooks.enabled IS true" in enabled_sql       # kills is_(None)/is_(False)/.where(None)
-    assert " WHERE " not in all_sql  # enabled_only=False must not filter (clobbered predicate would add one)
-```
-Kills `select(None)`/whole-query `None` (render `"None"`), `.where(None)`/`is_(None)`/`is_(False)`
-(no `enabled IS true`), `.order_by(None)`/`query = None` (no ORDER BY / FROM), and
-`db.execute(None)` (captured arg renders `"None"`).
-
-### D11 — kills D2 (4 mutants): get_delivery selects the right row
-```python
-@pytest.mark.asyncio
-async def test_get_delivery_selects_by_id(webhook_service, mock_db_session):
-    """The executed query must filter webhook_deliveries.id on the requested delivery_id."""
-    # Arrange
-    delivery_id = str(uuid4())
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = MagicMock(id=delivery_id)
-    mock_db_session.execute = AsyncMock(return_value=mock_result)
-
-    # Act
-    result = await webhook_service.get_delivery(mock_db_session, delivery_id)
-
-    # Assert
-    sql = str(mock_db_session.execute.await_args.args[0])
-    assert "FROM webhook_deliveries" in sql
-    assert "webhook_deliveries.id = " in sql        # kills id != / where(None) / None statement
-    assert f"'{delivery_id}'" in str(mock_db_session.execute.await_args.args[0].compile(
-        compile_kwargs={"literal_binds": True}
-    ))
-    assert result.id == delivery_id
+    with patch.object(webhook_service, "_send_request", new_callable=AsyncMock) as mock_send:
+        mock_send.side_effect = httpx.RequestError("x" * 600)
+        dnet = await webhook_service.deliver_webhook(
+            mock_db_session, sample_webhook, WebhookEventType.ALERT_FIRED, {},
+        )
+    assert dnet.error_message == "x" * 500        # kills str(e)[:500]→[:501]
+    assert sample_webhook.last_delivery_at is not None
 ```
 
-### D12 — kills W2 (1 mutant): delete looks up the id it was given
+### D5 — kills clusters #9 signature (14) + #18 post-args (5) + #23 hdrs-names (3) + #21 timing-formula (partial, `/1000`)
+
 ```python
 @pytest.mark.asyncio
-async def test_delete_webhook_looks_up_by_given_id(webhook_service, mock_db_session, sample_webhook):
-    """delete_webhook must fetch the row by the webhook_id argument, not NULL."""
-    # Arrange
+async def test_send_request_pins_url_json_headers_and_signature(webhook_service, sample_webhook):
+    """UNVERIFIED - not yet run red/green. Asserts post() got webhook.url positionally and
+    json=payload, exact default header names/values, and X-Webhook-Signature* equal a
+    signature recomputed in-test via the service's own canonicalization (kills json
+    sort_keys/separators tweaks, signature None, header key renames, timeout=None,
+    and the /1000 timing formula via a realistic elapsed assertion)."""
+    payload = {"zz": 1, "aa": {"y": 2, "b": 3}}
+    expected_sig = webhook_service._sign_payload(payload, sample_webhook.signing_secret)
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "OK"
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client_class.return_value = mock_client
+        _, _, ms = await webhook_service._send_request(sample_webhook, payload)
+
+    assert mock_client_class.call_args.kwargs["timeout"] == DEFAULT_TIMEOUT
+    call = mock_client.post.call_args
+    assert call.args[0] == sample_webhook.url
+    assert call.kwargs["json"] == payload
+    headers = call.kwargs["headers"]
+    assert headers["Content-Type"] == "application/json"
+    assert headers["User-Agent"] == "NemotronWebhook/1.0"
+    assert headers["X-Webhook-Signature"] == f"sha256={expected_sig}"
+    assert headers["X-Webhook-Signature-256"] == expected_sig
+    assert ms < 60_000        # /1000 formula under the mocked call is 0 ms, so also:
+    assert ms >= 0
+```
+Note: `*1001` (`_send_request#112`) is only killable with a clock-injection seam; the realistic-elapsed assertion kills `/1000` in the same cluster; cluster #21 is therefore counted partially killed by D5.
+
+### D6 — kills clusters #5 fmt-discord (30) + #6 fmt-teams (29) + #7 fmt-slack (18) + #12 int-routing (6) + #16 jinja-context (6) + #22 tw-body (3)
+
+```python
+def test_format_integrations_full_shape_and_routing(webhook_service):
+    """UNVERIFIED - not yet run red/green. Routes through _format_for_integration for all
+    four integration types and asserts the complete payload shapes: Slack blocks keys
+    (type/text/mrkdwn), Discord embed field dicts (name/value/inline True, title-cased
+    underscore replacement, payload timestamp, [:25] cap), Teams (@context, themeColor
+    0076D7, summary, [:10] cap), generic passthrough, and missing-key fallbacks."""
+    def wh(kind):
+        return OutboundWebhook(id=str(uuid4()), name="T", url="https://x.test/hook",
+                               event_types=["alert_fired"], integration_type=kind,
+                               enabled=True, signing_secret="a" * 64,
+                               total_deliveries=0, successful_deliveries=0)
+    payload = {"event_type": "camera_motion", "timestamp": "TS",
+               "data": {"zone_id": "driveway", "score": 0.5}}
+    slack = webhook_service._format_for_integration(wh(IntegrationType.SLACK), payload)
+    assert slack["text"].startswith("*camera_motion*")
+    assert slack["blocks"] == [{"type": "section",
+                                "text": {"type": "mrkdwn", "text": slack["text"]}}]
+    missing = webhook_service._format_slack_payload({})
+    assert missing["text"].startswith("*event*")            # kills XXeventXX/EVENT default
+    discord = webhook_service._format_for_integration(wh(IntegrationType.DISCORD), payload)
+    embed = discord["embeds"][0]
+    assert embed["title"] == "Camera Motion"
+    assert embed["timestamp"] == "TS"
+    assert embed["fields"] == [{"name": "Zone Id", "value": "0.5", "inline": True}]
+    wide = {"event_type": "e", "timestamp": "T", "data": {f"k{i}": i for i in range(26)}}
+    assert len(webhook_service._format_discord_payload(wide)["embeds"][0]["fields"]) == 25
+    teams = webhook_service._format_for_integration(wh(IntegrationType.TEAMS), payload)
+    assert teams["@type"] == "MessageCard"
+    assert teams["@context"] == "https://schema.org/extensions"
+    assert teams["summary"] == "camera_motion"
+    assert teams["themeColor"] == "0076D7"
+    assert teams["title"] == "Camera Motion"
+    assert teams["sections"][0]["facts"] == [{"title": "Zone Id", "value": "0.5"}]
+    assert len(webhook_service._format_teams_payload(wide)["sections"][0]["facts"]) == 10
+    generic = webhook_service._format_for_integration(wh(IntegrationType.GENERIC), payload)
+    assert generic == payload
+
+def test_build_payload_template_context_and_test_body(webhook_service):
+    """UNVERIFIED - not yet run red/green. Template must receive event_type, webhook_id,
+    timestamp (kills render-kwargs → None/dropped); test_webhook must pass response body through."""
+    webhook = OutboundWebhook(id="WHID-1", name="T", url="https://x.test/hook",
+                              event_types=["alert_fired"],
+                              integration_type=IntegrationType.GENERIC, enabled=True,
+                              payload_template='{"et":"{{ event_type }}","wid":"{{ webhook_id }}","ts":"{{ timestamp }}"}',
+                              signing_secret="a" * 64, total_deliveries=0, successful_deliveries=0)
+    payload = webhook_service._build_payload(webhook, WebhookEventType.ALERT_FIRED, {})
+    assert payload["et"] == "alert_fired"
+    assert payload["wid"] == "WHID-1"
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T[0-9:.+]+", payload["ts"])
+
+@pytest.mark.asyncio
+async def test_test_webhook_returns_response_body(webhook_service, mock_db_session, sample_webhook):
+    """UNVERIFIED - not yet run red/green. Success test previously ignored response_body."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = sample_webhook
     mock_db_session.execute = AsyncMock(return_value=mock_result)
-    mock_db_session.delete = AsyncMock()
-    mock_db_session.flush = AsyncMock()
-
-    # Act
-    assert await webhook_service.delete_webhook(mock_db_session, sample_webhook.id) is True
-
-    # Assert - lookup query binds the passed id; mutant binds NULL
-    lookup = mock_db_session.execute.await_args.args[0]
-    assert "outbound_webhooks.id = " in str(lookup)
-    rendered = str(lookup.compile(compile_kwargs={"literal_binds": True}))
-    assert f"'{sample_webhook.id}'" in rendered
-    assert "IS NULL" not in rendered
+    with patch.object(webhook_service, "_send_request", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = (200, "pong", 5)
+        result = await webhook_service.test_webhook(
+            mock_db_session, sample_webhook.id, WebhookEventType.ALERT_FIRED)
+    assert result.success is True
+    assert result.response_body == "pong"          # kills `response_body=None` mutants
 ```
+(`re` import must be added to the test file.)
 
-### D13 — kills W3 (5 mutants, optional — LOW-VALUE cluster): deletion audit log
-```python
-@pytest.mark.asyncio
-async def test_delete_webhook_logs_webhook_id(webhook_service, mock_db_session, sample_webhook, caplog):
-    """Deletion must emit an INFO log carrying the webhook_id in the audit extra."""
-    # Arrange
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = sample_webhook
-    mock_db_session.execute = AsyncMock(return_value=mock_result)
-    mock_db_session.delete = AsyncMock()
-    mock_db_session.flush = AsyncMock()
+**Clusters not covered by drafts** (remaining kill-work if the tier continues): #11 create-fields (8 — one added assert block in existing create test), #21 timing-formula `*1001` half, singleton #19 (2 — trivial: assert `isinstance(get_webhook_service(), WebhookService)` in a fresh-process test that resets `_WebhookServiceHolder.instance = None` first).
 
-    # Act
-    with caplog.at_level("INFO", logger="backend.services.webhook_service"):
-        assert await webhook_service.delete_webhook(mock_db_session, sample_webhook.id) is True
+## Notes / judgment calls
 
-    # Assert
-    records = [r for r in caplog.records if "Deleted webhook" in r.getMessage()]
-    assert len(records) == 1
-    assert records[0].webhook_id == sample_webhook.id
-```
-(caplog relies on the app logger propagating to root — check at red/green time; if the app's
-handlers swallow propagation, assert on the record via a `logging.Handler` attached with
-`caplog.handler` semantics instead.)
-
-## Covering-test references
-- Unit (mutmut selection): `backend/tests/unit/services/test_webhook_service.py` — `test_get_health_summary` :870, `test_get_deliveries` :934, `test_get_delivery` :963, `test_list_webhooks_*` :254/:272, `test_delete_webhook_*` :408/:427, `test_format_slack/discord/teams_payload` :1050/:1068/:1087. Shared mock: `backend/tests/conftest.py:1930`.
-- Integration (executes same funcs but OUTSIDE `pytest_add_cli_args_test_selection`): `backend/tests/integration/test_webhook_service.py` — `test_list_enabled_webhooks_only` :130, `test_delete_webhook` :207, `test_health_summary_returns_stats` :385 (only `>=` bounds), `test_get_deliveries_returns_history` :465 (only `total >= 1`).
-
-## Appendix A — full survivor key lists (short keys; full form `backend.services.webhook_service.xǁWebhookServiceǁ<key>`)
-**C1-fmt-dropcontent** (13): _format_discord_payload__mutmut_11, _format_discord_payload__mutmut_15, _format_discord_payload__mutmut_16, _format_discord_payload__mutmut_17, _format_discord_payload__mutmut_18, _format_discord_payload__mutmut_20, _format_discord_payload__mutmut_22, _format_discord_payload__mutmut_23, _format_discord_payload__mutmut_25, _format_teams_payload__mutmut_11, _format_teams_payload__mutmut_15, _format_teams_payload__mutmut_16, _format_teams_payload__mutmut_18
-
-**C2-slack-blockkit** (12): _format_slack_payload__mutmut_24, _format_slack_payload__mutmut_25, _format_slack_payload__mutmut_26, _format_slack_payload__mutmut_27, _format_slack_payload__mutmut_28, _format_slack_payload__mutmut_29, _format_slack_payload__mutmut_30, _format_slack_payload__mutmut_31, _format_slack_payload__mutmut_32, _format_slack_payload__mutmut_33, _format_slack_payload__mutmut_34, _format_slack_payload__mutmut_35
-
-**C3-fmt-rendering** (19): _format_discord_payload__mutmut_26, _format_discord_payload__mutmut_27, _format_discord_payload__mutmut_32, _format_discord_payload__mutmut_33, _format_discord_payload__mutmut_34, _format_discord_payload__mutmut_35, _format_discord_payload__mutmut_36, _format_discord_payload__mutmut_37, _format_discord_payload__mutmut_38, _format_discord_payload__mutmut_39, _format_discord_payload__mutmut_50, _format_discord_payload__mutmut_51, _format_teams_payload__mutmut_19, _format_teams_payload__mutmut_20, _format_teams_payload__mutmut_25, _format_teams_payload__mutmut_26, _format_teams_payload__mutmut_27, _format_teams_payload__mutmut_28, _format_teams_payload__mutmut_29
-
-**C4-teams-protocol** (11): _format_teams_payload__mutmut_35, _format_teams_payload__mutmut_36, _format_teams_payload__mutmut_37, _format_teams_payload__mutmut_38, _format_teams_payload__mutmut_39, _format_teams_payload__mutmut_40, _format_teams_payload__mutmut_41, _format_teams_payload__mutmut_42, _format_teams_payload__mutmut_43, _format_teams_payload__mutmut_44, _format_teams_payload__mutmut_45
-
-**C5-fmt-caps** (2): _format_discord_payload__mutmut_54, _format_teams_payload__mutmut_58
-
-**C6-fmt-deaddefaults** (20): _format_discord_payload__mutmut_3, _format_discord_payload__mutmut_5, _format_discord_payload__mutmut_8, _format_discord_payload__mutmut_9, _format_discord_payload__mutmut_12, _format_discord_payload__mutmut_14, _format_discord_payload__mutmut_19, _format_discord_payload__mutmut_21, _format_slack_payload__mutmut_3, _format_slack_payload__mutmut_5, _format_slack_payload__mutmut_8, _format_slack_payload__mutmut_9, _format_slack_payload__mutmut_12, _format_slack_payload__mutmut_14, _format_teams_payload__mutmut_3, _format_teams_payload__mutmut_5, _format_teams_payload__mutmut_8, _format_teams_payload__mutmut_9, _format_teams_payload__mutmut_12, _format_teams_payload__mutmut_14
-
-**H1-health-stmt-none** (14): get_health_summary__mutmut_2, get_health_summary__mutmut_4, get_health_summary__mutmut_9, get_health_summary__mutmut_12, get_health_summary__mutmut_23, get_health_summary__mutmut_26, get_health_summary__mutmut_32, get_health_summary__mutmut_35, get_health_summary__mutmut_46, get_health_summary__mutmut_49, get_health_summary__mutmut_60, get_health_summary__mutmut_62, get_health_summary__mutmut_63, get_health_summary__mutmut_71
-
-**H2-health-enabled** (3): get_health_summary__mutmut_10, get_health_summary__mutmut_13, get_health_summary__mutmut_14
-
-**H3-health-cutoff** (2): get_health_summary__mutmut_19, get_health_summary__mutmut_21
-
-**H4-health-preds** (22): get_health_summary__mutmut_24, get_health_summary__mutmut_27, get_health_summary__mutmut_33, get_health_summary__mutmut_36, get_health_summary__mutmut_37, get_health_summary__mutmut_38, get_health_summary__mutmut_39, get_health_summary__mutmut_40, get_health_summary__mutmut_41, get_health_summary__mutmut_47, get_health_summary__mutmut_50, get_health_summary__mutmut_51, get_health_summary__mutmut_52, get_health_summary__mutmut_53, get_health_summary__mutmut_54, get_health_summary__mutmut_55, get_health_summary__mutmut_61, get_health_summary__mutmut_64, get_health_summary__mutmut_65, get_health_summary__mutmut_66, get_health_summary__mutmut_67, get_health_summary__mutmut_68
-
-**H5-or-zero-to-one** (6): get_deliveries__mutmut_9, get_health_summary__mutmut_7, get_health_summary__mutmut_17, get_health_summary__mutmut_30, get_health_summary__mutmut_44, get_health_summary__mutmut_58
-
-**H6-health-thresholds** (5): get_health_summary__mutmut_77, get_health_summary__mutmut_80, get_health_summary__mutmut_82, get_health_summary__mutmut_85, get_health_summary__mutmut_87
-
-**H7-health-avgguard** (1): get_health_summary__mutmut_107
-
-**D1-deliveries-query** (11): get_deliveries__mutmut_2, get_deliveries__mutmut_3, get_deliveries__mutmut_5, get_deliveries__mutmut_6, get_deliveries__mutmut_11, get_deliveries__mutmut_12, get_deliveries__mutmut_13, get_deliveries__mutmut_14, get_deliveries__mutmut_15, get_deliveries__mutmut_16, get_deliveries__mutmut_17
-
-**D2-getdelivery-query** (4): get_delivery__mutmut_2, get_delivery__mutmut_3, get_delivery__mutmut_4, get_delivery__mutmut_5
-
-**W1-list-query** (7): list_webhooks__mutmut_2, list_webhooks__mutmut_4, list_webhooks__mutmut_5, list_webhooks__mutmut_6, list_webhooks__mutmut_7, list_webhooks__mutmut_8, list_webhooks__mutmut_10
-
-**W2-delete-lookup** (1): delete_webhook__mutmut_3
-
-**W3-delete-log** (5): delete_webhook__mutmut_9, delete_webhook__mutmut_10, delete_webhook__mutmut_12, delete_webhook__mutmut_13, delete_webhook__mutmut_14
+- **EQ-strvalue (45)** is the single biggest equivalent class and is *provably* equivalent for all production inputs because both enums are `StrEnum` (`str(m) == m.value`, verified on this interpreter). If the baseline ever mutates these with a plain `Enum`, this reclassifies to TEST-GAP.
+- **EQ-log (88)** contains the `extra=` dict mutations on `logger.warning/error` calls in `_handle_delivery_failure`/`deliver_webhook`/`trigger_webhook_background`: structlog-formatted extras are unobservable in the unit suite and asserting on them would osserve implementation, so EQUIVALENT rather than LOW-VALUE by the "nobody should assert this" rule.
+- **LOW-auth-defaults (19)**: `get(k, "")` → `get(k, None)` renders `Bearer None` only when the key is missing, which the `WebhookAuthConfig` schema (fields default to `None`, `.get()` returns `None` → same `f"Bearer {token}"` as the "" case when model_dump yields None) makes hard to distinguish; the `"XXXX"`-default variants only differ on hand-crafted malformed dicts. Low value, not equivalent.
+- **Cluster #2 vs SetupGuard caveat** (memory: `setup-guard-cache-poisoning`): the drafted D2 runs in the unit file with mocked sessions — no DB, no 503 poisoning risk.

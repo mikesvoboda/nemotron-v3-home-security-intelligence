@@ -1,0 +1,12 @@
+# backend.services.job_log_emitter.xǁJobLogEmitterǁemit_log__mutmut_39: survived
+--- backend/services/job_log_emitter.py
++++ backend/services/job_log_emitter.py
+@@ -40,7 +40,7 @@
+             f"Emitted job log: {message[:50]}...",
+             extra={
+                 "job_id": str(job_id),
+-                "level": level.upper(),
++                "XXlevelXX": level.upper(),
+                 "channel": channel,
+             },
+         )

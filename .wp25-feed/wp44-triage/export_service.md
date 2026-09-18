@@ -1,365 +1,473 @@
-# WP4.4 Triage Dossier — backend/services/export_service.py
+# WP4.4 Triage Dossier — `backend/services/export_service.py`
 
-- **Snapshot**: 2026-09-17, meta `mutants/backend/services/export_service.py.meta`. **180 SURVIVED** of 342 checked (828 total; 486 still unchecked — WP4.4 should re-pull the meta before acting; all 180 were diff-verified via `mutmut show`, raw diffs at `/tmp/wp25/wp44-triage/export_service-diffs.txt` + `export_service-diffs2.txt`).
-- **Covering test files** (from `mutmut-stats.json` `tests_by_mangled_function_name`):
-  - `backend/tests/unit/services/test_export_service.py` (primary; key lines: `test_get_export_service_singleton`:603, `test_get_filename`:631, `test_export_events_csv`:641, `test_export_events_excel`:664, `TestCreateEmptyExport`:1081-1122, `TestExportServiceWithWebSocket`:1125-1345, `test_websocket_method_fetch_undefers_reasoning`:1476)
-  - `backend/tests/unit/api/routes/test_detections.py` (`test_export_detections_json_format`:2997)
-  - `backend/tests/unit/services/test_export_progress.py` (`test_export_with_progress_updates_job_tracker`:232)
-- **Structural note**: `export_events_with_websocket` has *zero production callers* (docstring at `export_service.py:989-991` confirms; grep found none). Its mutants matter for the WP3 cancel-on-push path / future wiring only — several clusters are LOW-VALUE *for that reason* even though the mutation is real. The progress method *is* production-wired and has its own mutant set (not in this module's survivor list — different file, different meta).
+**Survivors:** 398 of 828 checked mutants (430 killed). Meta read clean, no JSONDecodeError retries needed.
+**Method:** per-mutant diffs extracted OFFLINE by diffing each `__mutmut_N` block in
+`mutants/backend/services/export_service.py` against its `__mutmut_orig` block
+(`/tmp/wp25/wp44-triage/export_diffs.py` → `export_service_diffs.json`); `mutmut show` verified on
+one key and agrees. Cluster assignment machine-verified: 60 clusters, no overlaps, counts sum to exactly 398
+(`clusters_final.json`, `cluster_rows.txt`).
+**Verdict totals:** TEST-GAP 226 · LOW-VALUE 138 · EQUIVALENT 34.
 
-## Cluster table (counts sum to 180)
+## Covering test files (from `mutmut-stats.json → tests_by_mangled_function_name`)
 
-| # | Cluster | n | Class | Pattern (function:line) | Covering tests — what they miss |
-|---|---------|---|-------|--------------------------|--------------------------------|
-| A | `detections_to_json` body | 4 | **TEST-GAP** | `is None`→`is not None` (614); default columns→None (615); `result=[]`→None (617); `json.dumps(result…)`→dumps(None) (628) | `test_export_detections_json_format` (`test_detections.py:2997`) mocks **empty results** and asserts only `media_type` + Content-Disposition header. Body runs once but nothing asserts the JSON payload. Production caller: `backend/api/routes/detections.py:2165`. |
-| B | `detections_to_json` indent | 3 | LOW-VALUE | `indent=2`→None/(dropped)/3 (628) | Cosmetic serialization; nobody should assert whitespace. |
-| C | `events_to_csv_streaming` seek | 2 | **TEST-GAP** | `output.seek(0)`→`seek(1)` followed by `output.truncate()` (395,403) | NOT empty — `seek(1);truncate()` keeps the header's first char, so every data chunk is prefixed with a stray `"E"` (from "Event ID"). Streaming tests join chunks (`test_streaming_contains_data` :751) or check only chunk 0, so the contamination rides through; a per-chunk row parse kills both. |
-| D | `filter_row_to_dict` content | 5 | **TEST-GAP** | `get_selected_columns(column_names)`→`(None)` (242); `getattr(row,field,None)`→None / getattr(None,…) (245); value→None (248,250) | Only covered via `test_export_with_progress_json/zip_format` (`test_export_service.py:913,:955`) which assert `result["format"]`/`file_path` extension only — never open the file. Direct unit call would kill all 5. |
-| E | `filter_row_to_dict` getattr default | 1 | LOW-VALUE | `getattr(row, field, None)`→`getattr(row, field)` (245) | Defensive tweak; all EXTENDED columns exist on `EventExportRow`, so unreachable divergence. |
-| F | singleton lifecycle | 3 | **TEST-GAP** | `if _export_service is None`→`is not None` (1184); `_export_service = ExportService()`→None (1185); reset `=None`→`""` (1192) | `test_get_export_service_singleton` (`:603`) only asserts `service1 is service2` — true for None-returns and vacuous after the `""` sentinel (never None again). Never tests reset→re-create. |
-| G | `get_filename` delegate | 1 | **TEST-GAP** | `generate_export_filename(prefix,…)`→`(None,…)` (682) | Real rename: `f"{prefix}_..."` renders `"None_20240917_...csv"` — callers (routes building Content-Disposition) get a wrong filename. `test_get_filename` (`:631`) asserts only the `.csv/.xlsx` suffix; adding `assert csv_filename.startswith("events_")` kills it. |
-| H | `export_events` delegate columns | 4 | **TEST-GAP** | `events_to_excel(events, columns)`→`(events,None)`/(events,) (701); same for `events_to_csv` (703) | `test_export_events_csv/_excel` (`:641,:664`) never pass `columns` — None mutant falls back to defaults and output is byte-identical. Callers with real columns (routes) not exercised at this seam. |
-| I | `_create_empty_export` file content | 4 | **TEST-GAP** | header join sep `,`→`"XX,XX"` (912); `header+"\n"`→`header+"XX\nXX"` (913); `"[]"`→`"XX[]XX"` (917); `writestr(...,"[]")`→`"XX[]XX"` (923) | `TestCreateEmptyExport` (`:1084-1115`) asserts only `file_size > 0` — any content passes. Files are written to real `EXPORT_DIR`; nobody parses them. |
-| J | `_create_empty_export` encoding kwarg | 6 | EQUIVALENT | `encoding="utf-8"`→None/(dropped)/`"UTF-8"` (913,917) | `Path.write_text(None)` uses locale default = utf-8 in this stack; `"UTF-8"` == `"utf-8"`. Pure no-op tweaks. |
-| K | timestamp format (both methods) | 8 | **LOW-VALUE** | `strftime("%Y%m%d_%H%M%S")`→None/`"XX…XX"`/`"%y%m%d_%h%m%s"`; `now(UTC)`→`now(None)` (906, 1083) | Filename stays `events_export_<digits>.csv` for `None` (literal "None") and the broken-format variants; only the XX-wrapped variant changes the shape, and no test parses the timestamp out of `file_path`. `now(UTC)`→`now(None)` only drops the tz arg (same wall time). Assertable via regex on `file_path` if WP4.4 wants it cheap. |
-| L | `_create_empty_export` zip compression | 1 | **TEST-GAP** | `zipfile.ZIP_DEFLATED`→None (922) — `ZipFile` raises `ValueError: compression … not supported` | Covered by `test_create_empty_zip` yet survived → strong hint the mutmut test-selection for this key did not execute the zip case (coverage/selection gap, not assertion weakness). Same drafted test as I also kills it. |
-| M | `export_events_with_websocket` ValueError message | 1 | EQUIVALENT | `raise ValueError("Database session required…")`→XX-wrapped (972) | Existing test uses `match="Database session required"` which is a *search* — still matches inside `"XXDatabase session required for export_events_with_websocketXX"`. Equivalent *for the current assertion*; message-text mutants are EQUIVALENT-by-contract here. |
-| N | websocket `job.started` metadata/filters | 12 | **TEST-GAP** | `"filters"`→`"FILTERS"/"XXfiltersXX"` + 5 filter keys ×2 case variants each (979-984) | `test_export_with_websocket_starts_reporter` (`:1162`) asserts only `metadata["export_format"]` — the whole `filters` sub-dict is never inspected. WebSocket payload contract for the UI is silently mutated. |
-| O | websocket SQL construction | 12 | **TEST-GAP** | `.where(Event.deleted_at.is_(None))`→`.where(None)` (993); `camera_id/risk_level/reviewed is not None`→`is None` (996,999,1014); `select(func.count())`→None/`select(None)`/execute(None) (1018-1019); `order_by(None)` (1038); camera `select(...).where(...)`→None/where(None)/select(None)/`==`→`!=` (1048-1049) | Filter tests (`:997-1077` analogues; websocket has none of these) assert only `mock_db.execute.called`; mocks swallow malformed statements. `test_websocket_method_fetch_undefers_reasoning` (`:1476`) DOES capture stmts but only checks `events.reasoning` in `stmts[1]` — soft-deleted-row filter, active filters, order_by and the camera `==` flip are unchecked. Compile-string asserts kill the `is_(None)`→`where(None)` and `==`→`!=` cases; note `where(None)` is *accepted* by SQLAlchemy (no-op), so it must be a string assert, not a raises-assert. |
-| P | `total_count or 0` → `or 1` | 1 | **TEST-GAP** | `result.scalar() or 0`→`or 1` (1020) — scalar()==0 → total becomes 1: empty runs take the full-export path and the completion message misreports | Every websocket test's empty-path assertion (`reporter.complete` called) is also satisfied by the full path when the mocked event query returns empty scalars; no test asserts *which* path ran. |
-| Q | websocket `report_progress` call args | 34 | **TEST-GAP** | All 4 report sites (1/"Found N"/force @1022; progress_items/"Processing event i/n" @1072; 80/"Writing {FMT} file…"/force @1078; 95/"Finalizing export…"/force @1136): positional→None/dropped, step→None/text-cases, `force=True`→None/False, 1→2, 80→81, 95→96 | `test_export_with_websocket_reports_progress` (`:1206`) asserts `call_count > 0` only. No test pins any progress value, step text or force flag on this method. |
-| R | websocket progress formula | 6 | **TEST-GAP** | `int((idx+1)/total*70)`→None / `/70` / `*(idx+1)*total*70` / `(idx-1)` / `(idx+2)` / `*71` (1071) | Same gap as Q; a single-item run hides `(idx+1)*total*70` — the drafted test uses **two** events to disambiguate. |
-| S | empty-run completion summary | 6 | **TEST-GAP** | `result_summary={**export_result,"message":…}`→None (1030); `"message"` key →`XXmessageXX`/`MESSAGE`; value `"No events to export"`→3 case variants (1032) | `test_export_with_websocket_completes_successfully` (`:1184`) asserts `complete` called + return-dict `event_count` — never inspects `result_summary`. |
-| T | camera-name fallback | 9 | **TEST-GAP** | `camera_name="Unknown"`→None/3 case variants (1046); `camera_result.scalar() or "Unknown"`→None/`and`/3 variants (1051) | Mocked `camera_result.scalar()` always returns `"Camera"`, so the fallback branches never evaluate in tests; the returned camera name is never asserted into output. |
-| U | EventExportRow wiring | 18 | **TEST-GAP** | whole call→None (1053); each kwarg→None (event_id/camera_name/started_at/ended_at/risk_score/risk_level/summary/detection_count/reviewed/object_types/reasoning, 1055-1065); `detection_count or 0`→`and 0`/`or 1`; `reviewed or False`→`and False`/`or True`; object_types/reasoning kwargs dropped | Tests run the loop but assert only `report_progress.call_count` / `file_size>0`. The file content (CSV/JSON) is never opened. |
-| V | websocket CSV columns arg | 3 | TEST-GAP | `events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)`→`(…,None)`/dropped/`events_to_csv(EXTENDED_EXPORT_COLUMNS)` (1086) | Content never inspected — None falls back to base `EXPORT_COLUMNS` (drops object_types/reasoning headers). Zero-prod-caller mitigates. |
-| W | websocket write encoding | 3 | EQUIVALENT | `encoding="utf-8"`→None/(dropped)/"UTF-8" (1089) | Same no-op class as J. |
-| X | websocket format-branch strings | 4 | LOW-VALUE | `elif export_format == "json"/"zip"`→case/XX variants (1090,1110) | Would silently route to `else: raise ValueError`, but `test_export_with_websocket_invalid_format` only exercises format `"invalid"`; real "json"/"zip" websocket runs untested (zero prod callers). |
-| Y | websocket result dict | 9 | **TEST-GAP** | `file_size = filepath.stat().st_size`→None (1140); result keys `file_path/file_size/event_count/format`→case/XX variants (1143-1148) | `test_export_with_websocket_includes_duration` (`:1306`) asserts only `duration_seconds`; key renames and `file_size=None` ride through. Cheap to kill by strengthening that existing test. |
-| Z | completion `logger.info` extras | 16 | LOW-VALUE | log message text ×4 + all 5 `extra{...}` keys ×2-3 variants (1151-1160) | Structured-log message/key text; nobody should assert log formatting. |
-| AA | `complete(result_summary=export_result)`→None | 1 | TEST-GAP | (1163) success path completion payload dropped | `complete` presence is asserted, payload never — same gap as S. Killed by drafted test T1/T5. |
-| AB | `fail(e, retryable=False)` variants | 3 | **LOW-VALUE** | `retryable=False`→None / dropped / True (1169) — None/False are falsy-identical at every consumer; `True` flips the UI "retry offered" flag on failed exports | `test_export_with_websocket_handles_exception` (`:1246`) asserts `fail` called + exception type, not the `retryable` kwarg. |
+| Function | Covering tests (file :: class) |
+|---|---|
+| `export_events_with_progress` (2424-2508 src, 722-) | `backend/tests/unit/services/test_export_service.py` :: `TestExportServiceWithProgress` (:789), `TestExportDeferredColumns` (:1394); 1 test in `backend/tests/unit/services/test_export_progress.py` |
+| `export_events_with_websocket` (934-) | same file :: `TestExportServiceWithWebSocket` (:1126), `TestExportDeferredColumns` |
+| `_create_empty_export` (894-) | same :: `TestCreateEmptyExport` (:1081) |
+| `events_to_excel` (407-) | same :: `TestEventsToExcel` (:448); `backend/tests/unit/api/routes/test_events_export.py`; `test_events_coverage.py` |
+| `events_to_csv` / `events_to_csv_streaming` (303/369) | same :: `TestEventsToCSV` (:360), `TestEventsToCSVStreaming` (:701); routes tests |
+| `filter_row_to_dict` (232) | same file (2 tests; JSON/zip progress paths only) |
+| `detections_to_json` (600) | `backend/tests/unit/api/routes/test_detections.py` (1 test, content asserted) |
+| `parse_accept_header` (297) | same :: `TestParseAcceptHeader` (:109, 16 tests); routes tests |
+| `get_export_service` (1177) / `reset_export_service` (1189) | same :: `TestExportService` (:593) |
+| `export_events` (684) / `get_filename` (672) | same :: `TestExportService` |
+| `format_export_value` (257) / `generate_export_filename` (275) | same :: `TestFormatExportValue`, `TestGenerateExportFilename` |
 
-**Classification totals (partition machine-validated against the meta: 180/180, no key in two clusters):**
-- TEST-GAP: C2 + A4 + D5 + F3 + G1 + H4 + I4 + L1 + N12 + O12 + P1 + Q34 + R6 + S6 + T9 + U18 + V3 + Y9 + AA1 = **135**
-- LOW-VALUE: B3 + E1 + K8 + X4 + Z16 + AB3 = **35**
-- EQUIVALENT: J6 + M1 + W3 = **10**
-- 135 + 35 + 10 = **180** ✔ (Q key set = {39–46, 113–127, 158–168} = 34 keys.)
+The systemic gap: `test_export_service.py` drives every DB-backed method through an `AsyncMock`
+whose results are canned per `execute` call, and then asserts only the **returned dict**
+(`file_path` extension, `file_size > 0`, `format`) and `assert mock_db.execute.called` /
+`call_count > 0`. It **never reads back the written file** and **never inspects the executed
+SQL text** (the R-T9 deferred-columns tests at :1394 are the sole precedent for SQL-text
+assertions — the pattern my drafts extend). Everything real that a mutant changes in the file
+bytes or in the compiled SQL therefore survives.
 
-## Drafted tests (UNVERIFIED — not yet run red/green)
+## Cluster table (60 clusters, counts sum to 398)
 
-TDD procedure (same for all): add the test, run it against the *mutant* source for a key in the target cluster → assertion must FAIL; run against `backend/services/export_service.py` original → must PASS. Then wire into the module's test file and re-run the file green.
+| ID | Pattern (function / mutation kind) | N | Class | Example keys (≤3) | Note / covering-test gap |
+|---|---|---|---|---|---|
+| WS-PROG | `export_events_with_websocket`: progress-value/step/force tweaks on all 4 `report_progress` call sites (:1022/:1072/:1078/:1136) + `progress_items = int((idx+1)/total*70)` (:1071) + `complete(result_summary=None)` (:1163) | 32 | TEST-GAP | ...websocket__mutmut_38, _106, _125 | tests assert only `report_progress.call_count > 0`; sequence/values never checked → drafted test kills ~28 |
+| ROW-FIELDS-P | `export_events_with_progress`: one field of `EventExportRow(...)` (:818-829) nulled, camera lookup (:810-815) nulled/tweaked, `or 0`/`or False` flips (:826-827) | 31 | TEST-GAP | ...with_progress__mutmut_100, _107, _123 | CSV/JSON file content never asserted → drafted content test |
+| ROW-FIELDS-W | `export_events_with_websocket`: identical row-construction mutations (:1046-1063) | 31 | TEST-GAP | ...websocket__mutmut_80, _102, _105 | same: file content never asserted |
+| SQL-FILTER | `export_events_with_progress`: filter-clause mutations — `deleted_at.is_(None)`→where(None) (:766), `is not None`→`is None` (:768/:771/:786), `where(cond)`→where(None) or `!=` (:769-787), `>=`→`>` (:778), `<=`→`<` (:784), `order_by(desc)`→`order_by(None)` (:802) | 15 | TEST-GAP | ...with_progress__mutmut_7, _14, _31 | tests pass filters then assert only `execute.called` — SQL text never compiled |
+| PROG-PCT | `export_events_with_progress`: progress-percentage arithmetic/params — `update_progress(job_id, 50/10/80/95, ...)` pct ±1, arg drop/None, `(idx+1)%INTERVAL` flips (:795-873) | 14 | TEST-GAP | ...with_progress__mutmut_59, _129, _137 | tracker is a bare MagicMock; pct values never asserted |
+| WS-META | `export_events_with_websocket`: `start(metadata=...)` filters-dict key renames/casing (:979-985) | 12 | TEST-GAP | ...websocket__mutmut_9, _11, _20 | test checks `metadata["export_format"]` only — the `filters` sub-dict is frontend contract |
+| XL-CELLS | `events_to_excel`: cell-value logic (:472/:474) — tz-strip→None, `Yes`/`No` bool formatting flipped/case-flipped/None | 10 | TEST-GAP | ...x_events_to_excel__mutmut_112, _114, _119 | Excel tests assert ids/camera names only, never bool/datetime columns → drafted |
+| FILE-CONTENT-P | `export_events_with_progress`: JSON/zip content mutations — `content_dict = None` (:852/:858), `filter_row_to_dict(None/None args)` (:852), `json.dumps(None...)` (:855/:864), wrong-arity `events_to_csv(selected_columns)` (:848) | 9 | TEST-GAP | ...with_progress__mutmut_153, _167, _210 | written file/zip member never read back → killed by drafted content test |
+| WS-RESULT | `export_events_with_websocket`: result-summary dict mutations — `file_size=None` (:1140), `file_path`/key casing renames (:1148-1152) | 9 | TEST-GAP | ...websocket__mutmut_169, _172, _174 | `duration_seconds` asserted; the rest of `export_result` never |
+| WS-EMPTY | `export_events_with_websocket`: empty-path `complete(result_summary=None)` (:1029) + `"No events to export"` message/value renames (:1030-1032) | 6 | TEST-GAP | ...websocket__mutmut_51, _52, _54 | test asserts `complete.assert_called_once()` only, payload unchecked |
+| ACCEPT-QP | `parse_accept_header`: `split(";")`→split(None)/clobbered ("XX;XX") (:324) — quality-param stripping | 2 | TEST-GAP | x_parse_accept_header__mutmut_6, _7 | existing `test_accept_header_with_quality_values` (:158) evidently uses a CSV header whose mutant outcome is the CSV fallback → drafted JSON;q test |
+| SQL-COUNT | `export_events_with_progress`: count-pipeline mutations — `count_query=None/select(None)` (:790), `execute(None)` (:791), `total_count=None`/`or 1` (:792) | 5 | TEST-GAP | ...with_progress__mutmut_49, _51, _56 | count stmt never inspected; `or 1` shifts every progress pct (killed by SQL+progress tests) |
+| SQL-FILTER-W | `export_events_with_websocket`: same filter-clause mutations (:993-1014, order_by :1037) | 5 | TEST-GAP | ...websocket__mutmut_22, _26, _30 | same SQL-text gap |
+| SQL-COUNT-W | `export_events_with_websocket`: count-pipeline mutations (:1018-1020) | 3 | TEST-GAP | ...websocket__mutmut_31, _33, _35 | same |
+| FILENAME-P | `export_events_with_progress`: timestamp clobber `%Y%m%d_%H%M%S`→XX-wrapped/`%y%m%d_%h%m%s` (:843) | 3 | TEST-GAP | ...with_progress__mutmut_139, _142, _143 | `file_path` checked by extension only |
+| FILENAME-W | `export_events_with_websocket`: same timestamp clobbers (:1083) | 3 | TEST-GAP | ...websocket__mutmut_128, _131, _132 | same |
+| FILENAME-GEN | `generate_export_filename` (:292): `datetime.now(UTC)`→`datetime.now(None)` — naive-timestamp filenames | 1 | LOW-VALUE | x_generate_export_filename__mutmut_3 | naive vs aware timestamp differs by machine tz only; local single-user app, machine is UTC — behavior nobody should pin |
+| COLUMNS | `export_events_with_progress`: `selected_columns=None` (:844), `events_to_csv(export_rows, None)` (:848) — column-selection loss | 3 | TEST-GAP | ...with_progress__mutmut_145, _152, _154 | `get_selected_columns(None)` falls back to EXTENDED — real loss is the *custom-columns* path, never exercised; killed by drafted content test (column list asserted) |
+| FILE-CONTENT-W | `export_events_with_websocket`: `events_to_csv(export_rows, EXTENDED→None)` / wrong-arity (:1087) | 3 | TEST-GAP | ...websocket__mutmut_139, _140, _141 | file content never read back |
+| FMT-BRANCH | `export_events_with_websocket`: format-branch comparisons `== "json"`/`== "zip"` → clobber/uppercase (:1091/:1111) | 4 | TEST-GAP | ...websocket__mutmut_152, _153, _155 | json/zip branches of the ws method untested; `"JSON"`-branch mutants silently fall through to the `raise ValueError` path — real format-loss bug |
+| WS-FAIL | `export_events_with_websocket`: `fail(e, retryable=False)`→None(:1169, TypeError)/True (:1169) | 2 | TEST-GAP | ...websocket__mutmut_201, _204 | existing exception test (:1246) asserts call + error type, ignores `retryable` (job-retry contract) |
+| GF-PREFIX | `ExportService.get_filename` (:681): prefix arg→None | 1 | TEST-GAP | ...get_filename__mutmut_1 | test asserts only `.endswith(".csv")` — prefix never checked |
+| SINGLETON | `get_export_service` (:1184): `is None`→`is not None`; `_export_service=None` (return None) | 2 | TEST-GAP | x_get_export_service__mutmut_1, _2 | existing test calls twice then `is` — passes under both mutants (None-identity still equal; `not None` path still memoizes) |
+| DJ-COLS | `detections_to_json` (:614): `if columns is None`→`is not None` (:1), `columns=None`-default lost (:2) | 2 | TEST-GAP | x_detections_to_json__mutmut_1, _2 | sole covering test (test_detections.py) passes explicit columns, default path unasserted |
+| DJ-CONTENT | `detections_to_json`: `result=None` (:3), `json.dumps(None)` (:4) | 2 | TEST-GAP | x_detections_to_json__mutmut_3, _4 | same — default-path content never produced |
+| CSV-SEEK | `events_to_csv_streaming` (:395): `output.seek(0)`→`seek(1)` on **both** sites | 2 | TEST-GAP | x_events_to_csv_streaming__mutmut_10, _19 | `seek(1)` leaves 1 stale byte → **byte-wise corruption of every yielded row**; streaming tests assert substring presence only. Cheapest kill: join chunks and parse |
+| FD-VALUE | `filter_row_to_dict` (:236): `value=None`/`getattr(None,...)`/datetime branch→None (:240-242) | 4 | TEST-GAP | x_filter_row_to_dict__mutmut_4, _10, _11 | no direct unit test; progress paths assert file paths, not JSON content |
+| ACCEPT-WILD | `parse_accept_header` (:330): `in`→`not in`, wildcard-entry clobbers | 4 | EQUIVALENT | x_parse_accept_header__mutmut_10, _11, _12 | every wildcard input (`*/*`, `text/*`) returns CSV either way — wildcard branch masked by CSV-default branch |
+| EMPTY-CONTENT | `_create_empty_export` (:910-923): CSV header separator `","`→`"XX,XX"`, header newline, `write_text("XX[]XX")` invalid JSON, zip member content | 4 | TEST-GAP | ..._create_empty_export__mutmut_15, _22, _35 | empty-export tests assert size/format only, content never parsed |
+| EMPTY-FILENAME | `_create_empty_export` (:906): timestamp clobbers | 3 | TEST-GAP | ..._create_empty_export__mutmut_1, _4, _5 | `file_path` endswith-extension check only |
+| EE-COLUMNS | `ExportService.export_events` (:701/:703): `columns` arg→None at both dispatch sites | 4 | TEST-GAP | ...export_events__mutmut_3, _7 | tests never pass custom columns through the service method |
+| XL-STRIPE | `events_to_excel` (:487): `row_idx % 2 == 0` banding predicate flips (/2, %3, !=, ==1) | 4 | LOW-VALUE | x_events_to_excel__mutmut_137, _138 | pure zebra-striping cosmetics |
+| XL-STYLE | `events_to_excel` (:438-500): header font/fill/alignment/border/alt-fill/`freeze_panes` construction and application tweaks (`"4472C4"`→`"4472c4"`, `bold=True`→`False`, `Side(style="thin")`→None, `freeze_panes="a2"`…) | 50 | LOW-VALUE | x_events_to_excel__mutmut_15, _40, _166 | openpyxl accepts case-variant hex and `"a2"` refs identically; rest is styling a snapshot test would own — behavior no one should assert |
+| XL-WIDTH | `events_to_excel` (:484-497): column-width arithmetic (`+2`→`±`, 50-cap→51, index off-by-one, `enumerate start=2`, `cell_len` ternary flips, `value=None`→format result discarded) | 13 | LOW-VALUE | x_events_to_excel__mutmut_101, _156, _164 | cosmetic autosize math |
+| PROG-MSG | `export_events_with_progress`: progress **message text** renames/casing/None-kwargs (:795-873) | 14 | LOW-VALUE | ...with_progress__mutmut_66, _138, _222 | tracker message never asserted; cosmetic UI string |
+| LOG-EXTRA-P | `export_events_with_progress`: `logger.info` message/`extra` dict key renames (:876-884) | 14 | LOW-VALUE | ...with_progress__mutmut_226, _230, _235 | logging only; no log-capture test should exist |
+| LOG-EXTRA-W | `export_events_with_websocket`: same logging mutations (:1156-1162) | 16 | LOW-VALUE | ...websocket__mutmut_182, _186, _189 | same |
+| WS-MSG | `export_events_with_websocket`: `report_progress` **current_step text** mutations (:1022-1136) | 10 | LOW-VALUE | ...websocket__mutmut_114, _120, _126 | cosmetic step label |
+| JSON-INDENT | JSON serialization `indent=2`→None/3/omitted (3 funcs) | 6 | LOW-VALUE | ...with_progress__mutmut_180, _211, _214 | whitespace-only output change |
+| ZIP-METHOD | `ZipFile(..., ZIP_DEFLATED)`→default (STORED) (:862) | 1 | LOW-VALUE | ...with_progress__mutmut_203 | valid archive, larger |
+| EMPTY-ZIP | `_create_empty_export` zip compression method (:921) | 1 | LOW-VALUE | ..._create_empty_export__mutmut_50 | same |
+| TZ-NAIVE | `export_events_with_progress` (:843): `datetime.now(UTC)`→`now(None)` | 1 | LOW-VALUE | ...with_progress__mutmut_141 | machine-tz vs UTC digits; same rationale as FILENAME-GEN |
+| TZ-NAIVE-W | `export_events_with_websocket` (:1083): same | 1 | LOW-VALUE | ...websocket__mutmut_130 | same |
+| EMPTY-TZ | `_create_empty_export` (:906): same | 1 | LOW-VALUE | ..._create_empty_export__mutmut_3 | same |
+| PROG-ERRMSG / WS-ERRMSG | `raise ValueError("Database session required…")` message clobber (:759/:972) | 1+1 | LOW-VALUE | ...with_progress__mutmut_3, ...websocket__mutmut_3 | tests match "Database session required" — clobber breaks the match… (see note*) |
+| DJ-INDENT | `detections_to_json` indent tweaks (:633) | 3 | LOW-VALUE | x_detections_to_json__mutmut_5, _7, _8 | whitespace-only |
+| ENCODING | `write_text(encoding="utf-8")`→None/omitted/`"UTF-8"` (progress, 6) | 6 | EQUIVALENT | ...with_progress__mutmut_159, _163, _176 | platform-default is UTF-8 in containers; "UTF-8" ≡ "utf-8" |
+| ENCODING-W | same, websocket method (3) | 3 | EQUIVALENT | ...websocket__mutmut_146, _148, _150 | same |
+| EMPTY-ENC | same, `_create_empty_export` (6) | 6 | EQUIVALENT | ..._create_empty_export__mutmut_18, _24, _32 | same |
+| ZREPLACE | `start_date.replace("Z", "+00:00")` → clobber/lowercase-z (:777/:783) | 4 | EQUIVALENT | ...with_progress__mutmut_26, _27, _39 | ISO-8601 uses uppercase Z only; lowercase-z variant never matches, clobbered-separator is dead on real inputs |
+| INIT-MKDIR | `EXPORT_DIR.mkdir(parents=True, exist_ok=True)` kwarg tweaks (:673) | 3 | EQUIVALENT | ...__init____mutmut_2, _4, _6 | dir already exists in tests (`exist_ok=True` retained) — no-op |
+| WS-FAIL-EQ | `fail(e, retryable=False)`→omitted (`retryable` defaults False in reporter) | 1 | EQUIVALENT | ...websocket__mutmut_203 | `job_progress_reporter.py:322` `retryable: bool = False` |
+| XL-GETATTR | `getattr(event, field_name, None)`→`getattr(event, field_name, )` (:467) — positional-default drop, default is still None | 1 | EQUIVALENT | x_events_to_excel__mutmut_111 | |
+| FEV-GETATTR / FD-GETATTR | same default-drop in `format_export_value` (:265) / `filter_row_to_dict` (:239) | 1+1 | EQUIVALENT | x_format_export_value__mutmut_6, x_filter_row_to_dict__mutmut_9 | |
+| XL-EMPTYSTR | `cell_value = ""`→None (:477) | 1 | EQUIVALENT | x_events_to_excel__mutmut_124 | openpyxl round-trips both as empty cell; existing test already tolerates `(None, "")` |
+| SELCOLS-NONE | `filter_row_to_dict`: `get_selected_columns(column_names)`→`(None)` (:238) | 1 | EQUIVALENT | x_filter_row_to_dict__mutmut_2 | callers pass `columns=None` in every observed path → identical EXTENDED fallback; custom-columns callers would see it — but then the FD-VALUE draft's column assert kills it |
+| SELCOLS-NONE-P | `export_events_with_progress`: `get_selected_columns(columns)`→`(None)` (:844) | 1 | EQUIVALENT | ...with_progress__mutmut_146 | same masking; custom-columns integration would unmask (see COLUMNS draft note) |
+| SINGLETON-R | `reset_export_service`: `_export_service = None`→`""` (:1191) | 1 | EQUIVALENT | x_reset_export_service__mutmut_1 | next `get_export_service()` recreates via `is None`→ falsy `""`… (`"" is None` False → returns `""`!) — see note**; kept EQUIVALENT as test-only function |
 
-### T1 — websocket row wiring (kills U×18, T-fallback half, AA×1) → `backend/tests/unit/services/test_export_service.py`, class `TestExportServiceWithWebSocket` (after `test_export_with_websocket_includes_duration`, :1346)
+*PROG-ERRMSG/WS-ERRMSG: the ValueError-message clobbers are killable via the existing
+`pytest.raises(match="Database session required")` — their survival suggests those mutants run only under a test
+subset that skips that test; classified LOW-VALUE (message text) regardless.
+**SINGLETON-R: `""` sentinel is a real behavior break for `get_export_service` after reset, but reset is a
+test-harness function never called in production; classified EQUIVALENT-for-the-baseline.
+
+## Totals check
+
+```
+clusters: 60   survivors assigned: 398/398   overlaps: 0
+TEST-GAP: 226   LOW-VALUE: 138   EQUIVALENT: 34   (226+138+34 = 398)
+```
+
+---
+
+## Drafted kill-tests (6 highest-value clusters)
+
+All target `/agents/agent-nemo2/workspace/backend/tests/unit/services/test_export_service.py`
+(follows its style: class-scoped fixtures, `AsyncMock` db, MagicMock tracker/reporter, local imports as the file does).
+**TDD procedure (same for all six):** add test → run against ORIGINAL code: PASSES → apply the cluster's
+mutant diff (e.g. `mutmut show <key>`) → test FAILS (red) → revert: green. UNVERIFIED - not yet run red/green
+(no test execution permitted in this triage lane; SQL-render claims verified by a standalone `select(...).compile()`
+probe against the repo's SQLAlchemy, reporter/tracker signatures verified by reading `job_progress_reporter.py` /
+`job_tracker.py`).
+
+### T1 — `TestExportProgressWritesRowData` → kills ROW-FIELDS-P (31) + FILE-CONTENT-P (9) + COLUMNS (3)
 
 ```python
-    async def test_websocket_row_wiring_preserves_event_fields(
-        self, mock_db, mock_progress_reporter
-    ):
-        # UNVERIFIED - not yet run red/green
-        """Each EventExportRow field must be wired from the Event (not stubbed
-        None / dropped), including the `detection_count or 0` and
-        `reviewed or False` fallbacks; the JSON file is the observable sink.
-        Also locks complete(result_summary=<real dict>)."""
-        import json
-        from pathlib import Path
+@pytest.mark.asyncio
+class TestExportProgressWritesRowData:
+    """WP4.4 kill-test: export_events_with_progress must write real row data to disk.
+
+    Survivors show the CSV/JSON/zip file produced by the progress path is never read
+    back — every EventExportRow field, the filter_row_to_dict content and the selected
+    columns can be nulled and the suite stays green.
+    """
+
+    @staticmethod
+    def _mock_db_with_two_events(monkeypatch, tmp_path):
         from unittest.mock import AsyncMock, MagicMock
 
-        from backend.services.export_service import EXPORT_DIR
+        import backend.services.export_service as es
 
-        event = MagicMock()
-        event.id = 42
-        event.camera_id = "cam-1"
-        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
-        event.ended_at = datetime(2024, 1, 15, 10, 31, 30, tzinfo=UTC)
-        event.risk_score = 77
-        event.risk_level = "high"
-        event.summary = "Person in driveway"
-        event.detection_count = None  # exercises `or 0`
-        event.reviewed = None  # exercises `or False`
-        event.object_types = "person,vehicle"
-        event.reasoning = "loitering near garage"
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
 
-        event_result = MagicMock()
-        event_result.scalars.return_value.all.return_value = [event]
-        camera_result = MagicMock()
-        camera_result.scalar.return_value = "Driveway Cam"
+        e1 = MagicMock()
+        e1.id = 42
+        e1.camera_id = "cam-7"
+        e1.started_at = datetime(2024, 3, 1, 9, 0, 0, tzinfo=UTC)
+        e1.ended_at = datetime(2024, 3, 1, 9, 5, 0, tzinfo=UTC)
+        e1.risk_score = 75
+        e1.risk_level = "high"
+        e1.summary = "Person at door"
+        e1.detection_count = None  # `or 0` must render 0
+        e1.reviewed = None  # `or False` must render "No"
+        e1.object_types = "person, dog"
+        e1.reasoning = "why the model thought so"
+
+        e2 = MagicMock()
+        e2.id = 43
+        e2.camera_id = "cam-missing"
+        e2.started_at = datetime(2024, 3, 2, 10, 0, 0, tzinfo=UTC)
+        e2.ended_at = None
+        e2.risk_score = None
+        e2.risk_level = None
+        e2.summary = None
+        e2.detection_count = 2
+        e2.reviewed = True
+        e2.object_types = None
+        e2.reasoning = None
+
         count_result = MagicMock()
-        count_result.scalar.return_value = 1
-        mock_db.execute = AsyncMock(side_effect=[count_result, event_result, camera_result])
+        count_result.scalar.return_value = 2
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [e1, e2]
+        cam1_result = MagicMock()
+        cam1_result.scalar.return_value = "Back Gate"
+        cam2_result = MagicMock()
+        cam2_result.scalar.return_value = None  # deleted camera → "Unknown" fallback
 
-        service = ExportService(db=mock_db)
-        result = await service.export_events_with_websocket(
-            progress_reporter=mock_progress_reporter,
-            export_format="json",
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[count_result, event_result, cam1_result, cam2_result]
+        )
+        return db
+
+    async def test_csv_file_contains_all_event_fields(self, tmp_path, monkeypatch):
+        import csv as csv_mod
+        import io
+
+        import backend.services.export_service as es
+
+        db = self._mock_db_with_two_events(monkeypatch, tmp_path)
+        service = es.ExportService(db=db)
+
+        result = await service.export_events_with_progress(
+            job_id="content-job", job_tracker=monkeypatch_tracker(), export_format="csv"
         )
 
-        payload = json.loads((EXPORT_DIR / Path(result["file_path"]).name).read_text(encoding="utf-8"))
-        row = payload[0]
-        assert row["event_id"] == 42
-        assert row["camera_name"] == "Driveway Cam"
-        assert row["started_at"] == "2024-01-15T10:30:00+00:00"
-        assert row["ended_at"] == "2024-01-15T10:31:30+00:00"
-        assert row["risk_score"] == 77
-        assert row["risk_level"] == "high"
-        assert row["summary"] == "Person in driveway"
-        assert row["detection_count"] == 0  # `event.detection_count or 0`
-        assert row["reviewed"] is False  # `event.reviewed or False`
-        assert row["object_types"] == "person,vehicle"
-        assert row["reasoning"] == "loitering near garage"
+        written = tmp_path / result["file_path"].rsplit("/", 1)[-1]
+        rows = list(csv_mod.reader(io.StringIO(written.read_text(encoding="utf-8"))))
 
-        summary = mock_progress_reporter.complete.call_args[1]["result_summary"]
-        assert summary["file_path"] == result["file_path"]
-        assert summary["event_count"] == 1
-```
-Red-proofs: every kwarg→None variant nulls a JSON field; `or 1`/`and 0` (detection_count=None → `None and 0` = None) / `or True` / `and False` (→None) all violate the two fallback asserts; dropped object_types/reasoning kwargs fall back to dataclass defaults None; whole-call→None raises TypeError; 199 makes `complete.call_args[1]` lack `result_summary` → KeyError.
-
-### T2 — `_create_empty_export` byte-exact contents (kills I×4, L×1) → class `TestCreateEmptyExport` (:1081)
-
-```python
-    async def test_create_empty_export_writes_expected_file_contents(
-        self, tmp_path, monkeypatch
-    ):
-        # UNVERIFIED - not yet run red/green
-        """Header-only CSV must be exactly the comma-joined EXTENDED header;
-        empty JSON must be exactly '[]'; the zip member must be exactly b'[]'.
-        Also pins ZIP_DEFLATED (compression=None makes ZipFile raise)."""
-        import csv
-        import io
-        import zipfile
-        from pathlib import Path
-
-        import backend.services.export_service as export_module
-        from backend.services.export_service import EXTENDED_EXPORT_COLUMNS
-
-        monkeypatch.setattr(export_module, "EXPORT_DIR", tmp_path)
-        service = ExportService()
-
-        csv_result = await service._create_empty_export("csv")
-        csv_text = (tmp_path / Path(csv_result["file_path"]).name).read_text(encoding="utf-8")
-        assert list(csv.reader(io.StringIO(csv_text))) == [[c[1] for c in EXTENDED_EXPORT_COLUMNS]]
-
-        json_result = await service._create_empty_export("json")
-        assert (tmp_path / Path(json_result["file_path"]).name).read_text(encoding="utf-8") == "[]"
-
-        zip_result = await service._create_empty_export("zip")
-        with zipfile.ZipFile(tmp_path / Path(zip_result["file_path"]).name) as zf:
-            assert zf.read(zf.namelist()[0]) == b"[]"
-```
-Red-proofs: `"XX,XX".join` breaks the csv.reader parse equality; `header+"XX\nXX"` adds rows; `"XX[]XX"` breaks both `== "[]"` asserts (json side as text AND raises json-context contract); compression=None → `ZipFile.__init__` ValueError before the zip is even created. (EXPORT_DIR is a module global read at call time — monkeypatch holds.)
-
-### T3 — singleton reset lifecycle (kills F×3) → class `TestExportService` (:593, inherits autouse `reset_service`)
-
-```python
-    def test_get_export_service_returns_new_instance_after_reset(self):
-        # UNVERIFIED - not yet run red/green
-        """reset_export_service() must sever the cached singleton so the next
-        get_export_service() re-creates a REAL instance (kills inverted cache
-        check, None-assignment, and the '' falsy-but-never-None sentinel)."""
-        first = get_export_service()
-        assert isinstance(first, ExportService)
-        assert get_export_service() is first
-
-        reset_export_service()
-
-        second = get_export_service()
-        assert isinstance(second, ExportService)
-        assert second is not first
-```
-Red-proofs: `is not None` inversion / `= None` → `isinstance(..., ExportService)` fails; reset-to-`""` → second call returns `""` (not None → no rebuild) → both isinstance and `is not first` fail.
-
-### T4 — `export_events` columns pass-through (kills H×4) → class `TestExportService` (:593)
-
-```python
-    def test_export_events_honors_custom_columns(self):
-        # UNVERIFIED - not yet run red/green
-        """The columns argument must reach events_to_csv / events_to_excel;
-        None-mutants silently fall back to the 9-column default set."""
-        import io
-
-        from openpyxl import load_workbook
-
-        service = ExportService()
-        events = [
-            EventExportRow(
-                event_id=1,
-                camera_name="Test",
-                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
-                ended_at=None,
-                risk_score=50,
-                risk_level="medium",
-                summary="Test event",
-                detection_count=1,
-                reviewed=False,
-            ),
+        # header = EXTENDED column display names (kills COLUMNS column-loss)
+        assert rows[0] == [display for _, display in es.EXTENDED_EXPORT_COLUMNS]
+        # full first row — every field present with its formatted value
+        assert rows[1] == [
+            "42",
+            "Back Gate",
+            "2024-03-01T09:00:00+00:00",
+            "2024-03-01T09:05:00+00:00",
+            "75",
+            "high",
+            "Person at door",
+            "0",  # detection_count None or 0 — kills _107 (None) and _123 (or 1)
+            "No",  # reviewed None or False — kills _108 (None), _125 (or True)
+            "person, dog",
+            "why the model thought so",
         ]
-        columns = [("event_id", "ID"), ("camera_name", "Camera")]
-
-        content = service.export_events(events, ExportFormat.CSV, columns=columns)
-        assert "Summary" not in content  # default fallback would add the Summary header
-        assert "Risk" not in content
-
-        data = service.export_events(events, ExportFormat.EXCEL, columns=columns)
-        ws = load_workbook(io.BytesIO(data)).active
-        assert ws.cell(row=1, column=1).value == "ID"
-        assert ws.cell(row=1, column=3).value is None  # only 2 columns survived
+        # camera lookup miss → "Unknown" fallback (kills _85-88, _94-98)
+        assert rows[2][1] == "Unknown"
+        assert rows[2][0] == "43"
 ```
-(Do NOT assert `"ID,Camera" in content` for the CSV side — the default header "Event ID,Camera" contains that substring; the absence asserts are the sound ones.)
 
-### T5 — websocket progress ladder + filters metadata + completion summary (kills Q×34, R×6, N×12, S×6, P×1 — also T's fallback via scenario B) → class `TestExportServiceWithWebSocket` (:1125)
+Where `monkeypatch_tracker()` is just `MagicMock()` (write inline: `from unittest.mock import MagicMock; MagicMock()`).
+Companion `test_json_file_holds_filtered_row_dicts` (same fixtures, `export_format="json"`, then
+`json.loads(written.read_text())` and assert both dicts by full key/value equality) kills FILE-CONTENT-P's
+`content_dict=None` / `json.dumps(None)` / `filter_row_to_dict(None, ...)` survivors (_167-169, _189-191, _210) and
+the FD-VALUE cluster as a side effect. The pure SQL-render survivors inside ROW-FIELDS-P (_90-93 camera-statement
+nulls) are killed by T2 instead.
+
+### T2 — `TestExportQueryShape` → kills SQL-FILTER (15) + SQL-FILTER-W (5) + SQL-COUNT (5) + SQL-COUNT-W (3) + camera-statement nulls in ROW-FIELDS-P/W
 
 ```python
-    async def test_websocket_progress_ladder_filter_metadata_and_summary(
-        self, mock_db, mock_progress_reporter
-    ):
-        # UNVERIFIED - not yet run red/green
-        """Reporter contract for export_events_with_websocket:
-        - job.started metadata echoes the filter set under the exact keys;
-        - empty run: progress 1 + 'Found 0 events to export' + force=True,
-          complete(result_summary=export_result + {'message': 'No events to export'});
-        - non-empty run (2 events disambiguate the int((idx+1)/total*70)
-          formula): ladder 1 → 35 → 70 → 80 → 95 with exact step texts and
-          force flags on the 80/95 steps. Kills every report_progress arg,
-          formula, metadata-key, summary and path-selection (or 1) mutant."""
+@pytest.mark.asyncio
+class TestExportQueryShape:
+    """WP4.4 kill-test: every filter must render into the compiled SQL text.
+
+    Existing filter tests assert only `mock_db.execute.called`; SQLAlchemy 2.x happily
+    compiles where(None)/select(None)/!= — so filter-loss mutants were invisible to the
+    mock-based suite. Precedent for SQL-text assertions: TestExportDeferredColumns.
+    """
+
+    async def test_all_filters_render_into_count_statement(self):
+        from datetime import datetime as dt
         from unittest.mock import AsyncMock, MagicMock
 
-        # --- empty scenario ---
         count_result = MagicMock()
         count_result.scalar.return_value = 0
-        mock_db.execute = AsyncMock(return_value=count_result)
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=count_result)
 
-        service = ExportService(db=mock_db)
-        await service.export_events_with_websocket(
-            progress_reporter=mock_progress_reporter,
+        service = ExportService(db=db)
+        await service.export_events_with_progress(
+            job_id="shape-job",
+            job_tracker=MagicMock(),
             export_format="csv",
             camera_id="cam-9",
             risk_level="high",
             start_date="2024-01-15T00:00:00Z",
-            end_date="2024-01-16T00:00:00Z",
+            end_date="2024-01-16T23:59:59Z",
             reviewed=True,
         )
 
-        meta = mock_progress_reporter.start.call_args[1]["metadata"]
-        assert meta["export_format"] == "csv"
-        assert meta["filters"] == {
-            "camera_id": "cam-9",
-            "risk_level": "high",
-            "start_date": "2024-01-15T00:00:00Z",
-            "end_date": "2024-01-16T00:00:00Z",
-            "reviewed": True,
-        }
-        first = mock_progress_reporter.report_progress.call_args_list[0]
-        assert first[0][0] == 1
-        assert first[1]["current_step"] == "Found 0 events to export"
-        assert first[1]["force"] is True
-        summary = mock_progress_reporter.complete.call_args[1]["result_summary"]
-        assert summary["message"] == "No events to export"
-        assert summary["event_count"] == 0
+        stmt = mock_execute_first(db)  # inline: mock_db.execute.call_args_list[0].args[0]
+        text_ = str(stmt.compile())
 
-        # --- non-empty scenario: 2 events ---
-        def _mk_event(n):
-            ev = MagicMock()
-            ev.id = n
-            ev.camera_id = f"cam-{n}"
-            ev.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
-            ev.ended_at = None
-            ev.risk_score = 50
-            ev.risk_level = "medium"
-            ev.summary = f"E{n}"
-            ev.detection_count = 1
-            ev.reviewed = False
-            ev.object_types = None
-            ev.reasoning = None
-            return ev
+        assert "events.deleted_at IS NULL" in text_  # kills _7 where(None)
+        assert "events.camera_id = :" in text_  # kills _11 (is None), _13 None, _14 !=
+        assert "events.risk_level = :" in text_  # kills _15, _17, _18
+        assert "events.started_at >= :" in text_  # kills _30, _31 (> strict)
+        assert "events.started_at <= :" in text_  # kills _43, _44 (< strict)
+        assert "events.reviewed = :" in text_  # kills _45, _47, _48
+        assert "!=" not in text_  # no flipped comparison anywhere
+        assert "SELECT count(*)" in text_  # kills SQL-COUNT _49/_51/_53 (None/select(None)/execute(None))
 
-        event_result = MagicMock()
-        event_result.scalars.return_value.all.return_value = [_mk_event(1), _mk_event(2)]
-        camera_result = MagicMock()
-        camera_result.scalar.return_value = "Cam"
-        count2 = MagicMock()
-        count2.scalar.return_value = 2
-        mock_db.execute = AsyncMock(
-            side_effect=[count2, event_result, camera_result, camera_result]
-        )
+        params = stmt.compile().params
+        assert "cam-9" in params.values()
+        assert "high" in params.values()
+        assert dt.fromisoformat("2024-01-15T00:00:00+00:00") in params.values()  # kills ZREPLACE too
+        assert dt.fromisoformat("2024-01-16T23:59:59+00:00") in params.values()
+        assert True in params.values()
+```
+
+(Replace the `mock_execute_first` pseudo-line with `stmt = db.execute.call_args_list[0].args[0]`. Companion
+`test_fetch_statement_orders_desc` runs the non-empty path (3-execute `side_effect` as in T1) and asserts
+`"ORDER BY events.started_at DESC" in str(db.execute.call_args_list[1].args[0].compile())` → kills _78/_58
+`order_by(None)`; the identical `start()`-side capture for the websocket method kills SQL-FILTER-W/SQL-COUNT-W.)
+
+### T3 — `TestWebSocketProgressSequence` → kills WS-PROG (32)
+
+```python
+@pytest.mark.asyncio
+class TestWebSocketProgressSequence:
+    """WP4.4 kill-test: report_progress call VALUES, not just call_count (NEM-2380 contract)."""
+
+    @staticmethod
+    def _reporter_and_db():
+        from unittest.mock import AsyncMock, MagicMock
 
         reporter = MagicMock()
         reporter.start = AsyncMock()
         reporter.report_progress = AsyncMock()
         reporter.complete = AsyncMock()
         reporter.fail = AsyncMock()
-        reporter.job_id = "ladder-job"
+        reporter.job_id = "ws-seq"
         reporter.duration_seconds = 1.0
+
+        def event(eid):
+            e = MagicMock()
+            e.id = eid
+            e.camera_id = "cam-1"
+            e.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+            e.ended_at = None
+            e.risk_score = 75
+            e.risk_level = "high"
+            e.summary = "Test"
+            e.detection_count = 1
+            e.reviewed = False
+            e.object_types = None
+            e.reasoning = None
+            return e
+
+        count_result = MagicMock()
+        count_result.scalar.return_value = 2
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event(1), event(2)]
+        cam = MagicMock()
+        cam.scalar.return_value = "Cam"
+
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[count_result, event_result, cam, cam])
+        return reporter, db
+
+    async def test_report_progress_call_sequence(self):
+        reporter, db = self._reporter_and_db()
+        service = ExportService(db=db)
 
         await service.export_events_with_websocket(
             progress_reporter=reporter, export_format="csv"
         )
 
-        calls = reporter.report_progress.call_args_list
-        assert [c[0][0] for c in calls] == [1, 35, 70, 80, 95]
-        assert calls[1][1]["current_step"] == "Processing event 1/2"
-        assert calls[2][1]["current_step"] == "Processing event 2/2"
-        assert calls[3][1]["current_step"] == "Writing CSV file..."
-        assert calls[3][1]["force"] is True
-        assert calls[4][1]["current_step"] == "Finalizing export..."
-        assert calls[4][1]["force"] is True
-```
-Formula disambiguation with total=2: `/70`→[0,0]; `(idx+1)*total*70`→[140,280]; `(idx-1)`→[0,35]; `(idx+2)`→[70,105]; `*71`→[35,71]. P-kill: `or 1` on the empty scenario makes it take the fetch path, so `complete` summary lacks "message" → KeyError.
+        calls = [
+            (c.args[0], c.kwargs.get("current_step"), c.kwargs.get("force"))
+            for c in reporter.report_progress.call_args_list
+        ]
+        assert calls == [
+            (1, "Found 2 events to export", True),
+            (35, "Processing event 1/2", None),  # int(1/2*70) — kills /70, *total, ±idx variants
+            (70, "Processing event 2/2", None),  # kills *71 (→71), (idx+2) (→105)
+            (80, "Writing CSV file...", True),
+            (95, "Finalizing export...", True),
+        ]
 
-### T6 — `filter_row_to_dict` direct unit coverage (kills D×5; E×1 NOT killable — see note) → new class after `TestEventsToCSVStreaming` (:786) in `backend/tests/unit/services/test_export_service.py`
+    async def test_complete_receives_result_summary(self):
+        reporter, db = self._reporter_and_db()
+        service = ExportService(db=db)
+        await service.export_events_with_websocket(
+            progress_reporter=reporter, export_format="csv"
+        )
+        summary = reporter.complete.call_args.kwargs["result_summary"]
+        assert summary["event_count"] == 2  # kills _199 result_summary=None (and WS-RESULT partly)
+```
+
+### T4 — `TestWebSocketStartMetadata` → kills WS-META (12)
 
 ```python
-class TestFilterRowToDict:
-    """Direct unit coverage for the json/zip column filter (progress + websocket exports)."""
+@pytest.mark.asyncio
+class TestWebSocketStartMetadata:
+    """WP4.4 kill-test: job.started metadata filters dict is the frontend contract."""
 
-    ROW = None  # built per-test
+    async def test_start_metadata_carries_exact_filter_keys(self):
+        from unittest.mock import AsyncMock, MagicMock
 
-    def _row(self):
-        return EventExportRow(
-            event_id=7,
-            camera_name="Front Door",
-            started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
-            ended_at=None,
-            risk_score=60,
-            risk_level="medium",
-            summary="Test",
-            detection_count=2,
+        reporter = MagicMock()
+        reporter.start = AsyncMock()
+        reporter.report_progress = AsyncMock()
+        reporter.complete = AsyncMock()
+        reporter.job_id = "ws-meta"
+
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=count_result)
+
+        service = ExportService(db=db)
+        await service.export_events_with_websocket(
+            progress_reporter=reporter,
+            export_format="csv",
+            camera_id="cam-1",
+            risk_level="high",
+            start_date="2024-01-01T00:00:00Z",
+            end_date=None,
             reviewed=True,
-            object_types="person",
-            reasoning="because",
         )
 
-    def test_selects_columns_and_isoformats_datetimes(self):
-        # UNVERIFIED - not yet run red/green
-        """None → all columns with datetime isoformatting; a name list → exactly
-        those columns in order; all-invalid names → full set (documented fallback)."""
-        from backend.services.export_service import filter_row_to_dict
-
-        row = self._row()
-        full = filter_row_to_dict(row, None)
-        assert full["started_at"] == "2024-01-15T10:30:00+00:00"
-        assert full["ended_at"] is None
-        assert full["event_id"] == 7
-        assert full["reasoning"] == "because"
-
-        selected = filter_row_to_dict(row, ["event_id", "reasoning"])
-        assert selected == {"event_id": 7, "reasoning": "because"}
-
-        assert filter_row_to_dict(row, ["nope"]) == full
+        meta = reporter.start.call_args.kwargs["metadata"]
+        assert meta["export_format"] == "csv"
+        assert meta["filters"] == {  # exact dict equality kills every rename/casing survivor
+            "camera_id": "cam-1",
+            "risk_level": "high",
+            "start_date": "2024-01-01T00:00:00Z",
+            "end_date": None,
+            "reviewed": True,
+        }
 ```
-Red-proofs: `get_selected_columns(None)` mutant makes `selected == full` (≠ 2-key dict); value→None mutants null every field; isoformat→None breaks the started_at assert.
 
-## Weaker-but-cheap follow-ups (not drafted, WP4.4 backlog)
+### T5 — `TestEventsToExcelCellValues` → kills XL-CELLS (10)
 
-- **Y×9 / T-remaining ×6**: strengthen `test_export_with_websocket_includes_duration` (`test_export_service.py:1306`) with `assert result["file_size"] > 0; assert result["format"] == "csv"; assert result["event_count"] == 1; assert result["file_path"].endswith(".csv")` and, with `camera_result.scalar.return_value = None`, `assert "Unknown" in <file content>` (kills T case variants + fallback operators).
-- **O×12**: extend `test_websocket_method_fetch_undefers_reasoning` (`:1476`) to also assert `"events.deleted_at IS NULL" in str(stmts[0].compile())` (kills the `where(None)` soft-delete drop), `"ORDER BY events.started_at DESC"` in `stmts[1]`, camera stmt `str(stmts[2])` contains `cameras.id = :param_1` (kills `!=` flip), and pass `camera_id="cam-1", reviewed=True` with a filters-on test asserting the compiled WHERE text.
-- **A×4**: raise `test_export_detections_json_format` (`test_detections.py:2997`) from empty-mocks to one mocked detection and assert the returned StreamingResponse body parses to a JSON array whose element carries `detection_id` and the default column set.
-- **AB×3**: if the UI honors `retryable`, add `assert call_args[1]["retryable"] is False` to `test_export_with_websocket_handles_exception` (:1263) — one line, kills 2 of 3 (the `True` flip; None/dropped are falsy-identical).
-- **C×2**: in each `TestEventsToCSVStreaming` test that reads data chunks, assert each post-header chunk parses as exactly one clean CSV row: `rows = list(csv.reader(io.StringIO(chunks[1]))); assert len(rows) == 1 and rows[0][0] == "1"` — kills both `seek(1)` mutants (their chunks start with a stray `"E"`).
-- **G×1**: add `assert csv_filename.startswith("events_")` to `test_get_filename` (`test_export_service.py:631`).
-- **J, M, W, E, B**: do not bother — EQUIVALENT/LOW-VALUE. Consider marking for the mutmut `skip` list if WP4.4 supports annotation, or leaving as permanent score loss.
+```python
+class TestEventsToExcelCellValues:
+    """WP4.4 kill-test: Excel bool/datetime cell VALUES, not just header/id cells."""
 
-## Caveats
+    def test_excel_boolean_reviewed_cells_are_yes_no(self):
+        import io
 
-- Meta was mid-write during triage: survivor count grew 106→180 during the session (WP4.3 checker advancing). Snapshot at close: 180 survivors / 342 checked / 486 unchecked. **Re-pull the meta before WP4.4 implementation** — unchecked keys may add new survivors (pattern-wise they will fold into clusters A–AC).
-- `test_export_service.py` uses module-global `EXPORT_DIR = Path("/tmp/exports")`; drafted tests either read from it (T1/T5, same convention as existing tests) or monkeypatch it (T2). Keep T2's monkeypatch — the file-content asserts are the whole point.
-- Existing tests use `MagicMock()` event fixtures; the `or 0`/`or False` fallbacks have never seen `None` inputs (always int/bool), which is why U's operator mutants survived silently.
+        from openpyxl import load_workbook
+
+        events = [
+            EventExportRow(
+                event_id=1, camera_name="Cam", started_at=None, ended_at=None,
+                risk_score=None, risk_level=None, summary=None,
+                detection_count=1, reviewed=True,
+            ),
+            EventExportRow(
+                event_id=2, camera_name="Cam", started_at=None, ended_at=None,
+                risk_score=None, risk_level=None, summary=None,
+                detection_count=1, reviewed=False,
+            ),
+        ]
+        ws = load_workbook(io.BytesIO(events_to_excel(events))).active
+        assert ws.cell(row=2, column=9).value == "Yes"  # reviewed=True
+        assert ws.cell(row=3, column=9).value == "No"  # reviewed=False
+        # case flips (XXYesXX/yes/YES/XXNoXX/no/NO) and the and-False/or-True branch flips all fail here
+
+    def test_excel_datetime_cells_are_naive_datetimes(self):
+        import io
+
+        from openpyxl import load_workbook
+
+        events = [
+            EventExportRow(
+                event_id=1, camera_name="Cam",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=None, risk_score=None, risk_level=None, summary=None,
+                detection_count=1, reviewed=False,
+            ),
+        ]
+        ws = load_workbook(io.BytesIO(events_to_excel(events))).active
+        value = ws.cell(row=2, column=3).value  # kills _112 (→None) and keeps tz-strip pinned
+        assert value == datetime(2024, 1, 15, 10, 30, 0)
+        assert value.tzinfo is None  # openpyxl rejects tz-aware cells
+```
+
+### T6 — added to `TestParseAcceptHeader` → kills ACCEPT-QP (2)
+
+```python
+    def test_accept_header_json_with_quality_value(self):
+        """`;q=` parameter must be stripped before mapping — JSON must NOT fall back to CSV.
+
+        (Existing quality-value test evidently uses a CSV header, whose mutant outcome is
+        also CSV, hiding split(";")→split(None) survivors.)
+        """
+        assert parse_accept_header("application/json;q=0.9") == ExportFormat.JSON
+```
+
+## Notes for the WP4.4 fix lane
+
+- Highest leverage: T1/T2 together (real-file + compiled-SQL asserts) kill ~73 survivors across
+  ROW-FIELDS-P/W, FILE-CONTENT-P/W, SQL-*, COLUMNS, FD-VALUE. T3/T4 add 44 more.
+- `SINGLETON` and `SINGLETON-R`: the memoization test is weak *by construction* (both calls hit the same
+  code path); a `reset_export_service(); assert get_export_service() is not prev` assertion is the fix — 2 lines,
+  kills SINGLETON _1/_2 and would turn SINGLETON-R into a real (currently masked) behavior probe.
+- `CSV-SEEK` is the sneaky one: `seek(1)` silently misaligns every streamed row; one `"".join(chunks)` +
+  `csv.reader` equality test against `events_to_csv` output kills it cheaply (2 survivors).
+- Do NOT chase XL-STYLE/XL-WIDTH/LOG-*/PROG-MSG/WS-MSG (~163 LOW-VALUE): killing those needs snapshot/
+  log-capture tests that assert cosmetic output — noise for the score, negative value per the classification rubric.

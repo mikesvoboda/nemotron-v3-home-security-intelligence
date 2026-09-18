@@ -1,0 +1,281 @@
+[
+ [
+  "MET-pipeline_error-label wrong on non-extract endpoints",
+  111,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::batch_extract#30",
+   "::FlorenceClient::batch_extract#31",
+   "::FlorenceClient::batch_extract#32"
+  ]
+ ],
+ [
+  "PAY payload/encoder clobber (all endpoints)",
+  54,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::batch_extract#11",
+   "::FlorenceClient::batch_extract#12",
+   "::FlorenceClient::batch_extract#13"
+  ]
+ ],
+ [
+  "CBK breaker-endpoint arg mutated at call sites",
+  53,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::_check_circuit_breaker#6",
+   "::FlorenceClient::_check_circuit_breaker#7",
+   "::FlorenceClient::_check_circuit_breaker#8"
+  ]
+ ],
+ [
+  "DUR duration_ms arithmetic clobbered (log-feed only)",
+  46,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::batch_extract#9",
+   "::FlorenceClient::dense_caption#62",
+   "::FlorenceClient::dense_caption#64"
+  ]
+ ],
+ [
+  "MSG raise/log message text mutated",
+  29,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::batch_extract#33",
+   "::FlorenceClient::batch_extract#35",
+   "::FlorenceClient::dense_caption#106"
+  ]
+ ],
+ [
+  "ERR raise-site original_error kwarg removed",
+  28,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::batch_extract#36",
+   "::FlorenceClient::dense_caption#105",
+   "::FlorenceClient::dense_caption#77"
+  ]
+ ],
+ [
+  "ERR original_error=e -> None",
+  28,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::batch_extract#34",
+   "::FlorenceClient::dense_caption#103",
+   "::FlorenceClient::dense_caption#75"
+  ]
+ ],
+ [
+  "LOGEXC exc_info kwarg mutated",
+  28,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::check_health#13",
+   "::FlorenceClient::check_health#14",
+   "::FlorenceClient::check_health#16"
+  ]
+ ],
+ [
+  "CBINIT breaker name= mutated",
+  27,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::__init__#102",
+   "::FlorenceClient::__init__#103",
+   "::FlorenceClient::__init__#106"
+  ]
+ ],
+ [
+  "LOG logger call argument -> None/removed",
+  25,
+  "EQUIVALENT",
+  [
+   "::FlorenceClient::__init__#185",
+   "::FlorenceClient::batch_extract#10",
+   "::FlorenceClient::check_health#2"
+  ]
+ ],
+ [
+  "LOGEXC extra={} log metadata mutated",
+  24,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::extract#101",
+   "::FlorenceClient::extract#102",
+   "::FlorenceClient::extract#120"
+  ]
+ ],
+ [
+  "LOG logger message text swaps (XX/UPPER/lower)",
+  22,
+  "EQUIVALENT",
+  [
+   "::FlorenceClient::check_health#3",
+   "::FlorenceClient::check_health#4",
+   "::FlorenceClient::check_health#5"
+  ]
+ ],
+ [
+  "HDR correlation headers dropped on POST/GET",
+  21,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::batch_extract#23",
+   "::FlorenceClient::batch_extract#26",
+   "::FlorenceClient::batch_extract#29"
+  ]
+ ],
+ [
+  "CFG httpx.Timeout/Limits clobbered in __init__",
+  19,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::__init__#164",
+   "::FlorenceClient::__init__#166",
+   "::FlorenceClient::__init__#175"
+  ]
+ ],
+ [
+  "CBINIT breakers share _cb_config kwarg removed",
+  16,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::__init__#101",
+   "::FlorenceClient::__init__#107",
+   "::FlorenceClient::__init__#109"
+  ]
+ ],
+ [
+  "MET florence_task label/task_type derivation",
+  15,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::describe_regions#66",
+   "::FlorenceClient::describe_regions#67",
+   "::FlorenceClient::describe_regions#68"
+  ]
+ ],
+ [
+  "CFG circuit-breaker settings defaults mutated",
+  13,
+  "EQUIVALENT",
+  [
+   "::FlorenceClient::__init__#57",
+   "::FlorenceClient::__init__#59",
+   "::FlorenceClient::__init__#62"
+  ]
+ ],
+ [
+  "CBINIT breakers-dict endpoint KEY mutated",
+  12,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::__init__#112",
+   "::FlorenceClient::__init__#113",
+   "::FlorenceClient::__init__#128"
+  ]
+ ],
+ [
+  "MET observe_ai_request_duration service label",
+  12,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::dense_caption#28",
+   "::FlorenceClient::dense_caption#32",
+   "::FlorenceClient::dense_caption#33"
+  ]
+ ],
+ [
+  "DUR ai_duration clobbered (observe_ai_request_duration feed)",
+  9,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::batch_extract#22",
+   "::FlorenceClient::dense_caption#27",
+   "::FlorenceClient::describe_regions#26"
+  ]
+ ],
+ [
+  "PARSE response field defaults mutated (describe_regions)",
+  9,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::describe_regions#43",
+   "::FlorenceClient::describe_regions#47",
+   "::FlorenceClient::describe_regions#49"
+  ]
+ ],
+ [
+  "ST 5xx boundary >=500 flipped on 3 endpoints",
+  6,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::dense_caption#86",
+   "::FlorenceClient::dense_caption#87",
+   "::FlorenceClient::ocr_with_regions#86"
+  ]
+ ],
+ [
+  "URL base_url init rstrip/gateway-default tweaks",
+  5,
+  "EQUIVALENT",
+  [
+   "::FlorenceClient::__init__#14",
+   "::FlorenceClient::__init__#18",
+   "::FlorenceClient::__init__#24"
+  ]
+ ],
+ [
+  "ENC base64/mode-membership mutated",
+  5,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::_encode_image_to_base64#27",
+   "::FlorenceClient::_encode_image_to_base64#5",
+   "::FlorenceClient::_encode_image_to_base64#6"
+  ]
+ ],
+ [
+  "URL endpoint path arg mutated for batch/security post",
+  4,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::batch_extract#24",
+   "::FlorenceClient::batch_extract#27",
+   "::FlorenceClient::detect_security_objects#20"
+  ]
+ ],
+ [
+  "CBQ breaker-state lookup mutations",
+  3,
+  "TEST-GAP",
+  [
+   "::FlorenceClient::get_circuit_breaker_state#1",
+   "::FlorenceClient::_get_breaker#2",
+   "::FlorenceClient::_get_breaker#4"
+  ]
+ ],
+ [
+  "ENC jpeg format/quality cosmetic",
+  3,
+  "LOW-VALUE",
+  [
+   "::FlorenceClient::_encode_image_to_base64#18",
+   "::FlorenceClient::_encode_image_to_base64#20",
+   "::FlorenceClient::_encode_image_to_base64#21"
+  ]
+ ],
+ [
+  "NOOP no-op content variants",
+  2,
+  "EQUIVALENT",
+  [
+   "::FlorenceClient::_check_circuit_breaker#1",
+   "::FlorenceClient::_check_circuit_breaker#2"
+  ]
+ ]
+]

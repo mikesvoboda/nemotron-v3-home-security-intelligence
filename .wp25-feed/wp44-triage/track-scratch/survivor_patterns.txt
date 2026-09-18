@@ -1,0 +1,152 @@
+create_or_update_track       9  stmt = select(Track).where(                                      -> stmt = None
+create_or_update_track      10  Track.track_id == track_id,                                      -> None,
+create_or_update_track      11  Track.camera_id == camera_id,                                    -> None,
+create_or_update_track      12  Track.track_id == track_id,                                      -> 
+create_or_update_track      13  Track.camera_id == camera_id,                                    -> )
+create_or_update_track      14  stmt = select(Track).where(                                      -> stmt = select(None).where(
+create_or_update_track      15  Track.track_id == track_id,                                      -> Track.track_id != track_id,
+create_or_update_track      16  Track.camera_id == camera_id,                                    -> Track.camera_id != camera_id,
+create_or_update_track      18  result = await self.db.execute(stmt)                             -> result = await self.db.execute(None)
+create_or_update_track      21  track = Track(                                                   -> track = None
+create_or_update_track      22  track_id=track_id,                                               -> track_id=None,
+create_or_update_track      23  camera_id=camera_id,                                             -> camera_id=None,
+create_or_update_track      24  object_class=object_class,                                       -> object_class=None,
+create_or_update_track      25  first_seen=timestamp,                                            -> first_seen=None,
+create_or_update_track      26  last_seen=timestamp,                                             -> last_seen=None,
+create_or_update_track      27  trajectory=[trajectory_point],                                   -> trajectory=None,
+create_or_update_track      28  reid_embedding=reid_embedding,                                   -> reid_embedding=None,
+create_or_update_track      29  track_id=track_id,                                               -> 
+create_or_update_track      30  camera_id=camera_id,                                             -> 
+create_or_update_track      31  object_class=object_class,                                       -> 
+create_or_update_track      32  first_seen=timestamp,                                            -> 
+create_or_update_track      33  last_seen=timestamp,                                             -> 
+create_or_update_track      34  trajectory=[trajectory_point],                                   -> 
+create_or_update_track      35  reid_embedding=reid_embedding,                                   -> )
+create_or_update_track      36  self.db.add(track)                                               -> self.db.add(None)
+create_or_update_track      37  await self.db.refresh(track)                                     -> await self.db.refresh(None)
+create_or_update_track      38  f"Created new track {track_id} for camera {camera_id}",          -> None,
+create_or_update_track      39  extra={                                                          -> extra=None,
+create_or_update_track      41  extra={                                                          -> )
+create_or_update_track      42  "track_id": track_id,                                            -> "XXtrack_idXX": track_id,
+create_or_update_track      43  "track_id": track_id,                                            -> "TRACK_ID": track_id,
+create_or_update_track      44  "camera_id": camera_id,                                          -> "XXcamera_idXX": camera_id,
+create_or_update_track      45  "camera_id": camera_id,                                          -> "CAMERA_ID": camera_id,
+create_or_update_track      46  "object_class": object_class,                                    -> "XXobject_classXX": object_class,
+create_or_update_track      47  "object_class": object_class,                                    -> "OBJECT_CLASS": object_class,
+create_or_update_track      55  if len(trajectory) > self.max_trajectory_points:                 -> if len(trajectory) >= self.max_trajectory_points:
+create_or_update_track      58  f"Pruned trajectory for track {track_id} to {self.max_trajectory -> None,
+create_or_update_track      59  extra={"track_id": track_id, "camera_id": camera_id},            -> extra=None,
+create_or_update_track      61  extra={"track_id": track_id, "camera_id": camera_id},            -> )
+create_or_update_track      62  extra={"track_id": track_id, "camera_id": camera_id},            -> extra={"XXtrack_idXX": track_id, "camera_id": camera_id},
+create_or_update_track      63  extra={"track_id": track_id, "camera_id": camera_id},            -> extra={"TRACK_ID": track_id, "camera_id": camera_id},
+create_or_update_track      64  extra={"track_id": track_id, "camera_id": camera_id},            -> extra={"track_id": track_id, "XXcamera_idXX": camera_id},
+create_or_update_track      65  extra={"track_id": track_id, "camera_id": camera_id},            -> extra={"track_id": track_id, "CAMERA_ID": camera_id},
+create_or_update_track      71  metrics = self.calculate_metrics(trajectory)                     -> metrics = self.calculate_metrics(None)
+create_or_update_track      72  existing_track.total_distance = metrics.total_distance           -> existing_track.total_distance = None
+create_or_update_track      73  existing_track.avg_speed = metrics.avg_speed                     -> existing_track.avg_speed = None
+create_or_update_track      74  await self.db.refresh(existing_track)                            -> await self.db.refresh(None)
+create_or_update_track      75  f"Updated track {track_id} with new position, total points: {len -> None,
+create_or_update_track      76  extra={                                                          -> extra=None,
+create_or_update_track      78  extra={                                                          -> )
+create_or_update_track      79  "track_id": track_id,                                            -> "XXtrack_idXX": track_id,
+create_or_update_track      80  "track_id": track_id,                                            -> "TRACK_ID": track_id,
+create_or_update_track      81  "camera_id": camera_id,                                          -> "XXcamera_idXX": camera_id,
+create_or_update_track      82  "camera_id": camera_id,                                          -> "CAMERA_ID": camera_id,
+create_or_update_track      83  "trajectory_length": len(trajectory),                            -> "XXtrajectory_lengthXX": len(trajectory),
+create_or_update_track      84  "trajectory_length": len(trajectory),                            -> "TRAJECTORY_LENGTH": len(trajectory),
+create_or_update_track      85  "total_distance": metrics.total_distance,                        -> "XXtotal_distanceXX": metrics.total_distance,
+create_or_update_track      86  "total_distance": metrics.total_distance,                        -> "TOTAL_DISTANCE": metrics.total_distance,
+get_active_track_count       2  cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_ret -> cutoff_time = datetime.now(UTC) + timedelta(hours=self.track_ret
+get_active_track_count       3  cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_ret -> cutoff_time = datetime.now(None) - timedelta(hours=self.track_re
+get_active_track_count       5  stmt = (                                                         -> stmt = None
+get_active_track_count       6  Track.camera_id == camera_id,                                    -> None,
+get_active_track_count       7  Track.last_seen >= cutoff_time,                                  -> None,
+get_active_track_count       8  Track.camera_id == camera_id,                                    -> 
+get_active_track_count       9  Track.last_seen >= cutoff_time,                                  -> )
+get_active_track_count      11  select(func.count())                                             -> select(None)
+get_active_track_count      12  Track.camera_id == camera_id,                                    -> Track.camera_id != camera_id,
+get_active_track_count      13  Track.last_seen >= cutoff_time,                                  -> Track.last_seen > cutoff_time,
+get_active_track_count      15  result = await self.db.execute(stmt)                             -> result = await self.db.execute(None)
+get_track                    1  stmt = select(Track).where(                                      -> stmt = None
+get_track                    2  Track.track_id == track_id,                                      -> None,
+get_track                    3  Track.camera_id == camera_id,                                    -> None,
+get_track                    4  Track.track_id == track_id,                                      -> 
+get_track                    5  Track.camera_id == camera_id,                                    -> )
+get_track                    6  stmt = select(Track).where(                                      -> stmt = select(None).where(
+get_track                    7  Track.track_id == track_id,                                      -> Track.track_id != track_id,
+get_track                    8  Track.camera_id == camera_id,                                    -> Track.camera_id != camera_id,
+get_track                   10  result = await self.db.execute(stmt)                             -> result = await self.db.execute(None)
+get_track_history            2  track = await self.get_track(track_id, camera_id)                -> track = await self.get_track(None, camera_id)
+get_track_history            3  track = await self.get_track(track_id, camera_id)                -> track = await self.get_track(track_id, None)
+get_track_history           22  metrics = self.calculate_metrics(track.trajectory)               -> metrics = self.calculate_metrics(None)
+get_tracks_by_camera        12  page_size = max(1, min(page_size, 1000))                         -> page_size = max(min(page_size, 1000))
+get_tracks_by_camera        18  page_size = max(1, min(page_size, 1000))                         -> page_size = max(1, min(page_size, ))
+get_tracks_by_camera        19  page_size = max(1, min(page_size, 1000))                         -> page_size = max(1, min(page_size, 1001))
+get_tracks_by_camera        20  offset = (page - 1) * page_size                                  -> offset = None
+get_tracks_by_camera        21  offset = (page - 1) * page_size                                  -> offset = (page - 1) / page_size
+get_tracks_by_camera        23  offset = (page - 1) * page_size                                  -> offset = (page - 2) * page_size
+get_tracks_by_camera        24  base_query = select(Track).where(Track.camera_id == camera_id)   -> base_query = None
+get_tracks_by_camera        25  base_query = select(Track).where(Track.camera_id == camera_id)   -> base_query = select(Track).where(None)
+get_tracks_by_camera        28  if start_time is not None:                                       -> if start_time is None:
+get_tracks_by_camera        29  base_query = base_query.where(Track.first_seen >= start_time)    -> base_query = None
+get_tracks_by_camera        32  if end_time is not None:                                         -> if end_time is None:
+get_tracks_by_camera        33  base_query = base_query.where(Track.first_seen <= end_time)      -> base_query = None
+get_tracks_by_camera        34  base_query = base_query.where(Track.first_seen <= end_time)      -> base_query = base_query.where(None)
+get_tracks_by_camera        36  if object_class is not None:                                     -> if object_class is None:
+get_tracks_by_camera        37  base_query = base_query.where(Track.object_class == object_class -> base_query = None
+get_tracks_by_camera        38  base_query = base_query.where(Track.object_class == object_class -> base_query = base_query.where(None)
+get_tracks_by_camera        40  count_query = select(func.count()).select_from(base_query.subque -> count_query = None
+get_tracks_by_camera        42  count_query = select(func.count()).select_from(base_query.subque -> count_query = select(None).select_from(base_query.subquery())
+get_tracks_by_camera        44  paginated_query = (                                              -> paginated_query = None
+get_tracks_by_camera        45  base_query.order_by(Track.first_seen.desc()).offset(offset).limi -> base_query.order_by(Track.first_seen.desc()).offset(offset).limi
+get_tracks_by_camera        46  base_query.order_by(Track.first_seen.desc()).offset(offset).limi -> base_query.order_by(Track.first_seen.desc()).offset(None).limit(
+get_tracks_by_camera        47  base_query.order_by(Track.first_seen.desc()).offset(offset).limi -> base_query.order_by(None).offset(offset).limit(page_size)
+get_tracks_by_camera        49  result = await self.db.execute(paginated_query)                  -> result = await self.db.execute(None)
+get_tracks_by_camera        53  metrics = None                                                   -> metrics = ""
+get_tracks_by_camera        54  if track.total_distance is not None and track.avg_speed is not N -> if track.total_distance is not None or track.avg_speed is not No
+get_tracks_by_camera        55  if track.total_distance is not None and track.avg_speed is not N -> if track.total_distance is None and track.avg_speed is not None:
+get_tracks_by_camera        56  if track.total_distance is not None and track.avg_speed is not N -> if track.total_distance is not None and track.avg_speed is None:
+get_tracks_by_camera        57  trajectory = track.trajectory or []                              -> trajectory = None
+get_tracks_by_camera        58  trajectory = track.trajectory or []                              -> trajectory = track.trajectory and []
+get_tracks_by_camera        59  metrics = self.calculate_metrics(trajectory)                     -> metrics = None
+get_tracks_by_camera        60  metrics = self.calculate_metrics(trajectory)                     -> metrics = self.calculate_metrics(None)
+get_tracks_by_camera        68  metrics=metrics,                                                 -> metrics=None,
+get_tracks_by_camera        75  metrics=metrics,                                                 -> )
+mark_track_lost              2  reason: str = "timeout",                                         -> reason: str = "TIMEOUT",
+mark_track_lost              3  track = await self.get_track(track_id, camera_id)                -> track = None
+mark_track_lost              9  entity_type = track.object_class or "unknown"                    -> entity_type = None
+mark_track_lost             10  entity_type = track.object_class or "unknown"                    -> entity_type = track.object_class and "unknown"
+mark_track_lost             11  entity_type = track.object_class or "unknown"                    -> entity_type = track.object_class or "XXunknownXX"
+mark_track_lost             26  record_track_lost(camera_id, entity_type, reason)                -> record_track_lost(camera_id, reason)
+mark_track_lost             27  extra={                                                          -> extra=None,
+mark_track_lost             29  extra={                                                          -> )
+mark_track_lost             30  "track_id": track_id,                                            -> "XXtrack_idXX": track_id,
+mark_track_lost             31  "track_id": track_id,                                            -> "TRACK_ID": track_id,
+mark_track_lost             32  "camera_id": camera_id,                                          -> "XXcamera_idXX": camera_id,
+mark_track_lost             33  "camera_id": camera_id,                                          -> "CAMERA_ID": camera_id,
+mark_track_lost             34  "reason": reason,                                                -> "XXreasonXX": reason,
+mark_track_lost             35  "reason": reason,                                                -> "REASON": reason,
+mark_track_lost             36  "object_class": track.object_class,                              -> "XXobject_classXX": track.object_class,
+mark_track_lost             37  "object_class": track.object_class,                              -> "OBJECT_CLASS": track.object_class,
+prune_old_tracks             4  cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hour -> cutoff_time = datetime.now(UTC) + timedelta(hours=retention_hour
+prune_old_tracks             5  cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hour -> cutoff_time = datetime.now(None) - timedelta(hours=retention_hou
+prune_old_tracks             7  stmt = delete(Track).where(Track.last_seen < cutoff_time)        -> stmt = None
+prune_old_tracks             8  stmt = delete(Track).where(Track.last_seen < cutoff_time)        -> stmt = delete(Track).where(None)
+prune_old_tracks            10  stmt = delete(Track).where(Track.last_seen < cutoff_time)        -> stmt = delete(Track).where(Track.last_seen <= cutoff_time)
+prune_old_tracks            12  result = await self.db.execute(stmt)                             -> result = await self.db.execute(None)
+prune_old_tracks            16  if deleted_count > 0:                                            -> if deleted_count >= 0:
+prune_old_tracks            17  if deleted_count > 0:                                            -> if deleted_count > 1:
+prune_old_tracks            18  f"Pruned {deleted_count} tracks older than {retention_hours} hou -> None,
+prune_old_tracks            19  extra={                                                          -> extra=None,
+prune_old_tracks            21  extra={                                                          -> )
+prune_old_tracks            22  "deleted_count": deleted_count,                                  -> "XXdeleted_countXX": deleted_count,
+prune_old_tracks            23  "deleted_count": deleted_count,                                  -> "DELETED_COUNT": deleted_count,
+prune_old_tracks            24  "retention_hours": retention_hours,                              -> "XXretention_hoursXX": retention_hours,
+prune_old_tracks            25  "retention_hours": retention_hours,                              -> "RETENTION_HOURS": retention_hours,
+prune_old_tracks            26  "cutoff_time": cutoff_time.isoformat(),                          -> "XXcutoff_timeXX": cutoff_time.isoformat(),
+prune_old_tracks            27  "cutoff_time": cutoff_time.isoformat(),                          -> "CUTOFF_TIME": cutoff_time.isoformat(),
+record_reidentification      2  f"Track re-identified on camera {camera_id}",                    -> None,
+record_reidentification      3  extra={"camera_id": camera_id},                                  -> extra=None,
+record_reidentification      5  extra={"camera_id": camera_id},                                  -> )
+record_reidentification      6  extra={"camera_id": camera_id},                                  -> extra={"XXcamera_idXX": camera_id},
+record_reidentification      7  extra={"camera_id": camera_id},                                  -> extra={"CAMERA_ID": camera_id},

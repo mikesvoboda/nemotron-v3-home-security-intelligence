@@ -1,0 +1,736 @@
+{
+ "PROG-ERRMSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_3"
+  ]
+ },
+ "SQL-FILTER": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_7",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_11",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_13",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_14",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_15",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_17",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_18",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_30",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_31",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_43",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_44",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_45",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_47",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_48",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_78"
+  ]
+ },
+ "SQL-COUNT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_49",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_51",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_53",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_54",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_56"
+  ]
+ },
+ "ZREPLACE": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_26",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_27",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_39",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_40"
+  ]
+ },
+ "PROG-PCT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_59",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_60",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_62",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_63",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_64",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_65",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_76",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_126",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_127",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_128",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_129",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_130",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_137",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_221"
+  ]
+ },
+ "PROG-MSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_61",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_66",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_67",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_68",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_72",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_75",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_133",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_136",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_138",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_217",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_220",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_222",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_223",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_224"
+  ]
+ },
+ "ROW-FIELDS-P": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_85",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_86",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_87",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_88",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_90",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_91",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_92",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_93",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_94",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_95",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_96",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_97",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_98",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_99",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_100",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_101",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_102",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_103",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_104",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_105",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_106",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_107",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_108",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_109",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_110",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_120",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_121",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_122",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_123",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_124",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_125"
+  ]
+ },
+ "FILENAME-P": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_139",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_142",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_143"
+  ]
+ },
+ "TZNIVE": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_141"
+  ]
+ },
+ "COLUMNS": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_145",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_146",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_152",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_154"
+  ]
+ },
+ "FILE-CONTENT-P": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_153",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_167",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_168",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_169",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_179",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_189",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_190",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_191",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_210"
+  ]
+ },
+ "ENCODING": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_159",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_161",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_163",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_176",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_178",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_185"
+  ]
+ },
+ "JSON-INDENT": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_180",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_182",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_183",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_211",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_213",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_214"
+  ]
+ },
+ "ZIP-METHOD": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_203"
+  ]
+ },
+ "LOG-EXTRA-P": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_progress",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_226",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_227",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_229",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_230",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_231",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_232",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_233",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_234",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_235",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_236",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_237",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_238",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_239",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_progress__mutmut_240"
+  ]
+ },
+ "WS-ERRMSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_3"
+  ]
+ },
+ "SQL-FILTER-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_22",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_26",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_27",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_30",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_58"
+  ]
+ },
+ "SQL-COUNT-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_31",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_33",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_35"
+  ]
+ },
+ "WS-META": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_9",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_10",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_11",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_12",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_13",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_14",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_15",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_16",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_17",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_18",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_19",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_20"
+  ]
+ },
+ "WS-PROG": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_38",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_39",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_40",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_41",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_42",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_43",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_44",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_45",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_46",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_106",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_108",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_109",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_110",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_111",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_112",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_113",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_115",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_117",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_118",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_119",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_121",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_122",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_123",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_124",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_125",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_158",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_160",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_161",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_162",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_163",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_164",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_199"
+  ]
+ },
+ "WS-MSG": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_114",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_116",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_120",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_126",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_127",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_159",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_165",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_166",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_167",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_168"
+  ]
+ },
+ "WS-EMPTY": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_51",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_52",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_53",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_54",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_55",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_56"
+  ]
+ },
+ "ROW-FIELDS-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_65",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_66",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_67",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_68",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_70",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_71",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_72",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_73",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_74",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_75",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_76",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_77",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_78",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_79",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_80",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_81",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_82",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_83",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_84",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_85",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_86",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_87",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_88",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_89",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_90",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_100",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_101",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_102",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_103",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_104",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_105"
+  ]
+ },
+ "FILENAME-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_128",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_131",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_132"
+  ]
+ },
+ "TZ-NAIVE-W": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_130"
+  ]
+ },
+ "FILE-CONTENT-W": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_139",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_140",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_141"
+  ]
+ },
+ "ENCODING-W": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_146",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_148",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_150"
+  ]
+ },
+ "FMT-BRANCH": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_152",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_153",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_155",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_156"
+  ]
+ },
+ "WS-RESULT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_169",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_172",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_173",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_174",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_175",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_176",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_177",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_178",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_179"
+  ]
+ },
+ "LOG-EXTRA-W": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_182",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_183",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_185",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_186",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_187",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_188",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_189",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_190",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_191",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_192",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_193",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_194",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_195",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_196",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_197",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_198"
+  ]
+ },
+ "WS-FAIL": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_201",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_204"
+  ]
+ },
+ "WS-FAIL-EQ": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1export_events_with_websocket",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events_with_websocket__mutmut_203"
+  ]
+ },
+ "XL-STYLE": {
+  "class": "LOW-VALUE",
+  "fn": "x_events_to_excel",
+  "keys": [
+   "backend.services.export_service.x_events_to_excel__mutmut_6",
+   "backend.services.export_service.x_events_to_excel__mutmut_7",
+   "backend.services.export_service.x_events_to_excel__mutmut_8",
+   "backend.services.export_service.x_events_to_excel__mutmut_9",
+   "backend.services.export_service.x_events_to_excel__mutmut_10",
+   "backend.services.export_service.x_events_to_excel__mutmut_11",
+   "backend.services.export_service.x_events_to_excel__mutmut_13",
+   "backend.services.export_service.x_events_to_excel__mutmut_15",
+   "backend.services.export_service.x_events_to_excel__mutmut_16",
+   "backend.services.export_service.x_events_to_excel__mutmut_17",
+   "backend.services.export_service.x_events_to_excel__mutmut_18",
+   "backend.services.export_service.x_events_to_excel__mutmut_19",
+   "backend.services.export_service.x_events_to_excel__mutmut_20",
+   "backend.services.export_service.x_events_to_excel__mutmut_22",
+   "backend.services.export_service.x_events_to_excel__mutmut_24",
+   "backend.services.export_service.x_events_to_excel__mutmut_27",
+   "backend.services.export_service.x_events_to_excel__mutmut_28",
+   "backend.services.export_service.x_events_to_excel__mutmut_29",
+   "backend.services.export_service.x_events_to_excel__mutmut_30",
+   "backend.services.export_service.x_events_to_excel__mutmut_31",
+   "backend.services.export_service.x_events_to_excel__mutmut_32",
+   "backend.services.export_service.x_events_to_excel__mutmut_33",
+   "backend.services.export_service.x_events_to_excel__mutmut_38",
+   "backend.services.export_service.x_events_to_excel__mutmut_39",
+   "backend.services.export_service.x_events_to_excel__mutmut_40",
+   "backend.services.export_service.x_events_to_excel__mutmut_41",
+   "backend.services.export_service.x_events_to_excel__mutmut_42",
+   "backend.services.export_service.x_events_to_excel__mutmut_43",
+   "backend.services.export_service.x_events_to_excel__mutmut_44",
+   "backend.services.export_service.x_events_to_excel__mutmut_45",
+   "backend.services.export_service.x_events_to_excel__mutmut_46",
+   "backend.services.export_service.x_events_to_excel__mutmut_47",
+   "backend.services.export_service.x_events_to_excel__mutmut_48",
+   "backend.services.export_service.x_events_to_excel__mutmut_51",
+   "backend.services.export_service.x_events_to_excel__mutmut_54",
+   "backend.services.export_service.x_events_to_excel__mutmut_57",
+   "backend.services.export_service.x_events_to_excel__mutmut_61",
+   "backend.services.export_service.x_events_to_excel__mutmut_62",
+   "backend.services.export_service.x_events_to_excel__mutmut_63",
+   "backend.services.export_service.x_events_to_excel__mutmut_64",
+   "backend.services.export_service.x_events_to_excel__mutmut_65",
+   "backend.services.export_service.x_events_to_excel__mutmut_66",
+   "backend.services.export_service.x_events_to_excel__mutmut_68",
+   "backend.services.export_service.x_events_to_excel__mutmut_70",
+   "backend.services.export_service.x_events_to_excel__mutmut_87",
+   "backend.services.export_service.x_events_to_excel__mutmut_89",
+   "backend.services.export_service.x_events_to_excel__mutmut_90",
+   "backend.services.export_service.x_events_to_excel__mutmut_136",
+   "backend.services.export_service.x_events_to_excel__mutmut_166",
+   "backend.services.export_service.x_events_to_excel__mutmut_168"
+  ]
+ },
+ "XL-CELLS": {
+  "class": "TEST-GAP",
+  "fn": "x_events_to_excel",
+  "keys": [
+   "backend.services.export_service.x_events_to_excel__mutmut_112",
+   "backend.services.export_service.x_events_to_excel__mutmut_113",
+   "backend.services.export_service.x_events_to_excel__mutmut_114",
+   "backend.services.export_service.x_events_to_excel__mutmut_115",
+   "backend.services.export_service.x_events_to_excel__mutmut_116",
+   "backend.services.export_service.x_events_to_excel__mutmut_117",
+   "backend.services.export_service.x_events_to_excel__mutmut_118",
+   "backend.services.export_service.x_events_to_excel__mutmut_119",
+   "backend.services.export_service.x_events_to_excel__mutmut_120",
+   "backend.services.export_service.x_events_to_excel__mutmut_121",
+   "backend.services.export_service.x_events_to_excel__mutmut_124"
+  ]
+ },
+ "XL-WIDTH": {
+  "class": "LOW-VALUE",
+  "fn": "x_events_to_excel",
+  "keys": [
+   "backend.services.export_service.x_events_to_excel__mutmut_101",
+   "backend.services.export_service.x_events_to_excel__mutmut_102",
+   "backend.services.export_service.x_events_to_excel__mutmut_143",
+   "backend.services.export_service.x_events_to_excel__mutmut_144",
+   "backend.services.export_service.x_events_to_excel__mutmut_145",
+   "backend.services.export_service.x_events_to_excel__mutmut_146",
+   "backend.services.export_service.x_events_to_excel__mutmut_148",
+   "backend.services.export_service.x_events_to_excel__mutmut_150",
+   "backend.services.export_service.x_events_to_excel__mutmut_151",
+   "backend.services.export_service.x_events_to_excel__mutmut_156",
+   "backend.services.export_service.x_events_to_excel__mutmut_161",
+   "backend.services.export_service.x_events_to_excel__mutmut_164",
+   "backend.services.export_service.x_events_to_excel__mutmut_165"
+  ]
+ },
+ "XL-STRIPE": {
+  "class": "LOW-VALUE",
+  "fn": "x_events_to_excel",
+  "keys": [
+   "backend.services.export_service.x_events_to_excel__mutmut_137",
+   "backend.services.export_service.x_events_to_excel__mutmut_138",
+   "backend.services.export_service.x_events_to_excel__mutmut_139",
+   "backend.services.export_service.x_events_to_excel__mutmut_140"
+  ]
+ },
+ "XL-GETATTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_events_to_excel",
+  "keys": [
+   "backend.services.export_service.x_events_to_excel__mutmut_111"
+  ]
+ },
+ "DJ-COLS": {
+  "class": "TEST-GAP",
+  "fn": "x_detections_to_json",
+  "keys": [
+   "backend.services.export_service.x_detections_to_json__mutmut_1",
+   "backend.services.export_service.x_detections_to_json__mutmut_2"
+  ]
+ },
+ "DJ-CONTENT": {
+  "class": "TEST-GAP",
+  "fn": "x_detections_to_json",
+  "keys": [
+   "backend.services.export_service.x_detections_to_json__mutmut_3",
+   "backend.services.export_service.x_detections_to_json__mutmut_4"
+  ]
+ },
+ "DJ-INDENT": {
+  "class": "LOW-VALUE",
+  "fn": "x_detections_to_json",
+  "keys": [
+   "backend.services.export_service.x_detections_to_json__mutmut_5",
+   "backend.services.export_service.x_detections_to_json__mutmut_7",
+   "backend.services.export_service.x_detections_to_json__mutmut_8"
+  ]
+ },
+ "CSV-SEEK": {
+  "class": "TEST-GAP",
+  "fn": "x_events_to_csv_streaming",
+  "keys": [
+   "backend.services.export_service.x_events_to_csv_streaming__mutmut_10",
+   "backend.services.export_service.x_events_to_csv_streaming__mutmut_19"
+  ]
+ },
+ "FD-VALUE": {
+  "class": "TEST-GAP",
+  "fn": "x_filter_row_to_dict",
+  "keys": [
+   "backend.services.export_service.x_filter_row_to_dict__mutmut_2",
+   "backend.services.export_service.x_filter_row_to_dict__mutmut_4",
+   "backend.services.export_service.x_filter_row_to_dict__mutmut_5",
+   "backend.services.export_service.x_filter_row_to_dict__mutmut_10",
+   "backend.services.export_service.x_filter_row_to_dict__mutmut_11"
+  ]
+ },
+ "FD-GETATTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_filter_row_to_dict",
+  "keys": [
+   "backend.services.export_service.x_filter_row_to_dict__mutmut_9"
+  ]
+ },
+ "FEV-GETATTR": {
+  "class": "EQUIVALENT",
+  "fn": "x_format_export_value",
+  "keys": [
+   "backend.services.export_service.x_format_export_value__mutmut_6"
+  ]
+ },
+ "FILENAME-GEN": {
+  "class": "LOW-VALUE",
+  "fn": "x_generate_export_filename",
+  "keys": [
+   "backend.services.export_service.x_generate_export_filename__mutmut_3"
+  ]
+ },
+ "SINGLETON": {
+  "class": "TEST-GAP",
+  "fn": "x_get_export_service",
+  "keys": [
+   "backend.services.export_service.x_get_export_service__mutmut_1",
+   "backend.services.export_service.x_get_export_service__mutmut_2"
+  ]
+ },
+ "SINGLETON-R": {
+  "class": "TEST-GAP",
+  "fn": "x_reset_export_service",
+  "keys": [
+   "backend.services.export_service.x_reset_export_service__mutmut_1"
+  ]
+ },
+ "ACCEPT": {
+  "class": "TEST-GAP",
+  "fn": "x_parse_accept_header",
+  "keys": [
+   "backend.services.export_service.x_parse_accept_header__mutmut_6",
+   "backend.services.export_service.x_parse_accept_header__mutmut_7",
+   "backend.services.export_service.x_parse_accept_header__mutmut_10",
+   "backend.services.export_service.x_parse_accept_header__mutmut_11",
+   "backend.services.export_service.x_parse_accept_header__mutmut_12",
+   "backend.services.export_service.x_parse_accept_header__mutmut_13"
+  ]
+ },
+ "INIT-MKDIR": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1__init__",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1__init____mutmut_2",
+   "backend.services.export_service.x\u01c1ExportService\u01c1__init____mutmut_4",
+   "backend.services.export_service.x\u01c1ExportService\u01c1__init____mutmut_6"
+  ]
+ },
+ "EMPTY-CONTENT": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_15",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_22",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_35",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_57"
+  ]
+ },
+ "EMPTY-ENC": {
+  "class": "EQUIVALENT",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_18",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_20",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_24",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_32",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_34",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_37"
+  ]
+ },
+ "EMPTY-FILENAME": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_1",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_4",
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_5"
+  ]
+ },
+ "EMPTY-TZ": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_3"
+  ]
+ },
+ "EMPTY-ZIP": {
+  "class": "LOW-VALUE",
+  "fn": "x\u01c1ExportService\u01c1_create_empty_export",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1_create_empty_export__mutmut_50"
+  ]
+ },
+ "EE-COLUMNS": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1export_events",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events__mutmut_3",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events__mutmut_5",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events__mutmut_7",
+   "backend.services.export_service.x\u01c1ExportService\u01c1export_events__mutmut_9"
+  ]
+ },
+ "GF-PREFIX": {
+  "class": "TEST-GAP",
+  "fn": "x\u01c1ExportService\u01c1get_filename",
+  "keys": [
+   "backend.services.export_service.x\u01c1ExportService\u01c1get_filename__mutmut_1"
+  ]
+ }
+}

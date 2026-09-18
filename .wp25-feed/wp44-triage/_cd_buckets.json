@@ -1,0 +1,197 @@
+{
+ "build_configs_from_compose|misc": {
+  "n": 8,
+  "ex": [
+   [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_1",
+    " parser = ComposeParser()",
+    " parser = None"
+   ],
+   [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_2",
+    " configs = parser.parse_file(compose_file)",
+    " configs = None"
+   ],
+   [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_3",
+    " configs = parser.parse_file(compose_file)",
+    " configs = parser.parse_file(None)"
+   ]
+  ]
+ },
+ "build_service_configs|misc": {
+  "n": 536,
+  "ex": [
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_1",
+    " postgres_port = settings.postgres_port if settings else 5432",
+    " postgres_port = None"
+   ],
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_10",
+    " backend_port = settings.backend_port if settings else 8000",
+    " backend_port = settings.backend_port if (settings) and False else 8000"
+   ],
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_100",
+    " frontend_port = settings.frontend_port if settings else 8080",
+    " frontend_port = settings.frontend_port if settings else 8081"
+   ]
+  ]
+ },
+ "build_service_configs|multi(1-0)": {
+  "n": 82,
+  "ex": [
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_115",
+    " health_cmd=\"pg_isready -U security\",",
+    ""
+   ],
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_116",
+    " startup_grace_period=10,",
+    ""
+   ],
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_117",
+    " max_failures=10,",
+    ""
+   ]
+  ]
+ },
+ "build_service_configs|multi(2-1)": {
+  "n": 25,
+  "ex": [
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_119",
+    " restart_backoff_max=60.0, ||  ),",
+    " ),"
+   ],
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_147",
+    " restart_backoff_max=60.0, ||  ),",
+    " ),"
+   ],
+   [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_174",
+    " restart_backoff_max=60.0, ||  ),",
+    " ),"
+   ]
+  ]
+ },
+ "__init__|misc": {
+  "n": 10,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1__init____mutmut_10",
+    " self._configs = build_configs_from_compose(compose_file, settings, include_monitoring)",
+    " self._configs = build_configs_from_compose(settings, include_monitoring)"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1__init____mutmut_11",
+    " self._configs = build_configs_from_compose(compose_file, settings, include_monitoring)",
+    " self._configs = build_configs_from_compose(compose_file, include_monitoring)"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1__init____mutmut_12",
+    " self._configs = build_configs_from_compose(compose_file, settings, include_monitoring)",
+    " self._configs = build_configs_from_compose(compose_file, settings, )"
+   ]
+  ]
+ },
+ "_create_managed_service|misc": {
+  "n": 16,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_13",
+    " tags = getattr(image_tags, \"tags\", [])",
+    " tags = getattr(image_tags, \"tags\", None)"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_16",
+    " tags = getattr(image_tags, \"tags\", [])",
+    " tags = getattr(image_tags, \"tags\", )"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_23",
+    " image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\"",
+    " image = tags[0] if tags else f\"<untagged:{getattr(None, 'id', 'unknown')[:12]}>\""
+   ]
+  ]
+ },
+ "_create_managed_service|multi(1-0)": {
+  "n": 1,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_52",
+    " health_cmd=config.health_cmd,",
+    ""
+   ]
+  ]
+ },
+ "discover_all|multi(2-2)": {
+  "n": 13,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_18",
+    "async def discover_all(self) -> list[ManagedService]: ||  f\"Discovered container '{container.name}' as service '{config_key}'\",",
+    "async def x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_18(self) -> list[ManagedService]: ||  None,"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_22",
+    "async def discover_all(self) -> list[ManagedService]: ||  \"container_name\": container.name,",
+    "async def x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_22(self) -> list[ManagedService]: ||  \"XXcontainer_nameXX\": container.name,"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_23",
+    "async def discover_all(self) -> list[ManagedService]: ||  \"container_name\": container.name,",
+    "async def x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_23(self) -> list[ManagedService]: ||  \"CONTAINER_NAME\": container.name,"
+   ]
+  ]
+ },
+ "discover_all|multi(7-2)": {
+  "n": 1,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_19",
+    "async def discover_all(self) -> list[ManagedService]: ||  extra={ ||  \"container_name\": container.name,",
+    "async def x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_19(self) -> list[ManagedService]: ||  extra=None,"
+   ]
+  ]
+ },
+ "discover_all|multi(8-2)": {
+  "n": 1,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_21",
+    "async def discover_all(self) -> list[ManagedService]: ||  extra={ ||  \"container_name\": container.name,",
+    "async def x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_21(self) -> list[ManagedService]: ||  )"
+   ]
+  ]
+ },
+ "discover_all|multi(3-2)": {
+  "n": 1,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_33",
+    "async def discover_all(self) -> list[ManagedService]: ||  extra={\"count\": len(discovered)}, ||  )",
+    "async def x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_33(self) -> list[ManagedService]: ||  )"
+   ]
+  ]
+ },
+ "match_container_name|misc": {
+  "n": 2,
+  "ex": [
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1match_container_name__mutmut_5",
+    " matches.sort(key=len, reverse=True)",
+    " matches.sort(key=None, reverse=True)"
+   ],
+   [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1match_container_name__mutmut_7",
+    " matches.sort(key=len, reverse=True)",
+    " matches.sort(reverse=True)"
+   ]
+  ]
+ }
+}

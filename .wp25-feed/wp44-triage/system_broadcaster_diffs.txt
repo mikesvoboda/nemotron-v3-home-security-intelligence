@@ -1,0 +1,964 @@
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_11
+(no textual diff)
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_13
+(no textual diff)
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_14
+(no textual diff)
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_15
+(no textual diff)
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_16
+(no textual diff)
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_17
+(no textual diff)
+### backend.services.system_broadcaster.x_get_system_broadcaster_async__mutmut_9
+(no textual diff)
+### backend.services.system_broadcaster.x_stop_system_broadcaster__mutmut_3
+-            logger.info("Global system broadcaster stopped")
++            logger.info(None)
+### backend.services.system_broadcaster.x_stop_system_broadcaster__mutmut_4
+-            logger.info("Global system broadcaster stopped")
++            logger.info("XXGlobal system broadcaster stoppedXX")
+### backend.services.system_broadcaster.x_stop_system_broadcaster__mutmut_5
+-            logger.info("Global system broadcaster stopped")
++            logger.info("global system broadcaster stopped")
+### backend.services.system_broadcaster.x_stop_system_broadcaster__mutmut_6
+-            logger.info("Global system broadcaster stopped")
++            logger.info("GLOBAL SYSTEM BROADCASTER STOPPED")
+-
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_12
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_15
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_18
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_19
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_20
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_21
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_22
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_23
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_24
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_25
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_26
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_27
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_28
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_29
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_3
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_30
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_31
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ__init____mutmut_8
+(no textual diff)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_14
+-        if self._recovery_attempts > self.MAX_RECOVERY_ATTEMPTS:
++        if self._recovery_attempts >= self.MAX_RECOVERY_ATTEMPTS:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_15
+-                f"Pub/sub listener recovery failed after {self.MAX_RECOVERY_ATTEMPTS} "
+-                "attempts. Giving up - manual restart required."
++                None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_21
+-        base_delay = 1.0
++        base_delay = 2.0
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_23
+-        max_delay = 60.0
++        max_delay = 61.0
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_29
+-        delay = min(base_delay * (2 ** (self._recovery_attempts - 1)), max_delay)
++        delay = min(base_delay / (2 ** (self._recovery_attempts - 1)), max_delay)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_30
+-        delay = min(base_delay * (2 ** (self._recovery_attempts - 1)), max_delay)
++        delay = min(base_delay * (2 * (self._recovery_attempts - 1)), max_delay)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_31
+-        delay = min(base_delay * (2 ** (self._recovery_attempts - 1)), max_delay)
++        delay = min(base_delay * (3 ** (self._recovery_attempts - 1)), max_delay)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_32
+-        delay = min(base_delay * (2 ** (self._recovery_attempts - 1)), max_delay)
++        delay = min(base_delay * (2 ** (self._recovery_attempts + 1)), max_delay)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_33
+-        delay = min(base_delay * (2 ** (self._recovery_attempts - 1)), max_delay)
++        delay = min(base_delay * (2 ** (self._recovery_attempts - 2)), max_delay)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_35
+-        jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
++        jitter = delay / random.uniform(0.1, 0.3)  # noqa: S311
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_4
+-        self._recovery_attempts += 1
++        self._recovery_attempts += 2
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_40
+-        jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
++        jitter = delay * random.uniform(1.1, 0.3)  # noqa: S311
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_41
+-        jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
++        jitter = delay * random.uniform(0.1, 1.3)  # noqa: S311
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_43
+-        actual_delay = delay + jitter
++        actual_delay = delay - jitter
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_44
+-            f"Restarting pub/sub listener after error "
+-            f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}) "
+-            f"in {actual_delay:.1f}s"
++            None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_47
+-            self._listener_task = asyncio.create_task(self._listen_for_updates())
++            self._listener_task = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_49
+-            logger.error("Failed to re-establish pub/sub connection")
++            logger.error(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_50
+-            logger.error("Failed to re-establish pub/sub connection")
++            logger.error("XXFailed to re-establish pub/sub connectionXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_51
+-            logger.error("Failed to re-establish pub/sub connection")
++            logger.error("failed to re-establish pub/sub connection")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_52
+-            logger.error("Failed to re-establish pub/sub connection")
++            logger.error("FAILED TO RE-ESTABLISH PUB/SUB CONNECTION")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_6
+-                "Pub/sub listener circuit breaker is OPEN - "
+-                "recovery blocked to allow system stabilization"
++                None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_7
+-                "Pub/sub listener circuit breaker is OPEN - "
++                "XXPub/sub listener circuit breaker is OPEN - XX"
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_8
+-                "Pub/sub listener circuit breaker is OPEN - "
++                "pub/sub listener circuit breaker is open - "
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_attempt_listener_recovery__mutmut_9
+-                "Pub/sub listener circuit breaker is OPEN - "
++                "PUB/SUB LISTENER CIRCUIT BREAKER IS OPEN - "
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_17
+-                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
++                "XXmessageXX": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_18
+-                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
++                "MESSAGE": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_19
+-                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
++                "message": "XXSystem status broadcasting is degraded. Updates may be delayed or unavailable.XX",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_20
+-                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
++                "message": "system status broadcasting is degraded. updates may be delayed or unavailable.",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_21
+-                "message": "System status broadcasting is degraded. Updates may be delayed or unavailable.",
++                "message": "SYSTEM STATUS BROADCASTING IS DEGRADED. UPDATES MAY BE DELAYED OR UNAVAILABLE.",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_22
+-                "circuit_state": self._circuit_breaker.get_state().value,
++                "XXcircuit_stateXX": self._circuit_breaker.get_state().value,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_23
+-                "circuit_state": self._circuit_breaker.get_state().value,
++                "CIRCUIT_STATE": self._circuit_breaker.get_state().value,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_25
+-            logger.info("Broadcast degraded state notification to connected clients")
++            logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_26
+-            logger.info("Broadcast degraded state notification to connected clients")
++            logger.info("XXBroadcast degraded state notification to connected clientsXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_27
+-            logger.info("Broadcast degraded state notification to connected clients")
++            logger.info("broadcast degraded state notification to connected clients")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_degraded_state__mutmut_28
+-            logger.info("Broadcast degraded state notification to connected clients")
++            logger.info("BROADCAST DEGRADED STATE NOTIFICATION TO CONNECTED CLIENTS")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_loop__mutmut_2
+-                    await self.broadcast_status(status_data)
++                    await self.broadcast_status(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_loop__mutmut_4
+-                break
++                return
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_loop__mutmut_5
+-                logger.error(f"Error in broadcast loop: {e}", exc_info=True)
++                logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_loop__mutmut_6
+-                logger.error(f"Error in broadcast loop: {e}", exc_info=True)
++                logger.error(f"Error in broadcast loop: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_loop__mutmut_8
+-                logger.error(f"Error in broadcast loop: {e}", exc_info=True)
++                logger.error(f"Error in broadcast loop: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_broadcast_loop__mutmut_9
+-                logger.error(f"Error in broadcast loop: {e}", exc_info=True)
++                logger.error(f"Error in broadcast loop: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_13
+-                async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
++                async with httpx.AsyncClient(timeout=None) as client:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_15
+-                    response = await client.get(f"{settings.nemotron_url}/health")
++                    response = await client.get(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_25
+-            logger.warning(f"Error during AI health check: {e}", exc_info=True)
++            logger.warning(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_26
+-            logger.warning(f"Error during AI health check: {e}", exc_info=True)
++            logger.warning(f"Error during AI health check: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_28
+-            logger.warning(f"Error during AI health check: {e}", exc_info=True)
++            logger.warning(f"Error during AI health check: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_29
+-            logger.warning(f"Error during AI health check: {e}", exc_info=True)
++            logger.warning(f"Error during AI health check: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_36
+-            "any_healthy": yolo26_healthy or nemotron_healthy,
++            "any_healthy": yolo26_healthy and nemotron_healthy,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_39
+-            "all_healthy": yolo26_healthy and nemotron_healthy,
++            "all_healthy": yolo26_healthy or nemotron_healthy,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_6
+-                async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
++                async with httpx.AsyncClient(timeout=None) as client:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_ai_health__mutmut_8
+-                    response = await client.get(f"{settings.yolo26_url}/health")
++                    response = await client.get(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_check_redis_health__mutmut_3
+-            logger.debug(f"Redis health check failed: {e}")
++            logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats__mutmut_1
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats__mutmut_2
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(f"Failed to get camera stats: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats__mutmut_4
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(f"Failed to get camera stats: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats__mutmut_5
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(f"Failed to get camera stats: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_1
+-            total_stmt = select(func.count()).select_from(Camera)
++            total_stmt = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_10
+-                select(func.count())
++                select(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_11
+-                .where(Camera.status == CameraStatus.ONLINE.value)
++                .where(Camera.status != CameraStatus.ONLINE.value)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_13
+-            active_result = await session.execute(active_stmt)
++            active_result = await session.execute(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_19
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_20
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(f"Failed to get camera stats: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_22
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(f"Failed to get camera stats: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_23
+-            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
++            logger.error(f"Failed to get camera stats: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_3
+-            total_stmt = select(func.count()).select_from(Camera)
++            total_stmt = select(None).select_from(Camera)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_5
+-            total_result = await session.execute(total_stmt)
++            total_result = await session.execute(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_7
+-            active_stmt = (
+-                select(func.count())
+-                .select_from(Camera)
+-                .where(Camera.status == CameraStatus.ONLINE.value)
+-            )
++            active_stmt = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_camera_stats_with_session__mutmut_8
+-                .where(Camera.status == CameraStatus.ONLINE.value)
++                .where(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_health_status__mutmut_1
+-                await session.execute(select(func.count()).select_from(Camera))
++                await session.execute(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_health_status__mutmut_10
+-            logger.error(f"Failed to check health status: {e}", exc_info=True)
++            logger.error(f"Failed to check health status: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_health_status__mutmut_12
+-            logger.error(f"Failed to check health status: {e}", exc_info=True)
++            logger.error(f"Failed to check health status: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_health_status__mutmut_13
+-            logger.error(f"Failed to check health status: {e}", exc_info=True)
++            logger.error(f"Failed to check health status: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_health_status__mutmut_3
+-                await session.execute(select(func.count()).select_from(Camera))
++                await session.execute(select(None).select_from(Camera))
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_health_status__mutmut_9
+-            logger.error(f"Failed to check health status: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_13
+-                "temperature": None,
++                "XXtemperatureXX": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_14
+-                "temperature": None,
++                "TEMPERATURE": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_15
+-                "inference_fps": None,
++                "XXinference_fpsXX": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_16
+-                "inference_fps": None,
++                "INFERENCE_FPS": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_2
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_3
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(f"Failed to get GPU stats: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_5
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(f"Failed to get GPU stats: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats__mutmut_6
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(f"Failed to get GPU stats: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_1
+-            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
++            stmt = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_2
+-            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
++            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_3
+-            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
++            stmt = select(GPUStats).order_by(None).limit(1)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_30
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_31
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(f"Failed to get GPU stats: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_33
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(f"Failed to get GPU stats: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_34
+-            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
++            logger.error(f"Failed to get GPU stats: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_4
+-            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
++            stmt = select(None).order_by(GPUStats.recorded_at.desc()).limit(1)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_5
+-            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
++            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(2)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_latest_gpu_stats_with_session__mutmut_7
+-            result = await session.execute(stmt)
++            result = await session.execute(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_queue_stats__mutmut_17
+-            logger.error(f"Failed to get queue stats: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_queue_stats__mutmut_18
+-            logger.error(f"Failed to get queue stats: {e}", exc_info=True)
++            logger.error(f"Failed to get queue stats: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_queue_stats__mutmut_20
+-            logger.error(f"Failed to get queue stats: {e}", exc_info=True)
++            logger.error(f"Failed to get queue stats: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_queue_stats__mutmut_21
+-            logger.error(f"Failed to get queue stats: {e}", exc_info=True)
++            logger.error(f"Failed to get queue stats: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_1
+-                gpu_stats = await self._get_latest_gpu_stats_with_session(session)
++                gpu_stats = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_106
+-            "timestamp": datetime.now(UTC).isoformat(),
++            "XXtimestampXX": datetime.now(UTC).isoformat(),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_107
+-            "timestamp": datetime.now(UTC).isoformat(),
++            "TIMESTAMP": datetime.now(UTC).isoformat(),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_108
+-            "timestamp": datetime.now(UTC).isoformat(),
++            "timestamp": datetime.now(None).isoformat(),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_11
+-            logger.error(f"Failed to get system status from database: {e}", exc_info=True)
++            logger.error(f"Failed to get system status from database: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_12
+-            logger.error(f"Failed to get system status from database: {e}", exc_info=True)
++            logger.error(f"Failed to get system status from database: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_16
+-                "memory_used": None,
++                "XXmemory_usedXX": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_17
+-                "memory_used": None,
++                "MEMORY_USED": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_18
+-                "memory_total": None,
++                "XXmemory_totalXX": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_19
+-                "memory_total": None,
++                "MEMORY_TOTAL": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_20
+-                "temperature": None,
++                "XXtemperatureXX": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_21
+-                "temperature": None,
++                "TEMPERATURE": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_22
+-                "inference_fps": None,
++                "XXinference_fpsXX": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_23
+-                "inference_fps": None,
++                "INFERENCE_FPS": None,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_28
+-            camera_stats = {"active": 0, "total": 0}
++            camera_stats = {"active": 0, "XXtotalXX": 0}
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_29
+-            camera_stats = {"active": 0, "total": 0}
++            camera_stats = {"active": 0, "TOTAL": 0}
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_3
+-                camera_stats = await self._get_camera_stats_with_session(session)
++                camera_stats = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_30
+-            camera_stats = {"active": 0, "total": 0}
++            camera_stats = {"active": 0, "total": 1}
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_34
+-        queue_stats = await self._get_queue_stats()
++        queue_stats = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_78
+-                "queue": queue_stats,
++                "XXqueueXX": queue_stats,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_79
+-                "queue": queue_stats,
++                "QUEUE": queue_stats,
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_8
+-            logger.error(f"Failed to get system status from database: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_get_system_status__mutmut_9
+-            logger.error(f"Failed to get system status from database: {e}", exc_info=True)
++            logger.error(f"Failed to get system status from database: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_10
+-            logger.error("Cannot listen: Redis client not available")
++            logger.error("cannot listen: redis client not available")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_11
+-            logger.error("Cannot listen: Redis client not available")
++            logger.error("CANNOT LISTEN: REDIS CLIENT NOT AVAILABLE")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_12
+-        logger.info("Starting pub/sub listener loop")
++        logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_13
+-        logger.info("Starting pub/sub listener loop")
++        logger.info("XXStarting pub/sub listener loopXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_14
+-        logger.info("Starting pub/sub listener loop")
++        logger.info("starting pub/sub listener loop")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_15
+-        logger.info("Starting pub/sub listener loop")
++        logger.info("STARTING PUB/SUB LISTENER LOOP")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_16
+-            async for message in redis_client.listen(self._pubsub):
++            async for message in redis_client.listen(None):
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_18
+-                    break
++                    return
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_19
+-                self._recovery_attempts = 0
++                self._recovery_attempts = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_2
+-            logger.error("Cannot listen: pubsub not initialized")
++            logger.error(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_20
+-                self._recovery_attempts = 0
++                self._recovery_attempts = 1
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_26
+-                    continue
++                    break
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_3
+-            logger.error("Cannot listen: pubsub not initialized")
++            logger.error("XXCannot listen: pubsub not initializedXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_32
+-                        logger.debug("Skipping message from self (already sent directly)")
++                        logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_33
+-                        logger.debug("Skipping message from self (already sent directly)")
++                        logger.debug("XXSkipping message from self (already sent directly)XX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_34
+-                        logger.debug("Skipping message from self (already sent directly)")
++                        logger.debug("skipping message from self (already sent directly)")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_35
+-                        logger.debug("Skipping message from self (already sent directly)")
++                        logger.debug("SKIPPING MESSAGE FROM SELF (ALREADY SENT DIRECTLY)")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_36
+-                        continue
++                        break
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_37
+-                    status_data = wrapped_data.get("payload")
++                    status_data = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_38
+-                    status_data = wrapped_data.get("payload")
++                    status_data = wrapped_data.get(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_39
+-                    status_data = wrapped_data.get("payload")
++                    status_data = wrapped_data.get("XXpayloadXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_4
+-            logger.error("Cannot listen: pubsub not initialized")
++            logger.error("cannot listen: pubsub not initialized")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_40
+-                    status_data = wrapped_data.get("payload")
++                    status_data = wrapped_data.get("PAYLOAD")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_41
+-                    if not status_data:
++                    if status_data:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_42
+-                        status_data = wrapped_data
++                        status_data = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_43
+-                logger.debug(f"Received update from Redis (remote instance): {type(status_data)}")
++                logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_44
+-                logger.debug(f"Received update from Redis (remote instance): {type(status_data)}")
++                logger.debug(f"Received update from Redis (remote instance): {type(None)}")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_45
+-                await self._send_to_local_clients(status_data)
++                await self._send_to_local_clients(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_46
+-            logger.info("Pub/sub listener cancelled")
++            logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_47
+-            logger.info("Pub/sub listener cancelled")
++            logger.info("XXPub/sub listener cancelledXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_48
+-            logger.info("Pub/sub listener cancelled")
++            logger.info("pub/sub listener cancelled")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_49
+-            logger.info("Pub/sub listener cancelled")
++            logger.info("PUB/SUB LISTENER CANCELLED")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_5
+-            logger.error("Cannot listen: pubsub not initialized")
++            logger.error("CANNOT LISTEN: PUBSUB NOT INITIALIZED")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_50
+-            logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_51
+-            logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
++            logger.error(f"Error in pub/sub listener: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_53
+-            logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
++            logger.error(f"Error in pub/sub listener: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_54
+-            logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
++            logger.error(f"Error in pub/sub listener: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_8
+-            logger.error("Cannot listen: Redis client not available")
++            logger.error(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_listen_for_updates__mutmut_9
+-            logger.error("Cannot listen: Redis client not available")
++            logger.error("XXCannot listen: Redis client not availableXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_10
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(PERFORMANCE_UPDATE_CHANNEL)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_11
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_12
+-                logger.debug(f"Error unsubscribing during reset (expected): {e}")
++                logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_13
+-                logger.debug(f"Error closing pubsub during reset (expected): {e}")
++                logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_14
+-            self._pubsub = None
++            self._pubsub = ""
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_16
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
++                None, PERFORMANCE_UPDATE_CHANNEL
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_17
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
++                SYSTEM_STATUS_CHANNEL, None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_18
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
++                PERFORMANCE_UPDATE_CHANNEL
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_19
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+-            )
++                SYSTEM_STATUS_CHANNEL, )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_20
+-                f"Re-established pub/sub subscription on channels: {SYSTEM_STATUS_CHANNEL}, "
+-                f"{PERFORMANCE_UPDATE_CHANNEL}"
++                None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_21
+-            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_22
+-            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
++            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_24
+-            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
++            logger.error(f"Failed to re-subscribe during reset: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_25
+-            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
++            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_3
+-            logger.error("Cannot reset pub/sub: Redis client not available")
++            logger.error(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_4
+-            logger.error("Cannot reset pub/sub: Redis client not available")
++            logger.error("XXCannot reset pub/sub: Redis client not availableXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_5
+-            logger.error("Cannot reset pub/sub: Redis client not available")
++            logger.error("cannot reset pub/sub: redis client not available")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_6
+-            logger.error("Cannot reset pub/sub: Redis client not available")
++            logger.error("CANNOT RESET PUB/SUB: REDIS CLIENT NOT AVAILABLE")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_8
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(None, PERFORMANCE_UPDATE_CHANNEL)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_reset_pubsub_connection__mutmut_9
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_send_to_local_clients__mutmut_13
+-                f"Removed {len(failed_connections)} failed connections. "
+-                f"Active connections: {len(self.connections)}"
++                None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_send_to_local_clients__mutmut_9
+-                logger.warning(f"Failed to send to WebSocket: {e}")
++                logger.warning(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_10
+-            logger.warning("Pub/sub listener already running")
++            logger.warning("PUB/SUB LISTENER ALREADY RUNNING")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_12
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
++                None, PERFORMANCE_UPDATE_CHANNEL
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_13
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
++                SYSTEM_STATUS_CHANNEL, None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_14
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
++                PERFORMANCE_UPDATE_CHANNEL
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_15
+-                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+-            )
++                SYSTEM_STATUS_CHANNEL, )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_18
+-            self._recovery_attempts = 0  # Reset recovery attempts on successful start
++            self._recovery_attempts = None  # Reset recovery attempts on successful start
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_19
+-            self._recovery_attempts = 0  # Reset recovery attempts on successful start
++            self._recovery_attempts = 1  # Reset recovery attempts on successful start
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_24
+-                f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
+-                f"{PERFORMANCE_UPDATE_CHANNEL}"
++                None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_25
+-            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_26
+-            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
++            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_28
+-            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
++            logger.error(f"Failed to start pub/sub listener: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_29
+-            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
++            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_3
+-            logger.warning("Redis not available, pub/sub listener not started")
++            logger.warning(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_4
+-            logger.warning("Redis not available, pub/sub listener not started")
++            logger.warning("XXRedis not available, pub/sub listener not startedXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_5
+-            logger.warning("Redis not available, pub/sub listener not started")
++            logger.warning("redis not available, pub/sub listener not started")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_6
+-            logger.warning("Redis not available, pub/sub listener not started")
++            logger.warning("REDIS NOT AVAILABLE, PUB/SUB LISTENER NOT STARTED")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_7
+-            logger.warning("Pub/sub listener already running")
++            logger.warning(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_8
+-            logger.warning("Pub/sub listener already running")
++            logger.warning("XXPub/sub listener already runningXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_start_pubsub_listener__mutmut_9
+-            logger.warning("Pub/sub listener already running")
++            logger.warning("pub/sub listener already running")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_10
+-                logger.warning(f"Error closing pubsub connection: {e}")
++                logger.warning(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_12
+-        logger.info("Stopped pub/sub listener")
++        logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_13
+-        logger.info("Stopped pub/sub listener")
++        logger.info("XXStopped pub/sub listenerXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_14
+-        logger.info("Stopped pub/sub listener")
++        logger.info("stopped pub/sub listener")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_15
+-        logger.info("Stopped pub/sub listener")
++        logger.info("STOPPED PUB/SUB LISTENER")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_5
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(None, PERFORMANCE_UPDATE_CHANNEL)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_6
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_7
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(PERFORMANCE_UPDATE_CHANNEL)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_8
+-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
++                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁ_stop_pubsub_listener__mutmut_9
+-                logger.warning(f"Error unsubscribing: {e}")
++                logger.warning(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_13
+-                "data": performance_update.model_dump(mode="json"),
++                "XXdataXX": performance_update.model_dump(mode="json"),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_14
+-                "data": performance_update.model_dump(mode="json"),
++                "DATA": performance_update.model_dump(mode="json"),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_15
+-                "data": performance_update.model_dump(mode="json"),
++                "data": performance_update.model_dump(mode=None),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_16
+-                "data": performance_update.model_dump(mode="json"),
++                "data": performance_update.model_dump(mode="XXjsonXX"),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_17
+-                "data": performance_update.model_dump(mode="json"),
++                "data": performance_update.model_dump(mode="JSON"),
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_2
+-            logger.debug("No PerformanceCollector configured, skipping performance broadcast")
++            logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_3
+-            logger.debug("No PerformanceCollector configured, skipping performance broadcast")
++            logger.debug("XXNo PerformanceCollector configured, skipping performance broadcastXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_30
+-                    logger.debug("Published performance update via Redis pub/sub")
++                    logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_31
+-                    logger.debug("Published performance update via Redis pub/sub")
++                    logger.debug("XXPublished performance update via Redis pub/subXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_32
+-                    logger.debug("Published performance update via Redis pub/sub")
++                    logger.debug("published performance update via redis pub/sub")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_33
+-                    logger.debug("Published performance update via Redis pub/sub")
++                    logger.debug("PUBLISHED PERFORMANCE UPDATE VIA REDIS PUB/SUB")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_34
+-                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=True)
++                    logger.warning(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_35
+-                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=True)
++                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_37
+-                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=True)
++                    logger.warning(f"Failed to publish performance via Redis: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_38
+-                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=True)
++                    logger.warning(f"Failed to publish performance via Redis: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_39
+-            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_4
+-            logger.debug("No PerformanceCollector configured, skipping performance broadcast")
++            logger.debug("no performancecollector configured, skipping performance broadcast")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_40
+-            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
++            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_42
+-            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
++            logger.error(f"Error broadcasting performance metrics: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_43
+-            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
++            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_performance__mutmut_5
+-            logger.debug("No PerformanceCollector configured, skipping performance broadcast")
++            logger.debug("NO PERFORMANCECOLLECTOR CONFIGURED, SKIPPING PERFORMANCE BROADCAST")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_13
+-                logger.debug("Published system status via Redis pub/sub")
++                logger.debug(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_14
+-                logger.debug("Published system status via Redis pub/sub")
++                logger.debug("XXPublished system status via Redis pub/subXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_15
+-                logger.debug("Published system status via Redis pub/sub")
++                logger.debug("published system status via redis pub/sub")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_16
+-                logger.debug("Published system status via Redis pub/sub")
++                logger.debug("PUBLISHED SYSTEM STATUS VIA REDIS PUB/SUB")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_17
+-                logger.warning(f"Failed to publish via Redis: {e}", exc_info=True)
++                logger.warning(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_18
+-                logger.warning(f"Failed to publish via Redis: {e}", exc_info=True)
++                logger.warning(f"Failed to publish via Redis: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_20
+-                logger.warning(f"Failed to publish via Redis: {e}", exc_info=True)
++                logger.warning(f"Failed to publish via Redis: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁbroadcast_status__mutmut_21
+-                logger.warning(f"Failed to publish via Redis: {e}", exc_info=True)
++                logger.warning(f"Failed to publish via Redis: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁconnect__mutmut_2
+-        logger.info(f"WebSocket connected. Total connections: {len(self.connections)}")
++        logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁconnect__mutmut_3
+-            status_data = await self._get_system_status()
++            status_data = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁconnect__mutmut_4
+-            logger.error(f"Failed to send initial status: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁconnect__mutmut_5
+-            logger.error(f"Failed to send initial status: {e}", exc_info=True)
++            logger.error(f"Failed to send initial status: {e}", exc_info=None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁconnect__mutmut_7
+-            logger.error(f"Failed to send initial status: {e}", exc_info=True)
++            logger.error(f"Failed to send initial status: {e}", )
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁconnect__mutmut_8
+-            logger.error(f"Failed to send initial status: {e}", exc_info=True)
++            logger.error(f"Failed to send initial status: {e}", exc_info=False)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁdisconnect__mutmut_2
+-        logger.info(f"WebSocket disconnected. Total connections: {len(self.connections)}")
++        logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_12
+-            max_points = 60
++            max_points = 61
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_13
+-        elif time_range == TimeRange.FIFTEEN_MIN:
++        elif time_range != TimeRange.FIFTEEN_MIN:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_17
+-            window_start = now - timedelta(minutes=15)
++            window_start = now - timedelta(minutes=16)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_18
+-            sample_interval = 3  # Every 3rd snapshot
++            sample_interval = None  # Every 3rd snapshot
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_19
+-            sample_interval = 3  # Every 3rd snapshot
++            sample_interval = 4  # Every 3rd snapshot
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_21
+-            max_points = 60
++            max_points = 61
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_25
+-            window_start = now - timedelta(minutes=60)
++            window_start = now - timedelta(minutes=61)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_26
+-            sample_interval = 12  # Every 12th snapshot
++            sample_interval = None  # Every 12th snapshot
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_27
+-            sample_interval = 12  # Every 12th snapshot
++            sample_interval = 13  # Every 12th snapshot
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_29
+-            max_points = 60
++            max_points = 61
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_31
+-        filtered = [s for s in self._performance_history if s.timestamp >= window_start]
++        filtered = [s for s in self._performance_history if s.timestamp > window_start]
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_33
+-        if sample_interval == 1:
++        if sample_interval != 1:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_34
+-        if sample_interval == 1:
++        if sample_interval == 2:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_35
+-            return filtered[-max_points:] if len(filtered) > max_points else filtered
++            return filtered[-max_points:] if (len(filtered) > max_points) and False else filtered
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_36
+-            return filtered[-max_points:] if len(filtered) > max_points else filtered
++            return filtered[-max_points:] if (len(filtered) > max_points) or True else filtered
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_37
+-            return filtered[-max_points:] if len(filtered) > max_points else filtered
++            return filtered[+max_points:] if len(filtered) > max_points else filtered
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_38
+-            return filtered[-max_points:] if len(filtered) > max_points else filtered
++            return filtered[-max_points:] if len(filtered) >= max_points else filtered
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_40
+-            return sampled[-max_points:] if len(sampled) > max_points else sampled
++            return sampled[-max_points:] if (len(sampled) > max_points) and False else sampled
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_41
+-            return sampled[-max_points:] if len(sampled) > max_points else sampled
++            return sampled[-max_points:] if (len(sampled) > max_points) or True else sampled
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_42
+-            return sampled[-max_points:] if len(sampled) > max_points else sampled
++            return sampled[+max_points:] if len(sampled) > max_points else sampled
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_43
+-            return sampled[-max_points:] if len(sampled) > max_points else sampled
++            return sampled[-max_points:] if len(sampled) >= max_points else sampled
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_8
+-            window_start = now - timedelta(minutes=5)
++            window_start = now - timedelta(minutes=6)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁget_performance_history__mutmut_9
+-            sample_interval = 1  # Every snapshot
++            sample_interval = None  # Every snapshot
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart__mutmut_1
+-    async def xǁSystemBroadcasterǁstartNAME(self, interval: float = 5.0) -> None:
++    async def xǁSystemBroadcasterǁstartNAME(self, interval: float = 6.0) -> None:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_1
+-    async def xǁSystemBroadcasterǁstart_broadcastingNAME(self, interval: float = 5.0) -> None:
++    async def xǁSystemBroadcasterǁstart_broadcastingNAME(self, interval: float = 6.0) -> None:
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_10
+-        self._broadcast_task = asyncio.create_task(self._broadcast_loop(interval))
++        self._broadcast_task = asyncio.create_task(self._broadcast_loop(None))
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_11
+-        logger.info(f"Started system status broadcasting (interval: {interval}s)")
++        logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_2
+-            logger.warning("Broadcasting already running")
++            logger.warning(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_3
+-            logger.warning("Broadcasting already running")
++            logger.warning("XXBroadcasting already runningXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_4
+-            logger.warning("Broadcasting already running")
++            logger.warning("broadcasting already running")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstart_broadcasting__mutmut_5
+-            logger.warning("Broadcasting already running")
++            logger.warning("BROADCASTING ALREADY RUNNING")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_10
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"XXreasonXX": "Server shutting down", "reconnect": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_11
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"REASON": "Server shutting down", "reconnect": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_12
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"reason": "XXServer shutting downXX", "reconnect": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_13
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"reason": "server shutting down", "reconnect": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_14
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"reason": "SERVER SHUTTING DOWN", "reconnect": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_15
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"reason": "Server shutting down", "XXreconnectXX": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_16
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"reason": "Server shutting down", "RECONNECT": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_17
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "data": {"reason": "Server shutting down", "reconnect": False},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_21
+-        logger.info("Stopped system status broadcasting")
++        logger.info(None)
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_22
+-        logger.info("Stopped system status broadcasting")
++        logger.info("XXStopped system status broadcastingXX")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_23
+-        logger.info("Stopped system status broadcasting")
++        logger.info("stopped system status broadcasting")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_24
+-        logger.info("Stopped system status broadcasting")
++        logger.info("STOPPED SYSTEM STATUS BROADCASTING")
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_3
+-        shutdown_message = {
+-            "type": "system.shutdown",
+-            "data": {"reason": "Server shutting down", "reconnect": True},
+-        }
++        shutdown_message = None
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_4
+-            "type": "system.shutdown",
++            "XXtypeXX": "system.shutdown",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_5
+-            "type": "system.shutdown",
++            "TYPE": "system.shutdown",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_6
+-            "type": "system.shutdown",
++            "type": "XXsystem.shutdownXX",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_7
+-            "type": "system.shutdown",
++            "type": "SYSTEM.SHUTDOWN",
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_8
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "XXdataXX": {"reason": "Server shutting down", "reconnect": True},
+### backend.services.system_broadcaster.xǁSystemBroadcasterǁstop_broadcasting__mutmut_9
+-            "data": {"reason": "Server shutting down", "reconnect": True},
++            "DATA": {"reason": "Server shutting down", "reconnect": True},

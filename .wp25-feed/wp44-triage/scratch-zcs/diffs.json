@@ -1,0 +1,412 @@
+{
+ "ZoneCrossingService._compute_entity_id__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_id__mutmut_6",
+   "diff": "         \"\"\"\n-        enrichment = getattr(detection, \"enrichment_data\", None)\n+        enrichment = getattr(detection, \"enrichment_data\", )\n         if enrichment and isinstance(enrichment, dict):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_id__mutmut_9",
+   "diff": "         enrichment = getattr(detection, \"enrichment_data\", None)\n-        if enrichment and isinstance(enrichment, dict):\n+        if enrichment or isinstance(enrichment, dict):\n             # Check for tracked entity ID from re-identification"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_id__mutmut_24",
+   "diff": "         # Fall back to detection ID\n-        detection_id = getattr(detection, \"id\", None)\n+        detection_id = getattr(detection, \"id\", )\n         if detection_id is not None:"
+  }
+ ],
+ "ZoneCrossingService._compute_entity_type__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_type__mutmut_6",
+   "diff": "         \"\"\"\n-        object_type = getattr(detection, \"object_type\", None)\n+        object_type = getattr(detection, \"object_type\", )\n         if object_type:"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_type__mutmut_16",
+   "diff": " \n-        enrichment = getattr(detection, \"enrichment_data\", None)\n+        enrichment = getattr(detection, \"enrichment_data\", )\n         if enrichment and isinstance(enrichment, dict):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_type__mutmut_19",
+   "diff": "         enrichment = getattr(detection, \"enrichment_data\", None)\n-        if enrichment and isinstance(enrichment, dict):\n+        if enrichment or isinstance(enrichment, dict):\n             entity_type = enrichment.get(\"entity_type\") or enrichment.get(\"class\")"
+  }
+ ],
+ "ZoneCrossingService._get_detection_in_zone__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_get_detection_in_zone__mutmut_4",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_get_detection_in_zone__mutmut_6",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._handle_zone_exit__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_8",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_14",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_15",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_17",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_26",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_27",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_28",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._handle_zone_enter__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_enter__mutmut_4",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_enter__mutmut_12",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_enter__mutmut_14",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._handle_zone_dwell__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_1",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_9",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_14",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_20",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_21",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_22",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_24",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService.process_detection__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_6",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_7",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_8",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_10",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_12",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_13",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_14",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_15",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_16",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_17",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_18",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_22",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_23",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_24",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_31",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_36",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_37",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_39",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_41",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_42",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_43",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_47",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_48",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_49",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_50",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_60",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_63",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_66",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_70",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_71",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_74",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_75",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_84",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_85",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_87",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_104",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_106",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_119",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_126",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_127",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_129",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._emit_zone_enter__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_enter__mutmut_34",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_enter__mutmut_42",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._emit_zone_exit__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_12",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_13",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_16",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_17",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_18",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_19",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_20",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_21",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_22",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_23",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_37",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_59",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._emit_zone_dwell__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_16",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_17",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_18",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_19",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_20",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_21",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_22",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_23",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_27",
+   "diff": ""
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_32",
+   "diff": ""
+  }
+ ],
+ "ZoneCrossingService._emit_websocket_event__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_5",
+   "diff": " \n-            settings = get_settings()\n+            settings = None\n             channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_7",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(None, \"redis_event_channel\", \"hsi:events\")\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_9",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", None)\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_12",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", )\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_15",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", \"XXhsi:eventsXX\")\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_16",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", \"HSI:EVENTS\")\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_22",
+   "diff": "         except Exception as e:\n-            logger.warning(f\"Failed to emit WebSocket event for zone crossing: {e}\")\n+            logger.warning(None)\n "
+  }
+ ]
+}

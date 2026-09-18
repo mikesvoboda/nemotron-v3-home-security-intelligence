@@ -1,0 +1,838 @@
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_4: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -20,7 +20,7 @@
+     self.embedding_model = embedding_model
+ 
+     logger.debug(
+-        "EntityClusteringService initialized with threshold=%s, model=%s",
++        None,
+         similarity_threshold,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_5: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -21,6 +21,6 @@
+ 
+     logger.debug(
+         "EntityClusteringService initialized with threshold=%s, model=%s",
+-        similarity_threshold,
++        None,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_6: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -22,5 +22,5 @@
+     logger.debug(
+         "EntityClusteringService initialized with threshold=%s, model=%s",
+         similarity_threshold,
+-        embedding_model,
++        None,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_7: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -20,7 +20,6 @@
+     self.embedding_model = embedding_model
+ 
+     logger.debug(
+-        "EntityClusteringService initialized with threshold=%s, model=%s",
+         similarity_threshold,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_8: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -21,6 +21,5 @@
+ 
+     logger.debug(
+         "EntityClusteringService initialized with threshold=%s, model=%s",
+-        similarity_threshold,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_9: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -22,5 +22,4 @@
+     logger.debug(
+         "EntityClusteringService initialized with threshold=%s, model=%s",
+         similarity_threshold,
+-        embedding_model,
+-    )
++        )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_10: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -20,7 +20,7 @@
+     self.embedding_model = embedding_model
+ 
+     logger.debug(
+-        "EntityClusteringService initialized with threshold=%s, model=%s",
++        "XXEntityClusteringService initialized with threshold=%s, model=%sXX",
+         similarity_threshold,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_11: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -20,7 +20,7 @@
+     self.embedding_model = embedding_model
+ 
+     logger.debug(
+-        "EntityClusteringService initialized with threshold=%s, model=%s",
++        "entityclusteringservice initialized with threshold=%s, model=%s",
+         similarity_threshold,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ__init____mutmut_12: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -20,7 +20,7 @@
+     self.embedding_model = embedding_model
+ 
+     logger.debug(
+-        "EntityClusteringService initialized with threshold=%s, model=%s",
++        "ENTITYCLUSTERINGSERVICE INITIALIZED WITH THRESHOLD=%S, MODEL=%S",
+         similarity_threshold,
+         embedding_model,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_14: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -51,7 +51,7 @@
+         matched_entity, similarity = matches[0]
+         await self._update_entity_with_detection(
+             entity=matched_entity,
+-            detection_id=detection_id,
++            detection_id=None,
+             timestamp=timestamp,
+             attributes=attributes,
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_15: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -52,7 +52,7 @@
+         await self._update_entity_with_detection(
+             entity=matched_entity,
+             detection_id=detection_id,
+-            timestamp=timestamp,
++            timestamp=None,
+             attributes=attributes,
+         )
+         # Track cameras_seen in entity_metadata (NEM-2453)
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_16: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -53,7 +53,7 @@
+             entity=matched_entity,
+             detection_id=detection_id,
+             timestamp=timestamp,
+-            attributes=attributes,
++            attributes=None,
+         )
+         # Track cameras_seen in entity_metadata (NEM-2453)
+         if matched_entity.entity_metadata is None:
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_24: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -58,7 +58,7 @@
+         # Track cameras_seen in entity_metadata (NEM-2453)
+         if matched_entity.entity_metadata is None:
+             matched_entity.entity_metadata = {}
+-        cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
++        cameras_seen = matched_entity.entity_metadata.get(None, [])
+         if camera_id and camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+             matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_28: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -58,7 +58,7 @@
+         # Track cameras_seen in entity_metadata (NEM-2453)
+         if matched_entity.entity_metadata is None:
+             matched_entity.entity_metadata = {}
+-        cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
++        cameras_seen = matched_entity.entity_metadata.get("XXcameras_seenXX", [])
+         if camera_id and camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+             matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_29: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -58,7 +58,7 @@
+         # Track cameras_seen in entity_metadata (NEM-2453)
+         if matched_entity.entity_metadata is None:
+             matched_entity.entity_metadata = {}
+-        cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
++        cameras_seen = matched_entity.entity_metadata.get("CAMERAS_SEEN", [])
+         if camera_id and camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+             matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_30: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -59,7 +59,7 @@
+         if matched_entity.entity_metadata is None:
+             matched_entity.entity_metadata = {}
+         cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+-        if camera_id and camera_id not in cameras_seen:
++        if camera_id or camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+             matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+             # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_31: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -59,7 +59,7 @@
+         if matched_entity.entity_metadata is None:
+             matched_entity.entity_metadata = {}
+         cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+-        if camera_id and camera_id not in cameras_seen:
++        if camera_id and camera_id in cameras_seen:
+             cameras_seen.append(camera_id)
+             matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+             # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_32: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -60,7 +60,7 @@
+             matched_entity.entity_metadata = {}
+         cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+         if camera_id and camera_id not in cameras_seen:
+-            cameras_seen.append(camera_id)
++            cameras_seen.append(None)
+             matched_entity.entity_metadata["cameras_seen"] = cameras_seen
+             # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+             flag_modified(matched_entity, "entity_metadata")
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_33: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -61,7 +61,7 @@
+         cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+         if camera_id and camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+-            matched_entity.entity_metadata["cameras_seen"] = cameras_seen
++            matched_entity.entity_metadata["cameras_seen"] = None
+             # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_34: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -61,7 +61,7 @@
+         cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+         if camera_id and camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+-            matched_entity.entity_metadata["cameras_seen"] = cameras_seen
++            matched_entity.entity_metadata["XXcameras_seenXX"] = cameras_seen
+             # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_35: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -61,7 +61,7 @@
+         cameras_seen = matched_entity.entity_metadata.get("cameras_seen", [])
+         if camera_id and camera_id not in cameras_seen:
+             cameras_seen.append(camera_id)
+-            matched_entity.entity_metadata["cameras_seen"] = cameras_seen
++            matched_entity.entity_metadata["CAMERAS_SEEN"] = cameras_seen
+             # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_42: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -66,7 +66,7 @@
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+         logger.debug(
+-            "Detection %d matched entity %s (similarity: %.3f)",
++            None,
+             detection_id,
+             matched_entity.id,
+             similarity,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_43: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -67,7 +67,7 @@
+             await self.entity_repository.session.flush()
+         logger.debug(
+             "Detection %d matched entity %s (similarity: %.3f)",
+-            detection_id,
++            None,
+             matched_entity.id,
+             similarity,
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_44: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -68,7 +68,7 @@
+         logger.debug(
+             "Detection %d matched entity %s (similarity: %.3f)",
+             detection_id,
+-            matched_entity.id,
++            None,
+             similarity,
+         )
+         return matched_entity, False, similarity
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_45: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -69,7 +69,7 @@
+             "Detection %d matched entity %s (similarity: %.3f)",
+             detection_id,
+             matched_entity.id,
+-            similarity,
++            None,
+         )
+         return matched_entity, False, similarity
+ 
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_46: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -66,7 +66,6 @@
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+         logger.debug(
+-            "Detection %d matched entity %s (similarity: %.3f)",
+             detection_id,
+             matched_entity.id,
+             similarity,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_47: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -67,7 +67,6 @@
+             await self.entity_repository.session.flush()
+         logger.debug(
+             "Detection %d matched entity %s (similarity: %.3f)",
+-            detection_id,
+             matched_entity.id,
+             similarity,
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_48: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -68,7 +68,6 @@
+         logger.debug(
+             "Detection %d matched entity %s (similarity: %.3f)",
+             detection_id,
+-            matched_entity.id,
+             similarity,
+         )
+         return matched_entity, False, similarity
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_49: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -69,8 +69,7 @@
+             "Detection %d matched entity %s (similarity: %.3f)",
+             detection_id,
+             matched_entity.id,
+-            similarity,
+-        )
++            )
+         return matched_entity, False, similarity
+ 
+     # Step 3: No match - create new entity
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_50: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -66,7 +66,7 @@
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+         logger.debug(
+-            "Detection %d matched entity %s (similarity: %.3f)",
++            "XXDetection %d matched entity %s (similarity: %.3f)XX",
+             detection_id,
+             matched_entity.id,
+             similarity,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_51: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -66,7 +66,7 @@
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+         logger.debug(
+-            "Detection %d matched entity %s (similarity: %.3f)",
++            "detection %d matched entity %s (similarity: %.3f)",
+             detection_id,
+             matched_entity.id,
+             similarity,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_52: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -66,7 +66,7 @@
+             flag_modified(matched_entity, "entity_metadata")
+             await self.entity_repository.session.flush()
+         logger.debug(
+-            "Detection %d matched entity %s (similarity: %.3f)",
++            "DETECTION %D MATCHED ENTITY %S (SIMILARITY: %.3F)",
+             detection_id,
+             matched_entity.id,
+             similarity,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_59: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -79,7 +79,7 @@
+         entity_type=entity_type,
+         embedding=embedding,
+         timestamp=timestamp,
+-        attributes=attributes,
++        attributes=None,
+     )
+     # Initialize cameras_seen in entity_metadata (NEM-2453)
+     if new_entity.entity_metadata is None:
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_68: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -85,7 +85,7 @@
+     if new_entity.entity_metadata is None:
+         new_entity.entity_metadata = {}
+     if camera_id:
+-        new_entity.entity_metadata["cameras_seen"] = [camera_id]
++        new_entity.entity_metadata["XXcameras_seenXX"] = [camera_id]
+         new_entity.entity_metadata["camera_id"] = camera_id
+         # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+         flag_modified(new_entity, "entity_metadata")
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_69: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -85,7 +85,7 @@
+     if new_entity.entity_metadata is None:
+         new_entity.entity_metadata = {}
+     if camera_id:
+-        new_entity.entity_metadata["cameras_seen"] = [camera_id]
++        new_entity.entity_metadata["CAMERAS_SEEN"] = [camera_id]
+         new_entity.entity_metadata["camera_id"] = camera_id
+         # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+         flag_modified(new_entity, "entity_metadata")
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_70: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -86,7 +86,7 @@
+         new_entity.entity_metadata = {}
+     if camera_id:
+         new_entity.entity_metadata["cameras_seen"] = [camera_id]
+-        new_entity.entity_metadata["camera_id"] = camera_id
++        new_entity.entity_metadata["camera_id"] = None
+         # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_71: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -86,7 +86,7 @@
+         new_entity.entity_metadata = {}
+     if camera_id:
+         new_entity.entity_metadata["cameras_seen"] = [camera_id]
+-        new_entity.entity_metadata["camera_id"] = camera_id
++        new_entity.entity_metadata["XXcamera_idXX"] = camera_id
+         # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_72: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -86,7 +86,7 @@
+         new_entity.entity_metadata = {}
+     if camera_id:
+         new_entity.entity_metadata["cameras_seen"] = [camera_id]
+-        new_entity.entity_metadata["camera_id"] = camera_id
++        new_entity.entity_metadata["CAMERA_ID"] = camera_id
+         # Flag JSONB column as modified for SQLAlchemy to detect in-place mutation
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_79: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -91,7 +91,7 @@
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+     logger.debug(
+-        "Detection %d created new entity %s",
++        None,
+         detection_id,
+         new_entity.id,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_80: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -92,7 +92,7 @@
+         await self.entity_repository.session.flush()
+     logger.debug(
+         "Detection %d created new entity %s",
+-        detection_id,
++        None,
+         new_entity.id,
+     )
+ 
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_81: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -93,7 +93,7 @@
+     logger.debug(
+         "Detection %d created new entity %s",
+         detection_id,
+-        new_entity.id,
++        None,
+     )
+ 
+     # Trigger outbound webhooks for ENTITY_DISCOVERED (NEM-3624)
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_82: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -91,7 +91,6 @@
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+     logger.debug(
+-        "Detection %d created new entity %s",
+         detection_id,
+         new_entity.id,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_83: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -92,7 +92,6 @@
+         await self.entity_repository.session.flush()
+     logger.debug(
+         "Detection %d created new entity %s",
+-        detection_id,
+         new_entity.id,
+     )
+ 
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_84: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -93,8 +93,7 @@
+     logger.debug(
+         "Detection %d created new entity %s",
+         detection_id,
+-        new_entity.id,
+-    )
++        )
+ 
+     # Trigger outbound webhooks for ENTITY_DISCOVERED (NEM-3624)
+     await self._trigger_entity_discovered_webhook(new_entity, camera_id)
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_85: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -91,7 +91,7 @@
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+     logger.debug(
+-        "Detection %d created new entity %s",
++        "XXDetection %d created new entity %sXX",
+         detection_id,
+         new_entity.id,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_86: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -91,7 +91,7 @@
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+     logger.debug(
+-        "Detection %d created new entity %s",
++        "detection %d created new entity %s",
+         detection_id,
+         new_entity.id,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_87: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -91,7 +91,7 @@
+         flag_modified(new_entity, "entity_metadata")
+         await self.entity_repository.session.flush()
+     logger.debug(
+-        "Detection %d created new entity %s",
++        "DETECTION %D CREATED NEW ENTITY %S",
+         detection_id,
+         new_entity.id,
+     )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁassign_entity__mutmut_89: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -97,6 +97,6 @@
+     )
+ 
+     # Trigger outbound webhooks for ENTITY_DISCOVERED (NEM-3624)
+-    await self._trigger_entity_discovered_webhook(new_entity, camera_id)
++    await self._trigger_entity_discovered_webhook(new_entity, None)
+ 
+     return new_entity, True, None
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_update_entity_with_detection__mutmut_1: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -17,7 +17,7 @@
+             attributes: Optional new attributes to merge
+         """
+     # Update seen timestamp and increment detection count
+-    entity.update_seen(timestamp)
++    entity.update_seen(None)
+ 
+     # Optionally merge attributes if provided
+     if attributes:
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_create_entity__mutmut_5: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -26,7 +26,7 @@
+         entity_type=entity_type,
+         detection_id=detection_id,
+         embedding=embedding,
+-        model=self.embedding_model,
++        model=None,
+         entity_metadata=attributes,
+     )
+ 
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_create_entity__mutmut_6: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -27,7 +27,7 @@
+         detection_id=detection_id,
+         embedding=embedding,
+         model=self.embedding_model,
+-        entity_metadata=attributes,
++        entity_metadata=None,
+     )
+ 
+     # Ensure timestamps are set correctly
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_create_entity__mutmut_10: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -26,7 +26,6 @@
+         entity_type=entity_type,
+         detection_id=detection_id,
+         embedding=embedding,
+-        model=self.embedding_model,
+         entity_metadata=attributes,
+     )
+ 
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_create_entity__mutmut_11: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -27,8 +27,7 @@
+         detection_id=detection_id,
+         embedding=embedding,
+         model=self.embedding_model,
+-        entity_metadata=attributes,
+-    )
++        )
+ 
+     # Ensure timestamps are set correctly
+     entity.first_seen_at = timestamp
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_2: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -14,7 +14,7 @@
+     try:
+         webhook_service = get_webhook_service()
+         await webhook_service.trigger_webhooks_for_event(
+-            self.entity_repository.session,
++            None,
+             WebhookEventType.ENTITY_DISCOVERED,
+             {
+                 "entity_id": str(entity.id),
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_5: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -26,7 +26,7 @@
+                 else None,
+                 "detection_count": entity.detection_count,
+             },
+-            event_id=str(entity.id),
++            event_id=None,
+         )
+     except Exception as e:
+         # Log but don't fail the main operation if webhook triggering fails
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_9: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -26,8 +26,7 @@
+                 else None,
+                 "detection_count": entity.detection_count,
+             },
+-            event_id=str(entity.id),
+-        )
++            )
+     except Exception as e:
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_12: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -17,7 +17,7 @@
+             self.entity_repository.session,
+             WebhookEventType.ENTITY_DISCOVERED,
+             {
+-                "entity_id": str(entity.id),
++                "entity_id": str(None),
+                 "entity_type": entity.entity_type,
+                 "trust_status": entity.trust_status,
+                 "camera_id": camera_id,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_19: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -21,7 +21,7 @@
+                 "entity_type": entity.entity_type,
+                 "trust_status": entity.trust_status,
+                 "camera_id": camera_id,
+-                "first_seen_at": entity.first_seen_at.isoformat()
++                "XXfirst_seen_atXX": entity.first_seen_at.isoformat()
+                 if entity.first_seen_at
+                 else None,
+                 "detection_count": entity.detection_count,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_20: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -21,7 +21,7 @@
+                 "entity_type": entity.entity_type,
+                 "trust_status": entity.trust_status,
+                 "camera_id": camera_id,
+-                "first_seen_at": entity.first_seen_at.isoformat()
++                "FIRST_SEEN_AT": entity.first_seen_at.isoformat()
+                 if entity.first_seen_at
+                 else None,
+                 "detection_count": entity.detection_count,
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_21: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -22,7 +22,7 @@
+                 "trust_status": entity.trust_status,
+                 "camera_id": camera_id,
+                 "first_seen_at": entity.first_seen_at.isoformat()
+-                if entity.first_seen_at
++                if (entity.first_seen_at) and False
+                 else None,
+                 "detection_count": entity.detection_count,
+             },
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_22: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -22,7 +22,7 @@
+                 "trust_status": entity.trust_status,
+                 "camera_id": camera_id,
+                 "first_seen_at": entity.first_seen_at.isoformat()
+-                if entity.first_seen_at
++                if (entity.first_seen_at) or True
+                 else None,
+                 "detection_count": entity.detection_count,
+             },
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_23: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -24,7 +24,7 @@
+                 "first_seen_at": entity.first_seen_at.isoformat()
+                 if entity.first_seen_at
+                 else None,
+-                "detection_count": entity.detection_count,
++                "XXdetection_countXX": entity.detection_count,
+             },
+             event_id=str(entity.id),
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_24: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -24,7 +24,7 @@
+                 "first_seen_at": entity.first_seen_at.isoformat()
+                 if entity.first_seen_at
+                 else None,
+-                "detection_count": entity.detection_count,
++                "DETECTION_COUNT": entity.detection_count,
+             },
+             event_id=str(entity.id),
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_25: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -26,7 +26,7 @@
+                 else None,
+                 "detection_count": entity.detection_count,
+             },
+-            event_id=str(entity.id),
++            event_id=str(None),
+         )
+     except Exception as e:
+         # Log but don't fail the main operation if webhook triggering fails
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_26: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -31,6 +31,6 @@
+     except Exception as e:
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+-            f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
++            None,
+             extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_27: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,5 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
++            extra=None,
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_29: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,4 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
+-        )
++            )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_30: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,5 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
++            extra={"XXentity_idXX": str(entity.id), "entity_type": entity.entity_type},
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_31: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,5 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
++            extra={"ENTITY_ID": str(entity.id), "entity_type": entity.entity_type},
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_32: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,5 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
++            extra={"entity_id": str(None), "entity_type": entity.entity_type},
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_33: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,5 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
++            extra={"entity_id": str(entity.id), "XXentity_typeXX": entity.entity_type},
+         )
+# backend.services.entity_clustering_service.xǁEntityClusteringServiceǁ_trigger_entity_discovered_webhook__mutmut_34: survived
+--- backend/services/entity_clustering_service.py
++++ backend/services/entity_clustering_service.py
+@@ -32,5 +32,5 @@
+         # Log but don't fail the main operation if webhook triggering fails
+         logger.warning(
+             f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+-            extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
++            extra={"entity_id": str(entity.id), "ENTITY_TYPE": entity.entity_type},
+         )

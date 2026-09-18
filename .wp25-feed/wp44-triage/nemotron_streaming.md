@@ -1,362 +1,130 @@
-# WP4.4 triage dossier — backend/services/nemotron_streaming.py
-Date: 2026-09-18 · Source: mutants/backend/services/nemotron_streaming.py.meta (exit_code 0)
-Mutants in meta: 533 keys · 172 killed · 90 unchecked (in-flight) · **271 survivors**
-Only `x_analyze_batch_streaming` survived (call_llm_streaming fully killed). Diffs extracted by
-block-diffing each `x_analyze_batch_streaming__mutmut_N` copy against `__mutmut_orig` in the mutant
-module (mutmut show not needed). UNVERIFIED throughout — nothing was executed.
+# WP4.4 Triage Dossier - backend/services/nemotron_streaming.py
 
-## Covering test file
-- backend/tests/unit/services/test_nemotron_streaming.py — TestAnalyzeBatchStreaming L628-1320
-  (mutmut-stats tests_by_mangled_function_name: x_analyze_batch_streaming -> 14 tests in that class;
-   nemotron_analyzer.py delegation test in test_nemotron_analyzer.py::test_analyze_batch_streaming_delegates_to_streaming_module)
-- Source: backend/services/nemotron_streaming.py analyze_batch_streaming L120-450.
+- **Generated:** 2026-09-18 (gen-2 queue, FINAL-cache re-tally - fully overwrites any prior version of this dossier)
+- **Survivors:** 333 of 533 keys (0 null, 200 killed, 0 timeout; score 37.5%) - meta: `mutants/backend/services/nemotron_streaming.py.meta`. Reconciliation: `exit_code_by_key` contains exactly 333 exit-0 and 200 exit-1 keys - agrees with the arbiter `/tmp/wp25/final-score.json` figure (333) with no adjustment.
+- **Classification totals:** TEST-GAP 237 / LOW-VALUE 83 / EQUIVALENT 13 (sum 333)
+- **Clusters:** 33 (every survivor assigned exactly once; counts in table sum to 333 - TEST-GAP rows 1-23 = 237, LOW-VALUE rows 24-28 = 83, EQUIVALENT rows 29-33 = 13)
+- **Extracted via:** AST-diff of each `__mutmut_N` body vs its `__mutmut_orig` in `mutants/backend/services/nemotron_streaming.py` - all 533 bodies parsed, all 333 exit-0 keys mapped to non-empty diffs; per-mutant dump kept at `/tmp/wp25/wp44-triage/_ns_gen2_clean.txt`. No tests executed.
+- **Survivor split:** `x_analyze_batch_streaming` 271, `x_call_llm_streaming` 62 (module = 2 functions / 450 lines; clusters are construction-site-shaped because one ~330-line function holds 271 survivors).
 
-## Why so many survive
-The 14 existing tests assert error_code / event_type / event_id / a couple of progress contents and
-2 kwargs (enriched_context, enrichment_result) on the mocked call_llm_streaming. Everything else —
-kwargs piped to collaborators (analyzer is a MagicMock), DB-row columns on the constructed Event,
-the LLMInteraction record, the junction INSERT, accumulated_text, and the `recoverable` flag — is
-executed but never asserted. The mock-everything harness also means arg mutations to collaborators
-survive silently.
+## Covering test files
 
-## Clusters (sum = 271)
+| File | Role |
+|---|---|
+| `backend/tests/unit/services/test_nemotron_streaming.py` | The suite (1453 lines): `TestCallLLMStreaming` :182, `TestAnalyzeBatchStreaming` :628, schema/model_dump tests :104-180 + :1326-1409, source-grep temperature test :1417 |
+| `test_nemotron_analyzer.py`, `test_concurrency_fixes.py`, `api/routes/test_events_routes.py`, `api/routes/test_events_coverage.py` | Adjacent - patch `analyze_batch_streaming`/`call_llm_streaming` wholesale or test the analyzer; none reaches this module's internals |
 
-| # | Cluster (pattern × concern) | N | Class | Example keys (…nemotron_streaming.x_analyze_batch_streaming__mutmut_) |
+Shared weaknesses behind nearly every survivor:
+
+1. **The mock harness hides argument mutations.** The analyzer is a flat `MagicMock` (:35-66); the DB session is a `MagicMock` whose `execute` returns the same canned result for every call (:755, :939) and whose `add` is never inspected; `batch_fetch_detections`, `call_llm_streaming`, and the four metrics calls are patched with `autospec` but asserted only via the events they produce. So every `arg -> None` / keyword-drop / arity mutant in a context fetch (`_get_enriched_context`, `_get_enrichment_result`, `_get_recent_scene_changes`, `get_tuning_context`, `_get_household_context`, `_build_enrichment_snapshot`, `_build_context_sources`, `_check_idempotency`/`_set_idempotency`) runs silently.
+2. **`call_llm_streaming`'s HTTP request is never inspected.** `mock_client.stream` is `MagicMock(return_value=MockStreamCM())` and `httpx.AsyncClient` is patched, but no test reads `mock_client.stream.call_args` (method/URL/json/headers) nor the `timeout=` kwarg. All 62 call-site survivors except the SSE-parse ones live here; the `_build_prompt` call is fully asserted **only for the two enrichment kwargs** (`test_call_llm_streaming_with_enrichment` :559-562).
+3. **Error-event field coverage is `error_code`-only.** `TestAnalyzeBatchStreaming` asserts `event_type` + `error_code` (+ substring messages in 2 tests). `error_message` string mutants and `recoverable` flips survive at every non-timeout error site; only the timeout/connection tests assert message substrings.
+4. **`caplog` is used 0 times in the file** - all 41 log-string/log-extra survivors (rows 24-25) are immune.
+5. **The happy path never exercises defensive defaults.** The LLM always answers and `_parse_llm_response` always returns a complete dict, so the `risk_data.get(key, DEFAULT)` fallbacks (only live when the parse fallback dict fires, where its **inline literals** are asserted at :1166-1169), the completion/idempotency-hit `or`-fallbacks, and the parse-fallback dict's **key names** all stay dead in tests.
+6. **`accumulated_text` is asserted nowhere** although the frontend `useAnalysisStream.ts:214-215` consumes it - the suite checks per-event `content` only.
+
+## Cluster table
+
+Notation: `A#n` = `x_analyze_batch_streaming__mutmut_n`, `C#n` = `x_call_llm_streaming__mutmut_n` (full meta prefix `backend.services.nemotron_streaming.`). Counts sum = 333. "Kill idea" = minimal assertion that flips each mutant red.
+
+### TEST-GAP (237)
+
+| # | Cluster | N | Mutation pattern (source lines) | Example keys | Covering tests miss | Kill idea |
+|---|---|---|---|---|---|---|
+| 1 | C-GAP-LLMREQUEST | 24 | request-plumbing args -> None / kwarg dropped: C#57 `AsyncClient(timeout=None)`; C#58-67 `client.stream()` method/URL/json/headers each None-or-dropped, method mangled; A#220-224,227-230,238-241 the 13 kwargs into `call_llm_streaming` (analyzer, camera_name, isoformat start/end, 3 contexts, detection_dicts -> None/dropped) | C#59, C#57, A#222 | nothing reads `mock_client.stream.call_args` or the AsyncClient ctor kwargs; the analyze-side call is spot-checked only for `enriched_context`/`enrichment_result` (:1055) | assert `AsyncClient(timeout=analyzer._timeout)`; assert `stream('POST', url, json=payload, headers=...)`; assert full `_build_prompt.call_args[1]` -> **Draft T1** |
+| 2 | C-GAP-PAYLOAD-HEADERS | 22 | payload dict L83-90 + headers L92: keys XX-wrapped/UPPER (`prompt`, `temperature`, `top_p`, `max_tokens`, `stop`, `stream`, `Content-Type`); value flips temperature 0.3->1.3, top_p 0.95->1.95, stream True->False; stop tokens case-flipped (never match -> vocab leaks into SSE); `application/json` clobbered; C#29 payload=None | C#34, C#48, C#30 | temperature is locked only by the source-text regex test :1424 - a runtime flip leaves source intact -> survives; payload/headers land in the mocked stream and are never read | capture `payload = mock_client.stream.call_args[1]['json']` in the yields_chunks test; assert all 6 keys + values + headers dict -> **Draft T2** |
+| 3 | C-GAP-BUILDPROMPT | 16 | `_build_prompt(**kwargs)` L68-79 (call site :299 in analyze forwards the same 9): each of camera_name, start_time, end_time, detections_list, camera_health_context, detection_dicts, auto_tuning_context, household_context -> None or kwarg dropped (C#6-9,12-19,22-25) | C#6, C#13 | only enrichment kwargs asserted (:559-562); sanitizes_inputs (:433) patches the sanitizers but asserts call_count, not their return values reaching `_build_prompt` | one assert-every-kwarg pass in the yields_chunks test -> **Draft T2** |
+| 4 | C-GAP-CONTEXT-DEFAULTS | 18 | context fetch prep + args: enrichment_result None-default -> '' (A#122); camera_health/auto_tuning/household context '' -> None/'XXXX' (A#126-127,145-146,165-166) - None flows into `_build_prompt` where prompt-templates may fail or render 'None'; `_get_recent_scene_changes` and `get_tuning_context(session=…, camera_id=…)` args -> None/dropped incl. swap A#131 (session passed as camera_id) and A#147/148 facade-getter/await removed | A#122, A#131, A#148 | the fixture AsyncMocks only 6 analyzer methods; the context fetches are auto-created plain MagicMocks, so `await` on their return raises TypeError and each context's broad try/except swallows it -> the SUCCESS path of all three context fetches runs in no test, whatever the args | give these attrs real AsyncMocks (scene-changes -> [], facade tuner -> 'CTX') + patch `format_camera_health_context`; assert each awaited with its exact args and assert the produced contexts reach `_build_prompt.call_args[1]` -> **Draft T3** |
+| 5 | C-GAP-RECOVERABLE | 13 | `recoverable=False -> True` or kwarg dropped (=default True) on the 5 *fatal* error events: no-redis (A#7,11), batch-not-found (A#49,50), empty-detection-ids (A#64,65), bad-int-ids (A#84,85), no-db-detections (A#97,98); and `recoverable=True -> False` on the 3 LLM-failure events (timeout A#261, connect A#268, server A#283) | A#11, A#261 | tests assert `event_type` + `error_code` only for these sites (message substrings only in timeout/connect tests); pydantic default is True so the kwarg-drop mutants are exact no-op-vs-contract traps: frontend `api.ts:424` reads `recoverable` to decide retry UI | assert `events[0]["recoverable"] is False` in the 5 fatal-error tests and `is True` in the 3 LLM-error tests -> **Draft T4** |
+| 6 | C-GAP-ERRMSG | 4 | user-facing `error_message` strings mangled/case-flipped: "Redis client not initialized" (A#8 - the test only substring-matches "Redis"), "LLM inference failed" x3 variants (A#280-282 - server-error test asserts only error_code) | A#8, A#280 | substrings too loose for A#8; server-error message never asserted at all | tighten: `events[0]["error_message"] == "Redis client not initialized"`; add message equality to the server-error test -> part of **Draft T4** |
+| 7 | C-GAP-IDEMPOTENCY | 6 | idempotency pair args -> None/dropped: `_check_idempotency(batch_id -> None)` (A#13) - a None lookup can return a wrong hit; `_get_existing_event(existing_event_id -> None)` (A#16); `_set_idempotency(None/…, …)` all 4 shapes (A#404-407) - re-analysis of the same batch creates duplicate Events | A#13, A#405 | idempotency tests assert only the *response* of the mocked return, never `call_args` of either mock | `analyzer._check_idempotency.assert_awaited_once_with("test_batch")` in the hit test; `_set_idempotency.assert_awaited_once_with("test_batch", 456)` in the successful-flow test -> **Draft T5** |
+| 8 | C-GAP-IDEM-HITEVENT | 12 | replay of the cached Event: `or`-fallbacks mangled on all 4 completion fields (risk_score 50->51 / `and 50`, risk_level "medium"->"XXmediumXX"/"MEDIUM"/and, summary & reasoning XX/lower/upper + `and`) (A#27-31,33-39) | A#27, A#30 | the hit test (:649) feeds a *fully populated* Event and asserts event_id + summary only - the fallback arms never run | hit-test variant with `Event(id=123, batch_id=..., camera_id=...)` all-fields-None -> assert complete payload == (50, "medium", "No summary available", "No reasoning available") -> **Draft T5** |
+| 9 | C-GAP-CAMERA | 7 | camera lookup + name fallback: `session.execute(select(Camera).where(Camera.id == camera_id))` -> execute(None) / where(None) / select(None) / `!=` flip (A#69-72, wrong camera row or none selected); `camera = camera_result.scalar_one_or_none() -> None` (A#73) and `camera_name = None` / `camera.name if camera and False else camera_id` (A#74-75) - prompt gets "None"/id instead of human name, and `record_event_by_camera` label flips | A#72, A#75 | the session mock returns the same canned result for every query so a mangled/`!=` WHERE is invisible; camera_name is never asserted (it flows only into the mocked call_llm_streaming and the metrics mock) | assert the select's compiled WHERE / `mock_session.execute.call_args` contains a Camera.id criterion; in the successful-flow test assert `_build_prompt.call_args[1]['camera_name'] == 'Test Camera'` -> **Draft T6** |
+| 10 | C-GAP-BATCHFETCH-DETLIST | 4 | `batch_fetch_detections(session -> None, ids)` / `(session, ids -> None)` (A#87-88) and `_format_detections(detections) -> None` / `_format_detections(None)` (A#104-105) - prompt loses the detections list; autospec'd mock accepts anything | A#88, A#104 | no test inspects the batch_fetch call args; `_format_detections` is a MagicMock whose *return* is fed onward but whose *input* is unchecked | `batch_fetch_detections.assert_awaited_once_with(mock_session, [1, 2])` (autospec gives arg-checking for free once asserted); `analyzer._format_detections.assert_called_once_with(sample_detections)` -> **Draft T6** |
+| 11 | C-GAP-ENRICHCACHE-ARGS | 14 | `_get_enriched_context(batch_id, camera_id, int_detection_ids, session)` each arg None/shifted/dropped (A#107-114) and `_get_enrichment_result(batch_id, detections, camera_id=...)` same (A#116-121); A#111 shifts args (session lands in the ids slot) | A#109, A#118 | fixture AsyncMocks return None unconditionally; neither call's args are inspected anywhere | `assert analyzer._get_enriched_context.await_count == 1` + `assert analyzer._get_enriched_context.call_args.args == ("test_batch", "test_camera", [1, 2], mock_session)`; same for `_get_enrichment_result(..., camera_id='test_camera')` -> **Draft T7** |
+| 12 | C-GAP-HH-DICTKEYS | 24 | the `detections_for_household` dict builder L242-263: whole list -> None (A#167); every key XX-wrapped/UPPER (`id`, `object_type`, `confidence`, `file_path`, `bounding_box`, `video_width/height`, `detected_at`, `track_id`, `camera_id`); bbox condition flips `is not None` -> `and False` / `or True` / `is None` (A#178-180) - household enrichment silently loses identity/geometry | A#168, A#179 | success path dead (see row 4 - the household await raises TypeError on a plain MagicMock and the except swallows it), so the builder never even runs; consumer `_get_household_context` is mocked out | one test with `_get_household_context = AsyncMock()` on the fixture + detections with and without bbox -> assert `call_args[0][0]` == the exact 10-key dicts and `bounding_box is None` iff `bbox_x is None` -> **Draft T8** |
+| 13 | C-GAP-HH-FETCHARGS | 5 | `_get_household_context(detections_for_household, enrichment_result)`: whole call removed (A#191), args -> None (A#192-193), first arg dropped/shifted (A#194-195) | A#191, A#193 | fixture has no `_get_household_context` AsyncMock (success path never runs); no args assertion anywhere | add to the fixture + successful-flow variant: `assert analyzer._get_household_context.call_args.args[1] is enrichment_data` and `[0]` non-empty -> **Draft T8** |
+| 14 | C-GAP-DETDICTS | 9 | confidence-quality dicts L274-281: list -> None (A#208), keys XX/UPPER (`confidence`, `class_name`), `or "unknown"` -> `and "unknown"`/`"XXunknownXX"`/`"UNKNOWN"` (A#211-215), **filter flip** `if d.confidence is not None -> is None` (A#216: null-confidence rows enter, good rows drop -> prompt summary inverts) | A#216, A#213 | `detection_dicts` is built unconditionally but only travels into the mocked call_llm_streaming; no test reads it | in the successful-flow test: full `detection_dicts` equality incl. an `object_type=None` row rendering `unknown` and a `confidence=None` row absent -> **Draft T9** |
+| 15 | C-GAP-ACCUMTEXT | 3 | SSE progress contract: `accumulated_text = "" -> "XXXX"` seeds every progress event with garbage (A#218); `accumulated_text += chunk -> = chunk` loses all history (A#242); `accumulated_text=accumulated_text` kwarg dropped -> pydantic default "" (A#247) | A#242, A#218 | success test asserts per-event `content` only; `accumulated_text` asserted nowhere in the file though `useAnalysisStream.ts:214` renders it | `assert events[1]['accumulated_text'] == 'Based on'` (2nd chunk) and `events[3]['accumulated_text'] == 'Based on the analysis'` -> **Draft T10** |
+| 16 | C-GAP-PARSEFALLBACK | 18 | `_parse_llm_response(accumulated_text -> None)` (A#285); the 4 Event-column `.get(key, DEFAULT)` fallbacks L346-349: each default -> None / dropped (=required-None into NOT-NULL-ish columns) / `50->51` / `"medium"->"XXmediumXX"/"MEDIUM"` / summary+reasoning XX/lower/upper (A#326,328,331,333,335,338,339,341,343,346-348,350,352,355-357) | A#285, A#326, A#341 | the happy path's `_parse_llm_response` mock always returns a complete dict so the `.get` defaults never run; the parse-error test asserts the *fallback dict's inline literals* (:1166-1169), not the `.get` defaults; A#285 survives because the parse mock ignores its input | parse-error variant whose `_validate_risk_data` strips keys (`lambda d: {}`) -> Event/complete fall back to 50/"medium"/"No summary"/"No reasoning"; plus in the happy path `assert analyzer._parse_llm_response.call_args.args[0] == 'Based on the analysis'` -> **Draft T11** |
+| 17 | C-GAP-EVENT-CONSTRUCT | 12 | `Event(...)` L341-351 construction: batch_id/camera_id/started_at/ended_at -> None or dropped (A#307-310,316-319,324), `reviewed=False -> None` (A#315) / `-> True` (A#358: event lands pre-"reviewed" -> invisible in review queues), kwarg drop, `session.add(event) -> add(None)` (A#359: no Event persisted, refresh still "succeeds") | A#358, A#359 | `session.add` is a bare MagicMock never inspected; the *constructed* Event object's fields are never asserted (mock refresh only re-stamps id=456) | in the successful-flow test, grab `ev = mock_session.add.call_args_list[0][0][0]`; assert `ev.batch_id/camera_id/started_at/ended_at/reviewed` match inputs; `assert mock_session.add.call_count == 2` (Event + LLMInteraction - see row 27) -> **Draft T12** |
+| 18 | C-GAP-COMPLETE-FALLBACK | 9 | final StreamingCompleteEvent `or`-fallbacks L444-450: `risk_score 50->51`, risk_level/summary/reasoning XX/lower/upper variants | A#432, A#434 | the success test's mock event has all fields set, so the fallback arms never run; completion asserts score/level only when *present* | after refresh, blank the fields (`obj.risk_score=None; obj.summary=None; ...`) -> assert complete payload equals 50/"medium"/"No summary"/"No reasoning" exactly |
+| 19 | C-GAP-JUNCTION | 11 | event_detections junction INSERT L364-374: values-dict keys XX/UPPER (`event_id`, `detection_id` - breaks the bulk INSERT or mismatches columns), `stmt = None` (A#366), `on_conflict_do_nothing(index_elements=None / XX'd / UPPER)` (A#367,370-373 - dedup index gone -> race duplicates), `session.execute(stmt -> None)` (A#374) | A#367, A#370, A#374 | the same permissive session-execute mock returns the canned camera result for *every* query, so a garbage/None junction statement is invisible; NEM-1592/2012/3350 race-safety comment shows this is deliberate contract | assert `mock_session.execute.await_count == 2` and inspect `str(mock_session.execute.call_args_list[1][0][0])` contains `ON CONFLICT` + `(event_id, detection_id)`; assert row dicts via `.compile()` -> **Draft T12** |
+| 20 | C-GAP-BROADCAST | 1 | `_broadcast_event(event) -> _broadcast_event(None)` (A#419): WS clients get a broadcast for a None event | A#419 | broadcast-failure test only asserts completion still happens; the *arg* to the AsyncMock is never checked | `analyzer._broadcast_event.assert_awaited_once()` + `assert call_args[0][0].id == 555` (cheap add-on to the existing failure test) |
+| 21 | C-GAP-SANITIZE | 2 | `sanitize_camera_name(camera_name -> None)` (C#2), `sanitize_detection_description(detections_list -> None)` (C#4) - the injection-sanitization guard is fed None instead of the caller's value, so the prompt's camera/detection slots lose the sanitizer's guarantee entirely | C#2, C#4 | `test_call_llm_streaming_sanitizes_inputs` :433 asserts `assert_called_once()` but not the args (the raw hostile value) nor that sanitized values flow to `_build_prompt` | same test: `mock_sanitize_camera.assert_called_once_with("<script>...")` + `_build_prompt.call_args[1]['camera_name'] == 'sanitized_camera'` -> **Draft T13** |
+| 22 | C-GAP-TRUNCATE | 2 | `_validate_and_truncate_prompt(prompt) -> None` / `-> (None)` (C#26-27): the token-budget guard is bypassed or fed None -> oversized prompts reach the LLM endpoint (context overflow / cost) | C#26, C#27 | `_validate_and_truncate_prompt` is an identity side_effect mock (:45) and no test asserts its call args or that its *result* is what lands in the payload | assert the payload's `prompt` equals the truncator's sentinel return: `analyzer._validate_and_truncate_prompt = MagicMock(return_value='TRUNCATED')` then `json['prompt'] == 'TRUNCATED'` -> **Draft T2** |
+| 23 | C-GAP-CONTENT-XXXX | 1 | `data.get("content", "") -> "XXXX"` (C#88): SSE events *without* a content field (delta-only/heartbeat frames) now yield the literal "XXXX" into the user-visible stream | C#88 | no test feeds a data frame lacking "content" | add `data: {"role":"assistant"}` frame to the malformed-json test and assert it emits nothing -> part of **Draft T14** |
+### LOW-VALUE (83)
+
+| # | Cluster | N | Pattern (functions / keys) | Note |
 |---|---|---|---|---|
-| C1 | Progress event accumulated_text: init `""`→`"XXXX"`, `+= chunk`→`= chunk`, kwarg dropped (L283,300-304) | 3 | TEST-GAP | 218, 242, 247 |
-| C2 | Fatal error yields marked recoverable=True: `recoverable=False` flipped to True or deleted (default True) on no-redis/batch-not-found/no-detections×2/invalid-ids (L127-195) | 10 | TEST-GAP | 7, 64, 85 |
-| C3 | Retryable LLM handlers recoverable: True→False flip (3, real) or True deleted (3, EQUIVALENT — schema default=True, backend/api/schemas/streaming.py:80) (L307-328) | 6 | TEST-GAP | 261, 268, 283 |
-| C4 | Idempotency-hit complete event fallbacks: `or 50`→`and 50`/`or 51`, `or "medium"`→`and`/`"MEDIUM"`/casing, summary/reasoning fallback text (L139-145); test builds all-populated existing Event so fallback branch never runs | 13 | TEST-GAP | 27, 28, 31 |
-| C5 | Event row construction: `batch_id=`/`camera_id=`/`started_at=`/`ended_at=`→None or deleted, `reviewed=` flips (True/None/deleted), `risk_*.get` default tweaks (L341-355) | 29 | TEST-GAP | 307, 315, 335 |
-| C6 | LLMInteraction record + observability builders: snapshot/sources/household args →None/deleted, `if enrichment_result is not None` inverted, LLMInteraction kwargs (L376-432); failures are try/except-swallowed and no test inspects session.add | 29 | TEST-GAP | 388, 393, 403 |
-| C7 | Context kwargs piped to call_llm_streaming at analyze's call site: camera_name/start_time/end_time/detections_list/camera_health_context/detection_dicts/auto_tuning_context/household_context →None or deleted (L287-299) | 13 | TEST-GAP | 220, 227, 238 |
-| C8 | Camera lookup: select(None)/where-flip/scalar→None, `camera.name if camera else camera_id` clobbered; camera_name then flows only into mocked collaborator (L174-176) | 7 | TEST-GAP | 69, 73, 75 |
-| C9 | detections_for_household list-of-dicts: per-key string clobbers (`"XXconfidenceXX"`, UPPER), whole list→None, `if d.bbox_x is not None` flips (L239-271) | 31 | TEST-GAP | 168, 178, 192 |
-| C10 | detection_dicts build: class_name key/default clobbers, `if d.confidence is not None` inverted, whole list→None (L273-281) | 6 | TEST-GAP | 211, 214, 216 |
-| C11 | Junction-table INSERT: values dict keys clobbered, on_conflict index_elements clobbered, stmt→None/execute(None); session.execute fully mocked (L357-374) | 11 | TEST-GAP | 362, 370, 374 |
-| C12 | Idempotency/broadcast collaborator args: `_check_idempotency(None)`, `_get_existing_event(None)`, `_set_idempotency(None, id)`/positional-swap, `_broadcast_event(None)` (L135-136,434,439) | 7 | TEST-GAP | 13, 404, 419 |
-| C13 | Enrichment fetch call args: `_get_enriched_context`/`_get_enrichment_result` positional/kwargs →None/dropped (L202-210) | 15 | TEST-GAP | 107, 116, 122 |
-| C14 | Context-fetch internals: `_get_recent_scene_changes`/`get_tuning_context` args →None/dropped (L212-237) | 11 | TEST-GAP | 128, 147, 149 |
-| C15 | Context seed values `""`→None/`"XXXX"` (camera_health/auto_tuning/household) (L215,226,240) | 7 | TEST-GAP | 126, 145, 165 |
-| C16 | `if detections_data else []` → `if (detections_data) or True else []` — would json.loads(None) crash; no test reaches that corner (L158-160) | 1 | TEST-GAP | 56 |
-| C17 | batch_fetch_detections / _format_detections args →None (L188,200) | 4 | TEST-GAP | 87, 88, 104 |
-| C18 | logger `extra={...}` dict: key clobbers, extra→None/deleted (3 warning blocks, L220-271) | 21 | EQUIVALENT | 134, 140, 143 |
-| C19 | Logger message text: warning/info message strings cased/clobbered/None (L221,235,269,171,442) — pure log text | 14 | EQUIVALENT | 67, 133, 200 |
-| C20 | Parse-fallback dict key clobbers `"risk_score"/"risk_level"` → renamed/UPPER: fallback still yields 50/"medium" via .get defaults — semantically identical (L334-339) | 4 | EQUIVALENT | 289, 290, 293 |
-| C21 | Final complete-event `or`-fallback tweaks (`or 50`→51, `"medium"` casing): unreachable — Event fields always populated from risk_data which always carries all 4 keys (L444-450) | 9 | EQUIVALENT | 432, 437, 439 |
-| C22 | `logger.error(..., exc_info=True)` →False/None/deleted (L322) — traceback capture only | 4 | LOW-VALUE | 269, 270, 273 |
-| C23 | Prometheus call args: observe_ai_request_duration/observe_stage_duration label clobbers, duration→None/`+start` sign flip, record_event_by_camera args (L306,435-437) | 12 | LOW-VALUE | 252, 413, 416 |
-| C24 | SSE error_message user-facing text clobbers ("Redis client not initialized", "LLM inference failed") — tests only substring-assert "Redis" (L130,325) | 4 | LOW-VALUE | 8, 280, 282 |
+| 24 | C-LOW-LOGMSG | 23 | log message strings/args mangled or dropped: the 3 context-fetch `logger.warning("Failed to fetch ...", ...)` sites - message -> None/dropped/XX/lower/UPPER (A#133,136-139,153,156-159,196,199-202); `logger.info(f"Streaming analysis for batch ...") -> None` (A#67); `logger.error(f"Streaming LLM error ...")` msg/`exc_info` mutants (A#269,270,272,273); broadcast-fail warning -> None (A#420); malformed-SSE warning -> None / `[:100] -> [:101]` (C#89,90) | `caplog` appears 0x in the suite; messages are operator-facing only, no consumer parses them - log-text assertions are the classic low-ROI tail |
+| 25 | C-LOW-LOGEXTRA | 18 | `extra={"batch_id": ..., "error": str(e)}` structured-log dict keys XX-wrapped/UPPER, `extra=None`/dropped, `str(e) -> str(None)` at the same 3 context-warning sites (A#134,140-144,154,160-164,197,203-207) | same reason as row 24; no log-schema test exists anywhere in the suite and JSON-handler field names are not a tested contract here |
+| 26 | C-LOW-METRICS | 12 | Prometheus helper args mangled: `observe_ai_request_duration(None/"XXnemotronXX"/"NEMOTRON", None/…+llm_start)` (A#248,249,252-254), `observe_stage_duration("analyze"->None/XX/UPPER, None/…+start)` (A#408,409,412-414), `record_event_by_camera(camera_id/camera_name -> None)` (A#415,416) | the 4 helpers are `patch(..., autospec=True)`ed in every happy-path test but never asserted; label/series-name churn only skews dashboards, not behavior; dashboards are not a tested contract in this repo (no test file asserts metric labels for this module) |
+| 27 | C-LOW-OBSERV | 29 | the entire LLMInteraction observability block L378-430: `_build_enrichment_snapshot`/`_build_context_sources` args -> None/dropped/call removed (A#375-386), `household_matches` default -> "", `is not None -> is None` flip, person/vehicle matches -> None, `or -> and` (A#387-391), `LLMInteraction(...)` ctor -> None + 5 kwargs -> None/dropped, `session.add(None)` (A#392-403) | explicitly declared *optional* by the source itself ("LLMInteraction failures should not roll back Event creation", NEM-4234) and wrapped in its own try/except; every analyzer facade method involved is a MagicMock and `session.add` is never inspected - a full LLMInteraction-field test would be the single most expensive test in the file for debugging-only state; T12's session.add inspection already kills A#392/A#403 (interaction -> None, add(None)) via its add-call-count assert |
+| 28 | C-LOW-JSONLOADS | 1 | `json.loads(detections_data) if detections_data else [] -> if (detections_data) or True else []` (A#56): when Redis stores the literal string "null"/empty-ish... actually only reachable when `detections_data` is falsy-but-not-None (e.g. ""), where json.loads("") raises json.JSONDecodeError *outside* any try/except - a real crash path, but the test that could catch it (`retrieves_detections_from_redis` :1241) returns None for the missing key, not "" | LOW-VALUE not because the crash is unimportant but because the mutation's *distinguishing input* (`""` from Redis) is an unspecified wire format; the None case (test-covered) is unchanged. A guard-hardening fix would be better than a test here |
+### EQUIVALENT (13)
 
-Class totals: TEST-GAP 203 · EQUIVALENT 48 · LOW-VALUE 20 (sum 271).
-TEST-GAP headline: 194 of 203 sit in 8 "plumbing/row/persistence" clusters (C5, C6, C7, C8, C9,
-C13, C14 + C15) that one strengthened success-flow test can mostly absorb; C1-C4, C11 are
-individually sharp gaps.
+| # | Cluster | N | Pattern | Equivalence justification |
+|---|---|---|---|---|
+| 29 | C-EQ-HTTPCASE | 3 | header dict key `Content-Type` -> `content-type` / `CONTENT-TYPE` (C#51,52), value `application/json` -> `APPLICATION/JSON` (C#54) | HTTP header names are case-insensitive by RFC 7230 and httpx normalizes them internally (`Headers` lowercases); MIME media-type values are case-insensitive per spec - the wire behavior is byte-identical after client normalization |
+| 30 | C-EQ-DONEBREAK | 1 | `break` -> `return` on `data: [DONE]` (C#78) | Nothing follows the `async with` blocks in the function body; `return` from inside the generator just ends iteration and unwinds the same context managers `break` would. (Existing test :565 already proves no chunk after [DONE] in *either* form; a post-DONE side effect would need code after the loops, which doesn't exist.) |
+| 31 | C-EQ-CONTENTGET | 2 | `data.get("content", "")` default -> None / kwarg dropped (C#83,85) | The only use is `if content:` - `None`, `""` and a *missing* key are all falsy and produce "skip this frame"; when the key IS present the default is never evaluated. No path can distinguish them. |
+| 32 | C-EQ-RECOVTRUE | 3 | `recoverable=True` kwarg dropped on the 3 LLM-failure error events (A#260 timeout, A#267 connect, A#279 server) | `StreamingErrorEvent.recoverable: bool = Field(default=True)` (`backend/api/schemas/streaming.py:80`) - dropping the kwarg yields the identical dumped dict; contrast row 5 where the drop flips the value against the schema default |
+| 33 | C-EQ-FALLBACKKEYS | 4 | parse-fallback dict **key names** XX-wrapped/UPPER: `"risk_score" -> "XXrisk_scoreXX"` / `"RISK_SCORE"`, `"risk_level" -> "XXrisk_levelXX"` / `"RISK_LEVEL"` (A#289,290,292,293) | the dict is consumed only by the `risk_data.get("risk_score", 50)` / `.get("risk_level", "medium")` calls a few lines below; a mangled key makes `.get` miss and hand back its default, which is **the same value the hit path carries** (50 == 50, "medium" == "medium") - the constructed Event and the emitted complete event are byte-identical either way. Contrast the *value* mutants of these fields (A#28 50->51 etc.), which do change output and sit in row 16 |
 
-## Drafted tests (6) — UNVERIFIED, not yet run red/green
-Target file for all: backend/tests/unit/services/test_nemotron_streaming.py (reuse module fixtures
-`mock_analyzer`, `sample_detections`; append classes). TDD procedure for each: run against the
-mutant copy (or apply the one-line change) → assertion fails; run against original → passes.
+## Drafted kill-tests (serial lane implements; none executed at triage)
 
-### T1 → C1 (+ some C7) — accumulated_text must accumulate
-```python
-class TestProgressAccumulation:
-    @pytest.mark.asyncio
-    async def test_progress_events_accumulate_text(self, mock_analyzer, sample_detections):
-        """StreamingProgressEvent.accumulated_text must grow across chunks."""
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        from backend.models.camera import Camera
-        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
-        mock_camera_result = MagicMock()
-        mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
-        mock_session.execute = AsyncMock(return_value=mock_camera_result)
-        mock_session.add = MagicMock()
-        mock_session.commit = AsyncMock()
+All target `backend/tests/unit/services/test_nemotron_streaming.py`; reuse fixtures `mock_analyzer` (:35), `mock_settings` (:70), `sample_detections` (:78) and the MockStreamCM harness from `test_call_llm_streaming_yields_chunks` (:186). Coverage math: T1(24) + T2(40) + T3(18) + T4(17) + T5(18) + T6(11) + T7(14) + T8(29) + T9(9) + T10(3) + T11(18) + T12(23) + T13(2) + T14(1) = 227 of the 237 TEST-GAP survivors drafted; the remaining 10 (rows 18 and 20) carry self-contained kill-ideas in the table instead of separate drafts.
 
-        async def mock_refresh(obj):
-            from backend.models.event import Event
-            if isinstance(obj, Event):
-                obj.id = 456
+### T1 test_call_llm_streaming_forwards_exact_http_request (row 1, 24 keys)
+- gist: extend the yields_chunks harness. Assert `mock_httpx.assert_called_once_with(timeout=mock_analyzer._timeout)` and that `mock_client.stream` was called once with positional `('POST', 'http://localhost:8091/completion')` and kwargs `json=<payload>, headers={'Content-Type': 'application/json'}`. Analyze-side half: in the successful-flow test, the `mock_llm_stream(*args, **kwargs)` receiver already gets every kwarg - assert `kwargs['camera_name'] == 'Test Camera'`, `kwargs['start_time'] == sample[0].detected_at.isoformat()`, `end_time` likewise, `kwargs['detections_list']` equals the `_format_detections` return, and the three context kwargs are `''`.
 
-        mock_session.refresh = AsyncMock(side_effect=mock_refresh)
+### T2 test_call_llm_streaming_payload_and_prompt_pipeline (rows 2, 3, 22 - 40 keys)
+- gist: set `mock_analyzer._validate_and_truncate_prompt = MagicMock(return_value='TRUNCATED')`, `_get_auth_headers = MagicMock(return_value={'X-Key': 'k'})`; run yields_chunks; `payload = mock_client.stream.call_args[1]['json']`; assert the payload dict is exactly `{'prompt': 'TRUNCATED', 'temperature': 0.3, 'top_p': 0.95, 'max_tokens': 1536, 'stop': ['<|im_end|>', '<|im_start|>'], 'stream': True}` (full-dict equality kills every key-name/value mutant at once, including the source-regex-only temperature guard); assert stream() headers == `{'Content-Type': 'application/json', 'X-Key': 'k'}`; and `mock_analyzer._build_prompt.call_args[1]` equals a fully-spelled 9-kwarg dict (camera_name/start/end/detections_list + the 4 optional contexts as passed in).
 
-        async def mock_llm_stream(*args, **kwargs):
-            yield "Alpha"
-            yield " Beta"
-            yield " Gamma"
+### T3 test_context_fetches_success_paths (row 4, 18 keys)
+- gist: successful-flow variant that gives the fixture real success mocks: `mock_analyzer._get_recent_scene_changes = AsyncMock(return_value=[])`, a facade mock (`mock_analyzer._get_facade.return_value.get_prompt_auto_tuner.return_value.get_tuning_context = AsyncMock(return_value='TUNE')`), `format_camera_health_context` patched to return `'HEALTH'`; assert each await happened with its exact args (`(camera_id, session)`, kwargs `session=session, camera_id=camera_id`), and the `mock_llm_stream` kwargs receiver asserts `camera_health_context == 'HEALTH'`, `auto_tuning_context == 'TUNE'` (kills the ''-defaults and None-swaps). enrichment_tracking path: `EnrichmentTrackingResult(data=EnrichmentResult())` -> kwargs `enrichment_result` is not None; plain-None tracking -> is None (kills A#122).
 
-        with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session, autospec=True),
-            patch("backend.services.nemotron_streaming.batch_fetch_detections", return_value=sample_detections, autospec=True),
-            patch("backend.services.nemotron_streaming.call_llm_streaming", side_effect=mock_llm_stream, autospec=True),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
-        ):
-            events = []
-            async for event in analyze_batch_streaming(
-                analyzer=mock_analyzer, batch_id="test_batch", camera_id="test_camera", detection_ids=[1, 2]
-            ):
-                events.append(event)
+### T4 test_error_events_carry_contract_fields (rows 5, 6 - 17 keys)
+- gist: add `assert events[0]["recoverable"] is False` to the no-redis (:632), batch-not-found (:677), no-detections (:694), invalid-ids (:712) and no-db-detections (:743) tests; tighten no-redis to `events[0]["error_message"] == "Redis client not initialized"`; add `assert events[0]["recoverable"] is True` and message-equality (`f"LLM timeout: {exc}"` substring "timeout" already ok; server: `== "LLM inference failed"`) to the three LLM-error tests (:786/:833/:881).
 
-        progress = [e for e in events if e["event_type"] == "progress"]
-        assert [p["content"] for p in progress] == ["Alpha", " Beta", " Gamma"]
-        assert progress[0]["accumulated_text"] == "Alpha"
-        assert progress[1]["accumulated_text"] == "Alpha Beta"
-        assert progress[2]["accumulated_text"] == "Alpha Beta Gamma"
-```
-Kills `+= chunk`→`= chunk` (progress[1] == " Beta"), init "XXXX" (progress[0] == "XXXXAlpha"),
-dropped accumulated_text kwarg (None != "Alpha").
+### T5 test_idempotency_pair_and_replay_defaults (rows 7, 8 - 18 keys)
+- gist: (a) in the idempotency-hit test (:649) add `mock_analyzer._check_idempotency.assert_awaited_once_with("test_batch")` and `_get_existing_event.assert_awaited_once_with(123)`; (b) new variant where `_get_existing_event` returns `Event(id=123, batch_id="b", camera_id="c")` (risk_score/risk_level/summary/reasoning all None) -> assert the complete event is exactly `{event_id:123, risk_score:50, risk_level:"medium", summary:"No summary available", reasoning:"No reasoning available"}`; (c) in successful_flow add `mock_analyzer._set_idempotency.assert_awaited_once_with("test_batch", 456)`.
 
-### T2 → C2 + C3 — recoverable flag per error class
-```python
-class TestErrorRecoverability:
-    @pytest.mark.asyncio
-    async def test_fatal_errors_are_not_recoverable(self, mock_analyzer):
-        """Config/data errors must mark recoverable=False (schema default is True)."""
-        mock_analyzer._redis = None
-        events = [e async for e in analyze_batch_streaming(analyzer=mock_analyzer, batch_id="b")]
-        assert events[0]["recoverable"] is False
+### T6 test_camera_row_used_for_prompt_and_query (rows 9, 10 - 11 keys)
+- gist: successful_flow asserts `analyzer._build_prompt.call_args[1]['camera_name'] == 'Test Camera'` (kills A#73-75 name fallout); add a camera-missing variant (`scalar_one_or_none -> None`) asserting `camera_name == 'test_camera'` (kills the `and False` arm A#75); assert `batch_fetch_detections.assert_awaited_once_with(mock_session, [1, 2])` (autospec'd - kills A#87,88) and `analyzer._format_detections.assert_called_once_with(sample_detections)` (kills A#104,105); camera-WHERE: assert the first `session.execute` call's statement compiles to contain `cameras.id =` (kills the `!=` flip A#72 and `where(None)` A#70; None-statement mutants already raise and are covered by existing tests).
 
-    @pytest.mark.asyncio
-    async def test_retryable_llm_errors_are_recoverable(self, mock_analyzer, sample_detections):
-        """Timeout/connect/server LLM failures must mark recoverable=True."""
-        for exc in (httpx.TimeoutException("t"), httpx.ConnectError("c"), RuntimeError("s")):
-            mock_session = MagicMock()
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-            mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
-            with (
-                patch("backend.services.nemotron_streaming.get_session", return_value=mock_session, autospec=True),
-                patch("backend.services.nemotron_streaming.batch_fetch_detections", return_value=sample_detections, autospec=True),
-                patch("backend.services.nemotron_streaming.call_llm_streaming", side_effect=exc, autospec=True),
-            ):
-                events = [e async for e in analyze_batch_streaming(
-                    analyzer=mock_analyzer, batch_id="test_batch", camera_id="test_camera", detection_ids=[1, 2]
-                )]
-            assert events[0]["event_type"] == "error"
-            assert events[0]["recoverable"] is True
-```
-Kills the 10 False→True/deleted fatal mutants and the 3 True→False retryable flips.
+### T7 test_enrichment_cache_lookups_exact_args (row 11, 14 keys)
+- gist: successful_flow adds `a = mock_analyzer._get_enriched_context.call_args; assert a.args == ("test_batch", "test_camera", [1, 2], mock_session)` and `b = mock_analyzer._get_enrichment_result.call_args; assert b.args == ("test_batch", sample_detections) and b.kwargs == {"camera_id": "test_camera"}`. (Plain `call_args` equality also catches the arg-shift mutants A#111/119.)
 
-### T3 → C4 — idempotency-hit fallbacks on sparse existing event
-```python
-class TestIdempotencyHitFallbacks:
-    @pytest.mark.asyncio
-    async def test_sparse_existing_event_uses_fallbacks(self, mock_analyzer):
-        """Idempotency hit on an Event with NULL risk fields must emit documented fallbacks."""
-        mock_analyzer._check_idempotency = AsyncMock(return_value=123)
-        sparse = Event(id=123, batch_id="test_batch", camera_id="test_camera",
-                       risk_score=None, risk_level=None, summary=None, reasoning=None)
-        mock_analyzer._get_existing_event = AsyncMock(return_value=sparse)
+### T8 test_household_payload_exact_dict (rows 12, 13 - 29 keys)
+- gist: successful-flow variant with `_get_household_context = AsyncMock(return_value='HH')` on the fixture, `_get_enrichment_result` returning a tracking result, and one detection given `bbox_x/bbox_y/bbox_width/bbox_height` + `video_width/video_height/track_id`, the other `bbox_x=None`; capture `hh_arg = mock_analyzer._get_household_context.call_args`; assert `hh_arg[0][0]` equals the exact 10-key dicts in order (`id/object_type/confidence/file_path/bounding_box/video_width/video_height/detected_at/track_id/camera_id`, bbox dict only for the first), `hh_arg[0][1] is enrichment_data` (kills A#193 vs fixture None-default), and the run's stream kwargs carry `household_context == 'HH'` (kills A#191 + the ''/XXXX defaults A#165,166). One dict-equality assert kills all 24 key mutants and both bbox-condition flips.
 
-        events = [e async for e in analyze_batch_streaming(analyzer=mock_analyzer, batch_id="test_batch")]
-        assert len(events) == 1
-        assert events[0]["event_type"] == "complete"
-        assert events[0]["risk_score"] == 50
-        assert events[0]["risk_level"] == "medium"
-        assert events[0]["summary"] == "No summary available"
-        assert events[0]["reasoning"] == "No reasoning available"
-```
-Kills or→and (and yields None/False), or 50→51, casing/clobbered fallbacks. Note: needs
-`Event(...)` with nullable columns to be accepted by the model; if risk_score is NOT NULL, build
-with `risk_score=0` — then `0 or 50`→`0 and 50` and `or 51` both still die. (UNVERIFIED which.)
+### T9 test_detection_dicts_confidence_quality (row 14, 9 keys)
+- gist: successful_flow using sample_detections PLUS a 3rd synthetic Detection `id=3, object_type=None, confidence=0.5` and a 4th `id=4, object_type='dog', confidence=None`; the `mock_llm_stream` receiver asserts `kwargs['detection_dicts'] == [{'confidence': 0.95, 'class_name': 'person'}, {'confidence': 0.88, 'class_name': 'car'}, {'confidence': 0.5, 'class_name': 'unknown'}]`. The absent 4th row kills the filter flip (A#216); full dict equality kills all 8 key/name mutants at once (row 14).
 
-### T4 → C5 + C12 (+ C6 partly) — persisted Event row + idempotency/broadcast call args
-```python
-class TestPersistedEventRow:
-    @pytest.mark.asyncio
-    async def test_event_row_and_side_effects_populated(self, mock_analyzer, sample_detections):
-        """Event columns and idempotency/broadcast args must reflect the batch inputs."""
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        from backend.models.camera import Camera
-        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_camera)))
-        mock_session.add = MagicMock()
-        mock_session.commit = AsyncMock()
+### T10 test_progress_events_accumulate (row 15, 3 keys)
+- gist: in successful_flow extend the existing per-event asserts: `assert [e['accumulated_text'] for e in events[:4]] == ['Based', 'Based on', 'Based on the', 'Based on the analysis']`. One comprehension kills the seed mutant (A#218), the `+=` -> `=` mutant (A#242) and the dropped kwarg (A#247 -> pydantic default '').
 
-        async def mock_refresh(obj):
-            from backend.models.event import Event
-            if isinstance(obj, Event):
-                obj.id = 456
+### T11 test_parse_input_and_missing_key_defaults (row 16, 18 keys)
+- gist: (a) in the parse-error test add `assert mock_analyzer._parse_llm_response.call_args.args[0] == 'Invalid JSON'` (both chunks accumulated - kills A#285); (b) new variant: `_parse_llm_response` returns `{}` and `_validate_risk_data` passes through -> Event + complete fall back through `.get(key, DEFAULT)`: assert complete fields are 50 / "medium" / "No summary" / "No reasoning" (kills the remaining 17 default mutants A#326,328,331,333,335,338,339,341,343,346-348,350,352,355-357 at once; distinct from the existing fallback-literals test which asserts the *dict's* inline values).
 
-        mock_session.refresh = AsyncMock(side_effect=mock_refresh)
+### T12 test_event_and_junction_persistence (rows 17, 19 - 23 keys; side-kills A#392/A#403 of row 27)
+- gist: successful_flow adds: `ev = mock_session.add.call_args_list[0][0][0]`; assert `ev.batch_id == 'test_batch'`, `ev.camera_id == 'test_camera'`, `ev.started_at/ended_at` == sample min/max datetimes, `ev.reviewed is False` (kills A#307-310,315-319,324,358,359); `stmt2 = mock_session.execute.await_args_list[1].args[0]` (2nd execute = junction after the camera select); assert `str(stmt2)` contains `ON CONFLICT DO NOTHING` and the parameter names/values include `event_id`/`detection_id` (kills A#366,367,370-374; the values-dict key mutants A#362-365 are caught by compiling the insert and checking the parameter names/values contain the real ids).
 
-        async def mock_llm_stream(*args, **kwargs):
-            yield "ok"
+### T13 test_sanitizers_receive_raw_and_sanitized_flows_through (row 21, 2 keys)
+- gist: in test_call_llm_streaming_sanitizes_inputs add `mock_sanitize_camera.assert_called_once_with("<script>alert('xss')</script>")`, `mock_sanitize_detection.assert_called_once_with("<img src=x onerror=alert(1)>")`, and `_build_prompt.call_args[1]['camera_name'] == 'sanitized_camera'` + `['detections_list'] == 'sanitized_detections'`.
 
-        from backend.models.event import Event as EventModel
-        with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session, autospec=True),
-            patch("backend.services.nemotron_streaming.batch_fetch_detections", return_value=sample_detections, autospec=True),
-            patch("backend.services.nemotron_streaming.call_llm_streaming", side_effect=mock_llm_stream, autospec=True),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
-        ):
-            events = [e async for e in analyze_batch_streaming(
-                analyzer=mock_analyzer, batch_id="test_batch", camera_id="test_camera", detection_ids=[1, 2]
-            )]
+### T14 test_content_less_frames_ignored (row 23, 1 key)
+- gist: add `data: {"role": "assistant"}` (no content key) to the malformed-json sse_lines; `chunks == ["Valid"]` still holds and no "XXXX" appears. Pairs with the existing empty-content test; together they pin the `get("content", <falsy>)` contract.
 
-        added = [c.args[0] for c in mock_session.add.call_args_list]
-        event = next(a for a in added if isinstance(a, EventModel))
-        assert event.batch_id == "test_batch"
-        assert event.camera_id == "test_camera"
-        assert event.started_at == sample_detections[0].detected_at
-        assert event.ended_at == sample_detections[1].detected_at
-        assert event.reviewed is False
-        assert events[-1]["event_type"] == "complete"
-        mock_analyzer._check_idempotency.assert_awaited_once_with("test_batch")
-        mock_analyzer._set_idempotency.assert_awaited_once_with("test_batch", 456)
-        mock_analyzer._broadcast_event.assert_awaited_once_with(event)
-```
-Kills batch_id/camera_id/started_at/ended_at→None/deleted, reviewed True/None/deleted, and the
-7 C12 arg mutants. (started_at/ended_at equality holds since analyze passes detection min/max
-through; if isoformat round-trip in the mocked flow loses tz, compare `.isoformat()` strings.)
+## Notes
 
-### T5 → C6 — LLMInteraction record content
-```python
-class TestLLMInteractionRecord:
-    @pytest.mark.asyncio
-    async def test_llm_interaction_captured_with_full_response(self, mock_analyzer, sample_detections):
-        """An LLMInteraction mirroring prompt outputs must be added even though failures are swallowed."""
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        from backend.models.camera import Camera
-        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_camera)))
-        mock_session.add = MagicMock()
-        mock_session.commit = AsyncMock()
-
-        async def mock_refresh(obj):
-            from backend.models.event import Event
-            if isinstance(obj, Event):
-                obj.id = 456
-
-        mock_session.refresh = AsyncMock(side_effect=mock_refresh)
-        sentinel_snap = {"snap": True}
-        sentinel_src = {"sources": True}
-        mock_analyzer._build_enrichment_snapshot = MagicMock(return_value=sentinel_snap)
-        mock_analyzer._build_context_sources = MagicMock(return_value=sentinel_src)
-
-        async def mock_llm_stream(*args, **kwargs):
-            yield "Hello"
-            yield " world"
-
-        with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session, autospec=True),
-            patch("backend.services.nemotron_streaming.batch_fetch_detections", return_value=sample_detections, autospec=True),
-            patch("backend.services.nemotron_streaming.call_llm_streaming", side_effect=mock_llm_stream, autospec=True),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
-        ):
-            async for _ in analyze_batch_streaming(
-                analyzer=mock_analyzer, batch_id="test_batch", camera_id="test_camera", detection_ids=[1, 2]
-            ):
-                pass
-
-        from backend.models.llm_interaction import LLMInteraction
-        added = [c.args[0] for c in mock_session.add.call_args_list]
-        lli = next(a for a in added if isinstance(a, LLMInteraction))
-        assert lli.event_id == 456
-        assert lli.raw_response == "Hello world"
-        assert lli.enrichment_snapshot == sentinel_snap
-        assert lli.context_sources == sentinel_src
-        assert lli.household_matches is None
-```
-Kills `raw_response=None`/dropped (survivors 400s range), enrichment_snapshot/context_sources→None,
-`event_id=event.id`→None/deleted, `if enrichment_result is not None` inversion (no-op here;
-pair with the enrichment variant by re-running with an EnrichmentTrackingResult whose
-person_household_matches is non-empty and asserting household_matches["persons"]).
-
-### T6 → C7 + C8 + C10 (+ C15) — full kwargs contract into call_llm_streaming
-```python
-class TestLLMCallContextPlumbing:
-    @pytest.mark.asyncio
-    async def test_llm_call_receives_built_context(self, mock_analyzer, sample_detections):
-        """Every context the analyzer builds must reach call_llm_streaming unchanged."""
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        from backend.models.camera import Camera
-        mock_camera = Camera(id="test_camera", name="Front Door", folder_path="/test/path")
-        mock_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_camera)))
-        mock_session.add = MagicMock()
-        mock_session.commit = AsyncMock()
-
-        async def mock_refresh(obj):
-            from backend.models.event import Event
-            if isinstance(obj, Event):
-                obj.id = 456
-
-        mock_session.refresh = AsyncMock(side_effect=mock_refresh)
-
-        health_fmt = "HEALTH-CTX"
-        mock_analyzer._get_recent_scene_changes = AsyncMock(return_value=["sc"])
-        tuner = MagicMock()
-        tuner.get_tuning_context = AsyncMock(return_value="TUNING-CTX")
-        facade = MagicMock()
-        facade.get_prompt_auto_tuner = MagicMock(return_value=tuner)
-        mock_analyzer._get_facade = MagicMock(return_value=facade)
-        mock_analyzer._get_household_context = AsyncMock(return_value="HOUSE-CTX")
-        mock_analyzer._get_enriched_context = AsyncMock(return_value={"prev": 1})
-
-        captured = {}
-
-        async def mock_llm_stream(*args, **kwargs):
-            captured.update(kwargs)
-            yield "ok"
-
-        import backend.services.nemotron_streaming as ns
-        with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session, autospec=True),
-            patch("backend.services.nemotron_streaming.batch_fetch_detections", return_value=sample_detections, autospec=True),
-            patch.object(ns, "call_llm_streaming", side_effect=mock_llm_stream, autospec=True),
-            patch("backend.services.prompts.format_camera_health_context", return_value=health_fmt),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
-            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
-        ):
-            async for _ in analyze_batch_streaming(
-                analyzer=mock_analyzer, batch_id="test_batch", camera_id="test_camera", detection_ids=[1, 2]
-            ):
-                pass
-
-        assert captured["camera_name"] == "Front Door"                      # kills C8 camera=None
-        assert captured["start_time"] == sample_detections[0].detected_at.isoformat()
-        assert captured["end_time"] == sample_detections[1].detected_at.isoformat()
-        assert captured["detections_list"] == mock_analyzer._format_detections.return_value
-        assert captured["enriched_context"] == {"prev": 1}
-        assert captured["camera_health_context"] == health_fmt              # kills C7/C15 None/clobber
-        assert captured["auto_tuning_context"] == "TUNING-CTX"
-        assert captured["household_context"] == "HOUSE-CTX"
-        assert captured["detection_dicts"] == [
-            {"confidence": 0.95, "class_name": "person"},
-            {"confidence": 0.88, "class_name": "car"},
-        ]                                                                    # kills C10 confidence-filter inversion & dicts→None
-```
-Note: format_camera_health_context is imported inside the function, so patch at its defining
-module path (`backend.services.prompts.format_camera_health_context`) — matches NEM-3012 import
-style at L213. Sanitizer passthrough: `_build_prompt`/sanitize are mocked or identity in the
-analyzer mock; `mock_analyzer._format_detections` returns a fixed string that must appear as
-detections_list (kills `detections_list = None`).
-
-## Notes for WP4.4
-- C18/C19/C20/C21 (48) are EQUIVALENT: log text/extra dicts, fallback values identical to .get
-  defaults, unreachable fallbacks. No test worth writing.
-- C22/C23/C24 (20) LOW-VALUE: exc_info, Prometheus labels/durations, message casing. Optionally
-  add a metrics-label assertion later; not worth mutant pressure now.
-- The 90 `null` (unchecked) keys in the meta may shift totals when the live run finishes;
-  re-fold counts before consuming this feed.
-- Drafted tests assume `Event` model accepts risk=None on construction (T3). If the column is
-  NOT NULL at model level, adjust as noted inline. UNVERIFIED — not executed per run constraints.
+- **Reconciliation:** the meta `exit_code_by_key` holds exactly 533 keys (333× exit 0, 200× exit 1, 0 null) - the survivor count needed no adjustment against the 333 arbiter figure. All 333 exit-0 keys carried a non-empty body diff, so nothing is "unchecked/in-flight".
+- **Success-path blindness is the headline.** `_get_recent_scene_changes`, the auto-tuner facade chain and `_get_household_context` are NOT in the `mock_analyzer` fixture; as auto-created MagicMocks their awaits raise TypeError and each broad `except Exception` swallows it - so no unit test ever runs the success path of the three context fetches (rows 4, 12, 13 = 47 survivors). T3/T8 turn these into three AsyncMock attrs on the fixture; that single fixture change re-activates this whole dead region.
+- **Full-dict-equality asserts are the efficient weapon here:** payload (T2), household dicts (T8), detection_dicts (T9), accumulated list (T10), fallback-None complete event (T5b/T11b) each kill 9-24 mutants in one assert because every surviving mutant in those clusters changes *some* entry of a constructed dict.
+- **The source-text temperature test (:1424) is a paper tiger** - it greps the module source and cannot see runtime payload mutants (C#34 survives behind it). T2's runtime equality assert supersedes it; keep both.
+- **pydantic default coupling:** `recoverable: bool = Field(default=True)` makes kwarg-drop a *no-op* on LLM-failure sites (row 32 EQUIVALENT) but a *True-flip* on fatal sites (row 5 TEST-GAP). Future triage of error-event kwargs should always check the schema default first.
+- **LOW-VALUE rationale is uniform:** `caplog` = 0 uses in the suite (rows 24-25), metrics label churn has no dashboard-test contract in-repo (row 26), LLMInteraction is source-declared optional debug state (row 27, NEM-4234 comment), and A#56's distinguishing input ("" from Redis) is unspecified wire format (row 28).
+- **Adjacent suites do not rescue these paths:** `test_nemotron_analyzer.py` mocks the same analyzer helpers for the *non-streaming* analyzer; `test_events_routes/coverage.py` only route-test with `analyze_batch_streaming` patched away - none of the 333 survivors is covered there (verified by grep).

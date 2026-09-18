@@ -1,69 +1,65 @@
 import json, re, difflib
 
-MUT = "/agents/agent-nemo2/workspace/mutants/backend/services/dedupe.py"
-with open(MUT) as f:
-    lines = f.readlines()
+MUT='/agents/agent-nemo2/workspace/mutants/backend/services/vision_extractor.py'
+lines=open(MUT).read().split('\n')
 
-def sig_end(i, n=6):
-    for j in range(i, min(i+n, len(lines))):
-        s = lines[j].rstrip()
-        if s.endswith(':') and s.count('(') <= s.count(')'):
-            return j
-    return None
+def_re=re.compile(r'^(\s*)(?:async\s+)?def (\S+?)\s*[\(:]')
+defs={}
+for i,l in enumerate(lines):
+    m=def_re.match(l)
+    if m and '__mutmut_' in m.group(2):
+        defs[m.group(2)]=(i, len(m.group(1)))
 
-funcs = {}
-def_changes = {}
-i = 0
-N = len(lines)
-def_re = re.compile(r'^\s*(async\s+)?def (x\S*__mutmut_(?:orig|\d+))\b')
-while i < N:
-    m = def_re.match(lines[i])
-    if m:
-        name = m.group(2)
-        def_line = lines[i].strip()
-        indent = len(lines[i]) - len(lines[i].lstrip())
-        se = sig_end(i)
-        if se is None:
-            i += 1; continue
-        body = []
-        j = se + 1
-        while j < N:
-            ln = lines[j]
-            if ln.strip() == "":
-                body.append(ln); j += 1; continue
-            if len(ln) - len(ln.lstrip()) <= indent:
-                break
-            body.append(ln[indent:])
-            j += 1
-        funcs[name] = body
-        def_changes.setdefault(name, []).append(def_line)
-        i = j
-    else:
-        i += 1
+def body(name):
+    i,ind=defs[name]
+    # skip past signature: find first line after def ending with ':' at signature level
+    j=i+1
+    # the def line itself may end with ':' ; else advance until a line rstrip endswith ':' and next line is indented deeper or empty
+    if not lines[i].rstrip().endswith(':'):
+        while j<len(lines) and not lines[j].rstrip().endswith(':'):
+            j+=1
+        j+=1
+    out=[]
+    while j<len(lines):
+        l=lines[j]
+        if l.strip()=='':
+            out.append(l); j+=1; continue
+        cur=len(l)-len(l.lstrip())
+        if cur<=ind: break
+        out.append(l); j+=1
+    while out and out[-1].strip()=='': out.pop()
+    return out
 
-with open("/agents/agent-nemo2/workspace/mutants/backend/services/dedupe.py.meta") as f:
-    meta = json.load(f)
-surv = sorted([k for k,v in meta["exit_code_by_key"].items() if v == 0])
+meta=json.load(open('/agents/agent-nemo2/workspace/mutants/backend/services/vision_extractor.py.meta'))
+surv=[k for k,v in meta['exit_code_by_key'].items() if v==0]
 
-out = []
-for key in surv:
-    tail = key.split(".")[-1]
-    origname = re.sub(r"__mutmut_\d+$", "__mutmut_orig", tail)
-    if tail not in funcs or origname not in funcs:
-        out.append((key, "MISSING", ""))
-        continue
-    a, b = funcs[origname], funcs[tail]
-    diff = list(difflib.unified_diff(a, b, lineterm="", n=1))
-    removed = [l[1:].rstrip("\n") for l in diff if l.startswith('-') and not l.startswith('---')]
-    added   = [l[1:].rstrip("\n") for l in diff if l.startswith('+') and not l.startswith('+++')]
-    # also compare def lines
-    dl_orig = def_changes.get(origname, [''])[0]
-    dl_mut  = def_changes.get(tail, [''])[0]
-    if dl_orig != dl_mut and dl_orig:
-        removed.append('DEF: '+dl_orig); added.append('DEF: '+dl_mut)
-    out.append((key, " | ".join(x.strip() for x in removed), " | ".join(x.strip() for x in added)))
+result=[]
+for key in sorted(surv, key=lambda k:(k.split('__mutmut_')[0], int(k.split('__mutmut_')[-1]))):
+    rest=key[len('backend.services.vision_extractor.'):]
+    m=re.match(r'x(.+)__mutmut_(\d+)$', rest)
+    fn, num = m.group(1), m.group(2)
+    vname='x'+fn+'__mutmut_'+num
+    oname='x'+fn+'__mutmut_orig'
+    if vname not in defs or oname not in defs:
+        result.append((fn,num,'MISSING')); continue
+    ob=body(oname); vb=body(vname)
+    sm=difflib.SequenceMatcher(None, ob, vb)
+    changes=[]
+    for tag,i1,i2,j1,j2 in sm.get_opcodes():
+        if tag=='equal': continue
+        o=' | '.join(s.strip() for s in ob[i1:i2])
+        v=' | '.join(s.strip() for s in vb[j1:j2])
+        changes.append((o,v))
+    result.append((fn,num,changes))
 
-with open("/tmp/wp25/wp44-triage/diffs.txt","w") as f:
-    for key, rm, ad in out:
-        f.write(f"KEY {key}\n  - {rm}\n  + {ad}\n")
-print("wrote", len(out), "diffs; blank:", sum(1 for _,r,a in out if not r.strip() and not a.strip()))
+with open('/tmp/wp25/wp44-triage/diffs.txt','w') as f:
+    for fn,num,changes in result:
+        if changes=='MISSING':
+            f.write(f'### {fn} #{num} MISSING\n'); continue
+        if not changes:
+            f.write(f'### {fn} #{num} NO-DIFF (identical body)\n'); continue
+        for o,v in changes:
+            f.write(f'### {fn} #{num}\n- {o}\n+ {v}\n')
+missing=[r for r in result if r[2]=='MISSING']
+nodiff=[r for r in result if r[2]==[]]
+print('total',len(result),'missing',len(missing),'nodiff',len(nodiff))

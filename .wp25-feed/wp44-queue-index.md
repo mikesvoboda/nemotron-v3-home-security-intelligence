@@ -962,3 +962,270 @@ aggregate: gpu_monitor/pipeline_workers/prompts sit at 71–74% TEST-GAP
 (the kill-test list is real), batch_aggregator at 63% EQUIVALENT. Dossiers:
 .wp25-feed/wp44-triage/*.md (UNVERIFIED — drafting only; verification is the
 serial lane).
+
+## WAVE 56 + 57 (GEN-2 RE-TALLY) — FOLD 2026-09-18
+
+Wave 56 (mid-tail) + nemotron_streaming redo + wave 57 (upper-mid). Fold
+source: workflow journals' structured results (primary channel), every module
+sum-checked against the FINAL arbiter (/tmp/wp25/final-score.json) BEFORE
+folding — 16/16 OK. nemotron_streaming needed a redo: the on-disk gen-1
+dossier was run6-in-flight (271 survivors + "90 unchecked"), and the workflow
+agent died twice on StructuredOutput-only failures; re-dispatched as a
+dossier-first direct agent with the arbiter numbers pinned in-prompt — new
+dossier reconciles 333/533 with zero adjustment (meta exit-code census agrees).
+
+| Module | Surv | G | E | L | Drafts |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| redis_json | 338 | 205 | 100 | 33 | 6 |
+| cleanup_service | 348 | 162 | 96 | 90 | 6 |
+| performance_collector | 341 | 258 | 80 | 3 | 6 |
+| baseline | 369 | 346 | 23 | 0 | 6 |
+| webhook_service | 571 | 388 | 160 | 23 | 6 |
+| export_service | 398 | 226 | 34 | 138 | 6 |
+| redis_streams | 429 | 238 | 24 | 167 | 6 |
+| nemotron_streaming | 333 | 237 | 13 | 83 | 14 |
+| **W56 TOTAL** | **3,127** | **2,060** | **530** | **537** | **56** |
+| container_discovery | 696 | 647 | 38 | 11 | 6 |
+| routes/system | 638 | 515 | 65 | 58 | 6 |
+| florence_client | 629 | 377 | 67 | 185 | 6 |
+| clip_client | 613 | 197 | 125 | 291 | 6 |
+| event_broadcaster | 590 | 155 | 292 | 143 | 6 |
+| vision_extractor | 457 | 296 | 50 | 111 | 6 |
+| file_watcher | 327 | 90 | 229 | 8 | 6 |
+| system_broadcaster | 324 | 97 | 190 | 38 | 7 |
+| **W57 TOTAL** | **4,274** | **2,374** | **1,056** | **845** | **49** |
+
+MEASURE — gen-2 tallied through wave 57: 11,370 + 3,127 + 4,274 = **18,771
+survivors** across 24 modules; G 10,445 (55.6%) / E 4,779 (25.5%) / L 3,548
+(18.9%); **195 drafted kill-tests** (90 + 56 + 49). Wave-57 shares 55.5/24.7/
+19.8 — TEST-GAP climbs as module weight drops (the log-heavy titans inflated
+E in wave 55); the EQUIVALENT-swell-with-weight finding from wave 55 holds as
+a SHAPE statement, not an aggregate law: file_watcher (70% E, fs-event glue)
+and system_broadcaster (59% E) vs container_discovery at **93% TEST-GAP
+(647/696) — the purest kill-target found in the program**: zero tests call
+build_service_configs at all (mutmut's 66 "covering tests" are transitive
+import artifacts), so six drafted tests cover ~600 survivors. routes/system
+515 G confirms the 638-survivor route module is worth lane time. Head of the
+serial lane unchanged: enrichment_pipeline metrics-label snapshot (534
+mutants/test). Dossiers .wp25-feed/wp44-triage/*.md — UNVERIFIED drafting;
+verification is the serial lane, one pytest job at a time.
+
+## WAVE 58 (GEN-2 NEW TIER, FIRST EIGHT) — FOLD 2026-09-18
+
+First eight NEW (never-tallied) modules, ~95 survivors each, dispatched 13:5x;
+workflow `wf_bfa427c6-4e0` completed, 8/8 agents, 8/8 arbiter sum-checks OK
+(journal survivors == arbiter survived == cluster-table sum, per module).
+
+| module | surv | G | E | L | drafts |
+|---|---|---|---|---|---|
+| image_quality_loader | 97 | 41 | 5 | 51 | 6 |
+| orchestrator/models | 97 | 95 | 2 | 0 | 5 |
+| zone_crossing_service | 97 | 66 | 24 | 7 | 6 |
+| container_orchestrator | 96 | 58 | 9 | 11+1 n/c | 9 |
+| gender_classifier_loader | 96 | 73 | 5 | 18 | 5 |
+| privacy_masking_service | 96 | 75 | 18 | 3 | 7 |
+| approach_vector_service | 95 | 76 | 17 | 2 | 6 |
+| service_managers | 94 | 13 | 29 | 52 | 6 |
+| **W58 TOTAL** | **768** | **497** | **109** | **144+1 n/c** | **50** |
+
+Reconciliation notes: (1) image_quality_loader — journal cluster math said
+G40/E5/L52; the dossier's own Classification-totals line says G41/E5/L51
+(C1,4,5,6,7,8,9,11 = G) — folded to the DOSSIER (artifact-of-record), sum 97
+holds either way. (2) container_orchestrator — cluster table header "96 =
+58+9+9+11+5+1+2+1" vs journal 58/9/29: journal G/E agree with the dossier's
+biggest cells (58 G, 9 E); the L remainder (29) is cluster-table arithmetic
+(9+11+5+1+2+1=29) — journal's E count is the outlier ONLY if read as E9, and
+both channels agree G=58; folded G58/E9/L29. (3) service_managers dossier
+Totals table gives 13G/29E/52L (journal agrees). (4) No draft-count channel
+split: journal len(drafted_tests) == per-dossier draft sections == 50.
+
+MEASURE — gen-2 cumulative through wave 58: 18,771 + 768 = **19,539 survivors**
+across 32 modules; G 10,445 + 497 = **10,942** (56.0%) / E 4,779 + 109 =
+**4,888** (25.0%) / L 3,548 + 145 = **3,693** (18.9%); **245 drafted kill-tests**
+(195 + 50). NEW-TIER shape at ~95-survivor weight: TEST-GAP dominates even
+harder (64.7% G here vs 55.6% cumulative) — thin modules are untested, not
+log-heavy; orchestrator/models 95/97 G and gender_classifier_loader 73/96 G
+confirm. service_managers inverts (13 G / 29 E / 52 L) — health-check plumbing
+whose wrong kwargs are invisible behind mocked httpx (drafted tests target
+exactly that). Head of the serial lane: container_discovery FULL-MODULE KILL
+CENSUS running (scripts/.wp44-killcount.py, JSONL /tmp/wp25/wp44-kills/) —
+first end-to-end "drafted → shipped → measured kills" number in the program.
+Dossiers .wp25-feed/wp44-triage/*.md — UNVERIFIED drafting until the serial
+lane lands.
+
+## WAVE 59 (GEN-2 NEW TIER, MODULES 9-16) — FOLD 2026-09-18
+
+Next eight NEW modules (686 est. survivors, 83-91 each); workflow
+wf_89a30df9-5ae, 8/8 agents; arbiter sum-checks survivors 8/8 OK
+(journal survivors_total == FINAL arbiter per module).
+
+| module | surv | G | E | L | drafts |
+|---|---|---|---|---|---|
+| fashion_clip_loader | 91 | 61 | 4 | 26 | 6 |
+| detector_registry | 89 | 45 | 43 | 1 | 6 |
+| health_service_registry | 88 | 75 | 13 | 0 | 6 |
+| ocr_service | 88 | 47 | 17 | 24 | 7 |
+| calibration_monitor | 87 | 39 | 7 | 41 | 6 |
+| health_event_emitter | 86 | 33 | 24 | 29 | 6 |
+| trend_service | 86 | 42 | 3 | 41 | 6 |
+| gpu_detection_service | 83 | 51 | 23 | 9 | 10 |
+| **W59 TOTAL** | **698** | **393** | **134** | **171** | **51** |
+
+Reconciliation: detector_registry journal cluster SUBTOTALS summed 93 vs
+arbiter 89 (journal G49); the dossier's own Totals line reconciles 45/43/1
+= 89 with a per-key exactly-once coverage row — fold takes the dossier
+(machine recount of its cluster table agrees; the journal's StructuredOutput
+re-typed four switch_detector-cluster rows into two buckets). All other 7
+modules: journal cluster sums == arbiter, no split.
+
+MEASURE — gen-2 cumulative through wave 59: 19,539 + 698 = **20,237
+survivors** across 40 modules; G 11,335 (56.0%) / E 5,022 (24.8%) / L 3,864
+(19.1%); **296 drafted kill-tests** (245 + 51). NEW-tier shape holds: 56.3% G
+in-wave; health_service_registry 75/88 G and fashion_clip_loader 61/91 G
+(model-loader twins follow the gender/image-quality pattern — happy path
+never runs); detector_registry INVERTS to E-heavy (43/89) — registry glue
+behind mocks. Serial lane: container_discovery census ~17% probed (83 killed
+of 116) at 10.2 s/probe, ETA ~98 min from 14:4x; orchestrator batch (9 tests)
+authored, red-proof queued behind it.
+
+## WAVE 60b (straggler) — FOLD 2026-09-18
+
+inference_semaphore 77 survivors (arbiter ✓; dossier Totals 12 G / 56 E / 9 L,
+per-cluster sums verified ✓✓), 5 drafts. Journal == dossier, no split. E-heavy
+(72.7%) — semaphore timing/await glue behind fakes, the service_managers
+pattern again; its 12 G are the acquire/release contract mutants.
+
+MEASURE — gen-2 cumulative: 20,771 + 77 = **20,848 survivors** across 48
+modules; G 11,636 (55.8%) / E 5,271 (25.3%) / L 3,925 (18.8%); **343 drafted
+kill-tests**. NEW tier remaining after wave 61 dispatch: ~65 modules /
+~1,800 survivors.
+
+## WAVE 61a (GEN-2 NEW TIER) — FOLD 2026-09-18
+
+Seven of eight dispatched modules (zone_service's agent died without output —
+re-dispatched as a DIRECT dossier-first agent with arbiter numbers pinned, the
+nemotron_streaming precedent; its fold lands as 61b).
+
+| module | surv | G | E | L | drafts |
+|---|---|---|---|---|---|
+| pet_classifier_loader | 72 | 34 | 2 | 36 | 5 |
+| ai_fallback | 70 | 32 | 35 | 3 | 6 |
+| queue_status_service | 69 | 50 | 12 | 7 | 6 |
+| websocket_service | 69 | 9 | 19 | 41 | 5 |
+| routes/logs | 62 | 57 | 2 | 3 | 6 |
+| job_log_emitter | 60 | 21 | 31 | 8 | 6 |
+| line_zone_service | 59 | 25 | 34 | 0 | 6 |
+| **W61a TOTAL** | **461** | **228** | **135** | **98** | **34** |
+
+Reconciliation: routes/logs journal cluster math said G58 with sum 63 (+1 vs
+arbiter 62); the dossier's OWN programmatic partition gives 57/2/3 = 62 ✔ —
+fold takes the dossier. All other 6: journal == dossier == arbiter.
+
+MEASURE — gen-2 cumulative through 61a: 20,848 + 461 = **21,309 survivors**
+across 55 modules; G 11,864 (55.7%) / E 5,406 (25.4%) / L 4,023 (18.9%)
+[16-row residual = the program's honest unclassified remainder, carried since
+wave 58's +1 n/c and the count-vs-classification channel splits — recorded,
+never re-typed]; **377 drafted kill-tests** (343 + 34). Shape: routes/logs
+57/62 G — a whole FastAPI route module essentially untested; websocket_service
+inverts to 41/69 L (log-heavy broadcaster twin). Serial-lane live: census past
+half, kill-test commits (container_discovery batch first) land on completion.
+
+## WAVE 61b (zone_service) — FOLD 2026-09-18
+
+zone_service 59 survivors (arbiter ✓ 455k/59s/514, 88.52%): journal and
+dossier agree **G40/E17/L2 = 59 ✔**, 22 drafts. Fold note (honest): wave 61's
+workflow was STILL RUNNING when 61a was folded — the zone agent had not yet
+flushed to journal.jsonl, and a premature direct-agent redo was dispatched,
+then stopped when the workflow's own result landed. The dossier on disk is the
+workflow agent's (mtime matches workflow completion; totals agree with its
+journal result; the redo never wrote it). Lesson recorded: a live workflow's
+missing module is IN FLIGHT, not dead — the nemotron_streaming redo precedent
+applies only to a COMPLETED workflow with an absent result.
+
+MEASURE — gen-2 cumulative through 61: 21,309 + 59 = **21,368 survivors** / 56
+modules; G 11,904 (55.7%) / E 5,423 / L 4,025; **399 drafted kill-tests**
+(377 + 22 — zone_service's 22-draft suite is the densest single-module draft
+set in the program, arithmetic cluster per test). NEW tier remaining: **65
+modules / 1,882 survivors** (recounted after commit — the fold's rough ~56 /
+~1,200 estimate undercounted by 9 modules / ~700; corrected here per the
+never-re-type rule: this line IS the recount).
+
+## WAVE 62a (GEN-2 NEW TIER) — FOLD 2026-09-18
+
+Eight dispatched; SEVEN folded. depth_calibration_service REJECTED at sum-check:
+journal clusters summed 60 vs arbiter 57 (double-typed rows) AND the agent wrote
+no dossier to disk — no artifact-of-record to reconcile against, so the journal
+numbers could not be trusted even after excluding rows. Direct redo dispatched
+(read-only agent, dossier target unchanged). The other seven passed journal-vs-
+arbiter sum-checks and journal-vs-dossier reconciliation:
+
+onvif            57 survivors  18G/0E/39L   6 drafts   (log-heavy route twin; L onvif
+                                                  cluster is logger-args only — 3 of the
+                                                  57 were caught only because HTTPException
+                                                  detail differs — the e→None cluster is TEST-GAP)
+camera_status    57 survivors  49G/1E/7L    6 drafts   (second route-like G-heavy twin)
+feedback_proc    56 survivors  43G/11E/2L   7 drafts
+entity_recog     56 survivors  30G/6E/20L   4 drafts
+model_mgmt       54 survivors  37G/16E/1L   9 drafts   (densest draft ratio in wave)
+alert_dedup      52 survivors  44G/8E/0L    5 drafts   (zero L — pure-logic module)
+auth_service     52 survivors  29G/7E/16L   6 drafts
+
+MEASURE — wave 62a: 384 survivors, G 250 (65.1%) / E 49 / L 85, 43 drafts.
+Gen-2 cumulative through 62a: **21,752 survivors / 63 modules**; G 12,154 /
+E 5,472 / L 4,110; **442 drafted kill-tests** (399 + 43). NOTE the carried
+16-unit gap: the pre-62 cumulative G+E/L sums 21,352 vs survivor 21,368 —
+inherited from an earlier fold's double-typed rows that passed its own
+sum-check; disclosed, not re-typed per the reconcile rule.
+NEW tier remaining (dossier-presence recount at fold time): **58 modules /
+1,498 survivors** — the ≥50 band is nearly exhausted: after depth_calibration's
+redo lands, the biggest untouched is 50 (evaluation_queue, face_detector,
+job_progress_reporter). Remaining ~14 light waves. Shape holds G-heavy ~65% in
+the tail — gen-2's cheap wins are thinning; per-test draft yield is the
+measured currency now (442 drafts, zero landed kills until the serial lane
+proves them).
+Serial-lane live: census 91% killed through ~460 probes; kill-test commits land
+on its completion.
+
+## WAVE 62b (depth_calibration_service, direct redo) — FOLD 2026-09-18
+
+Redo agent (post-rejection) delivered a clean partition: 57 survivors
+(meta exit_code==0 cross-check vs arbiter: exact), **G 32 / E 7 / L 18 — sum
+57**, machine-verified non-overlapping; dossier on disk; 14 drafts. Prior-
+rejection failure modes both addressed: stale .spans offsets discarded in
+favor of per-mutant AST-segment diffs; every key mapped to exactly one
+cluster. Judgment calls documented in-dossier (warning-category EQUIVALENTs
+true by Python default; endpoint-tie bracket shifts equivalent on all
+validation-legal inputs; one load_8 key flagged as the single TEST-GAP flip
+if caplog-policing is ever valued).
+
+MEASURE — gen-2 cumulative through 62b: **21,809 survivors / 64 modules**;
+G 12,186 (55.9%) / E 5,479 / L 4,128; **456 drafted kill-tests** (442 + 14).
+NEW tier remaining: **57 modules / 1,441 survivors** (dossier-presence recount;
+wave 63's eight in-flight modules still counted as remaining until dossiers
+land). DECIDE: a rejected triage gets a direct-agent redo with the rejection
+reasons named in the prompt — the redo's own machine-checks (57/57 exact
+partition) are what make it foldable.
+
+## WAVE 63 (GEN-2 NEW TIER) — FOLD 2026-09-18
+
+Eight modules (survivors 42-50 band), all arbiter sum-checks OK, all eight
+dossiers present and reconciled to journal:
+
+orphan_scanner   48 survivors  29G/1E/18L   6 drafts
+rtsp_test        46 survivors  39G/0E/7L    6 drafts   (third route-like G-heavy twin)
+job_progress     50 survivors   6G/42E/2L   5 drafts   (E-heavy: progress-throttle cosmetics)
+summary_parser   49 survivors  37G/12E/0L   6 drafts
+face_detector    50 survivors  29G/12E/9L   6 drafts
+evaluation_queue 50 survivors  13G/37E/0L   4 drafts   (E-heavy twin of jpr)
+audit            42 survivors  34G/7E/1L    6 drafts
+plate_detector   46 survivors  32G/10E/4L   8 drafts
+
+MEASURE — wave 63: 381 survivors, G 219 (57.5%) / E 121 / L 41, 47 drafts.
+Gen-2 cumulative through 63: **22,190 survivors / 72 modules**; G 12,405
+(55.9%) / E 5,600 / L 4,169; **503 drafted kill-tests** — a half-thousand
+drafts milestone, zero of them measured-killed yet (serial lane + new parallel
+lane now working the proof). NEW tier remaining: **49 modules / 1,060
+survivors** (dossier-presence recount). Parallel census lane LIVE on exactly
+those 49 (7 workers, owner-approved carve-out; 8-module triage/wave cadence
+now runs against a shrinking untouched set — gen-2 triage waves are nearly
+done with their founding purpose once this band's dossiers land).

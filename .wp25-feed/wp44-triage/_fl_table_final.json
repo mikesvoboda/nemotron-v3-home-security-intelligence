@@ -1,0 +1,281 @@
+{
+ "MET-pipeline_error-label wrong on non-extract endpoints": {
+  "count": 111,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::batch_extract#30",
+   "::FlorenceClient::batch_extract#31",
+   "::FlorenceClient::batch_extract#32"
+  ],
+  "note": "record_pipeline_error('<label>') string mutated to None/XX-labelXX/UPPER on ocr, ocr_with_regions, detect, dense_caption, describe_regions, phrase_grounding, detect_security_objects, batch_extract and _check_circuit_breaker. TestMetricsRecording (test_florence_client.py:1107-1236) asserts labels for EXTRACT paths only; per-endpoint labels never asserted."
+ },
+ "PAY payload/encoder clobber (all endpoints)": {
+  "count": 54,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::batch_extract#11",
+   "::FlorenceClient::batch_extract#12",
+   "::FlorenceClient::batch_extract#13"
+  ],
+  "note": "payload dict -> None, key 'image'/'prompt'/'regions'/'phrases'/'items' -> XX..XX/UPPER or removed, image_b64 -> None, encode arg -> None. HTTP Request Verification tests (test_florence_client.py:1240-1330) check payload only for extract/ocr/detect/ocr_with_regions/dense_caption/describe_regions/phrase_grounding basic keys; batch_extract + detect_security_objects payloads NEVER asserted; value correctness (decodable base64, as_dict regions) never asserted -> XXkeyXX/UPPER survive everywhere."
+ },
+ "ERR raise-site original_error kwarg removed": {
+  "count": 28,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::batch_extract#36",
+   "::FlorenceClient::dense_caption#105",
+   "::FlorenceClient::dense_caption#77"
+  ],
+  "note": "raise FlorenceUnavailableError(msg, original_error=e) -> original_error arg deleted. Tests assert message text only, never .original_error / __cause__ on client-raised errors (the 4 direct-construction tests at :181-210 do not exercise raise sites)."
+ },
+ "ERR original_error=e -> None": {
+  "count": 28,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::batch_extract#34",
+   "::FlorenceClient::dense_caption#103",
+   "::FlorenceClient::dense_caption#75"
+  ],
+  "note": ".original_error becomes None; message text still interpolates {e}. Real but a field nobody's client-side code reads; would be killed by the same drafted cause-assertion as above."
+ },
+ "DUR duration_ms arithmetic clobbered (log-feed only)": {
+  "count": 46,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::batch_extract#9",
+   "::FlorenceClient::dense_caption#62",
+   "::FlorenceClient::dense_caption#64"
+  ],
+  "note": "duration_ms = int((time.time()-start)*1000) -> None / /1000 / +start / *1001. value feeds only logger.debug + logger.error extra={} \u2014 no metric, no return."
+ },
+ "DUR ai_duration clobbered (observe_ai_request_duration feed)": {
+  "count": 9,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::batch_extract#22",
+   "::FlorenceClient::dense_caption#27",
+   "::FlorenceClient::describe_regions#26"
+  ],
+  "note": "ai_duration = time.time() - ai_start_time mutated per endpoint (9 methods); value is the observation passed to observe_ai_request_duration. extract's test asserts isinstance(args[1], float) (:1111-1126) which survives /1000 and None; other endpoints never assert the duration arg."
+ },
+ "CBINIT breakers-dict endpoint KEY mutated": {
+  "count": 12,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::__init__#112",
+   "::FlorenceClient::__init__#113",
+   "::FlorenceClient::__init__#128"
+  ],
+  "note": "_breakers dict key 'ocr_with_regions'/'dense_caption'/'describe_region'/'phrase_grounding'/'detect_security_objects'/'batch_extract' -> XX..XX/UPPER: that endpoint silently falls back to the extract breaker, breaking isolation. Isolation test (:1416) exercises only extract/ocr/detect."
+ },
+ "CBINIT breakers share _cb_config kwarg removed": {
+  "count": 16,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::__init__#101",
+   "::FlorenceClient::__init__#107",
+   "::FlorenceClient::__init__#109"
+  ],
+  "note": "CircuitBreaker(name=..., config=_cb_config) -> config=None/absent -> breaker uses builtin defaults (threshold 5/30s/3 instead of settings 10/60s/3). Only the _circuit_breaker (extract) alias config is asserted (:1469-1474)."
+ },
+ "CBINIT breaker name= mutated": {
+  "count": 27,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::__init__#102",
+   "::FlorenceClient::__init__#103",
+   "::FlorenceClient::__init__#106"
+  ],
+  "note": "CircuitBreaker name -> None/XX/UPPER; name only labels Prometheus circuit-breaker gauges + one init log line."
+ },
+ "CBK breaker-endpoint arg mutated at call sites": {
+  "count": 53,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::_check_circuit_breaker#6",
+   "::FlorenceClient::_check_circuit_breaker#7",
+   "::FlorenceClient::_check_circuit_breaker#8"
+  ],
+  "note": "_check_circuit_breaker('<ep>')/_get_breaker('<ep>') -> None/XX/UPPER inside every endpoint method, plus _check_circuit_breaker default endpoint. Wrong arg routes success/failure recording to the extract breaker: endpoint never opens its own breaker and is tripped by unrelated failures. Isolation test covers extract/ocr/detect only."
+ },
+ "CBQ breaker-state lookup mutations": {
+  "count": 3,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::get_circuit_breaker_state#1",
+   "::FlorenceClient::_get_breaker#2",
+   "::FlorenceClient::_get_breaker#4"
+  ],
+  "note": "get_circuit_breaker_state endpoint-is-None flip (named endpoint returns worst-state) and _get_breakers fallback default -> None/removed (AttributeError for unknown endpoints). No test asserts state for a named endpoint or unknown-endpoint fallback."
+ },
+ "HDR correlation headers dropped on POST/GET": {
+  "count": 21,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::batch_extract#23",
+   "::FlorenceClient::batch_extract#26",
+   "::FlorenceClient::batch_extract#29"
+  ],
+  "note": "headers=self._get_headers() -> None/absent on check_health GET and every endpoint POST. W3C trace-context (NEM-3147) silently lost; no test asserts the headers value is passed (only presence of the 'headers' key for health :1314-1329)."
+ },
+ "CFG httpx.Timeout/Limits clobbered in __init__": {
+  "count": 19,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::__init__#164",
+   "::FlorenceClient::__init__#166",
+   "::FlorenceClient::__init__#175"
+  ],
+  "note": "connect/read/write/pool= settings.* -> None (client silently unbounded/default httpx timeout), timeout=self._timeout removed, Limits max/keepalive mutated. test_init_timeout_configuration asserts only `is not None` (:265-270); test_http_connection_pooling checks limits for a different construction path."
+ },
+ "CFG circuit-breaker settings defaults mutated": {
+  "count": 13,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "::FlorenceClient::__init__#57",
+   "::FlorenceClient::__init__#59",
+   "::FlorenceClient::__init__#62"
+  ],
+  "note": "getattr(settings,'florence_cb_*',10/60.0/3) default+obj mutated; only bites when settings lacks the attr. test_circuit_breaker_uses_config_settings asserts the alias via fixture-provided values, never the defaults. NOTE: surviving members only tweak the getattr DEFAULT / swap the object where Settings (pydantic) always defines the field (config.py:2052-2069) \u2014 the default branch is dead; object->None variants were killed by :1469. Relabeled EQUIVALENT."
+ },
+ "MET florence_task label/task_type derivation": {
+  "count": 15,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::describe_regions#66",
+   "::FlorenceClient::describe_regions#67",
+   "::FlorenceClient::describe_regions#68"
+  ],
+  "note": "record_florence_task('<ep>') labels on non-extract endpoints mutated + extract's prompt->task_type strip/split/startswith/\"extract\" fallback mutated. record_florence_task NEVER asserted anywhere; task_type wrong for non-< prompts."
+ },
+ "MET observe_ai_request_duration service label": {
+  "count": 12,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::dense_caption#28",
+   "::FlorenceClient::dense_caption#32",
+   "::FlorenceClient::dense_caption#33"
+  ],
+  "note": "observe_ai_request_duration('florence_dense_caption'|'florence_ocr_regions'|'florence_describe_region'|'florence_phrase_grounding',...) -> None/XX/UPPER. Tests assert args[0] for florence/florence_ocr/florence_detect only (:1111-1158)."
+ },
+ "PARSE response field defaults mutated (describe_regions)": {
+  "count": 9,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::describe_regions#43",
+   "::FlorenceClient::describe_regions#47",
+   "::FlorenceClient::describe_regions#49"
+  ],
+  "note": "CaptionedRegion(caption=d.get('caption',''), bbox=d.get('bbox',[])) defaults/keys -> None/''-swap/UPPER: missing-key rows become caption=None/bbox=None. Existing 'missing fields' tests cover ocr_with_regions/detect/dense_caption only (test_florence_client.py:751,887,1021)."
+ },
+ "ST 5xx boundary >=500 flipped on 3 endpoints": {
+  "count": 6,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::dense_caption#86",
+   "::FlorenceClient::dense_caption#87",
+   "::FlorenceClient::ocr_with_regions#86"
+  ],
+  "note": "if status_code >= 500 -> >500 / >=501 in ocr_with_regions, dense_caption, phrase_grounding: a 500 response is treated as client error (returns [] instead of raising + breaker failure). 5xx tests for those 3 use 502/503 only; extract has the dedicated 500 case (:448)."
+ },
+ "URL endpoint path arg mutated for batch/security post": {
+  "count": 4,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::batch_extract#24",
+   "::FlorenceClient::batch_extract#27",
+   "::FlorenceClient::detect_security_objects#20"
+  ],
+  "note": "post URL f'{base}/batch-extract' / f'{base}/detect_security_objects' -> None/removed: request goes nowhere. No test calls batch_extract or detect_security_objects against the mock client at all (batch only exercised via test_vision_extractor)."
+ },
+ "URL base_url init rstrip/gateway-default tweaks": {
+  "count": 5,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "::FlorenceClient::__init__#14",
+   "::FlorenceClient::__init__#18",
+   "::FlorenceClient::__init__#24"
+  ],
+  "note": "rstrip('/')->rstrip('XX/XX') strips same-or-more from real URLs (no trailing X); getattr 'use_ai_gateway' default False->None/True is dead (Settings always defines the field). Gateway tests keep passing."
+ },
+ "LOG logger call argument -> None/removed": {
+  "count": 25,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "::FlorenceClient::__init__#185",
+   "::FlorenceClient::batch_extract#10",
+   "::FlorenceClient::check_health#2"
+  ],
+  "note": "logger.debug/warning/info/error(msg) arg -> None or call body deleted: log text only; return values and control flow untouched."
+ },
+ "LOG logger message text swaps (XX/UPPER/lower)": {
+  "count": 22,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "::FlorenceClient::check_health#3",
+   "::FlorenceClient::check_health#4",
+   "::FlorenceClient::check_health#5"
+  ],
+  "note": "pure message-string rewrites on logger.* calls."
+ },
+ "LOGEXC exc_info kwarg mutated": {
+  "count": 28,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::check_health#13",
+   "::FlorenceClient::check_health#14",
+   "::FlorenceClient::check_health#16"
+  ],
+  "note": "exc_info=True->None/False/removed on error logs: traceback capture in logs only; nobody asserts logging internals."
+ },
+ "LOGEXC extra={} log metadata mutated": {
+  "count": 24,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::extract#101",
+   "::FlorenceClient::extract#102",
+   "::FlorenceClient::extract#120"
+  ],
+  "note": "extra={'duration_ms':...,'status_code':...} -> None/removed/key-mutated on logger.error calls in extract's error paths: diagnostic metadata only."
+ },
+ "MSG raise/log message text mutated": {
+  "count": 29,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::batch_extract#33",
+   "::FlorenceClient::batch_extract#35",
+   "::FlorenceClient::dense_caption#106"
+  ],
+  "note": "f-string messages (raise messages and remaining log args) -> None/removed/arg-swaps. pytest.raises match= strings still hold for the paths they cover ('circuit breaker is open' survives via regex match; full-text identity never asserted)."
+ },
+ "ENC base64/mode-membership mutated": {
+  "count": 5,
+  "classification": "TEST-GAP",
+  "examples": [
+   "::FlorenceClient::_encode_image_to_base64#27",
+   "::FlorenceClient::_encode_image_to_base64#5",
+   "::FlorenceClient::_encode_image_to_base64#6"
+  ],
+  "note": "'LA'/'P' -> 'la'/'p'/'XXLAXX' in mode-conversion membership (PIL modes are case-sensitive: LA/P input then crashes in JPEG save) + decode('utf-8')->'UTF-8' (equivalent). Encode tests cover RGB/RGBA/L only (:305-323)."
+ },
+ "ENC jpeg format/quality cosmetic": {
+  "count": 3,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "::FlorenceClient::_encode_image_to_base64#18",
+   "::FlorenceClient::_encode_image_to_base64#20",
+   "::FlorenceClient::_encode_image_to_base64#21"
+  ],
+  "note": "format='JPEG'->'jpeg' (case-insensitive), quality=85->86/removed (default 75): different bytes, same valid JPEG."
+ },
+ "NOOP no-op content variants": {
+  "count": 2,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "::FlorenceClient::_check_circuit_breaker#1",
+   "::FlorenceClient::_check_circuit_breaker#2"
+  ],
+  "note": "_check_circuit_breaker signature-line variants with identical content (docstring/formatting-only under mutmut)."
+ }
+}

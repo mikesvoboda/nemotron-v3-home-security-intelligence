@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -18,7 +18,7 @@
+ 
+     # Register YOLOv8 (alternative detector - disabled by default until configured)
+     # This can be enabled when a YOLOv8 service is deployed
+-    yolov8_url = getattr(settings, "yolov8_url", None)
++    yolov8_url = getattr(None, "yolov8_url", None)
+     if yolov8_url:
+         yolov8_config = DetectorConfig(
+             detector_type="yolov8",

@@ -1,0 +1,634 @@
+{
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_1": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_orig(self, camera_id: str) -> dict[str, Any] | None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_1(self, camera_id: str) -> dict[str, Any] | None:",
+  "-        key = self._tracking_key(camera_id)",
+  "+        key = None"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_2": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_orig(self, camera_id: str) -> dict[str, Any] | None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_2(self, camera_id: str) -> dict[str, Any] | None:",
+  "-        key = self._tracking_key(camera_id)",
+  "+        key = self._tracking_key(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_4": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_orig(self, camera_id: str) -> dict[str, Any] | None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_4(self, camera_id: str) -> dict[str, Any] | None:",
+  "-        data = await self.redis.get(key)",
+  "+        data = await self.redis.get(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_9": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_orig(self, camera_id: str) -> dict[str, Any] | None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_get_tracking_state__mutmut_9(self, camera_id: str) -> dict[str, Any] | None:",
+  "-                    return dict(parsed) if isinstance(parsed, dict) else None",
+  "+                    return dict(parsed) if (isinstance(parsed, dict)) or True else None"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_1": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_orig(self, camera_id: str) -> bool:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_1(self, camera_id: str) -> bool:",
+  "-        key = self._cooldown_key(camera_id)",
+  "+        key = None"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_2": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_orig(self, camera_id: str) -> bool:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_2(self, camera_id: str) -> bool:",
+  "-        key = self._cooldown_key(camera_id)",
+  "+        key = self._cooldown_key(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_4": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_orig(self, camera_id: str) -> bool:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut_4(self, camera_id: str) -> bool:",
+  "-        exists = await self.redis.exists(key)",
+  "+        exists = await self.redis.exists(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_1": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_1(self, camera_id: str) -> None:",
+  "-        key = self._cooldown_key(camera_id)",
+  "+        key = None"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_2": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_2(self, camera_id: str) -> None:",
+  "-        key = self._cooldown_key(camera_id)",
+  "+        key = self._cooldown_key(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_3": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_3(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(None, \"1\", expire=self.cooldown_seconds)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_4": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_4(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(key, None, expire=self.cooldown_seconds)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_5": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_5(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(key, \"1\", expire=None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_6": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_6(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(\"1\", expire=self.cooldown_seconds)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_7": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_7(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(key, expire=self.cooldown_seconds)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_8": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_8(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(key, \"1\", )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_9": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_orig(self, camera_id: str) -> None:",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_cooldown__mutmut_9(self, camera_id: str) -> None:",
+  "-        await self.redis.set(key, \"1\", expire=self.cooldown_seconds)",
+  "+        await self.redis.set(key, \"XX1XX\", expire=self.cooldown_seconds)",
+  "+    @_mutmut_mutated(mutants_x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut)",
+  "+    async def track_detection(",
+  "+        self,",
+  "+        camera_id: str,",
+  "+        detection_type: str,",
+  "+        confidence: float,",
+  "+    ) -> TrackingResult:",
+  "+        \"\"\"Track a smoke/fire detection and determine if alert should trigger.",
+  "+",
+  "+        This method:",
+  "+        1. Checks existing tracking state for the camera",
+  "+        2. Increments count if same type within window, else resets",
+  "+        3. Checks cooldown to suppress duplicate alerts",
+  "+        4. Returns result with should_alert flag",
+  "+",
+  "+        Args:",
+  "+            camera_id: Camera identifier",
+  "+            detection_type: Type of detection ('smoke' or 'fire')",
+  "+            confidence: Detection confidence score",
+  "+",
+  "+        Returns:",
+  "+            TrackingResult with consecutive count and alert status",
+  "+        \"\"\"",
+  "+        current_time = time.time()",
+  "+        first_detection_time = datetime.now(UTC)",
+  "+",
+  "+        # Get existing tracking state",
+  "+        state = await self._get_tracking_state(camera_id)",
+  "+",
+  "+        consecutive_count = 1",
+  "+        should_alert = False",
+  "+",
+  "+        if state is not None:",
+  "+            prev_type = state.get(\"detection_type\")",
+  "+            prev_count = state.get(\"count\", 0)",
+  "+            prev_last_time = state.get(\"last_detection_time\", 0)",
+  "+            prev_first_time = state.get(\"first_detection_time\", current_time)",
+  "+",
+  "+            # Check if same detection type and within time window",
+  "+            time_since_last = current_time - prev_last_time",
+  "+",
+  "+            # Add small epsilon (10ms) to handle timing precision in tests",
+  "+            # This accounts for execution time between time.time() calls",
+  "+            window_with_epsilon = self.window_seconds + 0.01",
+  "+",
+  "+            if prev_type == detection_type and time_since_last <= window_with_epsilon:",
+  "+                # Continue the sequence",
+  "+                consecutive_count = prev_count + 1",
+  "+                first_detection_time = datetime.fromtimestamp(prev_first_time, tz=UTC)",
+  "+            # else: Different type or outside window - reset to 1",
+  "+",
+  "+        # Update tracking state",
+  "+        await self._set_tracking_state(",
+  "+            camera_id=camera_id,",
+  "+            detection_type=detection_type,",
+  "+            count=consecutive_count,",
+  "+            first_detection_time=first_detection_time.timestamp(),",
+  "+            last_detection_time=current_time,",
+  "+        )",
+  "+",
+  "+        # Determine if we should alert",
+  "+        if consecutive_count >= self.consecutive_required:",
+  "+            # Check cooldown",
+  "+            in_cooldown = await self._is_in_cooldown(camera_id)",
+  "+            if not in_cooldown:",
+  "+                should_alert = True",
+  "+                # Set cooldown to prevent rapid-fire alerts",
+  "+                await self._set_cooldown(camera_id)",
+  "+            # else: Alert suppressed by cooldown",
+  "+",
+  "+        logger.debug(",
+  "+            \"Tracked smoke/fire detection\",",
+  "+            extra={",
+  "+                \"camera_id\": camera_id,",
+  "+                \"detection_type\": detection_type,",
+  "+                \"confidence\": confidence,",
+  "+                \"consecutive_count\": consecutive_count,",
+  "+                \"should_alert\": should_alert,",
+  "+            },",
+  "+        )",
+  "+",
+  "+        return TrackingResult(",
+  "+            camera_id=camera_id,",
+  "+            detection_type=detection_type,",
+  "+            confidence=confidence,",
+  "+            consecutive_count=consecutive_count,",
+  "+            should_alert=should_alert,",
+  "+            first_detection_time=first_detection_time,",
+  "+        )",
+  "+"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_10": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_10(",
+  "-            \"last_detection_time\": last_detection_time,",
+  "+            \"XXlast_detection_timeXX\": last_detection_time,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_11": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_11(",
+  "-            \"last_detection_time\": last_detection_time,",
+  "+            \"LAST_DETECTION_TIME\": last_detection_time,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_13": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_13(",
+  "-        await self.redis.set(key, json.dumps(state), expire=TRACKING_KEY_TTL_SECONDS)",
+  "+        await self.redis.set(key, None, expire=TRACKING_KEY_TTL_SECONDS)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_14": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_14(",
+  "-        await self.redis.set(key, json.dumps(state), expire=TRACKING_KEY_TTL_SECONDS)",
+  "+        await self.redis.set(key, json.dumps(state), expire=None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_16": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_16(",
+  "-        await self.redis.set(key, json.dumps(state), expire=TRACKING_KEY_TTL_SECONDS)",
+  "+        await self.redis.set(key, expire=TRACKING_KEY_TTL_SECONDS)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_17": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_17(",
+  "-        await self.redis.set(key, json.dumps(state), expire=TRACKING_KEY_TTL_SECONDS)",
+  "+        await self.redis.set(key, json.dumps(state), )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_18": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_18(",
+  "-        await self.redis.set(key, json.dumps(state), expire=TRACKING_KEY_TTL_SECONDS)",
+  "+        await self.redis.set(key, json.dumps(None), expire=TRACKING_KEY_TTL_SECONDS)",
+  "+    @_mutmut_mutated(mutants_x\u01c1SmokeFireConsecutiveTracker\u01c1_is_in_cooldown__mutmut)",
+  "+    async def _is_in_cooldown(self, camera_id: str) -> bool:",
+  "+        \"\"\"Check if camera is in cooldown period.",
+  "+",
+  "+        Args:",
+  "+            camera_id: Camera identifier",
+  "+",
+  "+        Returns:",
+  "+            True if in cooldown, False otherwise",
+  "+        \"\"\"",
+  "+        key = self._cooldown_key(camera_id)",
+  "+        exists = await self.redis.exists(key)",
+  "+        return bool(exists == 1)",
+  "+"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_2": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_2(",
+  "-        key = self._tracking_key(camera_id)",
+  "+        key = self._tracking_key(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_3": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_3(",
+  "-        state = {",
+  "-            \"detection_type\": detection_type,",
+  "-            \"count\": count,",
+  "-            \"first_detection_time\": first_detection_time,",
+  "-            \"last_detection_time\": last_detection_time,",
+  "-        }",
+  "+        state = None"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_4": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_4(",
+  "-            \"detection_type\": detection_type,",
+  "+            \"XXdetection_typeXX\": detection_type,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_5": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_5(",
+  "-            \"detection_type\": detection_type,",
+  "+            \"DETECTION_TYPE\": detection_type,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_6": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_6(",
+  "-            \"count\": count,",
+  "+            \"XXcountXX\": count,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_7": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_7(",
+  "-            \"count\": count,",
+  "+            \"COUNT\": count,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_8": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_8(",
+  "-            \"first_detection_time\": first_detection_time,",
+  "+            \"XXfirst_detection_timeXX\": first_detection_time,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_9": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1_set_tracking_state__mutmut_9(",
+  "-            \"first_detection_time\": first_detection_time,",
+  "+            \"FIRST_DETECTION_TIME\": first_detection_time,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_17": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_17(",
+  "-            prev_count = state.get(\"count\", 0)",
+  "+            prev_count = state.get(\"count\", None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_19": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_19(",
+  "-            prev_count = state.get(\"count\", 0)",
+  "+            prev_count = state.get(\"count\", )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_22": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_22(",
+  "-            prev_count = state.get(\"count\", 0)",
+  "+            prev_count = state.get(\"count\", 1)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_25": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_25(",
+  "-            prev_last_time = state.get(\"last_detection_time\", 0)",
+  "+            prev_last_time = state.get(\"last_detection_time\", None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_27": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_27(",
+  "-            prev_last_time = state.get(\"last_detection_time\", 0)",
+  "+            prev_last_time = state.get(\"last_detection_time\", )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_3": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_3(",
+  "-        first_detection_time = datetime.now(UTC)",
+  "+        first_detection_time = datetime.now(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_30": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_30(",
+  "-            prev_last_time = state.get(\"last_detection_time\", 0)",
+  "+            prev_last_time = state.get(\"last_detection_time\", 1)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_32": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_32(",
+  "-            prev_first_time = state.get(\"first_detection_time\", current_time)",
+  "+            prev_first_time = state.get(None, current_time)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_33": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_33(",
+  "-            prev_first_time = state.get(\"first_detection_time\", current_time)",
+  "+            prev_first_time = state.get(\"first_detection_time\", None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_35": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_35(",
+  "-            prev_first_time = state.get(\"first_detection_time\", current_time)",
+  "+            prev_first_time = state.get(\"first_detection_time\", )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_36": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_36(",
+  "-            prev_first_time = state.get(\"first_detection_time\", current_time)",
+  "+            prev_first_time = state.get(\"XXfirst_detection_timeXX\", current_time)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_37": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_37(",
+  "-            prev_first_time = state.get(\"first_detection_time\", current_time)",
+  "+            prev_first_time = state.get(\"FIRST_DETECTION_TIME\", current_time)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_45": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_45(",
+  "-            if prev_type == detection_type and time_since_last <= window_with_epsilon:",
+  "+            if prev_type == detection_type and time_since_last < window_with_epsilon:"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_5": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_5(",
+  "-        state = await self._get_tracking_state(camera_id)",
+  "+        state = await self._get_tracking_state(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_51": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_51(",
+  "-                first_detection_time = datetime.fromtimestamp(prev_first_time, tz=UTC)",
+  "+                first_detection_time = datetime.fromtimestamp(prev_first_time, tz=None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_53": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_53(",
+  "-                first_detection_time = datetime.fromtimestamp(prev_first_time, tz=UTC)",
+  "+                first_detection_time = datetime.fromtimestamp(prev_first_time, )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_54": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_54(",
+  "-            camera_id=camera_id,",
+  "+            camera_id=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_55": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_55(",
+  "-            detection_type=detection_type,",
+  "+            detection_type=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_56": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_56(",
+  "-            count=consecutive_count,",
+  "+            count=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_57": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_57(",
+  "-            first_detection_time=first_detection_time.timestamp(),",
+  "+            first_detection_time=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_58": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_58(",
+  "-            last_detection_time=current_time,",
+  "+            last_detection_time=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_66": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_66(",
+  "-            in_cooldown = await self._is_in_cooldown(camera_id)",
+  "+            in_cooldown = await self._is_in_cooldown(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_70": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_70(",
+  "-                await self._set_cooldown(camera_id)",
+  "+                await self._set_cooldown(None)"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_71": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_71(",
+  "-            \"Tracked smoke/fire detection\",",
+  "+            None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_72": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_72(",
+  "-            extra={",
+  "-                \"camera_id\": camera_id,",
+  "-                \"detection_type\": detection_type,",
+  "-                \"confidence\": confidence,",
+  "-                \"consecutive_count\": consecutive_count,",
+  "-                \"should_alert\": should_alert,",
+  "-            },",
+  "+            extra=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_74": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_74(",
+  "-            extra={",
+  "-                \"camera_id\": camera_id,",
+  "-                \"detection_type\": detection_type,",
+  "-                \"confidence\": confidence,",
+  "-                \"consecutive_count\": consecutive_count,",
+  "-                \"should_alert\": should_alert,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_75": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_75(",
+  "-            \"Tracked smoke/fire detection\",",
+  "+            \"XXTracked smoke/fire detectionXX\","
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_76": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_76(",
+  "-            \"Tracked smoke/fire detection\",",
+  "+            \"tracked smoke/fire detection\","
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_77": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_77(",
+  "-            \"Tracked smoke/fire detection\",",
+  "+            \"TRACKED SMOKE/FIRE DETECTION\","
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_78": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_78(",
+  "-                \"camera_id\": camera_id,",
+  "+                \"XXcamera_idXX\": camera_id,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_79": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_79(",
+  "-                \"camera_id\": camera_id,",
+  "+                \"CAMERA_ID\": camera_id,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_80": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_80(",
+  "-                \"detection_type\": detection_type,",
+  "+                \"XXdetection_typeXX\": detection_type,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_81": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_81(",
+  "-                \"detection_type\": detection_type,",
+  "+                \"DETECTION_TYPE\": detection_type,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_82": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_82(",
+  "-                \"confidence\": confidence,",
+  "+                \"XXconfidenceXX\": confidence,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_83": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_83(",
+  "-                \"confidence\": confidence,",
+  "+                \"CONFIDENCE\": confidence,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_84": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_84(",
+  "-                \"consecutive_count\": consecutive_count,",
+  "+                \"XXconsecutive_countXX\": consecutive_count,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_85": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_85(",
+  "-                \"consecutive_count\": consecutive_count,",
+  "+                \"CONSECUTIVE_COUNT\": consecutive_count,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_86": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_86(",
+  "-                \"should_alert\": should_alert,",
+  "+                \"XXshould_alertXX\": should_alert,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_87": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_87(",
+  "-                \"should_alert\": should_alert,",
+  "+                \"SHOULD_ALERT\": should_alert,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_88": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_88(",
+  "-            camera_id=camera_id,",
+  "+            camera_id=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_89": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_89(",
+  "-            detection_type=detection_type,",
+  "+            detection_type=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_90": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_90(",
+  "-            confidence=confidence,",
+  "+            confidence=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_93": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_93(",
+  "-            first_detection_time=first_detection_time,",
+  "+            first_detection_time=None,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_99": [
+  "-    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_orig(",
+  "+    async def x\u01c1SmokeFireConsecutiveTracker\u01c1track_detection__mutmut_99(",
+  "-            first_detection_time=first_detection_time,",
+  "-        )",
+  "+            )",
+  "+    async def get_consecutive_count(self, camera_id: str) -> int:",
+  "+        \"\"\"Get current consecutive count for a camera.",
+  "+",
+  "+        Args:",
+  "+            camera_id: Camera identifier",
+  "+",
+  "+        Returns:",
+  "+            Current consecutive count (0 if no tracking state)",
+  "+        \"\"\"",
+  "+        state = await self._get_tracking_state(camera_id)",
+  "+        if state is None:",
+  "+            return 0",
+  "+        return int(state.get(\"count\", 0))",
+  "+",
+  "+    async def reset_tracking(self, camera_id: str) -> None:",
+  "+        \"\"\"Reset tracking state for a camera.",
+  "+",
+  "+        Args:",
+  "+            camera_id: Camera identifier",
+  "+        \"\"\"",
+  "+        key = self._tracking_key(camera_id)",
+  "+        await self.redis.delete(key)",
+  "+"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1TrackingResult\u01c1to_dict__mutmut_11": [
+  "-    def x\u01c1TrackingResult\u01c1to_dict__mutmut_orig(self) -> dict[str, Any]:",
+  "+    def x\u01c1TrackingResult\u01c1to_dict__mutmut_11(self) -> dict[str, Any]:",
+  "-            \"alert_severity\": self.alert_severity,",
+  "+            \"XXalert_severityXX\": self.alert_severity,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1TrackingResult\u01c1to_dict__mutmut_12": [
+  "-    def x\u01c1TrackingResult\u01c1to_dict__mutmut_orig(self) -> dict[str, Any]:",
+  "+    def x\u01c1TrackingResult\u01c1to_dict__mutmut_12(self) -> dict[str, Any]:",
+  "-            \"alert_severity\": self.alert_severity,",
+  "+            \"ALERT_SEVERITY\": self.alert_severity,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1TrackingResult\u01c1to_dict__mutmut_13": [
+  "-    def x\u01c1TrackingResult\u01c1to_dict__mutmut_orig(self) -> dict[str, Any]:",
+  "+    def x\u01c1TrackingResult\u01c1to_dict__mutmut_13(self) -> dict[str, Any]:",
+  "-            \"first_detection_time\": self.first_detection_time.isoformat(),",
+  "+            \"XXfirst_detection_timeXX\": self.first_detection_time.isoformat(),"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1TrackingResult\u01c1to_dict__mutmut_14": [
+  "-    def x\u01c1TrackingResult\u01c1to_dict__mutmut_orig(self) -> dict[str, Any]:",
+  "+    def x\u01c1TrackingResult\u01c1to_dict__mutmut_14(self) -> dict[str, Any]:",
+  "-            \"first_detection_time\": self.first_detection_time.isoformat(),",
+  "+            \"FIRST_DETECTION_TIME\": self.first_detection_time.isoformat(),"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1TrackingResult\u01c1to_dict__mutmut_5": [
+  "-    def x\u01c1TrackingResult\u01c1to_dict__mutmut_orig(self) -> dict[str, Any]:",
+  "+    def x\u01c1TrackingResult\u01c1to_dict__mutmut_5(self) -> dict[str, Any]:",
+  "-            \"confidence\": self.confidence,",
+  "+            \"XXconfidenceXX\": self.confidence,"
+ ],
+ "backend.services.smoke_fire_consecutive.x\u01c1TrackingResult\u01c1to_dict__mutmut_6": [
+  "-    def x\u01c1TrackingResult\u01c1to_dict__mutmut_orig(self) -> dict[str, Any]:",
+  "+    def x\u01c1TrackingResult\u01c1to_dict__mutmut_6(self) -> dict[str, Any]:",
+  "-            \"confidence\": self.confidence,",
+  "+            \"CONFIDENCE\": self.confidence,"
+ ]
+}

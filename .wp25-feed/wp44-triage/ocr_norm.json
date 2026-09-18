@@ -1,0 +1,875 @@
+{
+ "backend.services.ocr_service.x_clean_plate_text__mutmut_10": {
+  "func": "_clean_plate_text",
+  "num": 10,
+  "old": [
+   "if len(cleaned) < 2:"
+  ],
+  "new": [
+   "if len(cleaned) <= 2:"
+  ]
+ },
+ "backend.services.ocr_service.x_clean_plate_text__mutmut_11": {
+  "func": "_clean_plate_text",
+  "num": 11,
+  "old": [
+   "if len(cleaned) < 2:"
+  ],
+  "new": [
+   "if len(cleaned) < 3:"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_5": {
+  "func": "__crop_plate_region",
+  "num": 5,
+  "old": [
+   "w = abs(x2 - x1)"
+  ],
+  "new": [
+   "w = abs(x2 + x1)"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_8": {
+  "func": "__crop_plate_region",
+  "num": 8,
+  "old": [
+   "h = abs(y2 - y1)"
+  ],
+  "new": [
+   "h = abs(y2 + y1)"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_10": {
+  "func": "__crop_plate_region",
+  "num": 10,
+  "old": [
+   "pad_w = int(w * padding) if w > 0 else 0"
+  ],
+  "new": [
+   "pad_w = int(w * padding) if (w > 0) and False else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_11": {
+  "func": "__crop_plate_region",
+  "num": 11,
+  "old": [
+   "pad_w = int(w * padding) if w > 0 else 0"
+  ],
+  "new": [
+   "pad_w = int(w * padding) if (w > 0) or True else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_14": {
+  "func": "__crop_plate_region",
+  "num": 14,
+  "old": [
+   "pad_w = int(w * padding) if w > 0 else 0"
+  ],
+  "new": [
+   "pad_w = int(w * padding) if w >= 0 else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_15": {
+  "func": "__crop_plate_region",
+  "num": 15,
+  "old": [
+   "pad_w = int(w * padding) if w > 0 else 0"
+  ],
+  "new": [
+   "pad_w = int(w * padding) if w > 1 else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_16": {
+  "func": "__crop_plate_region",
+  "num": 16,
+  "old": [
+   "pad_w = int(w * padding) if w > 0 else 0"
+  ],
+  "new": [
+   "pad_w = int(w * padding) if w > 0 else 1"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_18": {
+  "func": "__crop_plate_region",
+  "num": 18,
+  "old": [
+   "pad_h = int(h * padding) if h > 0 else 0"
+  ],
+  "new": [
+   "pad_h = int(h * padding) if (h > 0) and False else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_19": {
+  "func": "__crop_plate_region",
+  "num": 19,
+  "old": [
+   "pad_h = int(h * padding) if h > 0 else 0"
+  ],
+  "new": [
+   "pad_h = int(h * padding) if (h > 0) or True else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_22": {
+  "func": "__crop_plate_region",
+  "num": 22,
+  "old": [
+   "pad_h = int(h * padding) if h > 0 else 0"
+  ],
+  "new": [
+   "pad_h = int(h * padding) if h >= 0 else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_23": {
+  "func": "__crop_plate_region",
+  "num": 23,
+  "old": [
+   "pad_h = int(h * padding) if h > 0 else 0"
+  ],
+  "new": [
+   "pad_h = int(h * padding) if h > 1 else 0"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_24": {
+  "func": "__crop_plate_region",
+  "num": 24,
+  "old": [
+   "pad_h = int(h * padding) if h > 0 else 0"
+  ],
+  "new": [
+   "pad_h = int(h * padding) if h > 0 else 1"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_34": {
+  "func": "__crop_plate_region",
+  "num": 34,
+  "old": [
+   "padding=max(pad_w, pad_h),"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_35": {
+  "func": "__crop_plate_region",
+  "num": 35,
+  "old": [
+   "min_size=1,",
+   ")"
+  ],
+  "new": [
+   ")"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_40": {
+  "func": "__crop_plate_region",
+  "num": 40,
+  "old": [
+   "min_size=1,"
+  ],
+  "new": [
+   "min_size=2,"
+  ]
+ },
+ "backend.services.ocr_service.x__crop_plate_region__mutmut_42": {
+  "func": "__crop_plate_region",
+  "num": 42,
+  "old": [
+   "f\"Invalid plate bounding box {bbox} for image size {img_w}x{img_h}. Skipping crop.\""
+  ],
+  "new": [
+   "None"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_1": {
+  "func": "__run_ocr_sync",
+  "num": 1,
+  "old": [
+   "plate_array = np.array(plate_crop)"
+  ],
+  "new": [
+   "plate_array = None"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_2": {
+  "func": "__run_ocr_sync",
+  "num": 2,
+  "old": [
+   "plate_array = np.array(plate_crop)"
+  ],
+  "new": [
+   "plate_array = np.array(None)"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_4": {
+  "func": "__run_ocr_sync",
+  "num": 4,
+  "old": [
+   "result = ocr_model.ocr(plate_array, cls=True)"
+  ],
+  "new": [
+   "result = ocr_model.ocr(None, cls=True)"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_5": {
+  "func": "__run_ocr_sync",
+  "num": 5,
+  "old": [
+   "result = ocr_model.ocr(plate_array, cls=True)"
+  ],
+  "new": [
+   "result = ocr_model.ocr(plate_array, cls=None)"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_6": {
+  "func": "__run_ocr_sync",
+  "num": 6,
+  "old": [
+   "result = ocr_model.ocr(plate_array, cls=True)"
+  ],
+  "new": [
+   "result = ocr_model.ocr(cls=True)"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_7": {
+  "func": "__run_ocr_sync",
+  "num": 7,
+  "old": [
+   "result = ocr_model.ocr(plate_array, cls=True)"
+  ],
+  "new": [
+   "result = ocr_model.ocr(plate_array, )"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_8": {
+  "func": "__run_ocr_sync",
+  "num": 8,
+  "old": [
+   "result = ocr_model.ocr(plate_array, cls=True)"
+  ],
+  "new": [
+   "result = ocr_model.ocr(plate_array, cls=False)"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_9": {
+  "func": "__run_ocr_sync",
+  "num": 9,
+  "old": [
+   "if not result or not result[0]:"
+  ],
+  "new": [
+   "if not result and not result[0]:"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_17": {
+  "func": "__run_ocr_sync",
+  "num": 17,
+  "old": [
+   "if len(line) >= 2 and isinstance(line[1], list | tuple):"
+  ],
+  "new": [
+   "if len(line) >= 2 or isinstance(line[1], list | tuple):"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_22": {
+  "func": "__run_ocr_sync",
+  "num": 22,
+  "old": [
+   "text = line[1][0] if len(line[1]) > 0 else \"\""
+  ],
+  "new": [
+   "text = line[1][0] if (len(line[1]) > 0) or True else \"\""
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_25": {
+  "func": "__run_ocr_sync",
+  "num": 25,
+  "old": [
+   "text = line[1][0] if len(line[1]) > 0 else \"\""
+  ],
+  "new": [
+   "text = line[1][0] if len(line[1]) >= 0 else \"\""
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_26": {
+  "func": "__run_ocr_sync",
+  "num": 26,
+  "old": [
+   "text = line[1][0] if len(line[1]) > 0 else \"\""
+  ],
+  "new": [
+   "text = line[1][0] if len(line[1]) > 1 else \"\""
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_27": {
+  "func": "__run_ocr_sync",
+  "num": 27,
+  "old": [
+   "text = line[1][0] if len(line[1]) > 0 else \"\""
+  ],
+  "new": [
+   "text = line[1][0] if len(line[1]) > 0 else \"XXXX\""
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_30": {
+  "func": "__run_ocr_sync",
+  "num": 30,
+  "old": [
+   "conf = line[1][1] if len(line[1]) > 1 else 0.0"
+  ],
+  "new": [
+   "conf = line[1][1] if (len(line[1]) > 1) or True else 0.0"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_33": {
+  "func": "__run_ocr_sync",
+  "num": 33,
+  "old": [
+   "conf = line[1][1] if len(line[1]) > 1 else 0.0"
+  ],
+  "new": [
+   "conf = line[1][1] if len(line[1]) >= 1 else 0.0"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_35": {
+  "func": "__run_ocr_sync",
+  "num": 35,
+  "old": [
+   "conf = line[1][1] if len(line[1]) > 1 else 0.0"
+  ],
+  "new": [
+   "conf = line[1][1] if len(line[1]) > 1 else 1.0"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_45": {
+  "func": "__run_ocr_sync",
+  "num": 45,
+  "old": [
+   "avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0"
+  ],
+  "new": [
+   "avg_confidence = sum(confidences) / len(confidences) if (confidences) or True else 0.0"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_48": {
+  "func": "__run_ocr_sync",
+  "num": 48,
+  "old": [
+   "avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0"
+  ],
+  "new": [
+   "avg_confidence = sum(confidences) / len(confidences) if confidences else 1.0"
+  ]
+ },
+ "backend.services.ocr_service.x__run_ocr_sync__mutmut_49": {
+  "func": "__run_ocr_sync",
+  "num": 49,
+  "old": [
+   "logger.warning(f\"OCR inference failed: {e}\")"
+  ],
+  "new": [
+   "logger.warning(None)"
+  ]
+ },
+ "backend.services.ocr_service.x__load_image_sync__mutmut_1": {
+  "func": "__load_image_sync",
+  "num": 1,
+  "old": [
+   "return Image.open(path_obj).convert(\"RGB\")"
+  ],
+  "new": [
+   "return Image.open(path_obj).convert(None)"
+  ]
+ },
+ "backend.services.ocr_service.x__find_image_for_plate__mutmut_5": {
+  "func": "__find_image_for_plate",
+  "num": 5,
+  "old": [
+   "loaded_images[path] = Image.open(path_obj).convert(\"RGB\")"
+  ],
+  "new": [
+   "loaded_images[path] = Image.open(path_obj).convert(None)"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_3": {
+  "func": "_read_plates",
+  "num": 3,
+  "old": [
+   "logger.warning(\"No OCR model provided, skipping plate text recognition\")"
+  ],
+  "new": [
+   "logger.warning(None)"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_4": {
+  "func": "_read_plates",
+  "num": 4,
+  "old": [
+   "logger.warning(\"No OCR model provided, skipping plate text recognition\")"
+  ],
+  "new": [
+   "logger.warning(\"XXNo OCR model provided, skipping plate text recognitionXX\")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_5": {
+  "func": "_read_plates",
+  "num": 5,
+  "old": [
+   "logger.warning(\"No OCR model provided, skipping plate text recognition\")"
+  ],
+  "new": [
+   "logger.warning(\"no ocr model provided, skipping plate text recognition\")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_6": {
+  "func": "_read_plates",
+  "num": 6,
+  "old": [
+   "logger.warning(\"No OCR model provided, skipping plate text recognition\")"
+  ],
+  "new": [
+   "logger.warning(\"NO OCR MODEL PROVIDED, SKIPPING PLATE TEXT RECOGNITION\")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_17": {
+  "func": "_read_plates",
+  "num": 17,
+  "old": [
+   "f\"No image available for plate detection {plate.vehicle_detection_id}\""
+  ],
+  "new": [
+   "None"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_18": {
+  "func": "_read_plates",
+  "num": 18,
+  "old": [
+   "continue"
+  ],
+  "new": [
+   "break"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_25": {
+  "func": "_read_plates",
+  "num": 25,
+  "old": [
+   "f\"Invalid plate bounding box for plate {plate.vehicle_detection_id}. \"",
+   "f\"Skipping OCR.\""
+  ],
+  "new": [
+   "None"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_26": {
+  "func": "_read_plates",
+  "num": 26,
+  "old": [
+   "continue"
+  ],
+  "new": [
+   "break"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_28": {
+  "func": "_read_plates",
+  "num": 28,
+  "old": [
+   "_run_ocr_sync,"
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_29": {
+  "func": "_read_plates",
+  "num": 29,
+  "old": [
+   "ocr_model,"
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_30": {
+  "func": "_read_plates",
+  "num": 30,
+  "old": [
+   "plate_crop,"
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_31": {
+  "func": "_read_plates",
+  "num": 31,
+  "old": [
+   "_run_ocr_sync,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_32": {
+  "func": "_read_plates",
+  "num": 32,
+  "old": [
+   "ocr_model,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_33": {
+  "func": "_read_plates",
+  "num": 33,
+  "old": [
+   "plate_crop,",
+   ")"
+  ],
+  "new": [
+   ")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_36": {
+  "func": "_read_plates",
+  "num": 36,
+  "old": [
+   "if raw_text is None or confidence < min_confidence:"
+  ],
+  "new": [
+   "if raw_text is None or confidence <= min_confidence:"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_37": {
+  "func": "_read_plates",
+  "num": 37,
+  "old": [
+   "f\"OCR result below threshold for plate \"",
+   "f\"{plate.vehicle_detection_id}: \"",
+   "f\"text='{raw_text}', conf={confidence:.2f}\""
+  ],
+  "new": [
+   "None"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_38": {
+  "func": "_read_plates",
+  "num": 38,
+  "old": [
+   "continue"
+  ],
+  "new": [
+   "break"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_42": {
+  "func": "_read_plates",
+  "num": 42,
+  "old": [
+   "f\"Cleaned plate text too short for plate \"",
+   "f\"{plate.vehicle_detection_id}: raw='{raw_text}'\""
+  ],
+  "new": [
+   "None"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_43": {
+  "func": "_read_plates",
+  "num": 43,
+  "old": [
+   "continue"
+  ],
+  "new": [
+   "break"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_46": {
+  "func": "_read_plates",
+  "num": 46,
+  "old": [
+   "raw_text=raw_text,"
+  ],
+  "new": [
+   "raw_text=None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_48": {
+  "func": "_read_plates",
+  "num": 48,
+  "old": [
+   "plate_detection_id=plate.vehicle_detection_id,"
+  ],
+  "new": [
+   "plate_detection_id=None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_49": {
+  "func": "_read_plates",
+  "num": 49,
+  "old": [
+   "bbox=plate.bbox,"
+  ],
+  "new": [
+   "bbox=None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_51": {
+  "func": "_read_plates",
+  "num": 51,
+  "old": [
+   "raw_text=raw_text,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_53": {
+  "func": "_read_plates",
+  "num": 53,
+  "old": [
+   "plate_detection_id=plate.vehicle_detection_id,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_54": {
+  "func": "_read_plates",
+  "num": 54,
+  "old": [
+   "bbox=plate.bbox,",
+   ")"
+  ],
+  "new": [
+   ")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_55": {
+  "func": "_read_plates",
+  "num": 55,
+  "old": [
+   "f\"OCR read plate text '{cleaned_text}' (raw: '{raw_text}', conf: {confidence:.2f})\""
+  ],
+  "new": [
+   "None"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_56": {
+  "func": "_read_plates",
+  "num": 56,
+  "old": [
+   "f\"Failed to OCR plate {plate.vehicle_detection_id}: {e}\","
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_57": {
+  "func": "_read_plates",
+  "num": 57,
+  "old": [
+   "exc_info=True,"
+  ],
+  "new": [
+   "exc_info=None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_59": {
+  "func": "_read_plates",
+  "num": 59,
+  "old": [
+   "exc_info=True,",
+   ")"
+  ],
+  "new": [
+   ")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_60": {
+  "func": "_read_plates",
+  "num": 60,
+  "old": [
+   "exc_info=True,"
+  ],
+  "new": [
+   "exc_info=False,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_61": {
+  "func": "_read_plates",
+  "num": 61,
+  "old": [
+   "continue"
+  ],
+  "new": [
+   "break"
+  ]
+ },
+ "backend.services.ocr_service.x_read_plates__mutmut_62": {
+  "func": "_read_plates",
+  "num": 62,
+  "old": [
+   "logger.info(f\"OCR complete: read {len(results)} plates from {len(plate_detections)} detections\")"
+  ],
+  "new": [
+   "logger.info(None)"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_2": {
+  "func": "_read_single_plate",
+  "num": 2,
+  "old": [
+   "logger.warning(\"No OCR model provided\")"
+  ],
+  "new": [
+   "logger.warning(None)"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_3": {
+  "func": "_read_single_plate",
+  "num": 3,
+  "old": [
+   "logger.warning(\"No OCR model provided\")"
+  ],
+  "new": [
+   "logger.warning(\"XXNo OCR model providedXX\")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_4": {
+  "func": "_read_single_plate",
+  "num": 4,
+  "old": [
+   "logger.warning(\"No OCR model provided\")"
+  ],
+  "new": [
+   "logger.warning(\"no ocr model provided\")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_5": {
+  "func": "_read_single_plate",
+  "num": 5,
+  "old": [
+   "logger.warning(\"No OCR model provided\")"
+  ],
+  "new": [
+   "logger.warning(\"NO OCR MODEL PROVIDED\")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_7": {
+  "func": "_read_single_plate",
+  "num": 7,
+  "old": [
+   "_run_ocr_sync,"
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_8": {
+  "func": "_read_single_plate",
+  "num": 8,
+  "old": [
+   "ocr_model,"
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_9": {
+  "func": "_read_single_plate",
+  "num": 9,
+  "old": [
+   "plate_image,"
+  ],
+  "new": [
+   "None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_10": {
+  "func": "_read_single_plate",
+  "num": 10,
+  "old": [
+   "_run_ocr_sync,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_11": {
+  "func": "_read_single_plate",
+  "num": 11,
+  "old": [
+   "ocr_model,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_12": {
+  "func": "_read_single_plate",
+  "num": 12,
+  "old": [
+   "plate_image,",
+   ")"
+  ],
+  "new": [
+   ")"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_15": {
+  "func": "_read_single_plate",
+  "num": 15,
+  "old": [
+   "if raw_text is None or confidence < min_confidence:"
+  ],
+  "new": [
+   "if raw_text is None or confidence <= min_confidence:"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_20": {
+  "func": "_read_single_plate",
+  "num": 20,
+  "old": [
+   "raw_text=raw_text,"
+  ],
+  "new": [
+   "raw_text=None,"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_23": {
+  "func": "_read_single_plate",
+  "num": 23,
+  "old": [
+   "raw_text=raw_text,"
+  ],
+  "new": []
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_25": {
+  "func": "_read_single_plate",
+  "num": 25,
+  "old": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", exc_info=True)"
+  ],
+  "new": [
+   "logger.warning(None, exc_info=True)"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_26": {
+  "func": "_read_single_plate",
+  "num": 26,
+  "old": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", exc_info=True)"
+  ],
+  "new": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", exc_info=None)"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_28": {
+  "func": "_read_single_plate",
+  "num": 28,
+  "old": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", exc_info=True)"
+  ],
+  "new": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", )"
+  ]
+ },
+ "backend.services.ocr_service.x_read_single_plate__mutmut_29": {
+  "func": "_read_single_plate",
+  "num": 29,
+  "old": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", exc_info=True)"
+  ],
+  "new": [
+   "logger.warning(f\"Single plate OCR failed: {e}\", exc_info=False)"
+  ]
+ }
+}

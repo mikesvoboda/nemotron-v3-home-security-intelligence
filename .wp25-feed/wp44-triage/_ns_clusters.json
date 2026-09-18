@@ -1,0 +1,551 @@
+{
+ "A1": {
+  "name": "logger extra= dict clobbers/deletions (3 warning blocks)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_134",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_140",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_141",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_142",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_143",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_144",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_154",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_160",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_161",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_162",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_163",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_164",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_197",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_203",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_204",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_205",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_206",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_207",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_136",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_156",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_199"
+  ]
+ },
+ "A2": {
+  "name": "logger message text clobbers/None (warning/info msgs)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_133",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_137",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_138",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_139",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_153",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_157",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_158",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_159",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_196",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_200",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_201",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_202",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_67",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_420"
+  ]
+ },
+ "A3": {
+  "name": "parse-fallback dict key renames (values still via .get defaults)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_289",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_290",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_292",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_293"
+  ]
+ },
+ "A4": {
+  "name": "final complete-event or-fallback tweaks (unreachable branch)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_432",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_434",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_435",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_437",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_438",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_439",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_441",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_442",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_443"
+  ]
+ },
+ "A5": {
+  "name": "retryable LLM recoverable=True DELETED (schema default True)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_260",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_267",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_279"
+  ]
+ },
+ "A6": {
+  "name": "logger.error exc_info=True -> False/None/deleted",
+  "class": "LOW-VALUE",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_269",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_270",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_272",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_273"
+  ]
+ },
+ "A7": {
+  "name": "Prometheus metrics args/labels/duration sign",
+  "class": "LOW-VALUE",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_248",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_249",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_252",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_253",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_254",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_408",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_409",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_412",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_413",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_414",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_415",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_416"
+  ]
+ },
+ "A8": {
+  "name": "error_message user-facing text clobbers",
+  "class": "LOW-VALUE",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_8",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_280",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_281",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_282"
+  ]
+ },
+ "A9": {
+  "name": "fatal-error recoverable=False flipped/deleted (default True)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_11",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_50",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_65",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_85",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_98",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_7",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_49",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_64",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_84",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_97"
+  ]
+ },
+ "A10": {
+  "name": "retryable LLM recoverable True->False",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_261",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_268",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_283"
+  ]
+ },
+ "A11": {
+  "name": "idempotency-hit complete-event fallbacks (or->and/51/casing)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_27",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_28",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_29",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_30",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_31",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_33",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_34",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_35",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_36",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_37",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_38",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_39"
+  ]
+ },
+ "A12": {
+  "name": "idempotency/broadcast collaborator args ->None/deleted",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_13",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_16",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_404",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_405",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_406",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_407",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_419"
+  ]
+ },
+ "A13": {
+  "name": "camera lookup select/where/scalar + name fallback",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_69",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_70",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_71",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_72",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_73",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_74",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_75"
+  ]
+ },
+ "A14": {
+  "name": "batch_fetch_detections/_format_detections args ->None",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_87",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_88",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_104",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_105"
+  ]
+ },
+ "A15": {
+  "name": "enrichment fetch call args (_get_enriched_context/_get_enrichment_result)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_107",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_108",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_109",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_110",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_111",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_112",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_113",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_114",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_116",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_117",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_118",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_119",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_120",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_121"
+  ]
+ },
+ "A16": {
+  "name": "context-fetch internals (scene-changes/tuning args)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_128",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_129",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_130",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_131",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_132",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_147",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_148",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_149",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_150",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_151",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_152"
+  ]
+ },
+ "A17": {
+  "name": "context seed values ''->None/'XXXX' + enrichment_result seed",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_122",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_126",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_127",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_145",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_146",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_165",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_166"
+  ]
+ },
+ "A18": {
+  "name": "detections_for_household dicts: key clobbers/list->None/bbox filter flip/args",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_167",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_168",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_169",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_170",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_171",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_172",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_173",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_174",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_175",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_176",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_177",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_178",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_179",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_180",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_181",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_182",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_183",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_184",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_185",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_186",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_187",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_188",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_189",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_190",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_191",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_192",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_193",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_194",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_195"
+  ]
+ },
+ "A19": {
+  "name": "detection_dicts build: key/default clobbers, confidence filter flip, list->None",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_208",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_209",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_210",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_211",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_212",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_213",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_214",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_215",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_216"
+  ]
+ },
+ "A20": {
+  "name": "kwargs piped into call_llm_streaming at call site",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_220",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_221",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_222",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_223",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_224",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_227",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_228",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_229",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_230",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_238",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_239",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_240",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_241"
+  ]
+ },
+ "A21": {
+  "name": "accumulated_text init/+=/kwarg + parse-input arg",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_218",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_242",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_247",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_285"
+  ]
+ },
+ "A22": {
+  "name": "Event row construction kwargs + risk_data.get defaults",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_307",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_308",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_309",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_310",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_315",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_316",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_317",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_318",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_319",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_324",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_326",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_328",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_331",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_333",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_335",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_338",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_339",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_341",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_343",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_346",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_347",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_348",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_350",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_352",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_355",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_356",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_357",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_358",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_359"
+  ]
+ },
+ "A23": {
+  "name": "event_detections junction INSERT stmt/values/on_conflict",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_362",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_363",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_364",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_365",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_366",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_367",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_370",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_371",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_372",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_373",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_374"
+  ]
+ },
+ "A24": {
+  "name": "LLMInteraction record + observability builders",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_375",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_376",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_377",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_378",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_379",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_380",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_381",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_382",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_383",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_384",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_385",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_386",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_387",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_388",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_389",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_390",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_391",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_392",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_393",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_394",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_395",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_396",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_397",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_398",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_399",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_400",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_401",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_402",
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_403"
+  ]
+ },
+ "A25": {
+  "name": "detections json.loads else-[] corner",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_analyze_batch_streaming__mutmut_56"
+  ]
+ },
+ "L1": {
+  "name": "_build_prompt kwargs ->None(8)/deleted(8) context contract",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_6",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_7",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_8",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_9",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_12",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_13",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_14",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_15",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_16",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_17",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_18",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_19",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_22",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_23",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_24",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_25"
+  ]
+ },
+ "L2": {
+  "name": "sanitize_camera_name/sanitize_detection_description(None)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_2",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_4"
+  ]
+ },
+ "L3": {
+  "name": "prompt = None / _validate_and_truncate_prompt(None)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_26",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_27"
+  ]
+ },
+ "L4": {
+  "name": "payload dict->None + wire key renames/UPPER (prompt/temp/top_p/max_tokens/stop/stream)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_29",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_30",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_31",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_32",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_33",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_35",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_36",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_38",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_39",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_40",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_41",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_46",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_47"
+  ]
+ },
+ "L5": {
+  "name": "payload value tweaks: temp 0.3->1.3, top_p .95->1.95, stream True->False, stop tokens",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_34",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_37",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_42",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_43",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_44",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_45",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_48"
+  ]
+ },
+ "L6": {
+  "name": "Content-Type header key/value case+clobber",
+  "class": "LOW-VALUE",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_50",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_51",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_52",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_53",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_54"
+  ]
+ },
+ "L7": {
+  "name": "httpx request construction: timeout=None, stream(method/url/json/headers ->None/deleted/case)",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_57",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_58",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_59",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_60",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_61",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_62",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_63",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_64",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_65",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_66",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_67"
+  ]
+ },
+ "L8": {
+  "name": "break->[DONE] loop-end -> return (identical at generator end)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_78"
+  ]
+ },
+ "L9": {
+  "name": "data.get('content') default ''->None/deleted (both falsy)",
+  "class": "EQUIVALENT",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_83",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_85"
+  ]
+ },
+ "L10": {
+  "name": "data.get('content', 'XXXX'): missing-content SSE yields 'XXXX'",
+  "class": "TEST-GAP",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_88"
+  ]
+ },
+ "L11": {
+  "name": "malformed-SSE log message None / truncation 100->101",
+  "class": "LOW-VALUE",
+  "keys": [
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_89",
+   "backend.services.nemotron_streaming.x_call_llm_streaming__mutmut_90"
+  ]
+ }
+}

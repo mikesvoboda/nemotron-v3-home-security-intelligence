@@ -1,0 +1,3798 @@
+{
+"backend.services.track_service.x\u01c1TrackService\u01c1__init____mutmut_1": {
+"v": null,
+"gen": 1,
+"diff": [
+"-    self.db = db",
+"+    self.db = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1__init____mutmut_2": {
+"v": null,
+"gen": 2,
+"diff": [
+"-    self.max_trajectory_points = max_trajectory_points",
+"+    self.max_trajectory_points = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1__init____mutmut_3": {
+"v": null,
+"gen": 3,
+"diff": [
+"-    self.track_retention_hours = track_retention_hours",
+"+    self.track_retention_hours = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    x, y = position",
+"+    x, y = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-    trajectory_point = {",
+"-        \"x\": x,",
+"-        \"y\": y,",
+"-        \"timestamp\": timestamp.isoformat(),",
+"-    }",
+"+    trajectory_point = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-        \"x\": x,",
+"+        \"XXxXX\": x,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-        \"x\": x,",
+"+        \"X\": x,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_5": {
+"v": 1,
+"gen": 5,
+"diff": [
+"-        \"y\": y,",
+"+        \"XXyXX\": y,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_6": {
+"v": 1,
+"gen": 6,
+"diff": [
+"-        \"y\": y,",
+"+        \"Y\": y,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_7": {
+"v": 1,
+"gen": 7,
+"diff": [
+"-        \"timestamp\": timestamp.isoformat(),",
+"+        \"XXtimestampXX\": timestamp.isoformat(),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_8": {
+"v": 1,
+"gen": 8,
+"diff": [
+"-        \"timestamp\": timestamp.isoformat(),",
+"+        \"TIMESTAMP\": timestamp.isoformat(),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_9": {
+"v": 0,
+"gen": 9,
+"diff": [
+"-    stmt = select(Track).where(",
+"-        Track.track_id == track_id,",
+"-        Track.camera_id == camera_id,",
+"-    )",
+"+    stmt = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_10": {
+"v": 0,
+"gen": 10,
+"diff": [
+"-        Track.track_id == track_id,",
+"+        None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_11": {
+"v": 0,
+"gen": 11,
+"diff": [
+"-        Track.camera_id == camera_id,",
+"+        None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_12": {
+"v": 0,
+"gen": 12,
+"diff": [
+"-        Track.track_id == track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_13": {
+"v": 0,
+"gen": 13,
+"diff": [
+"-        Track.camera_id == camera_id,",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_14": {
+"v": 0,
+"gen": 14,
+"diff": [
+"-    stmt = select(Track).where(",
+"+    stmt = select(None).where("
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_15": {
+"v": 0,
+"gen": 15,
+"diff": [
+"-        Track.track_id == track_id,",
+"+        Track.track_id != track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_16": {
+"v": 0,
+"gen": 16,
+"diff": [
+"-        Track.camera_id == camera_id,",
+"+        Track.camera_id != camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_17": {
+"v": 1,
+"gen": 17,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_18": {
+"v": 0,
+"gen": 18,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = await self.db.execute(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_19": {
+"v": 1,
+"gen": 19,
+"diff": [
+"-    existing_track = result.scalar_one_or_none()",
+"+    existing_track = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_20": {
+"v": 1,
+"gen": 20,
+"diff": [
+"-    if existing_track is None:",
+"+    if existing_track is not None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_21": {
+"v": 0,
+"gen": 21,
+"diff": [
+"-        track = Track(",
+"-            track_id=track_id,",
+"-            camera_id=camera_id,",
+"-            object_class=object_class,",
+"-            first_seen=timestamp,",
+"-            last_seen=timestamp,",
+"-            trajectory=[trajectory_point],",
+"-            reid_embedding=reid_embedding,",
+"-        )",
+"+        track = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_22": {
+"v": 0,
+"gen": 22,
+"diff": [
+"-            track_id=track_id,",
+"+            track_id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_23": {
+"v": 0,
+"gen": 23,
+"diff": [
+"-            camera_id=camera_id,",
+"+            camera_id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_24": {
+"v": 0,
+"gen": 24,
+"diff": [
+"-            object_class=object_class,",
+"+            object_class=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_25": {
+"v": 0,
+"gen": 25,
+"diff": [
+"-            first_seen=timestamp,",
+"+            first_seen=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_26": {
+"v": 0,
+"gen": 26,
+"diff": [
+"-            last_seen=timestamp,",
+"+            last_seen=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_27": {
+"v": 0,
+"gen": 27,
+"diff": [
+"-            trajectory=[trajectory_point],",
+"+            trajectory=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_28": {
+"v": 0,
+"gen": 28,
+"diff": [
+"-            reid_embedding=reid_embedding,",
+"+            reid_embedding=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_29": {
+"v": 0,
+"gen": 29,
+"diff": [
+"-            track_id=track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_30": {
+"v": 0,
+"gen": 30,
+"diff": [
+"-            camera_id=camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_31": {
+"v": 0,
+"gen": 31,
+"diff": [
+"-            object_class=object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_32": {
+"v": 0,
+"gen": 32,
+"diff": [
+"-            first_seen=timestamp,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_33": {
+"v": 0,
+"gen": 33,
+"diff": [
+"-            last_seen=timestamp,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_34": {
+"v": 0,
+"gen": 34,
+"diff": [
+"-            trajectory=[trajectory_point],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_35": {
+"v": 0,
+"gen": 35,
+"diff": [
+"-            reid_embedding=reid_embedding,",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_36": {
+"v": 0,
+"gen": 36,
+"diff": [
+"-        self.db.add(track)",
+"+        self.db.add(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_37": {
+"v": 0,
+"gen": 37,
+"diff": [
+"-        await self.db.refresh(track)",
+"+        await self.db.refresh(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_38": {
+"v": 0,
+"gen": 38,
+"diff": [
+"-            f\"Created new track {track_id} for camera {camera_id}\",",
+"+            None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_39": {
+"v": 0,
+"gen": 39,
+"diff": [
+"-            extra={",
+"-                \"track_id\": track_id,",
+"-                \"camera_id\": camera_id,",
+"-                \"object_class\": object_class,",
+"-            },",
+"+            extra=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_40": {
+"v": 1,
+"gen": 40,
+"diff": [
+"-            f\"Created new track {track_id} for camera {camera_id}\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_41": {
+"v": 0,
+"gen": 41,
+"diff": [
+"-            extra={",
+"-                \"track_id\": track_id,",
+"-                \"camera_id\": camera_id,",
+"-                \"object_class\": object_class,",
+"-            },",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_42": {
+"v": 0,
+"gen": 42,
+"diff": [
+"-                \"track_id\": track_id,",
+"+                \"XXtrack_idXX\": track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_43": {
+"v": 0,
+"gen": 43,
+"diff": [
+"-                \"track_id\": track_id,",
+"+                \"TRACK_ID\": track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_44": {
+"v": 0,
+"gen": 44,
+"diff": [
+"-                \"camera_id\": camera_id,",
+"+                \"XXcamera_idXX\": camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_45": {
+"v": 0,
+"gen": 45,
+"diff": [
+"-                \"camera_id\": camera_id,",
+"+                \"CAMERA_ID\": camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_46": {
+"v": 0,
+"gen": 46,
+"diff": [
+"-                \"object_class\": object_class,",
+"+                \"XXobject_classXX\": object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_47": {
+"v": 0,
+"gen": 47,
+"diff": [
+"-                \"object_class\": object_class,",
+"+                \"OBJECT_CLASS\": object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_48": {
+"v": 1,
+"gen": 48,
+"diff": [
+"-        record_track_created(camera_id, object_class)",
+"+        record_track_created(None, object_class)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_49": {
+"v": 1,
+"gen": 49,
+"diff": [
+"-        record_track_created(camera_id, object_class)",
+"+        record_track_created(camera_id, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_50": {
+"v": 1,
+"gen": 50,
+"diff": [
+"-        record_track_created(camera_id, object_class)",
+"+        record_track_created(object_class)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_51": {
+"v": 1,
+"gen": 51,
+"diff": [
+"-        record_track_created(camera_id, object_class)",
+"+        record_track_created(camera_id, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_52": {
+"v": 1,
+"gen": 52,
+"diff": [
+"-    trajectory = list(existing_track.trajectory)",
+"+    trajectory = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_53": {
+"v": 1,
+"gen": 53,
+"diff": [
+"-    trajectory = list(existing_track.trajectory)",
+"+    trajectory = list(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_54": {
+"v": 1,
+"gen": 54,
+"diff": [
+"-    trajectory.append(trajectory_point)",
+"+    trajectory.append(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_55": {
+"v": 0,
+"gen": 55,
+"diff": [
+"-    if len(trajectory) > self.max_trajectory_points:",
+"+    if len(trajectory) >= self.max_trajectory_points:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_56": {
+"v": 1,
+"gen": 56,
+"diff": [
+"-        trajectory = trajectory[-self.max_trajectory_points :]",
+"+        trajectory = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_57": {
+"v": 1,
+"gen": 57,
+"diff": [
+"-        trajectory = trajectory[-self.max_trajectory_points :]",
+"+        trajectory = trajectory[+self.max_trajectory_points :]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_58": {
+"v": 0,
+"gen": 58,
+"diff": [
+"-            f\"Pruned trajectory for track {track_id} to {self.max_trajectory_points} points\",",
+"+            None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_59": {
+"v": 0,
+"gen": 59,
+"diff": [
+"-            extra={\"track_id\": track_id, \"camera_id\": camera_id},",
+"+            extra=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_60": {
+"v": 1,
+"gen": 60,
+"diff": [
+"-            f\"Pruned trajectory for track {track_id} to {self.max_trajectory_points} points\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_61": {
+"v": 0,
+"gen": 61,
+"diff": [
+"-            extra={\"track_id\": track_id, \"camera_id\": camera_id},",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_62": {
+"v": 0,
+"gen": 62,
+"diff": [
+"-            extra={\"track_id\": track_id, \"camera_id\": camera_id},",
+"+            extra={\"XXtrack_idXX\": track_id, \"camera_id\": camera_id},"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_63": {
+"v": 0,
+"gen": 63,
+"diff": [
+"-            extra={\"track_id\": track_id, \"camera_id\": camera_id},",
+"+            extra={\"TRACK_ID\": track_id, \"camera_id\": camera_id},"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_64": {
+"v": 0,
+"gen": 64,
+"diff": [
+"-            extra={\"track_id\": track_id, \"camera_id\": camera_id},",
+"+            extra={\"track_id\": track_id, \"XXcamera_idXX\": camera_id},"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_65": {
+"v": 0,
+"gen": 65,
+"diff": [
+"-            extra={\"track_id\": track_id, \"camera_id\": camera_id},",
+"+            extra={\"track_id\": track_id, \"CAMERA_ID\": camera_id},"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_66": {
+"v": 1,
+"gen": 66,
+"diff": [
+"-    existing_track.trajectory = trajectory",
+"+    existing_track.trajectory = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_67": {
+"v": 1,
+"gen": 67,
+"diff": [
+"-    existing_track.last_seen = timestamp",
+"+    existing_track.last_seen = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_68": {
+"v": 1,
+"gen": 68,
+"diff": [
+"-    if reid_embedding is not None:",
+"+    if reid_embedding is None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_69": {
+"v": 1,
+"gen": 69,
+"diff": [
+"-        existing_track.reid_embedding = reid_embedding",
+"+        existing_track.reid_embedding = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_70": {
+"v": 1,
+"gen": 70,
+"diff": [
+"-    metrics = self.calculate_metrics(trajectory)",
+"+    metrics = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_71": {
+"v": 0,
+"gen": 71,
+"diff": [
+"-    metrics = self.calculate_metrics(trajectory)",
+"+    metrics = self.calculate_metrics(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_72": {
+"v": 0,
+"gen": 72,
+"diff": [
+"-    existing_track.total_distance = metrics.total_distance",
+"+    existing_track.total_distance = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_73": {
+"v": 0,
+"gen": 73,
+"diff": [
+"-    existing_track.avg_speed = metrics.avg_speed",
+"+    existing_track.avg_speed = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_74": {
+"v": 0,
+"gen": 74,
+"diff": [
+"-    await self.db.refresh(existing_track)",
+"+    await self.db.refresh(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_75": {
+"v": 0,
+"gen": 75,
+"diff": [
+"-        f\"Updated track {track_id} with new position, total points: {len(trajectory)}\",",
+"+        None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_76": {
+"v": 0,
+"gen": 76,
+"diff": [
+"-        extra={",
+"-            \"track_id\": track_id,",
+"-            \"camera_id\": camera_id,",
+"-            \"trajectory_length\": len(trajectory),",
+"-            \"total_distance\": metrics.total_distance,",
+"-        },",
+"+        extra=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_77": {
+"v": 1,
+"gen": 77,
+"diff": [
+"-        f\"Updated track {track_id} with new position, total points: {len(trajectory)}\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_78": {
+"v": 0,
+"gen": 78,
+"diff": [
+"-        extra={",
+"-            \"track_id\": track_id,",
+"-            \"camera_id\": camera_id,",
+"-            \"trajectory_length\": len(trajectory),",
+"-            \"total_distance\": metrics.total_distance,",
+"-        },",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_79": {
+"v": 0,
+"gen": 79,
+"diff": [
+"-            \"track_id\": track_id,",
+"+            \"XXtrack_idXX\": track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_80": {
+"v": 0,
+"gen": 80,
+"diff": [
+"-            \"track_id\": track_id,",
+"+            \"TRACK_ID\": track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_81": {
+"v": 0,
+"gen": 81,
+"diff": [
+"-            \"camera_id\": camera_id,",
+"+            \"XXcamera_idXX\": camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_82": {
+"v": 0,
+"gen": 82,
+"diff": [
+"-            \"camera_id\": camera_id,",
+"+            \"CAMERA_ID\": camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_83": {
+"v": 0,
+"gen": 83,
+"diff": [
+"-            \"trajectory_length\": len(trajectory),",
+"+            \"XXtrajectory_lengthXX\": len(trajectory),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_84": {
+"v": 0,
+"gen": 84,
+"diff": [
+"-            \"trajectory_length\": len(trajectory),",
+"+            \"TRAJECTORY_LENGTH\": len(trajectory),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_85": {
+"v": 0,
+"gen": 85,
+"diff": [
+"-            \"total_distance\": metrics.total_distance,",
+"+            \"XXtotal_distanceXX\": metrics.total_distance,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1create_or_update_track__mutmut_86": {
+"v": 0,
+"gen": 86,
+"diff": [
+"-            \"total_distance\": metrics.total_distance,",
+"+            \"TOTAL_DISTANCE\": metrics.total_distance,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_1": {
+"v": 0,
+"gen": 1,
+"diff": [
+"-    stmt = select(Track).where(",
+"-        Track.track_id == track_id,",
+"-        Track.camera_id == camera_id,",
+"-    )",
+"+    stmt = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_2": {
+"v": 0,
+"gen": 2,
+"diff": [
+"-        Track.track_id == track_id,",
+"+        None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_3": {
+"v": 0,
+"gen": 3,
+"diff": [
+"-        Track.camera_id == camera_id,",
+"+        None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_4": {
+"v": 0,
+"gen": 4,
+"diff": [
+"-        Track.track_id == track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_5": {
+"v": 0,
+"gen": 5,
+"diff": [
+"-        Track.camera_id == camera_id,",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_6": {
+"v": 0,
+"gen": 6,
+"diff": [
+"-    stmt = select(Track).where(",
+"+    stmt = select(None).where("
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_7": {
+"v": 0,
+"gen": 7,
+"diff": [
+"-        Track.track_id == track_id,",
+"+        Track.track_id != track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_8": {
+"v": 0,
+"gen": 8,
+"diff": [
+"-        Track.camera_id == camera_id,",
+"+        Track.camera_id != camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_9": {
+"v": 1,
+"gen": 9,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track__mutmut_10": {
+"v": 0,
+"gen": 10,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = await self.db.execute(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_2": {
+"v": 0,
+"gen": 2,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(None, camera_id)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_3": {
+"v": 0,
+"gen": 3,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(track_id, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(camera_id)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_5": {
+"v": 1,
+"gen": 5,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(track_id, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_6": {
+"v": 1,
+"gen": 6,
+"diff": [
+"-    if track is None:",
+"+    if track is not None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_7": {
+"v": 1,
+"gen": 7,
+"diff": [
+"-    trajectory_points = [",
+"-        TrajectoryPoint(",
+"-            x=point[\"x\"],",
+"-            y=point[\"y\"],",
+"-            timestamp=datetime.fromisoformat(point[\"timestamp\"]),",
+"-        )",
+"-        for point in track.trajectory",
+"-    ]",
+"+    trajectory_points = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_8": {
+"v": 1,
+"gen": 8,
+"diff": [
+"-            x=point[\"x\"],",
+"+            x=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_9": {
+"v": 1,
+"gen": 9,
+"diff": [
+"-            y=point[\"y\"],",
+"+            y=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_10": {
+"v": 1,
+"gen": 10,
+"diff": [
+"-            timestamp=datetime.fromisoformat(point[\"timestamp\"]),",
+"+            timestamp=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_11": {
+"v": 1,
+"gen": 11,
+"diff": [
+"-            x=point[\"x\"],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_12": {
+"v": 1,
+"gen": 12,
+"diff": [
+"-            y=point[\"y\"],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_13": {
+"v": 1,
+"gen": 13,
+"diff": [
+"-            timestamp=datetime.fromisoformat(point[\"timestamp\"]),",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_14": {
+"v": 1,
+"gen": 14,
+"diff": [
+"-            x=point[\"x\"],",
+"+            x=point[\"XXxXX\"],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_15": {
+"v": 1,
+"gen": 15,
+"diff": [
+"-            x=point[\"x\"],",
+"+            x=point[\"X\"],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_16": {
+"v": 1,
+"gen": 16,
+"diff": [
+"-            y=point[\"y\"],",
+"+            y=point[\"XXyXX\"],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_17": {
+"v": 1,
+"gen": 17,
+"diff": [
+"-            y=point[\"y\"],",
+"+            y=point[\"Y\"],"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_18": {
+"v": 1,
+"gen": 18,
+"diff": [
+"-            timestamp=datetime.fromisoformat(point[\"timestamp\"]),",
+"+            timestamp=datetime.fromisoformat(None),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_19": {
+"v": 1,
+"gen": 19,
+"diff": [
+"-            timestamp=datetime.fromisoformat(point[\"timestamp\"]),",
+"+            timestamp=datetime.fromisoformat(point[\"XXtimestampXX\"]),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_20": {
+"v": 1,
+"gen": 20,
+"diff": [
+"-            timestamp=datetime.fromisoformat(point[\"timestamp\"]),",
+"+            timestamp=datetime.fromisoformat(point[\"TIMESTAMP\"]),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_21": {
+"v": 1,
+"gen": 21,
+"diff": [
+"-    metrics = self.calculate_metrics(track.trajectory)",
+"+    metrics = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_22": {
+"v": 0,
+"gen": 22,
+"diff": [
+"-    metrics = self.calculate_metrics(track.trajectory)",
+"+    metrics = self.calculate_metrics(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_23": {
+"v": 1,
+"gen": 23,
+"diff": [
+"-        id=track.id,",
+"+        id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_24": {
+"v": 1,
+"gen": 24,
+"diff": [
+"-        track_id=track.track_id,",
+"+        track_id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_25": {
+"v": 1,
+"gen": 25,
+"diff": [
+"-        camera_id=track.camera_id,",
+"+        camera_id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_26": {
+"v": 1,
+"gen": 26,
+"diff": [
+"-        object_class=track.object_class,",
+"+        object_class=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_27": {
+"v": 1,
+"gen": 27,
+"diff": [
+"-        first_seen=track.first_seen,",
+"+        first_seen=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_28": {
+"v": 1,
+"gen": 28,
+"diff": [
+"-        last_seen=track.last_seen,",
+"+        last_seen=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_29": {
+"v": 1,
+"gen": 29,
+"diff": [
+"-        trajectory=trajectory_points,",
+"+        trajectory=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_30": {
+"v": 1,
+"gen": 30,
+"diff": [
+"-        metrics=metrics,",
+"+        metrics=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_31": {
+"v": 1,
+"gen": 31,
+"diff": [
+"-        id=track.id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_32": {
+"v": 1,
+"gen": 32,
+"diff": [
+"-        track_id=track.track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_33": {
+"v": 1,
+"gen": 33,
+"diff": [
+"-        camera_id=track.camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_34": {
+"v": 1,
+"gen": 34,
+"diff": [
+"-        object_class=track.object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_35": {
+"v": 1,
+"gen": 35,
+"diff": [
+"-        first_seen=track.first_seen,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_36": {
+"v": 1,
+"gen": 36,
+"diff": [
+"-        last_seen=track.last_seen,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_37": {
+"v": 1,
+"gen": 37,
+"diff": [
+"-        trajectory=trajectory_points,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_track_history__mutmut_38": {
+"v": 1,
+"gen": 38,
+"diff": [
+"-        metrics=metrics,",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    page: int = 1,",
+"+    page: int = 2,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-    page_size: int = 50,",
+"+    page_size: int = 51,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-    page = max(1, page)",
+"+    page = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-    page = max(1, page)",
+"+    page = max(None, page)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_5": {
+"v": 1,
+"gen": 5,
+"diff": [
+"-    page = max(1, page)",
+"+    page = max(1, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_6": {
+"v": 1,
+"gen": 6,
+"diff": [
+"-    page = max(1, page)",
+"+    page = max(page)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_7": {
+"v": 1,
+"gen": 7,
+"diff": [
+"-    page = max(1, page)",
+"+    page = max(1, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_8": {
+"v": 1,
+"gen": 8,
+"diff": [
+"-    page = max(1, page)",
+"+    page = max(2, page)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_9": {
+"v": 1,
+"gen": 9,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_10": {
+"v": 1,
+"gen": 10,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(None, min(page_size, 1000))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_11": {
+"v": 1,
+"gen": 11,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_12": {
+"v": 0,
+"gen": 12,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(min(page_size, 1000))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_13": {
+"v": 1,
+"gen": 13,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_14": {
+"v": 1,
+"gen": 14,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(2, min(page_size, 1000))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_15": {
+"v": 1,
+"gen": 15,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, min(None, 1000))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_16": {
+"v": 1,
+"gen": 16,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, min(page_size, None))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_17": {
+"v": 1,
+"gen": 17,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, min(1000))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_18": {
+"v": 0,
+"gen": 18,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, min(page_size, ))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_19": {
+"v": 0,
+"gen": 19,
+"diff": [
+"-    page_size = max(1, min(page_size, 1000))",
+"+    page_size = max(1, min(page_size, 1001))"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_20": {
+"v": 0,
+"gen": 20,
+"diff": [
+"-    offset = (page - 1) * page_size",
+"+    offset = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_21": {
+"v": 0,
+"gen": 21,
+"diff": [
+"-    offset = (page - 1) * page_size",
+"+    offset = (page - 1) / page_size"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_22": {
+"v": 1,
+"gen": 22,
+"diff": [
+"-    offset = (page - 1) * page_size",
+"+    offset = (page + 1) * page_size"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_23": {
+"v": 0,
+"gen": 23,
+"diff": [
+"-    offset = (page - 1) * page_size",
+"+    offset = (page - 2) * page_size"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_24": {
+"v": 0,
+"gen": 24,
+"diff": [
+"-    base_query = select(Track).where(Track.camera_id == camera_id)",
+"+    base_query = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_25": {
+"v": 0,
+"gen": 25,
+"diff": [
+"-    base_query = select(Track).where(Track.camera_id == camera_id)",
+"+    base_query = select(Track).where(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_26": {
+"v": 1,
+"gen": 26,
+"diff": [
+"-    base_query = select(Track).where(Track.camera_id == camera_id)",
+"+    base_query = select(None).where(Track.camera_id == camera_id)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_27": {
+"v": 1,
+"gen": 27,
+"diff": [
+"-    base_query = select(Track).where(Track.camera_id == camera_id)",
+"+    base_query = select(Track).where(Track.camera_id != camera_id)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_28": {
+"v": 0,
+"gen": 28,
+"diff": [
+"-    if start_time is not None:",
+"+    if start_time is None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_29": {
+"v": 0,
+"gen": 29,
+"diff": [
+"-        base_query = base_query.where(Track.first_seen >= start_time)",
+"+        base_query = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_30": {
+"v": 1,
+"gen": 30,
+"diff": [
+"-        base_query = base_query.where(Track.first_seen >= start_time)",
+"+        base_query = base_query.where(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_31": {
+"v": 1,
+"gen": 31,
+"diff": [
+"-        base_query = base_query.where(Track.first_seen >= start_time)",
+"+        base_query = base_query.where(Track.first_seen > start_time)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_32": {
+"v": 0,
+"gen": 32,
+"diff": [
+"-    if end_time is not None:",
+"+    if end_time is None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_33": {
+"v": 0,
+"gen": 33,
+"diff": [
+"-        base_query = base_query.where(Track.first_seen <= end_time)",
+"+        base_query = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_34": {
+"v": 0,
+"gen": 34,
+"diff": [
+"-        base_query = base_query.where(Track.first_seen <= end_time)",
+"+        base_query = base_query.where(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_35": {
+"v": 1,
+"gen": 35,
+"diff": [
+"-        base_query = base_query.where(Track.first_seen <= end_time)",
+"+        base_query = base_query.where(Track.first_seen < end_time)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_36": {
+"v": 0,
+"gen": 36,
+"diff": [
+"-    if object_class is not None:",
+"+    if object_class is None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_37": {
+"v": 0,
+"gen": 37,
+"diff": [
+"-        base_query = base_query.where(Track.object_class == object_class)",
+"+        base_query = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_38": {
+"v": 0,
+"gen": 38,
+"diff": [
+"-        base_query = base_query.where(Track.object_class == object_class)",
+"+        base_query = base_query.where(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_39": {
+"v": 1,
+"gen": 39,
+"diff": [
+"-        base_query = base_query.where(Track.object_class == object_class)",
+"+        base_query = base_query.where(Track.object_class != object_class)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_40": {
+"v": 0,
+"gen": 40,
+"diff": [
+"-    count_query = select(func.count()).select_from(base_query.subquery())",
+"+    count_query = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_41": {
+"v": 1,
+"gen": 41,
+"diff": [
+"-    count_query = select(func.count()).select_from(base_query.subquery())",
+"+    count_query = select(func.count()).select_from(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_42": {
+"v": 0,
+"gen": 42,
+"diff": [
+"-    count_query = select(func.count()).select_from(base_query.subquery())",
+"+    count_query = select(None).select_from(base_query.subquery())"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_43": {
+"v": 1,
+"gen": 43,
+"diff": [
+"-    total_result = await self.db.execute(count_query)",
+"+    total_result = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_44": {
+"v": 0,
+"gen": 46,
+"diff": [
+"-    paginated_query = (",
+"-        base_query.order_by(Track.first_seen.desc()).offset(offset).limit(page_size)",
+"-    )",
+"+    paginated_query = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_45": {
+"v": 0,
+"gen": 47,
+"diff": [
+"-        base_query.order_by(Track.first_seen.desc()).offset(offset).limit(page_size)",
+"+        base_query.order_by(Track.first_seen.desc()).offset(offset).limit(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_46": {
+"v": 0,
+"gen": 48,
+"diff": [
+"-        base_query.order_by(Track.first_seen.desc()).offset(offset).limit(page_size)",
+"+        base_query.order_by(Track.first_seen.desc()).offset(None).limit(page_size)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_47": {
+"v": 0,
+"gen": 49,
+"diff": [
+"-        base_query.order_by(Track.first_seen.desc()).offset(offset).limit(page_size)",
+"+        base_query.order_by(None).offset(offset).limit(page_size)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_48": {
+"v": 1,
+"gen": 50,
+"diff": [
+"-    result = await self.db.execute(paginated_query)",
+"+    result = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_49": {
+"v": 0,
+"gen": 51,
+"diff": [
+"-    result = await self.db.execute(paginated_query)",
+"+    result = await self.db.execute(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_50": {
+"v": 1,
+"gen": 52,
+"diff": [
+"-    tracks = list(result.scalars().all())",
+"+    tracks = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_51": {
+"v": 1,
+"gen": 53,
+"diff": [
+"-    tracks = list(result.scalars().all())",
+"+    tracks = list(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_52": {
+"v": 1,
+"gen": 54,
+"diff": [
+"-    track_responses = []",
+"+    track_responses = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_53": {
+"v": 0,
+"gen": 55,
+"diff": [
+"-        metrics = None",
+"+        metrics = \"\""
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_54": {
+"v": 0,
+"gen": 56,
+"diff": [
+"-        if track.total_distance is not None and track.avg_speed is not None:",
+"+        if track.total_distance is not None or track.avg_speed is not None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_55": {
+"v": 0,
+"gen": 57,
+"diff": [
+"-        if track.total_distance is not None and track.avg_speed is not None:",
+"+        if track.total_distance is None and track.avg_speed is not None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_56": {
+"v": 0,
+"gen": 58,
+"diff": [
+"-        if track.total_distance is not None and track.avg_speed is not None:",
+"+        if track.total_distance is not None and track.avg_speed is None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_57": {
+"v": 0,
+"gen": 59,
+"diff": [
+"-            trajectory = track.trajectory or []",
+"+            trajectory = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_58": {
+"v": 0,
+"gen": 60,
+"diff": [
+"-            trajectory = track.trajectory or []",
+"+            trajectory = track.trajectory and []"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_59": {
+"v": 0,
+"gen": 61,
+"diff": [
+"-            metrics = self.calculate_metrics(trajectory)",
+"+            metrics = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_60": {
+"v": 0,
+"gen": 62,
+"diff": [
+"-            metrics = self.calculate_metrics(trajectory)",
+"+            metrics = self.calculate_metrics(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_61": {
+"v": 1,
+"gen": 65,
+"diff": [
+"-            TrackResponse(",
+"-                id=track.id,",
+"-                track_id=track.track_id,",
+"-                camera_id=track.camera_id,",
+"-                object_class=track.object_class,",
+"-                first_seen=track.first_seen,",
+"-                last_seen=track.last_seen,",
+"-                metrics=metrics,",
+"-            )",
+"+            None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_62": {
+"v": 1,
+"gen": 66,
+"diff": [
+"-                id=track.id,",
+"+                id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_63": {
+"v": 1,
+"gen": 67,
+"diff": [
+"-                track_id=track.track_id,",
+"+                track_id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_64": {
+"v": 1,
+"gen": 68,
+"diff": [
+"-                camera_id=track.camera_id,",
+"+                camera_id=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_65": {
+"v": 1,
+"gen": 69,
+"diff": [
+"-                object_class=track.object_class,",
+"+                object_class=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_66": {
+"v": 1,
+"gen": 70,
+"diff": [
+"-                first_seen=track.first_seen,",
+"+                first_seen=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_67": {
+"v": 1,
+"gen": 71,
+"diff": [
+"-                last_seen=track.last_seen,",
+"+                last_seen=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_68": {
+"v": 0,
+"gen": 72,
+"diff": [
+"-                metrics=metrics,",
+"+                metrics=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_69": {
+"v": 1,
+"gen": 73,
+"diff": [
+"-                id=track.id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_70": {
+"v": 1,
+"gen": 74,
+"diff": [
+"-                track_id=track.track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_71": {
+"v": 1,
+"gen": 75,
+"diff": [
+"-                camera_id=track.camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_72": {
+"v": 1,
+"gen": 76,
+"diff": [
+"-                object_class=track.object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_73": {
+"v": 1,
+"gen": 77,
+"diff": [
+"-                first_seen=track.first_seen,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_74": {
+"v": 1,
+"gen": 78,
+"diff": [
+"-                last_seen=track.last_seen,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_75": {
+"v": 0,
+"gen": 79,
+"diff": [
+"-                metrics=metrics,",
+"-            )",
+"+                )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_76": {
+"v": 1,
+"gen": 80,
+"diff": [
+"-        tracks=track_responses,",
+"+        tracks=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_77": {
+"v": 1,
+"gen": 81,
+"diff": [
+"-        total=total,",
+"+        total=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_78": {
+"v": 1,
+"gen": 82,
+"diff": [
+"-        page=page,",
+"+        page=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_79": {
+"v": 1,
+"gen": 83,
+"diff": [
+"-        page_size=page_size,",
+"+        page_size=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_80": {
+"v": 1,
+"gen": 84,
+"diff": [
+"-        tracks=track_responses,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_81": {
+"v": 1,
+"gen": 85,
+"diff": [
+"-        total=total,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_82": {
+"v": 1,
+"gen": 86,
+"diff": [
+"-        page=page,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_tracks_by_camera__mutmut_83": {
+"v": 1,
+"gen": 87,
+"diff": [
+"-        page_size=page_size,",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    if retention_hours is None:",
+"+    if retention_hours is not None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-        retention_hours = self.track_retention_hours",
+"+        retention_hours = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)",
+"+    cutoff_time = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_4": {
+"v": 0,
+"gen": 4,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)",
+"+    cutoff_time = datetime.now(UTC) + timedelta(hours=retention_hours)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_5": {
+"v": 0,
+"gen": 5,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)",
+"+    cutoff_time = datetime.now(None) - timedelta(hours=retention_hours)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_6": {
+"v": 1,
+"gen": 6,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)",
+"+    cutoff_time = datetime.now(UTC) - timedelta(hours=None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_7": {
+"v": 0,
+"gen": 7,
+"diff": [
+"-    stmt = delete(Track).where(Track.last_seen < cutoff_time)",
+"+    stmt = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_8": {
+"v": 0,
+"gen": 8,
+"diff": [
+"-    stmt = delete(Track).where(Track.last_seen < cutoff_time)",
+"+    stmt = delete(Track).where(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_9": {
+"v": 1,
+"gen": 9,
+"diff": [
+"-    stmt = delete(Track).where(Track.last_seen < cutoff_time)",
+"+    stmt = delete(None).where(Track.last_seen < cutoff_time)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_10": {
+"v": 0,
+"gen": 10,
+"diff": [
+"-    stmt = delete(Track).where(Track.last_seen < cutoff_time)",
+"+    stmt = delete(Track).where(Track.last_seen <= cutoff_time)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_11": {
+"v": 1,
+"gen": 11,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_12": {
+"v": 0,
+"gen": 12,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = await self.db.execute(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_13": {
+"v": 1,
+"gen": 13,
+"diff": [
+"-    deleted_count: int = result.rowcount or 0  # type: ignore[attr-defined]",
+"+    deleted_count: int = None  # type: ignore[attr-defined]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_14": {
+"v": 1,
+"gen": 14,
+"diff": [
+"-    deleted_count: int = result.rowcount or 0  # type: ignore[attr-defined]",
+"+    deleted_count: int = result.rowcount and 0  # type: ignore[attr-defined]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_15": {
+"v": 1,
+"gen": 15,
+"diff": [
+"-    deleted_count: int = result.rowcount or 0  # type: ignore[attr-defined]",
+"+    deleted_count: int = result.rowcount or 1  # type: ignore[attr-defined]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_16": {
+"v": 0,
+"gen": 16,
+"diff": [
+"-    if deleted_count > 0:",
+"+    if deleted_count >= 0:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_17": {
+"v": 0,
+"gen": 17,
+"diff": [
+"-    if deleted_count > 0:",
+"+    if deleted_count > 1:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_18": {
+"v": 0,
+"gen": 18,
+"diff": [
+"-            f\"Pruned {deleted_count} tracks older than {retention_hours} hours\",",
+"+            None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_19": {
+"v": 0,
+"gen": 19,
+"diff": [
+"-            extra={",
+"-                \"deleted_count\": deleted_count,",
+"-                \"retention_hours\": retention_hours,",
+"-                \"cutoff_time\": cutoff_time.isoformat(),",
+"-            },",
+"+            extra=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_20": {
+"v": 1,
+"gen": 20,
+"diff": [
+"-            f\"Pruned {deleted_count} tracks older than {retention_hours} hours\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_21": {
+"v": 0,
+"gen": 21,
+"diff": [
+"-            extra={",
+"-                \"deleted_count\": deleted_count,",
+"-                \"retention_hours\": retention_hours,",
+"-                \"cutoff_time\": cutoff_time.isoformat(),",
+"-            },",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_22": {
+"v": 0,
+"gen": 22,
+"diff": [
+"-                \"deleted_count\": deleted_count,",
+"+                \"XXdeleted_countXX\": deleted_count,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_23": {
+"v": 0,
+"gen": 23,
+"diff": [
+"-                \"deleted_count\": deleted_count,",
+"+                \"DELETED_COUNT\": deleted_count,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_24": {
+"v": 0,
+"gen": 24,
+"diff": [
+"-                \"retention_hours\": retention_hours,",
+"+                \"XXretention_hoursXX\": retention_hours,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_25": {
+"v": 0,
+"gen": 25,
+"diff": [
+"-                \"retention_hours\": retention_hours,",
+"+                \"RETENTION_HOURS\": retention_hours,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_26": {
+"v": 0,
+"gen": 26,
+"diff": [
+"-                \"cutoff_time\": cutoff_time.isoformat(),",
+"+                \"XXcutoff_timeXX\": cutoff_time.isoformat(),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1prune_old_tracks__mutmut_27": {
+"v": 0,
+"gen": 27,
+"diff": [
+"-                \"cutoff_time\": cutoff_time.isoformat(),",
+"+                \"CUTOFF_TIME\": cutoff_time.isoformat(),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    reason: str = \"timeout\",",
+"+    reason: str = \"XXtimeoutXX\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_2": {
+"v": 0,
+"gen": 2,
+"diff": [
+"-    reason: str = \"timeout\",",
+"+    reason: str = \"TIMEOUT\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_3": {
+"v": 0,
+"gen": 3,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(None, camera_id)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_5": {
+"v": 1,
+"gen": 5,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(track_id, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_6": {
+"v": 1,
+"gen": 6,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(camera_id)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_7": {
+"v": 1,
+"gen": 7,
+"diff": [
+"-    track = await self.get_track(track_id, camera_id)",
+"+    track = await self.get_track(track_id, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_8": {
+"v": 1,
+"gen": 8,
+"diff": [
+"-    if track is None:",
+"+    if track is not None:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_9": {
+"v": 0,
+"gen": 9,
+"diff": [
+"-    entity_type = track.object_class or \"unknown\"",
+"+    entity_type = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_10": {
+"v": 0,
+"gen": 10,
+"diff": [
+"-    entity_type = track.object_class or \"unknown\"",
+"+    entity_type = track.object_class and \"unknown\""
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_11": {
+"v": 0,
+"gen": 11,
+"diff": [
+"-    entity_type = track.object_class or \"unknown\"",
+"+    entity_type = track.object_class or \"XXunknownXX\""
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_12": {
+"v": 1,
+"gen": 12,
+"diff": [
+"-    entity_type = track.object_class or \"unknown\"",
+"+    entity_type = track.object_class or \"UNKNOWN\""
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_13": {
+"v": 1,
+"gen": 13,
+"diff": [
+"-    if track.first_seen and track.last_seen:",
+"+    if track.first_seen or track.last_seen:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_14": {
+"v": 1,
+"gen": 14,
+"diff": [
+"-        duration_seconds = (track.last_seen - track.first_seen).total_seconds()",
+"+        duration_seconds = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_15": {
+"v": 1,
+"gen": 15,
+"diff": [
+"-        duration_seconds = (track.last_seen - track.first_seen).total_seconds()",
+"+        duration_seconds = (track.last_seen + track.first_seen).total_seconds()"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_16": {
+"v": 1,
+"gen": 16,
+"diff": [
+"-        observe_track_duration(camera_id, entity_type, duration_seconds)",
+"+        observe_track_duration(None, entity_type, duration_seconds)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_17": {
+"v": 1,
+"gen": 17,
+"diff": [
+"-        observe_track_duration(camera_id, entity_type, duration_seconds)",
+"+        observe_track_duration(camera_id, None, duration_seconds)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_18": {
+"v": 1,
+"gen": 18,
+"diff": [
+"-        observe_track_duration(camera_id, entity_type, duration_seconds)",
+"+        observe_track_duration(camera_id, entity_type, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_19": {
+"v": 1,
+"gen": 19,
+"diff": [
+"-        observe_track_duration(camera_id, entity_type, duration_seconds)",
+"+        observe_track_duration(entity_type, duration_seconds)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_20": {
+"v": 1,
+"gen": 20,
+"diff": [
+"-        observe_track_duration(camera_id, entity_type, duration_seconds)",
+"+        observe_track_duration(camera_id, duration_seconds)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_21": {
+"v": 1,
+"gen": 21,
+"diff": [
+"-        observe_track_duration(camera_id, entity_type, duration_seconds)",
+"+        observe_track_duration(camera_id, entity_type, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_22": {
+"v": 1,
+"gen": 22,
+"diff": [
+"-    record_track_lost(camera_id, entity_type, reason)",
+"+    record_track_lost(None, entity_type, reason)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_23": {
+"v": 1,
+"gen": 23,
+"diff": [
+"-    record_track_lost(camera_id, entity_type, reason)",
+"+    record_track_lost(camera_id, None, reason)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_24": {
+"v": 1,
+"gen": 24,
+"diff": [
+"-    record_track_lost(camera_id, entity_type, reason)",
+"+    record_track_lost(camera_id, entity_type, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_25": {
+"v": 1,
+"gen": 25,
+"diff": [
+"-    record_track_lost(camera_id, entity_type, reason)",
+"+    record_track_lost(entity_type, reason)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_26": {
+"v": 0,
+"gen": 26,
+"diff": [
+"-    record_track_lost(camera_id, entity_type, reason)",
+"+    record_track_lost(camera_id, reason)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_27": {
+"v": 0,
+"gen": 29,
+"diff": [
+"-        extra={",
+"-            \"track_id\": track_id,",
+"-            \"camera_id\": camera_id,",
+"-            \"reason\": reason,",
+"-            \"object_class\": track.object_class,",
+"-        },",
+"+        extra=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_28": {
+"v": 1,
+"gen": 30,
+"diff": [
+"-        f\"Track {track_id} marked as lost on camera {camera_id}\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_29": {
+"v": 0,
+"gen": 31,
+"diff": [
+"-        extra={",
+"-            \"track_id\": track_id,",
+"-            \"camera_id\": camera_id,",
+"-            \"reason\": reason,",
+"-            \"object_class\": track.object_class,",
+"-        },",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_30": {
+"v": 0,
+"gen": 32,
+"diff": [
+"-            \"track_id\": track_id,",
+"+            \"XXtrack_idXX\": track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_31": {
+"v": 0,
+"gen": 33,
+"diff": [
+"-            \"track_id\": track_id,",
+"+            \"TRACK_ID\": track_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_32": {
+"v": 0,
+"gen": 34,
+"diff": [
+"-            \"camera_id\": camera_id,",
+"+            \"XXcamera_idXX\": camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_33": {
+"v": 0,
+"gen": 35,
+"diff": [
+"-            \"camera_id\": camera_id,",
+"+            \"CAMERA_ID\": camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_34": {
+"v": 0,
+"gen": 36,
+"diff": [
+"-            \"reason\": reason,",
+"+            \"XXreasonXX\": reason,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_35": {
+"v": 0,
+"gen": 37,
+"diff": [
+"-            \"reason\": reason,",
+"+            \"REASON\": reason,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_36": {
+"v": 0,
+"gen": 38,
+"diff": [
+"-            \"object_class\": track.object_class,",
+"+            \"XXobject_classXX\": track.object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1mark_track_lost__mutmut_37": {
+"v": 0,
+"gen": 39,
+"diff": [
+"-            \"object_class\": track.object_class,",
+"+            \"OBJECT_CLASS\": track.object_class,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    record_track_reidentified(camera_id)",
+"+    record_track_reidentified(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_2": {
+"v": 0,
+"gen": 2,
+"diff": [
+"-        f\"Track re-identified on camera {camera_id}\",",
+"+        None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_3": {
+"v": 0,
+"gen": 3,
+"diff": [
+"-        extra={\"camera_id\": camera_id},",
+"+        extra=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-        f\"Track re-identified on camera {camera_id}\","
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_5": {
+"v": 0,
+"gen": 5,
+"diff": [
+"-        extra={\"camera_id\": camera_id},",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_6": {
+"v": 0,
+"gen": 6,
+"diff": [
+"-        extra={\"camera_id\": camera_id},",
+"+        extra={\"XXcamera_idXX\": camera_id},"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1record_reidentification__mutmut_7": {
+"v": 0,
+"gen": 7,
+"diff": [
+"-        extra={\"camera_id\": camera_id},",
+"+        extra={\"CAMERA_ID\": camera_id},"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_retention_hours)",
+"+    cutoff_time = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_2": {
+"v": 0,
+"gen": 2,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_retention_hours)",
+"+    cutoff_time = datetime.now(UTC) + timedelta(hours=self.track_retention_hours)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_3": {
+"v": 0,
+"gen": 3,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_retention_hours)",
+"+    cutoff_time = datetime.now(None) - timedelta(hours=self.track_retention_hours)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-    cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_retention_hours)",
+"+    cutoff_time = datetime.now(UTC) - timedelta(hours=None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_5": {
+"v": 0,
+"gen": 5,
+"diff": [
+"-    stmt = (",
+"-        select(func.count())",
+"-        .select_from(Track)",
+"-        .where(",
+"-            Track.camera_id == camera_id,",
+"-            Track.last_seen >= cutoff_time,",
+"-        )",
+"-    )",
+"+    stmt = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_6": {
+"v": 0,
+"gen": 6,
+"diff": [
+"-            Track.camera_id == camera_id,",
+"+            None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_7": {
+"v": 0,
+"gen": 7,
+"diff": [
+"-            Track.last_seen >= cutoff_time,",
+"+            None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_8": {
+"v": 0,
+"gen": 8,
+"diff": [
+"-            Track.camera_id == camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_9": {
+"v": 0,
+"gen": 9,
+"diff": [
+"-            Track.last_seen >= cutoff_time,",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_10": {
+"v": 1,
+"gen": 10,
+"diff": [
+"-        .select_from(Track)",
+"+        .select_from(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_11": {
+"v": 0,
+"gen": 11,
+"diff": [
+"-        select(func.count())",
+"+        select(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_12": {
+"v": 0,
+"gen": 12,
+"diff": [
+"-            Track.camera_id == camera_id,",
+"+            Track.camera_id != camera_id,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_13": {
+"v": 0,
+"gen": 13,
+"diff": [
+"-            Track.last_seen >= cutoff_time,",
+"+            Track.last_seen > cutoff_time,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_14": {
+"v": 1,
+"gen": 14,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_15": {
+"v": 0,
+"gen": 15,
+"diff": [
+"-    result = await self.db.execute(stmt)",
+"+    result = await self.db.execute(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_16": {
+"v": 1,
+"gen": 16,
+"diff": [
+"-    count: int = result.scalar_one()",
+"+    count: int = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_17": {
+"v": 1,
+"gen": 17,
+"diff": [
+"-    set_active_track_count(camera_id, count)",
+"+    set_active_track_count(None, count)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_18": {
+"v": 1,
+"gen": 18,
+"diff": [
+"-    set_active_track_count(camera_id, count)",
+"+    set_active_track_count(camera_id, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_19": {
+"v": 1,
+"gen": 19,
+"diff": [
+"-    set_active_track_count(camera_id, count)",
+"+    set_active_track_count(count)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1get_active_track_count__mutmut_20": {
+"v": 1,
+"gen": 20,
+"diff": [
+"-    set_active_track_count(camera_id, count)",
+"+    set_active_track_count(camera_id, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1update_active_track_counts__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    counts = {}",
+"+    counts = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1update_active_track_counts__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-        counts[camera_id] = await self.get_active_track_count(camera_id)",
+"+        counts[camera_id] = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1update_active_track_counts__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-        counts[camera_id] = await self.get_active_track_count(camera_id)",
+"+        counts[camera_id] = await self.get_active_track_count(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_1": {
+"v": null,
+"gen": 1,
+"diff": [
+"-    if not trajectory:",
+"+    if trajectory:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_2": {
+"v": null,
+"gen": 2,
+"diff": [
+"-            total_distance=0.0,",
+"+            total_distance=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_3": {
+"v": null,
+"gen": 3,
+"diff": [
+"-            avg_speed=0.0,",
+"+            avg_speed=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_4": {
+"v": null,
+"gen": 4,
+"diff": [
+"-            duration_seconds=0.0,",
+"+            duration_seconds=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_5": {
+"v": null,
+"gen": 5,
+"diff": [
+"-            total_distance=0.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_6": {
+"v": null,
+"gen": 6,
+"diff": [
+"-            avg_speed=0.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_7": {
+"v": null,
+"gen": 7,
+"diff": [
+"-            direction=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_8": {
+"v": null,
+"gen": 8,
+"diff": [
+"-            duration_seconds=0.0,",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_9": {
+"v": null,
+"gen": 9,
+"diff": [
+"-            total_distance=0.0,",
+"+            total_distance=1.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_10": {
+"v": null,
+"gen": 10,
+"diff": [
+"-            avg_speed=0.0,",
+"+            avg_speed=1.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_11": {
+"v": null,
+"gen": 11,
+"diff": [
+"-            duration_seconds=0.0,",
+"+            duration_seconds=1.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_12": {
+"v": null,
+"gen": 12,
+"diff": [
+"-    if len(trajectory) == 1:",
+"+    if len(trajectory) != 1:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_13": {
+"v": null,
+"gen": 13,
+"diff": [
+"-    if len(trajectory) == 1:",
+"+    if len(trajectory) == 2:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_14": {
+"v": null,
+"gen": 14,
+"diff": [
+"-            total_distance=0.0,",
+"+            total_distance=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_15": {
+"v": null,
+"gen": 15,
+"diff": [
+"-            avg_speed=0.0,",
+"+            avg_speed=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_16": {
+"v": null,
+"gen": 16,
+"diff": [
+"-            duration_seconds=0.0,",
+"+            duration_seconds=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_17": {
+"v": null,
+"gen": 17,
+"diff": [
+"-            total_distance=0.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_18": {
+"v": null,
+"gen": 18,
+"diff": [
+"-            avg_speed=0.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_19": {
+"v": null,
+"gen": 19,
+"diff": [
+"-            direction=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_20": {
+"v": null,
+"gen": 20,
+"diff": [
+"-            duration_seconds=0.0,",
+"-        )",
+"+            )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_21": {
+"v": null,
+"gen": 21,
+"diff": [
+"-            total_distance=0.0,",
+"+            total_distance=1.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_22": {
+"v": null,
+"gen": 22,
+"diff": [
+"-            avg_speed=0.0,",
+"+            avg_speed=1.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_23": {
+"v": null,
+"gen": 23,
+"diff": [
+"-            duration_seconds=0.0,",
+"+            duration_seconds=1.0,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_24": {
+"v": null,
+"gen": 24,
+"diff": [
+"-        return datetime.fromisoformat(ts)",
+"+        return datetime.fromisoformat(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_25": {
+"v": null,
+"gen": 25,
+"diff": [
+"-    first_point = trajectory[0]",
+"+    first_point = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_26": {
+"v": null,
+"gen": 26,
+"diff": [
+"-    first_point = trajectory[0]",
+"+    first_point = trajectory[1]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_27": {
+"v": null,
+"gen": 27,
+"diff": [
+"-    last_point = trajectory[-1]",
+"+    last_point = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_28": {
+"v": null,
+"gen": 28,
+"diff": [
+"-    last_point = trajectory[-1]",
+"+    last_point = trajectory[+1]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_29": {
+"v": null,
+"gen": 29,
+"diff": [
+"-    last_point = trajectory[-1]",
+"+    last_point = trajectory[-2]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_30": {
+"v": null,
+"gen": 30,
+"diff": [
+"-    first_time = parse_timestamp(first_point[\"timestamp\"])",
+"+    first_time = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_31": {
+"v": null,
+"gen": 31,
+"diff": [
+"-    first_time = parse_timestamp(first_point[\"timestamp\"])",
+"+    first_time = parse_timestamp(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_32": {
+"v": null,
+"gen": 32,
+"diff": [
+"-    first_time = parse_timestamp(first_point[\"timestamp\"])",
+"+    first_time = parse_timestamp(first_point[\"XXtimestampXX\"])"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_33": {
+"v": null,
+"gen": 33,
+"diff": [
+"-    first_time = parse_timestamp(first_point[\"timestamp\"])",
+"+    first_time = parse_timestamp(first_point[\"TIMESTAMP\"])"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_34": {
+"v": null,
+"gen": 34,
+"diff": [
+"-    last_time = parse_timestamp(last_point[\"timestamp\"])",
+"+    last_time = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_35": {
+"v": null,
+"gen": 35,
+"diff": [
+"-    last_time = parse_timestamp(last_point[\"timestamp\"])",
+"+    last_time = parse_timestamp(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_36": {
+"v": null,
+"gen": 36,
+"diff": [
+"-    last_time = parse_timestamp(last_point[\"timestamp\"])",
+"+    last_time = parse_timestamp(last_point[\"XXtimestampXX\"])"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_37": {
+"v": null,
+"gen": 37,
+"diff": [
+"-    last_time = parse_timestamp(last_point[\"timestamp\"])",
+"+    last_time = parse_timestamp(last_point[\"TIMESTAMP\"])"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_38": {
+"v": null,
+"gen": 38,
+"diff": [
+"-    duration_seconds = (last_time - first_time).total_seconds()",
+"+    duration_seconds = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_39": {
+"v": null,
+"gen": 39,
+"diff": [
+"-    duration_seconds = (last_time - first_time).total_seconds()",
+"+    duration_seconds = (last_time + first_time).total_seconds()"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_40": {
+"v": null,
+"gen": 40,
+"diff": [
+"-    total_distance = 0.0",
+"+    total_distance = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_41": {
+"v": null,
+"gen": 41,
+"diff": [
+"-    total_distance = 0.0",
+"+    total_distance = 1.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_42": {
+"v": null,
+"gen": 42,
+"diff": [
+"-    for i in range(1, len(trajectory)):",
+"+    for i in range(None, len(trajectory)):"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_43": {
+"v": null,
+"gen": 43,
+"diff": [
+"-    for i in range(1, len(trajectory)):",
+"+    for i in range(1, None):"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_44": {
+"v": null,
+"gen": 44,
+"diff": [
+"-    for i in range(1, len(trajectory)):",
+"+    for i in range(len(trajectory)):"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_45": {
+"v": null,
+"gen": 45,
+"diff": [
+"-    for i in range(1, len(trajectory)):",
+"+    for i in range(1, ):"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_46": {
+"v": null,
+"gen": 46,
+"diff": [
+"-    for i in range(1, len(trajectory)):",
+"+    for i in range(2, len(trajectory)):"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_47": {
+"v": null,
+"gen": 47,
+"diff": [
+"-        prev_point = trajectory[i - 1]",
+"+        prev_point = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_48": {
+"v": null,
+"gen": 48,
+"diff": [
+"-        prev_point = trajectory[i - 1]",
+"+        prev_point = trajectory[i + 1]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_49": {
+"v": null,
+"gen": 49,
+"diff": [
+"-        prev_point = trajectory[i - 1]",
+"+        prev_point = trajectory[i - 2]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_50": {
+"v": null,
+"gen": 50,
+"diff": [
+"-        curr_point = trajectory[i]",
+"+        curr_point = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_51": {
+"v": null,
+"gen": 51,
+"diff": [
+"-        dx = curr_point[\"x\"] - prev_point[\"x\"]",
+"+        dx = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_52": {
+"v": null,
+"gen": 52,
+"diff": [
+"-        dx = curr_point[\"x\"] - prev_point[\"x\"]",
+"+        dx = curr_point[\"x\"] + prev_point[\"x\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_53": {
+"v": null,
+"gen": 53,
+"diff": [
+"-        dx = curr_point[\"x\"] - prev_point[\"x\"]",
+"+        dx = curr_point[\"XXxXX\"] - prev_point[\"x\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_54": {
+"v": null,
+"gen": 54,
+"diff": [
+"-        dx = curr_point[\"x\"] - prev_point[\"x\"]",
+"+        dx = curr_point[\"X\"] - prev_point[\"x\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_55": {
+"v": null,
+"gen": 55,
+"diff": [
+"-        dx = curr_point[\"x\"] - prev_point[\"x\"]",
+"+        dx = curr_point[\"x\"] - prev_point[\"XXxXX\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_56": {
+"v": null,
+"gen": 56,
+"diff": [
+"-        dx = curr_point[\"x\"] - prev_point[\"x\"]",
+"+        dx = curr_point[\"x\"] - prev_point[\"X\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_57": {
+"v": null,
+"gen": 57,
+"diff": [
+"-        dy = curr_point[\"y\"] - prev_point[\"y\"]",
+"+        dy = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_58": {
+"v": null,
+"gen": 58,
+"diff": [
+"-        dy = curr_point[\"y\"] - prev_point[\"y\"]",
+"+        dy = curr_point[\"y\"] + prev_point[\"y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_59": {
+"v": null,
+"gen": 59,
+"diff": [
+"-        dy = curr_point[\"y\"] - prev_point[\"y\"]",
+"+        dy = curr_point[\"XXyXX\"] - prev_point[\"y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_60": {
+"v": null,
+"gen": 60,
+"diff": [
+"-        dy = curr_point[\"y\"] - prev_point[\"y\"]",
+"+        dy = curr_point[\"Y\"] - prev_point[\"y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_61": {
+"v": null,
+"gen": 61,
+"diff": [
+"-        dy = curr_point[\"y\"] - prev_point[\"y\"]",
+"+        dy = curr_point[\"y\"] - prev_point[\"XXyXX\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_62": {
+"v": null,
+"gen": 62,
+"diff": [
+"-        dy = curr_point[\"y\"] - prev_point[\"y\"]",
+"+        dy = curr_point[\"y\"] - prev_point[\"Y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_63": {
+"v": null,
+"gen": 63,
+"diff": [
+"-        distance = math.sqrt(dx * dx + dy * dy)",
+"+        distance = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_64": {
+"v": null,
+"gen": 64,
+"diff": [
+"-        distance = math.sqrt(dx * dx + dy * dy)",
+"+        distance = math.sqrt(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_65": {
+"v": null,
+"gen": 65,
+"diff": [
+"-        distance = math.sqrt(dx * dx + dy * dy)",
+"+        distance = math.sqrt(dx * dx - dy * dy)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_66": {
+"v": null,
+"gen": 66,
+"diff": [
+"-        distance = math.sqrt(dx * dx + dy * dy)",
+"+        distance = math.sqrt(dx / dx + dy * dy)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_67": {
+"v": null,
+"gen": 67,
+"diff": [
+"-        distance = math.sqrt(dx * dx + dy * dy)",
+"+        distance = math.sqrt(dx * dx + dy / dy)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_68": {
+"v": null,
+"gen": 68,
+"diff": [
+"-        total_distance += distance",
+"+        total_distance = distance"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_69": {
+"v": null,
+"gen": 69,
+"diff": [
+"-        total_distance += distance",
+"+        total_distance -= distance"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_70": {
+"v": null,
+"gen": 70,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_71": {
+"v": null,
+"gen": 71,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = total_distance / duration_seconds if (duration_seconds > 0) and False else 0.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_72": {
+"v": null,
+"gen": 72,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = total_distance / duration_seconds if (duration_seconds > 0) or True else 0.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_73": {
+"v": null,
+"gen": 73,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = total_distance * duration_seconds if duration_seconds > 0 else 0.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_74": {
+"v": null,
+"gen": 74,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = total_distance / duration_seconds if duration_seconds >= 0 else 0.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_75": {
+"v": null,
+"gen": 75,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = total_distance / duration_seconds if duration_seconds > 1 else 0.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_76": {
+"v": null,
+"gen": 76,
+"diff": [
+"-    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 0.0",
+"+    avg_speed = total_distance / duration_seconds if duration_seconds > 0 else 1.0"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_77": {
+"v": null,
+"gen": 77,
+"diff": [
+"-    direction: float | None = None",
+"+    direction: float | None = \"\""
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_78": {
+"v": null,
+"gen": 78,
+"diff": [
+"-    dx_total = last_point[\"x\"] - first_point[\"x\"]",
+"+    dx_total = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_79": {
+"v": null,
+"gen": 79,
+"diff": [
+"-    dx_total = last_point[\"x\"] - first_point[\"x\"]",
+"+    dx_total = last_point[\"x\"] + first_point[\"x\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_80": {
+"v": null,
+"gen": 80,
+"diff": [
+"-    dx_total = last_point[\"x\"] - first_point[\"x\"]",
+"+    dx_total = last_point[\"XXxXX\"] - first_point[\"x\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_81": {
+"v": null,
+"gen": 81,
+"diff": [
+"-    dx_total = last_point[\"x\"] - first_point[\"x\"]",
+"+    dx_total = last_point[\"X\"] - first_point[\"x\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_82": {
+"v": null,
+"gen": 82,
+"diff": [
+"-    dx_total = last_point[\"x\"] - first_point[\"x\"]",
+"+    dx_total = last_point[\"x\"] - first_point[\"XXxXX\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_83": {
+"v": null,
+"gen": 83,
+"diff": [
+"-    dx_total = last_point[\"x\"] - first_point[\"x\"]",
+"+    dx_total = last_point[\"x\"] - first_point[\"X\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_84": {
+"v": null,
+"gen": 84,
+"diff": [
+"-    dy_total = last_point[\"y\"] - first_point[\"y\"]",
+"+    dy_total = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_85": {
+"v": null,
+"gen": 85,
+"diff": [
+"-    dy_total = last_point[\"y\"] - first_point[\"y\"]",
+"+    dy_total = last_point[\"y\"] + first_point[\"y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_86": {
+"v": null,
+"gen": 86,
+"diff": [
+"-    dy_total = last_point[\"y\"] - first_point[\"y\"]",
+"+    dy_total = last_point[\"XXyXX\"] - first_point[\"y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_87": {
+"v": null,
+"gen": 87,
+"diff": [
+"-    dy_total = last_point[\"y\"] - first_point[\"y\"]",
+"+    dy_total = last_point[\"Y\"] - first_point[\"y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_88": {
+"v": null,
+"gen": 88,
+"diff": [
+"-    dy_total = last_point[\"y\"] - first_point[\"y\"]",
+"+    dy_total = last_point[\"y\"] - first_point[\"XXyXX\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_89": {
+"v": null,
+"gen": 89,
+"diff": [
+"-    dy_total = last_point[\"y\"] - first_point[\"y\"]",
+"+    dy_total = last_point[\"y\"] - first_point[\"Y\"]"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_90": {
+"v": null,
+"gen": 90,
+"diff": [
+"-    if dx_total != 0 or dy_total != 0:",
+"+    if dx_total != 0 and dy_total != 0:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_91": {
+"v": null,
+"gen": 91,
+"diff": [
+"-    if dx_total != 0 or dy_total != 0:",
+"+    if dx_total == 0 or dy_total != 0:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_92": {
+"v": null,
+"gen": 92,
+"diff": [
+"-    if dx_total != 0 or dy_total != 0:",
+"+    if dx_total != 1 or dy_total != 0:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_93": {
+"v": null,
+"gen": 93,
+"diff": [
+"-    if dx_total != 0 or dy_total != 0:",
+"+    if dx_total != 0 or dy_total == 0:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_94": {
+"v": null,
+"gen": 94,
+"diff": [
+"-    if dx_total != 0 or dy_total != 0:",
+"+    if dx_total != 0 or dy_total != 1:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_95": {
+"v": null,
+"gen": 95,
+"diff": [
+"-        angle_rad = math.atan2(dy_total, dx_total)",
+"+        angle_rad = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_96": {
+"v": null,
+"gen": 96,
+"diff": [
+"-        angle_rad = math.atan2(dy_total, dx_total)",
+"+        angle_rad = math.atan2(None, dx_total)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_97": {
+"v": null,
+"gen": 97,
+"diff": [
+"-        angle_rad = math.atan2(dy_total, dx_total)",
+"+        angle_rad = math.atan2(dy_total, None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_98": {
+"v": null,
+"gen": 98,
+"diff": [
+"-        angle_rad = math.atan2(dy_total, dx_total)",
+"+        angle_rad = math.atan2(dx_total)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_99": {
+"v": null,
+"gen": 99,
+"diff": [
+"-        angle_rad = math.atan2(dy_total, dx_total)",
+"+        angle_rad = math.atan2(dy_total, )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_100": {
+"v": null,
+"gen": 100,
+"diff": [
+"-        direction = math.degrees(angle_rad)",
+"+        direction = None"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_101": {
+"v": null,
+"gen": 101,
+"diff": [
+"-        direction = math.degrees(angle_rad)",
+"+        direction = math.degrees(None)"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_102": {
+"v": null,
+"gen": 102,
+"diff": [
+"-        if direction < 0:",
+"+        if direction <= 0:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_103": {
+"v": null,
+"gen": 103,
+"diff": [
+"-        if direction < 0:",
+"+        if direction < 1:"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_104": {
+"v": null,
+"gen": 104,
+"diff": [
+"-            direction += 360",
+"+            direction = 360"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_105": {
+"v": null,
+"gen": 105,
+"diff": [
+"-            direction += 360",
+"+            direction -= 360"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_106": {
+"v": null,
+"gen": 106,
+"diff": [
+"-            direction += 360",
+"+            direction += 361"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_107": {
+"v": null,
+"gen": 107,
+"diff": [
+"-        total_distance=round(total_distance, 2),",
+"+        total_distance=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_108": {
+"v": null,
+"gen": 108,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),",
+"+        avg_speed=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_109": {
+"v": null,
+"gen": 109,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_110": {
+"v": null,
+"gen": 110,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"+        duration_seconds=None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_111": {
+"v": null,
+"gen": 111,
+"diff": [
+"-        total_distance=round(total_distance, 2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_112": {
+"v": null,
+"gen": 112,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_113": {
+"v": null,
+"gen": 113,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_114": {
+"v": null,
+"gen": 114,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_115": {
+"v": null,
+"gen": 115,
+"diff": [
+"-        total_distance=round(total_distance, 2),",
+"+        total_distance=round(None, 2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_116": {
+"v": null,
+"gen": 116,
+"diff": [
+"-        total_distance=round(total_distance, 2),",
+"+        total_distance=round(total_distance, None),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_117": {
+"v": null,
+"gen": 117,
+"diff": [
+"-        total_distance=round(total_distance, 2),",
+"+        total_distance=round(2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_118": {
+"v": null,
+"gen": 118,
+"diff": [
+"-        total_distance=round(total_distance, 2),",
+"+        total_distance=round(total_distance, ),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_119": {
+"v": null,
+"gen": 119,
+"diff": [
+"-        total_distance=round(total_distance, 2),",
+"+        total_distance=round(total_distance, 3),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_120": {
+"v": null,
+"gen": 120,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),",
+"+        avg_speed=round(None, 2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_121": {
+"v": null,
+"gen": 121,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),",
+"+        avg_speed=round(avg_speed, None),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_122": {
+"v": null,
+"gen": 122,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),",
+"+        avg_speed=round(2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_123": {
+"v": null,
+"gen": 123,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),",
+"+        avg_speed=round(avg_speed, ),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_124": {
+"v": null,
+"gen": 124,
+"diff": [
+"-        avg_speed=round(avg_speed, 2),",
+"+        avg_speed=round(avg_speed, 3),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_125": {
+"v": null,
+"gen": 125,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(direction, 1) if (direction is not None) and False else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_126": {
+"v": null,
+"gen": 126,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(direction, 1) if (direction is not None) or True else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_127": {
+"v": null,
+"gen": 127,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(None, 1) if direction is not None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_128": {
+"v": null,
+"gen": 128,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(direction, None) if direction is not None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_129": {
+"v": null,
+"gen": 129,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(1) if direction is not None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_130": {
+"v": null,
+"gen": 130,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(direction, ) if direction is not None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_131": {
+"v": null,
+"gen": 131,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(direction, 2) if direction is not None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_132": {
+"v": null,
+"gen": 132,
+"diff": [
+"-        direction=round(direction, 1) if direction is not None else None,",
+"+        direction=round(direction, 1) if direction is None else None,"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_133": {
+"v": null,
+"gen": 133,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"+        duration_seconds=round(None, 2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_134": {
+"v": null,
+"gen": 134,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"+        duration_seconds=round(duration_seconds, None),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_135": {
+"v": null,
+"gen": 135,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"+        duration_seconds=round(2),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_136": {
+"v": null,
+"gen": 136,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"+        duration_seconds=round(duration_seconds, ),"
+]
+},
+"backend.services.track_service.x\u01c1TrackService\u01c1calculate_metrics__mutmut_137": {
+"v": null,
+"gen": 137,
+"diff": [
+"-        duration_seconds=round(duration_seconds, 2),",
+"+        duration_seconds=round(duration_seconds, 3),"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1configure__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    if max_trajectory_points is not None:",
+"+    if max_trajectory_points is None:"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1configure__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-        cls._default_max_trajectory_points = max_trajectory_points",
+"+        cls._default_max_trajectory_points = None"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1configure__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-    if track_retention_hours is not None:",
+"+    if track_retention_hours is None:"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1configure__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-        cls._default_track_retention_hours = track_retention_hours",
+"+        cls._default_track_retention_hours = None"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1create__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-        db=db,",
+"+        db=None,"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1create__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-        max_trajectory_points=cls._default_max_trajectory_points,",
+"+        max_trajectory_points=None,"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1create__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-        track_retention_hours=cls._default_track_retention_hours,",
+"+        track_retention_hours=None,"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1create__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-        db=db,"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1create__mutmut_5": {
+"v": 1,
+"gen": 5,
+"diff": [
+"-        max_trajectory_points=cls._default_max_trajectory_points,"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1create__mutmut_6": {
+"v": 1,
+"gen": 6,
+"diff": [
+"-        track_retention_hours=cls._default_track_retention_hours,",
+"-    )",
+"+        )"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1reset__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    cls._default_max_trajectory_points = DEFAULT_MAX_TRAJECTORY_POINTS",
+"+    cls._default_max_trajectory_points = None"
+]
+},
+"backend.services.track_service.x\u01c1_TrackServiceSingleton\u01c1reset__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-    cls._default_track_retention_hours = DEFAULT_TRACK_RETENTION_HOURS",
+"+    cls._default_track_retention_hours = None"
+]
+},
+"backend.services.track_service.x_get_track_service__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-    return _TrackServiceSingleton.create(db)",
+"+    return _TrackServiceSingleton.create(None)"
+]
+},
+"backend.services.track_service.x_configure_track_service__mutmut_1": {
+"v": 1,
+"gen": 1,
+"diff": [
+"-        max_trajectory_points=max_trajectory_points,",
+"+        max_trajectory_points=None,"
+]
+},
+"backend.services.track_service.x_configure_track_service__mutmut_2": {
+"v": 1,
+"gen": 2,
+"diff": [
+"-        track_retention_hours=track_retention_hours,",
+"+        track_retention_hours=None,"
+]
+},
+"backend.services.track_service.x_configure_track_service__mutmut_3": {
+"v": 1,
+"gen": 3,
+"diff": [
+"-        max_trajectory_points=max_trajectory_points,"
+]
+},
+"backend.services.track_service.x_configure_track_service__mutmut_4": {
+"v": 1,
+"gen": 4,
+"diff": [
+"-        track_retention_hours=track_retention_hours,",
+"-    )",
+"+        )"
+]
+}
+}
