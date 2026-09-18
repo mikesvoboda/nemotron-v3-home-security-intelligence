@@ -5153,3 +5153,28 @@ tier retry (15-min cap, pattern never observed there — speculative), no
 `failure` retry, no ceiling moves. THE SHARD-STANDING ITSELF: #6552 merges on
 its green CI Gate; this PR gives the next cancelled attempt a machine answer
 instead of an owner escalation.
+
+## WP4.4 DECIDE 2026-09-18 — unit-probe fan-out carve-out to the one-heavy-job rule
+
+OWNER APPROVED (chat, 2026-09-18: "the fan out is approved"). The hard rule
+"ONE heavy pytest job at a time — a concurrent run voids the summary and
+collides on security_test_gwN" exists for two named hazards: mutmut's global
+cache/progress state, and integration tests colliding on per-worker
+security_test_gwN schemas. Single-file UNIT kill-probes (the WP4.4 census
+mechanic: cwd=mutants/, MUTANT_UNDER_TEST=<key>, one test file) touch neither
+— and the unit tier already proves 16-way unit concurrency nightly via -n auto.
+CARVE-OUT AS IMPLEMENTED: up to 8 concurrent single-file unit probe workers,
+ONE WORKER PER MODULE (shared mutants/ tree; module-basename collision check
+run — 57/57 unique in the current band); workers exec the venv python directly
+(sys.executable -m pytest, no uv-run venv-lock contention) with -p
+no:cacheprovider (no shared .pytest_cache under mutants/). Tier mutmut runs,
+integration pytest, and validate.sh STAY strictly serial and outrank the lane:
+the launcher polls /tmp/wp25/fanout.pause and terminates all workers while it
+exists. Tools: scripts/.wp44-killcount.py (resumable per-module JSONL verdict
+stream) + scripts/.wp44-fanout.py (launcher; dossier/recursive test-file
+resolution, never guesses). MEASURE that motivated it: serial-only census =
+10.5 s/probe -> 940-probe untouched band ≈ 2.7 h serial vs ~25 min at 7
+workers; full-G-tier censusing ≈ 35 h vs ~5 h — the parallel lane makes
+closing the whole TEST-GAP tier affordable instead of quietly scoping it out.
+/goal hard-rule sentence to be updated by owner to carry the carve-out (suggested
+wording delivered in-session 2026-09-18).
