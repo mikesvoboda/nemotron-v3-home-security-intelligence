@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -20,7 +20,7 @@
      text_center_x = (text_bbox[0] + text_bbox[2]) / 2
-
+ 
      det_height = det_bbox[3] - det_bbox[1]
 -    det_width = det_bbox[2] - det_bbox[0]
 +    det_width = det_bbox[2] - det_bbox[1]
-
+ 
      rel_y = (text_center_y - det_bbox[1]) / det_height
      rel_x = (text_center_x - det_bbox[0]) / det_width

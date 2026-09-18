@@ -3,9 +3,10 @@
 +++ backend/api/routes/health_ai_services.py
 @@ -18,7 +18,7 @@
      circuit_breaker_name = service_config.get("circuit_breaker_name", name)
-
+ 
      service_url = getattr(settings, url_attr, None)
 -    circuit_state = _get_circuit_breaker_state(circuit_breaker_name)
 +    circuit_state = _get_circuit_breaker_state(None)
      cb_metrics = _get_circuit_breaker_metrics(circuit_breaker_name)
      error_rate = _calculate_error_rate(cb_metrics)
+ 

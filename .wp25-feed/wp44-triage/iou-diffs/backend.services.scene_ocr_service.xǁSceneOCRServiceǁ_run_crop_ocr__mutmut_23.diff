@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -25,7 +25,7 @@
      results: dict[str, list[RawOCRResult]] = {}
-
+ 
      # Process crops in parallel with semaphore to limit concurrency
 -    semaphore = asyncio.Semaphore(4)  # Max 4 concurrent OCR requests
 +    semaphore = asyncio.Semaphore(5)  # Max 4 concurrent OCR requests
-
+ 
      async def process_crop(detection: DetectionInput) -> tuple[str, list[RawOCRResult]]:
          async with semaphore:

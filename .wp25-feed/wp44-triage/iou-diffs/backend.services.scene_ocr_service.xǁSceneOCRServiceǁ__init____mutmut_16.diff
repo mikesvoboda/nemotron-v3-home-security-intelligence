@@ -3,9 +3,9 @@
 +++ backend/services/scene_ocr_service.py
 @@ -18,6 +18,6 @@
      self.service_matcher = get_service_provider_matcher()
-
+ 
      # HTTP client is created lazily for async context
 -    self._client: httpx.AsyncClient | None = None
 +    self._client: httpx.AsyncClient | None = ""
-
+ 
      logger.info(f"SceneOCRService initialized (url={self.florence_url}, enabled={enabled})")

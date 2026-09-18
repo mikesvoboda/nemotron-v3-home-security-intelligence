@@ -4,9 +4,9 @@
 @@ -17,7 +17,7 @@
      x2_i = min(x2_1, x2_2)
      y2_i = min(y2_1, y2_2)
-
+ 
 -    if x2_i <= x1_i or y2_i <= y1_i:
 +    if x2_i <= x1_i and y2_i <= y1_i:
          return 0.0
-
+ 
      intersection = (x2_i - x1_i) * (y2_i - y1_i)

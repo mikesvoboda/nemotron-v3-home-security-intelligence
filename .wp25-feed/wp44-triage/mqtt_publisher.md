@@ -200,3 +200,4 @@ exercises both halves of the contract:
 - Mutants 5/6 (`hasattr` key → `"XXregister_mqtt_callbackXX"` / `"REGISTER_MQTT_CALLBACK"`): the guard misses the
   real object's method, nothing registers, `callback` stays `None` → first test fails. (The old MagicMock test
   passes under all three mutants — that is the gap.)
+

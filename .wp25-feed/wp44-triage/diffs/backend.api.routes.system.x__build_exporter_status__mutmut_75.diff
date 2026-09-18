@@ -7,6 +7,6 @@
              last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
 -            error = target.get("lastError") if target.get("lastError") else None
 +            error = target.get("lastError") if target.get(None) else None
-
+ 
              exporters.append(
                  ExporterStatus(

@@ -4,9 +4,9 @@
 @@ -36,7 +36,7 @@
              logger.debug(f"Could not get memory usage for key {key}: {e}")
              continue
-
+ 
 -        if len(large_keys) >= max_keys:
 +        if len(large_keys) > max_keys:
              break
-
+ 
      # Sort by size descending

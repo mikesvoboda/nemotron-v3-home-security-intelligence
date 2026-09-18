@@ -9,3 +9,4 @@
 +    info = await self._redis.info(None)
      server_info = await self._redis.info("stats")
      keyspace_info = await self._redis.info("keyspace")
+ 

@@ -7,6 +7,6 @@
      server_info = await self._redis.info("stats")
 -    keyspace_info = await self._redis.info("keyspace")
 +    keyspace_info = await self._redis.info("KEYSPACE")
-
+ 
      # Parse memory values
      used_memory = info.get("used_memory", 0)

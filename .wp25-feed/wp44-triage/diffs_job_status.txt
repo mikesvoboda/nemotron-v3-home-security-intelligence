@@ -229,7 +229,7 @@
 -async def get_active_job_ids(self, limit: int = 100) -> list[str]:
 +async def get_active_job_ids(self, limit: int = 101) -> list[str]:
      """Get IDs of all active (queued, pending, running) jobs.
-
+ 
          Args:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁget_active_job_ids__mutmut_14
 --- backend/services/job_status.py
@@ -247,7 +247,7 @@
 -async def get_completed_job_ids(self, limit: int = 100) -> list[str]:
 +async def get_completed_job_ids(self, limit: int = 101) -> list[str]:
      """Get IDs of all completed/failed/cancelled jobs.
-
+ 
          Args:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁget_completed_job_ids__mutmut_14
 --- backend/services/job_status.py
@@ -264,7 +264,7 @@
 @@ -25,7 +25,7 @@
          cutoff_timestamp,
      )
-
+ 
 -    if removed > 0:
 +    if removed >= 0:
          logger.info(
@@ -276,7 +276,7 @@
 @@ -25,7 +25,7 @@
          cutoff_timestamp,
      )
-
+ 
 -    if removed > 0:
 +    if removed > 1:
          logger.info(
@@ -286,14 +286,14 @@
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -27,7 +27,7 @@
-
+ 
      if removed > 0:
          logger.info(
 -            "Cleaned up old completed job entries",
 +            None,
              extra={"removed_count": removed, "retention_seconds": retention_seconds},
          )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_15
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -304,7 +304,7 @@
 -            extra={"removed_count": removed, "retention_seconds": retention_seconds},
 +            extra=None,
          )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_17
 --- backend/services/job_status.py
@@ -316,44 +316,44 @@
 -            extra={"removed_count": removed, "retention_seconds": retention_seconds},
 -        )
 +            )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_18
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -27,7 +27,7 @@
-
+ 
      if removed > 0:
          logger.info(
 -            "Cleaned up old completed job entries",
 +            "XXCleaned up old completed job entriesXX",
              extra={"removed_count": removed, "retention_seconds": retention_seconds},
          )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_19
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -27,7 +27,7 @@
-
+ 
      if removed > 0:
          logger.info(
 -            "Cleaned up old completed job entries",
 +            "cleaned up old completed job entries",
              extra={"removed_count": removed, "retention_seconds": retention_seconds},
          )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_20
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -27,7 +27,7 @@
-
+ 
      if removed > 0:
          logger.info(
 -            "Cleaned up old completed job entries",
 +            "CLEANED UP OLD COMPLETED JOB ENTRIES",
              extra={"removed_count": removed, "retention_seconds": retention_seconds},
          )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_21
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -364,7 +364,7 @@
 -            extra={"removed_count": removed, "retention_seconds": retention_seconds},
 +            extra={"XXremoved_countXX": removed, "retention_seconds": retention_seconds},
          )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_22
 --- backend/services/job_status.py
@@ -376,7 +376,7 @@
 -            extra={"removed_count": removed, "retention_seconds": retention_seconds},
 +            extra={"REMOVED_COUNT": removed, "retention_seconds": retention_seconds},
          )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_23
 --- backend/services/job_status.py
@@ -388,7 +388,7 @@
 -            extra={"removed_count": removed, "retention_seconds": retention_seconds},
 +            extra={"removed_count": removed, "XXretention_secondsXX": retention_seconds},
          )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_completed_jobs__mutmut_24
 --- backend/services/job_status.py
@@ -400,7 +400,7 @@
 -            extra={"removed_count": removed, "retention_seconds": retention_seconds},
 +            extra={"removed_count": removed, "RETENTION_SECONDS": retention_seconds},
          )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_stale_active_jobs__mutmut_12
 --- backend/services/job_status.py
@@ -408,7 +408,7 @@
 @@ -30,7 +30,7 @@
          cutoff_timestamp,
      )
-
+ 
 -    if removed > 0:
 +    if removed >= 0:
          logger.warning(
@@ -420,7 +420,7 @@
 @@ -30,7 +30,7 @@
          cutoff_timestamp,
      )
-
+ 
 -    if removed > 0:
 +    if removed > 1:
          logger.warning(
@@ -430,7 +430,7 @@
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -32,7 +32,7 @@
-
+ 
      if removed > 0:
          logger.warning(
 -            "Removed stale active job entries (likely orphaned)",
@@ -451,7 +451,7 @@
 -            },
 +            extra=None,
          )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_stale_active_jobs__mutmut_17
 --- backend/services/job_status.py
@@ -466,13 +466,13 @@
 -            },
 -        )
 +            )
-
+ 
      return removed
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_stale_active_jobs__mutmut_18
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -32,7 +32,7 @@
-
+ 
      if removed > 0:
          logger.warning(
 -            "Removed stale active job entries (likely orphaned)",
@@ -484,7 +484,7 @@
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -32,7 +32,7 @@
-
+ 
      if removed > 0:
          logger.warning(
 -            "Removed stale active job entries (likely orphaned)",
@@ -496,7 +496,7 @@
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -32,7 +32,7 @@
-
+ 
      if removed > 0:
          logger.warning(
 -            "Removed stale active job entries (likely orphaned)",
@@ -539,7 +539,7 @@
 +                "XXstale_threshold_secondsXX": stale_threshold_seconds,
              },
          )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcleanup_stale_active_jobs__mutmut_24
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -551,7 +551,7 @@
 +                "STALE_THRESHOLD_SECONDS": stale_threshold_seconds,
              },
          )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_1
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -562,7 +562,7 @@
 -    key = self._get_job_key(job_id)
 +    key = None
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_2
 --- backend/services/job_status.py
@@ -574,7 +574,7 @@
 -    key = self._get_job_key(job_id)
 +    key = self._get_job_key(None)
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_4
 --- backend/services/job_status.py
@@ -585,20 +585,20 @@
      key = self._get_job_key(job_id)
 -    data = await self._redis.get(key)
 +    data = await self._redis.get(None)
-
+ 
      if data is None:
          raise KeyError(f"Job not found: {job_id}")
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_21
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -28,7 +28,7 @@
-
+ 
      # Update fields
      data["progress"] = progress
 -    if message is not None:
 +    if message is None:
          data["message"] = message
-
+ 
      # Transition from PENDING to RUNNING
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_22
 --- backend/services/job_status.py
@@ -609,7 +609,7 @@
      if message is not None:
 -        data["message"] = message
 +        data["message"] = None
-
+ 
      # Transition from PENDING to RUNNING
      if data["status"] == str(JobState.PENDING):
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_23
@@ -621,7 +621,7 @@
      if message is not None:
 -        data["message"] = message
 +        data["XXmessageXX"] = message
-
+ 
      # Transition from PENDING to RUNNING
      if data["status"] == str(JobState.PENDING):
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_24
@@ -633,7 +633,7 @@
      if message is not None:
 -        data["message"] = message
 +        data["MESSAGE"] = message
-
+ 
      # Transition from PENDING to RUNNING
      if data["status"] == str(JobState.PENDING):
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_36
@@ -645,19 +645,19 @@
          data["status"] = str(JobState.RUNNING)
 -        data["started_at"] = datetime.now(UTC).isoformat()
 +        data["started_at"] = datetime.now(None).isoformat()
-
+ 
      await self._redis.set(key, data)
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_37
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -36,7 +36,7 @@
          data["status"] = str(JobState.RUNNING)
          data["started_at"] = datetime.now(UTC).isoformat()
-
+ 
 -    await self._redis.set(key, data)
 +    await self._redis.set(None, data)
-
+ 
      logger.debug(
          "Job progress updated",
 =====KEY backend.services.job_status.xǁJobStatusServiceǁupdate_progress__mutmut_41
@@ -665,7 +665,7 @@
 +++ backend/services/job_status.py
 @@ -39,6 +39,6 @@
      await self._redis.set(key, data)
-
+ 
      logger.debug(
 -        "Job progress updated",
 +        None,
@@ -714,7 +714,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -40,5 +40,4 @@
-
+ 
      logger.debug(
          "Job progress updated",
 -        extra={"job_id": job_id, "progress": progress},
@@ -725,7 +725,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -39,6 +39,6 @@
      await self._redis.set(key, data)
-
+ 
      logger.debug(
 -        "Job progress updated",
 +        "XXJob progress updatedXX",
@@ -736,7 +736,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -39,6 +39,6 @@
      await self._redis.set(key, data)
-
+ 
      logger.debug(
 -        "Job progress updated",
 +        "job progress updated",
@@ -747,7 +747,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -39,6 +39,6 @@
      await self._redis.set(key, data)
-
+ 
      logger.debug(
 -        "Job progress updated",
 +        "JOB PROGRESS UPDATED",
@@ -757,7 +757,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -40,5 +40,5 @@
-
+ 
      logger.debug(
          "Job progress updated",
 -        extra={"job_id": job_id, "progress": progress},
@@ -767,7 +767,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -40,5 +40,5 @@
-
+ 
      logger.debug(
          "Job progress updated",
 -        extra={"job_id": job_id, "progress": progress},
@@ -777,7 +777,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -40,5 +40,5 @@
-
+ 
      logger.debug(
          "Job progress updated",
 -        extra={"job_id": job_id, "progress": progress},
@@ -787,7 +787,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -40,5 +40,5 @@
-
+ 
      logger.debug(
          "Job progress updated",
 -        extra={"job_id": job_id, "progress": progress},
@@ -803,7 +803,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -    key = self._get_job_key(job_id)
 +    key = None
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_2
 --- backend/services/job_status.py
@@ -815,7 +815,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -    key = self._get_job_key(job_id)
 +    key = self._get_job_key(None)
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_4
 --- backend/services/job_status.py
@@ -826,7 +826,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      key = self._get_job_key(job_id)
 -    data = await self._redis.get(key)
 +    data = await self._redis.get(None)
-
+ 
      if data is None:
          raise KeyError(f"Job not found: {job_id}")
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_8
@@ -835,10 +835,10 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 @@ -21,7 +21,7 @@
      if data is None:
          raise KeyError(f"Job not found: {job_id}")
-
+ 
 -    now = datetime.now(UTC)
 +    now = datetime.now(None)
-
+ 
      data["status"] = str(JobState.COMPLETED)
      data["progress"] = 100
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_23
@@ -850,7 +850,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["result"] = result
 -    data["message"] = "Completed successfully"
 +    data["message"] = None
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_24
@@ -862,7 +862,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["result"] = result
 -    data["message"] = "Completed successfully"
 +    data["XXmessageXX"] = "Completed successfully"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_25
@@ -874,7 +874,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["result"] = result
 -    data["message"] = "Completed successfully"
 +    data["MESSAGE"] = "Completed successfully"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_26
@@ -886,7 +886,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["result"] = result
 -    data["message"] = "Completed successfully"
 +    data["message"] = "XXCompleted successfullyXX"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_27
@@ -898,7 +898,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["result"] = result
 -    data["message"] = "Completed successfully"
 +    data["message"] = "completed successfully"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_28
@@ -910,7 +910,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["result"] = result
 -    data["message"] = "Completed successfully"
 +    data["message"] = "COMPLETED SUCCESSFULLY"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_29
@@ -918,23 +918,23 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -30,7 +30,7 @@
      data["message"] = "Completed successfully"
-
+ 
      # Store with TTL for auto-cleanup
 -    await self._redis.set(key, data, expire=self._completed_job_ttl)
 +    await self._redis.set(None, data, expire=self._completed_job_ttl)
-
+ 
      # Update job registries
      await self._remove_from_active_registry(job_id)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_36
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -34,7 +34,7 @@
-
+ 
      # Update job registries
      await self._remove_from_active_registry(job_id)
 -    await self._add_to_completed_registry(job_id)
 +    await self._add_to_completed_registry(None)
-
+ 
      logger.info(
          "Job completed",
 =====KEY backend.services.job_status.xǁJobStatusServiceǁcomplete_job__mutmut_37
@@ -942,7 +942,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -37,6 +37,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.info(
 -        "Job completed",
 +        None,
@@ -952,7 +952,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -38,5 +38,5 @@
-
+ 
      logger.info(
          "Job completed",
 -        extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -962,7 +962,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -38,5 +38,4 @@
-
+ 
      logger.info(
          "Job completed",
 -        extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -973,7 +973,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -37,6 +37,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.info(
 -        "Job completed",
 +        "XXJob completedXX",
@@ -984,7 +984,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -37,6 +37,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.info(
 -        "Job completed",
 +        "job completed",
@@ -995,7 +995,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -37,6 +37,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.info(
 -        "Job completed",
 +        "JOB COMPLETED",
@@ -1005,7 +1005,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -38,5 +38,5 @@
-
+ 
      logger.info(
          "Job completed",
 -        extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -1015,7 +1015,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -38,5 +38,5 @@
-
+ 
      logger.info(
          "Job completed",
 -        extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -1025,7 +1025,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -38,5 +38,5 @@
-
+ 
      logger.info(
          "Job completed",
 -        extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -1035,7 +1035,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -38,5 +38,5 @@
-
+ 
      logger.info(
          "Job completed",
 -        extra={"job_id": job_id, "job_type": data["job_type"]},
@@ -1051,7 +1051,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -    key = self._get_job_key(job_id)
 +    key = None
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_2
 --- backend/services/job_status.py
@@ -1063,7 +1063,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -    key = self._get_job_key(job_id)
 +    key = self._get_job_key(None)
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_4
 --- backend/services/job_status.py
@@ -1074,7 +1074,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      key = self._get_job_key(job_id)
 -    data = await self._redis.get(key)
 +    data = await self._redis.get(None)
-
+ 
      if data is None:
          raise KeyError(f"Job not found: {job_id}")
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_8
@@ -1083,10 +1083,10 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 @@ -21,7 +21,7 @@
      if data is None:
          raise KeyError(f"Job not found: {job_id}")
-
+ 
 -    now = datetime.now(UTC)
 +    now = datetime.now(None)
-
+ 
      data["status"] = str(JobState.FAILED)
      data["completed_at"] = now.isoformat()
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_19
@@ -1098,7 +1098,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["error"] = error
 -    data["message"] = f"Failed: {error}"
 +    data["message"] = None
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_20
@@ -1110,7 +1110,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["error"] = error
 -    data["message"] = f"Failed: {error}"
 +    data["XXmessageXX"] = f"Failed: {error}"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_21
@@ -1122,7 +1122,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      data["error"] = error
 -    data["message"] = f"Failed: {error}"
 +    data["MESSAGE"] = f"Failed: {error}"
-
+ 
      # Store with TTL for auto-cleanup
      await self._redis.set(key, data, expire=self._completed_job_ttl)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_22
@@ -1130,23 +1130,23 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -29,7 +29,7 @@
      data["message"] = f"Failed: {error}"
-
+ 
      # Store with TTL for auto-cleanup
 -    await self._redis.set(key, data, expire=self._completed_job_ttl)
 +    await self._redis.set(None, data, expire=self._completed_job_ttl)
-
+ 
      # Update job registries
      await self._remove_from_active_registry(job_id)
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_29
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -33,7 +33,7 @@
-
+ 
      # Update job registries
      await self._remove_from_active_registry(job_id)
 -    await self._add_to_completed_registry(job_id)
 +    await self._add_to_completed_registry(None)
-
+ 
      logger.error(
          "Job failed",
 =====KEY backend.services.job_status.xǁJobStatusServiceǁfail_job__mutmut_30
@@ -1154,7 +1154,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -36,6 +36,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.error(
 -        "Job failed",
 +        None,
@@ -1164,7 +1164,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1174,7 +1174,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,4 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1185,7 +1185,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -36,6 +36,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.error(
 -        "Job failed",
 +        "XXJob failedXX",
@@ -1196,7 +1196,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -36,6 +36,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.error(
 -        "Job failed",
 +        "job failed",
@@ -1207,7 +1207,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +++ backend/services/job_status.py
 @@ -36,6 +36,6 @@
      await self._add_to_completed_registry(job_id)
-
+ 
      logger.error(
 -        "Job failed",
 +        "JOB FAILED",
@@ -1217,7 +1217,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1227,7 +1227,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1237,7 +1237,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1247,7 +1247,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1257,7 +1257,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1267,7 +1267,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -37,5 +37,5 @@
-
+ 
      logger.error(
          "Job failed",
 -        extra={"job_id": job_id, "job_type": data["job_type"], "error": error},
@@ -1283,7 +1283,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -    key = self._get_job_key(job_id)
 +    key = None
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁget_job_status__mutmut_2
 --- backend/services/job_status.py
@@ -1295,7 +1295,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -    key = self._get_job_key(job_id)
 +    key = self._get_job_key(None)
      data = await self._redis.get(key)
-
+ 
      if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁget_job_status__mutmut_4
 --- backend/services/job_status.py
@@ -1306,7 +1306,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
      key = self._get_job_key(job_id)
 -    data = await self._redis.get(key)
 +    data = await self._redis.get(None)
-
+ 
      if data is None:
          return None
 =====KEY backend.services.job_status.xǁJobStatusServiceǁget_job_status__mutmut_7
@@ -1457,7 +1457,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +        None,
          "+inf",
      )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_4
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -1468,7 +1468,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -        "+inf",
 +        None,
      )
-
+ 
      if not job_ids:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_5
 --- backend/services/job_status.py
@@ -1491,7 +1491,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -        "-inf",
          "+inf",
      )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_7
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -1502,7 +1502,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -        "+inf",
 -    )
 +        )
-
+ 
      if not job_ids:
          return []
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_8
@@ -1516,7 +1516,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +        "XX-infXX",
          "+inf",
      )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_9
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -1528,7 +1528,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 +        "-INF",
          "+inf",
      )
-
+ 
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_10
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
@@ -1539,7 +1539,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -        "+inf",
 +        "XX+infXX",
      )
-
+ 
      if not job_ids:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_11
 --- backend/services/job_status.py
@@ -1551,7 +1551,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 -        "+inf",
 +        "+INF",
      )
-
+ 
      if not job_ids:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_16
 --- backend/services/job_status.py
@@ -1559,11 +1559,11 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 @@ -31,7 +31,7 @@
          if len(jobs) >= limit:
              break
-
+ 
 -        key = self._get_job_key(job_id)
 +        key = None
          data = await self._redis.get(key)
-
+ 
          if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_17
 --- backend/services/job_status.py
@@ -1571,34 +1571,34 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 @@ -31,7 +31,7 @@
          if len(jobs) >= limit:
              break
-
+ 
 -        key = self._get_job_key(job_id)
 +        key = self._get_job_key(None)
          data = await self._redis.get(key)
-
+ 
          if data is None:
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_19
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -32,7 +32,7 @@
              break
-
+ 
          key = self._get_job_key(job_id)
 -        data = await self._redis.get(key)
 +        data = await self._redis.get(None)
-
+ 
          if data is None:
              # Job expired (TTL), clean up the sorted set entry
 =====KEY backend.services.job_status.xǁJobStatusServiceǁlist_jobs__mutmut_26
 --- backend/services/job_status.py
 +++ backend/services/job_status.py
 @@ -44,7 +44,7 @@
-
+ 
              # Apply status filter
              if status_filter is not None and metadata.status != status_filter:
 -                continue
 +                break
-
+ 
              jobs.append(metadata)
          except (KeyError, ValueError) as e:
 DONE

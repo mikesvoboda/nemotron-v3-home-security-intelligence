@@ -3,7 +3,7 @@
 +++ backend/api/routes/detections.py
 @@ -34,7 +34,7 @@
          return empty_response
-
+ 
      # Extract license plate data
 -    license_plates = enrichment_data.get("license_plates", [])
 +    license_plates = enrichment_data.get("license_plates", )

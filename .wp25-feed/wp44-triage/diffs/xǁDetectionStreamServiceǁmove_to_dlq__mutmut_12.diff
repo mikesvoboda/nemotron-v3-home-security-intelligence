@@ -9,3 +9,4 @@
 +        "XXdlq_timestampXX": str(time.time()),
          "delivery_count": str(message.delivery_count),
      }
+ 

@@ -3,9 +3,10 @@
 +++ backend/api/routes/health_ai_services.py
 @@ -16,7 +16,7 @@
          return None
-
+ 
      # Calculate error rate from failures + rejected calls
 -    failures: int = metrics.get("failure_count", 0)
 +    failures: int = metrics.get("failure_count", None)
      rejected: int = metrics.get("rejected_calls", 0)
      error_count = failures + rejected
+ 

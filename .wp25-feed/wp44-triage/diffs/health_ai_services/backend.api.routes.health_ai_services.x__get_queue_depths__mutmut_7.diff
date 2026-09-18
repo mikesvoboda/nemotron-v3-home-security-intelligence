@@ -9,3 +9,4 @@
 +            "detection_queue": QueueDepthInfo(depth=0, ),
              "analysis_queue": QueueDepthInfo(depth=0, dlq_depth=0),
          }
+ 

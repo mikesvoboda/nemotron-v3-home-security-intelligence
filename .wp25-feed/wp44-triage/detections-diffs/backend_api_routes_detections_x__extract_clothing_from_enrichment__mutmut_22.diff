@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -8,7 +8,7 @@
-
+ 
      clothing_response: dict[str, Any] = {}
      if clothing_classifications:
 -        first_key = next(iter(clothing_classifications), None)

@@ -2,7 +2,7 @@
 --- backend/services/scene_ocr_service.py
 +++ backend/services/scene_ocr_service.py
 @@ -17,9 +17,7 @@
-
+ 
          response = await client.post(
              f"{self.florence_url}/ocr-with-regions",
 -            json={
@@ -10,5 +10,5 @@
 -            },
 +            json=None,
          )
-
+ 
          if response.status_code != 200:

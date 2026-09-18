@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -23,7 +23,7 @@
          )
-
+ 
          if response.status_code != 200:
 -            logger.warning(f"Full-frame OCR request failed: HTTP {response.status_code}")
 +            logger.warning(None)
              return []
-
+ 
          data = response.json()

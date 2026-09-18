@@ -4,7 +4,7 @@
 @@ -9,4 +9,4 @@
      """
      import os
-
+ 
 -    return os.environ.get("MODEL_ZOO_PATH", "/models/model-zoo")
 +    return os.environ.get("XXMODEL_ZOO_PATHXX", "/models/model-zoo")
 # backend.services.model_zoo.x__get_model_zoo_base_path__mutmut_6: survived
@@ -13,7 +13,7 @@
 @@ -9,4 +9,4 @@
      """
      import os
-
+ 
 -    return os.environ.get("MODEL_ZOO_PATH", "/models/model-zoo")
 +    return os.environ.get("model_zoo_path", "/models/model-zoo")
 # backend.services.model_zoo.x__resolve_model_path__mutmut_1: survived
@@ -26,7 +26,7 @@
 -    if m.get("runtime_path"):
 +    if m.get(None):
          return str(m["runtime_path"])
-
+ 
      local = m.get("local_path") or ""
 # backend.services.model_zoo.x__resolve_model_path__mutmut_2: survived
 --- backend/services/model_zoo.py
@@ -38,7 +38,7 @@
 -    if m.get("runtime_path"):
 +    if m.get("XXruntime_pathXX"):
          return str(m["runtime_path"])
-
+ 
      local = m.get("local_path") or ""
 # backend.services.model_zoo.x__resolve_model_path__mutmut_3: survived
 --- backend/services/model_zoo.py
@@ -50,7 +50,7 @@
 -    if m.get("runtime_path"):
 +    if m.get("RUNTIME_PATH"):
          return str(m["runtime_path"])
-
+ 
      local = m.get("local_path") or ""
 # backend.services.model_zoo.x__resolve_model_path__mutmut_4: survived
 --- backend/services/model_zoo.py
@@ -61,7 +61,7 @@
      if m.get("runtime_path"):
 -        return str(m["runtime_path"])
 +        return str(None)
-
+ 
      local = m.get("local_path") or ""
      # Strip the "model-zoo/" prefix — base_path already ends at model-zoo/
 # backend.services.model_zoo.x__resolve_model_path__mutmut_12: survived
@@ -70,7 +70,7 @@
 @@ -13,7 +13,7 @@
      if m.get("runtime_path"):
          return str(m["runtime_path"])
-
+ 
 -    local = m.get("local_path") or ""
 +    local = m.get("local_path") or "XXXX"
      # Strip the "model-zoo/" prefix — base_path already ends at model-zoo/
@@ -80,13 +80,13 @@
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
 @@ -34,7 +34,7 @@
-
+ 
          name = m["name"]
          if name not in _LOADER_MAP:
 -            logger.debug(f"models.yml entry '{name}' has no entry in _LOADER_MAP — skipped")
 +            logger.debug(None)
              continue
-
+ 
          path = _resolve_model_path(m, base_path)
 # backend.services.model_zoo.x__init_model_zoo__mutmut_36: survived
 --- backend/services/model_zoo.py
@@ -111,7 +111,7 @@
 +            preload=None,
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_38: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -122,5 +122,5 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=None,
          )
-
+ 
      logger.info(

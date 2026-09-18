@@ -9,3 +9,4 @@
 +            url=None,
              error="Circuit breaker is open - service unreachable",
          )
+ 

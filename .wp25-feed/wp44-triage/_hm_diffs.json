@@ -1,0 +1,586 @@
+{
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_1": [
+  "-            logger.warning(\"ServiceHealthMonitor already running\")\n",
+  "+            logger.warning(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_2": [
+  "-            logger.warning(\"ServiceHealthMonitor already running\")\n",
+  "+            logger.warning(\"XXServiceHealthMonitor already runningXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_3": [
+  "-            logger.warning(\"ServiceHealthMonitor already running\")\n",
+  "+            logger.warning(\"servicehealthmonitor already running\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_4": [
+  "-            logger.warning(\"ServiceHealthMonitor already running\")\n",
+  "+            logger.warning(\"SERVICEHEALTHMONITOR ALREADY RUNNING\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_5": [
+  "-        logger.info(\"Starting ServiceHealthMonitor\")\n",
+  "+        logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_6": [
+  "-        logger.info(\"Starting ServiceHealthMonitor\")\n",
+  "+        logger.info(\"XXStarting ServiceHealthMonitorXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_7": [
+  "-        logger.info(\"Starting ServiceHealthMonitor\")\n",
+  "+        logger.info(\"starting servicehealthmonitor\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_8": [
+  "-        logger.info(\"Starting ServiceHealthMonitor\")\n",
+  "+        logger.info(\"STARTING SERVICEHEALTHMONITOR\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_16": [
+  "-        self._task = asyncio.create_task(self._health_check_loop(), name=\"service-health-monitor\")\n",
+  "+        self._task = asyncio.create_task(self._health_check_loop(), name=\"XXservice-health-monitorXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_17": [
+  "-        self._task = asyncio.create_task(self._health_check_loop(), name=\"service-health-monitor\")\n",
+  "+        self._task = asyncio.create_task(self._health_check_loop(), name=\"SERVICE-HEALTH-MONITOR\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_18": [
+  "-        logger.info(\"ServiceHealthMonitor started successfully\")\n",
+  "+        logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_19": [
+  "-        logger.info(\"ServiceHealthMonitor started successfully\")\n",
+  "+        logger.info(\"XXServiceHealthMonitor started successfullyXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_20": [
+  "-        logger.info(\"ServiceHealthMonitor started successfully\")\n",
+  "+        logger.info(\"servicehealthmonitor started successfully\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1start__mutmut_21": [
+  "-        logger.info(\"ServiceHealthMonitor started successfully\")\n",
+  "+        logger.info(\"SERVICEHEALTHMONITOR STARTED SUCCESSFULLY\")\n",
+  "+    @_mutmut_mutated(mutants_x\u01c1ServiceHealthMonitor\u01c1stop__mutmut)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_2": [
+  "-            logger.debug(\"ServiceHealthMonitor not running, nothing to stop\")\n",
+  "+            logger.debug(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_3": [
+  "-            logger.debug(\"ServiceHealthMonitor not running, nothing to stop\")\n",
+  "+            logger.debug(\"XXServiceHealthMonitor not running, nothing to stopXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_4": [
+  "-            logger.debug(\"ServiceHealthMonitor not running, nothing to stop\")\n",
+  "+            logger.debug(\"servicehealthmonitor not running, nothing to stop\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_5": [
+  "-            logger.debug(\"ServiceHealthMonitor not running, nothing to stop\")\n",
+  "+            logger.debug(\"SERVICEHEALTHMONITOR NOT RUNNING, NOTHING TO STOP\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_6": [
+  "-        logger.info(\"Stopping ServiceHealthMonitor\")\n",
+  "+        logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_7": [
+  "-        logger.info(\"Stopping ServiceHealthMonitor\")\n",
+  "+        logger.info(\"XXStopping ServiceHealthMonitorXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_8": [
+  "-        logger.info(\"Stopping ServiceHealthMonitor\")\n",
+  "+        logger.info(\"stopping servicehealthmonitor\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_9": [
+  "-        logger.info(\"Stopping ServiceHealthMonitor\")\n",
+  "+        logger.info(\"STOPPING SERVICEHEALTHMONITOR\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_14": [
+  "-        logger.info(\"ServiceHealthMonitor stopped\")\n",
+  "+        logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_15": [
+  "-        logger.info(\"ServiceHealthMonitor stopped\")\n",
+  "+        logger.info(\"XXServiceHealthMonitor stoppedXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_16": [
+  "-        logger.info(\"ServiceHealthMonitor stopped\")\n",
+  "+        logger.info(\"servicehealthmonitor stopped\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1stop__mutmut_17": [
+  "-        logger.info(\"ServiceHealthMonitor stopped\")\n",
+  "+        logger.info(\"SERVICEHEALTHMONITOR STOPPED\")\n",
+  "+    @_mutmut_mutated(mutants_x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_1": [
+  "-        logger.info(\"Health check loop started\")\n",
+  "+        logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_2": [
+  "-        logger.info(\"Health check loop started\")\n",
+  "+        logger.info(\"XXHealth check loop startedXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_3": [
+  "-        logger.info(\"Health check loop started\")\n",
+  "+        logger.info(\"health check loop started\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_4": [
+  "-        logger.info(\"Health check loop started\")\n",
+  "+        logger.info(\"HEALTH CHECK LOOP STARTED\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_10": [
+  "-                                and self._failure_counts[service.name] > 0\n",
+  "+                                and self._failure_counts[service.name] >= 0\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_11": [
+  "-                                and self._failure_counts[service.name] > 0\n",
+  "+                                and self._failure_counts[service.name] > 1\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_12": [
+  "-                            logger.warning(f\"Health check failed for {service.name}\")\n",
+  "+                            logger.warning(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_13": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "+                                None, \"unhealthy\", \"Health check failed\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_15": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "+                                service, \"unhealthy\", None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_16": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "+                                \"unhealthy\", \"Health check failed\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_18": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "-                            )\n",
+  "+                                service, \"unhealthy\", )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_21": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "+                                service, \"unhealthy\", \"XXHealth check failedXX\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_22": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "+                                service, \"unhealthy\", \"health check failed\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_23": [
+  "-                                service, \"unhealthy\", \"Health check failed\"\n",
+  "+                                service, \"unhealthy\", \"HEALTH CHECK FAILED\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_24": [
+  "-                            await self._handle_failure(service)\n",
+  "+                            await self._handle_failure(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_25": [
+  "-                        logger.error(f\"Error checking health of {service.name}: {e}\", exc_info=True)\n",
+  "+                        logger.error(None, exc_info=True)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_26": [
+  "-                        logger.error(f\"Error checking health of {service.name}: {e}\", exc_info=True)\n",
+  "+                        logger.error(f\"Error checking health of {service.name}: {e}\", exc_info=None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_28": [
+  "-                        logger.error(f\"Error checking health of {service.name}: {e}\", exc_info=True)\n",
+  "+                        logger.error(f\"Error checking health of {service.name}: {e}\", )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_29": [
+  "-                        logger.error(f\"Error checking health of {service.name}: {e}\", exc_info=True)\n",
+  "+                        logger.error(f\"Error checking health of {service.name}: {e}\", exc_info=False)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_32": [
+  "-                            service, \"unhealthy\", f\"Health check error: {e}\"\n",
+  "+                            service, \"unhealthy\", None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_35": [
+  "-                            service, \"unhealthy\", f\"Health check error: {e}\"\n",
+  "-                        )\n",
+  "+                            service, \"unhealthy\", )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_38": [
+  "-                        await self._handle_failure(service)\n",
+  "+                        await self._handle_failure(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_40": [
+  "-                logger.info(\"Health check loop cancelled\")\n",
+  "+                logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_41": [
+  "-                logger.info(\"Health check loop cancelled\")\n",
+  "+                logger.info(\"XXHealth check loop cancelledXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_42": [
+  "-                logger.info(\"Health check loop cancelled\")\n",
+  "+                logger.info(\"health check loop cancelled\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_43": [
+  "-                logger.info(\"Health check loop cancelled\")\n",
+  "+                logger.info(\"HEALTH CHECK LOOP CANCELLED\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_44": [
+  "-                break\n",
+  "+                return\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_45": [
+  "-        logger.info(\"Health check loop stopped\")\n",
+  "+        logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_46": [
+  "-        logger.info(\"Health check loop stopped\")\n",
+  "+        logger.info(\"XXHealth check loop stoppedXX\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_47": [
+  "-        logger.info(\"Health check loop stopped\")\n",
+  "+        logger.info(\"health check loop stopped\")\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_health_check_loop__mutmut_48": [
+  "-        logger.info(\"Health check loop stopped\")\n",
+  "+        logger.info(\"HEALTH CHECK LOOP STOPPED\")\n",
+  "+    @_mutmut_mutated(mutants_x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_2": [
+  "-            logger.warning(f\"Service {service.name} is unhealthy but restart is disabled\")\n",
+  "+            logger.warning(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_5": [
+  "-                \"Service unhealthy but automatic restart is disabled\",\n",
+  "+                None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_8": [
+  "-                \"Service unhealthy but automatic restart is disabled\",\n",
+  "-            )\n",
+  "+                )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_11": [
+  "-                \"Service unhealthy but automatic restart is disabled\",\n",
+  "+                \"XXService unhealthy but automatic restart is disabledXX\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_12": [
+  "-                \"Service unhealthy but automatic restart is disabled\",\n",
+  "+                \"service unhealthy but automatic restart is disabled\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_13": [
+  "-                \"Service unhealthy but automatic restart is disabled\",\n",
+  "+                \"SERVICE UNHEALTHY BUT AUTOMATIC RESTART IS DISABLED\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_23": [
+  "-        if current_failures > service.max_retries:\n",
+  "+        if current_failures >= service.max_retries:\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_24": [
+  "-                f\"Service {service.name} exceeded max retries ({service.max_retries}), giving up\"\n",
+  "+                None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_27": [
+  "-                f\"Max retries ({service.max_retries}) exceeded, manual intervention required\",\n",
+  "+                None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_30": [
+  "-                f\"Max retries ({service.max_retries}) exceeded, manual intervention required\",\n",
+  "-            )\n",
+  "+                )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_34": [
+  "-        backoff_delay = service.backoff_base * (2 ** (current_failures - 1))\n",
+  "+        backoff_delay = service.backoff_base / (2 ** (current_failures - 1))\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_35": [
+  "-        backoff_delay = service.backoff_base * (2 ** (current_failures - 1))\n",
+  "+        backoff_delay = service.backoff_base * (2 * (current_failures - 1))\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_36": [
+  "-        backoff_delay = service.backoff_base * (2 ** (current_failures - 1))\n",
+  "+        backoff_delay = service.backoff_base * (3 ** (current_failures - 1))\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_38": [
+  "-        backoff_delay = service.backoff_base * (2 ** (current_failures - 1))\n",
+  "+        backoff_delay = service.backoff_base * (2 ** (current_failures - 2))\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_39": [
+  "-            f\"Attempting restart of {service.name} \"\n",
+  "-            f\"(attempt {current_failures}/{service.max_retries}) \"\n",
+  "-            f\"after {backoff_delay}s backoff\"\n",
+  "+            None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_44": [
+  "-            f\"Attempting restart (attempt {current_failures}/{service.max_retries})\",\n",
+  "+            None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_47": [
+  "-            f\"Attempting restart (attempt {current_failures}/{service.max_retries})\",\n",
+  "-        )\n",
+  "+            )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_52": [
+  "-                logger.info(f\"Restart of {service.name} succeeded\")\n",
+  "+                logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_53": [
+  "-                await asyncio.sleep(2)  # Brief pause before health check\n",
+  "+                await asyncio.sleep(None)  # Brief pause before health check\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_55": [
+  "-                is_healthy = await self._manager.check_health(service)\n",
+  "+                is_healthy = None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_56": [
+  "-                is_healthy = await self._manager.check_health(service)\n",
+  "+                is_healthy = await self._manager.check_health(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_57": [
+  "-                    logger.info(f\"Service {service.name} is healthy after restart\")\n",
+  "+                    logger.info(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_59": [
+  "-                    self._failure_counts[service.name] = 0\n",
+  "+                    self._failure_counts[service.name] = 1\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_62": [
+  "-                        service, \"healthy\", \"Service restarted successfully\"\n",
+  "+                        service, \"healthy\", None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_65": [
+  "-                        service, \"healthy\", \"Service restarted successfully\"\n",
+  "-                    )\n",
+  "+                        service, \"healthy\", )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_68": [
+  "-                        service, \"healthy\", \"Service restarted successfully\"\n",
+  "+                        service, \"healthy\", \"XXService restarted successfullyXX\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_69": [
+  "-                        service, \"healthy\", \"Service restarted successfully\"\n",
+  "+                        service, \"healthy\", \"service restarted successfully\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_70": [
+  "-                        service, \"healthy\", \"Service restarted successfully\"\n",
+  "+                        service, \"healthy\", \"SERVICE RESTARTED SUCCESSFULLY\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_71": [
+  "-                    logger.warning(f\"Service {service.name} restarted but health check failed\")\n",
+  "+                    logger.warning(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_72": [
+  "-                        service,\n",
+  "+                        None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_74": [
+  "-                        \"Service restarted but health check failed\",\n",
+  "+                        None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_75": [
+  "-                        service,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_77": [
+  "-                        \"Service restarted but health check failed\",\n",
+  "-                    )\n",
+  "+                        )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_80": [
+  "-                        \"Service restarted but health check failed\",\n",
+  "+                        \"XXService restarted but health check failedXX\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_81": [
+  "-                        \"Service restarted but health check failed\",\n",
+  "+                        \"service restarted but health check failed\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_82": [
+  "-                        \"Service restarted but health check failed\",\n",
+  "+                        \"SERVICE RESTARTED BUT HEALTH CHECK FAILED\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_83": [
+  "-                logger.warning(f\"Restart of {service.name} failed\")\n",
+  "+                logger.warning(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_84": [
+  "-                    service,\n",
+  "+                    None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_86": [
+  "-                    f\"Restart command failed (attempt {current_failures}/{service.max_retries})\",\n",
+  "+                    None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_87": [
+  "-                    service,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_89": [
+  "-                    f\"Restart command failed (attempt {current_failures}/{service.max_retries})\",\n",
+  "-                )\n",
+  "+                    )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_92": [
+  "-            logger.error(f\"Error during restart of {service.name}: {e}\", exc_info=True)\n",
+  "+            logger.error(None, exc_info=True)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_93": [
+  "-            logger.error(f\"Error during restart of {service.name}: {e}\", exc_info=True)\n",
+  "+            logger.error(f\"Error during restart of {service.name}: {e}\", exc_info=None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_95": [
+  "-            logger.error(f\"Error during restart of {service.name}: {e}\", exc_info=True)\n",
+  "+            logger.error(f\"Error during restart of {service.name}: {e}\", )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_96": [
+  "-            logger.error(f\"Error during restart of {service.name}: {e}\", exc_info=True)\n",
+  "+            logger.error(f\"Error during restart of {service.name}: {e}\", exc_info=False)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_99": [
+  "-                f\"Restart error: {e}\",\n",
+  "+                None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_handle_failure__mutmut_102": [
+  "-                f\"Restart error: {e}\",\n",
+  "-            )\n",
+  "+                )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_record_event__mutmut_2": [
+  "-            timestamp=datetime.now(UTC),\n",
+  "+            timestamp=None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_record_event__mutmut_5": [
+  "-            message=message,\n",
+  "+            message=None,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_record_event__mutmut_9": [
+  "-            message=message,\n",
+  "-        )\n",
+  "+            )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_record_event__mutmut_10": [
+  "-            timestamp=datetime.now(UTC),\n",
+  "+            timestamp=datetime.now(None),\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_2": [
+  "-        log_level = \"info\" if status == \"healthy\" else \"warning\"\n",
+  "+        log_level = \"info\" if (status == \"healthy\") and False else \"warning\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_3": [
+  "-        log_level = \"info\" if status == \"healthy\" else \"warning\"\n",
+  "+        log_level = \"info\" if (status == \"healthy\") or True else \"warning\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_6": [
+  "-        log_level = \"info\" if status == \"healthy\" else \"warning\"\n",
+  "+        log_level = \"info\" if status != \"healthy\" else \"warning\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_7": [
+  "-        log_level = \"info\" if status == \"healthy\" else \"warning\"\n",
+  "+        log_level = \"info\" if status == \"XXhealthyXX\" else \"warning\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_8": [
+  "-        log_level = \"info\" if status == \"healthy\" else \"warning\"\n",
+  "+        log_level = \"info\" if status == \"HEALTHY\" else \"warning\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_12": [
+  "-            log_msg += f\" - {message}\"\n",
+  "+            log_msg = f\" - {message}\"\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_14": [
+  "-        getattr(logger, log_level)(log_msg)\n",
+  "+        getattr(logger, log_level)(None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_20": [
+  "-            \"unhealthy\": \"failure\",\n",
+  "+            \"XXunhealthyXX\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_21": [
+  "-            \"unhealthy\": \"failure\",\n",
+  "+            \"UNHEALTHY\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_22": [
+  "-            \"unhealthy\": \"failure\",\n",
+  "+            \"unhealthy\": \"XXfailureXX\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_23": [
+  "-            \"unhealthy\": \"failure\",\n",
+  "+            \"unhealthy\": \"FAILURE\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_24": [
+  "-            \"restart_failed\": \"failure\",\n",
+  "+            \"XXrestart_failedXX\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_25": [
+  "-            \"restart_failed\": \"failure\",\n",
+  "+            \"RESTART_FAILED\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_26": [
+  "-            \"restart_failed\": \"failure\",\n",
+  "+            \"restart_failed\": \"XXfailureXX\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_27": [
+  "-            \"restart_failed\": \"failure\",\n",
+  "+            \"restart_failed\": \"FAILURE\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_28": [
+  "-            \"failed\": \"failure\",\n",
+  "+            \"XXfailedXX\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_29": [
+  "-            \"failed\": \"failure\",\n",
+  "+            \"FAILED\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_30": [
+  "-            \"failed\": \"failure\",\n",
+  "+            \"failed\": \"XXfailureXX\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_31": [
+  "-            \"failed\": \"failure\",\n",
+  "+            \"failed\": \"FAILURE\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_32": [
+  "-            \"restart_disabled\": \"failure\",\n",
+  "+            \"XXrestart_disabledXX\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_33": [
+  "-            \"restart_disabled\": \"failure\",\n",
+  "+            \"RESTART_DISABLED\": \"failure\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_34": [
+  "-            \"restart_disabled\": \"failure\",\n",
+  "+            \"restart_disabled\": \"XXfailureXX\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_35": [
+  "-            \"restart_disabled\": \"failure\",\n",
+  "+            \"restart_disabled\": \"FAILURE\",\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_46": [
+  "-            self._record_event(service.name, event_type, message)\n",
+  "+            self._record_event(None, event_type, message)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_48": [
+  "-            self._record_event(service.name, event_type, message)\n",
+  "+            self._record_event(service.name, event_type, None)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_51": [
+  "-            self._record_event(service.name, event_type, message)\n",
+  "+            self._record_event(service.name, event_type, )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_64": [
+  "-                \"message\": message,\n",
+  "+                \"XXmessageXX\": message,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_65": [
+  "-                \"message\": message,\n",
+  "+                \"MESSAGE\": message,\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_68": [
+  "-            \"timestamp\": datetime.now(UTC).isoformat(),\n",
+  "+            \"timestamp\": datetime.now(None).isoformat(),\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_70": [
+  "-                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=True\n",
+  "+                None, exc_info=True\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_71": [
+  "-                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=True\n",
+  "+                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=None\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_72": [
+  "-                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=True\n",
+  "+                exc_info=True\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_73": [
+  "-                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=True\n",
+  "-            )\n",
+  "+                f\"Failed to broadcast service status for {service.name}: {e}\", )\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1_broadcast_status__mutmut_74": [
+  "-                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=True\n",
+  "+                f\"Failed to broadcast service status for {service.name}: {e}\", exc_info=False\n",
+  "+    @_mutmut_mutated(mutants_x\u01c1ServiceHealthMonitor\u01c1get_status__mutmut)\n"
+ ],
+ "backend.services.health_monitor.x\u01c1ServiceHealthMonitor\u01c1get_recent_events__mutmut_1": []
+}

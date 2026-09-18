@@ -4,7 +4,7 @@
 @@ -38,7 +38,7 @@
              # Record confidence metric for each detected text
              observe_scene_ocr_confidence(confidence)
-
+ 
 -            bbox = item.get("bbox", [0, 0, 0, 0])
 +            bbox = item.get("XXbboxXX", [0, 0, 0, 0])
              # Florence returns quadrilateral bbox [x1,y1,x2,y2,x3,y3,x4,y4];

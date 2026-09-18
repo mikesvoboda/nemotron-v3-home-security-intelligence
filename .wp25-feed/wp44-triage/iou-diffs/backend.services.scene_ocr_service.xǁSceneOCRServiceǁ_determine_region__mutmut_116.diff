@@ -8,5 +8,5 @@
 -        ("middle", "right"): "right",
 +        ("MIDDLE", "right"): "right",
      }
-
+ 
      return region_map.get((v_region, h_region), "center")

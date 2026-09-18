@@ -8,5 +8,5 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entity_f
      else:
 -        logger.debug("Entity %s not found", entity_id)
 +        logger.debug("Entity %s not found", )
-
+ 
      return entity

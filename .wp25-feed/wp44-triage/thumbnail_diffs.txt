@@ -1,0 +1,118 @@
+get_system_font#1: -if size is None:  +if size is not None:
+get_system_font#13: -logger.debug(f"Using font from THUMBNAIL_FONT_PATH: {env_font_path}")  +logger.debug(None)
+get_system_font#14: -logger.warning(f"Failed to load font from THUMBNAIL_FONT_PATH '{env_font_path}': {e}")  +logger.warning(None)
+get_system_font#28: -font = ImageFont.truetype(font_path, size)  +font = ImageFont.truetype(font_path, None)
+get_system_font#3: -size = settings.thumbnail_font_size  +size = None
+get_system_font#31: -logger.debug(f"Using system font: {font_path}")  +logger.debug(None)
+get_system_font#32: -logger.debug(f"Font not available at '{font_path}': {e}")  +logger.debug(None)
+get_system_font#33: -attempted_paths.append(font_path)  +attempted_paths.append(None)
+get_system_font#34: -f"Falling back to default PIL bitmap font after trying {len(attempted_paths)} " | f"TrueType font paths without success"  +None
+ThumbnailGenerator.__init__#7: -self._default_quality = quality if quality is not None else settings.thumbnail_quality  +self._default_quality = quality if (quality is not None) and False else settings.thumbnail_quality
+ThumbnailGenerator._ensure_output_dir#1: -self.output_dir.mkdir(parents=True, exist_ok=True)  +self.output_dir.mkdir(parents=None, exist_ok=True)
+ThumbnailGenerator._ensure_output_dir#3: -self.output_dir.mkdir(parents=True, exist_ok=True)  +self.output_dir.mkdir(exist_ok=True)
+ThumbnailGenerator._ensure_output_dir#5: -self.output_dir.mkdir(parents=True, exist_ok=True)  +self.output_dir.mkdir(parents=False, exist_ok=True)
+ThumbnailGenerator._ensure_output_dir#7: -logger.debug(f"Thumbnail output directory ready: {self.output_dir}")  +logger.debug(None)
+ThumbnailGenerator._resize_with_padding#12: -new_width = int(original_width * scale)  +new_width = int(original_width / scale)
+ThumbnailGenerator._resize_with_padding#15: -new_height = int(original_height * scale)  +new_height = int(original_height / scale)
+ThumbnailGenerator._resize_with_padding#18: -resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)  +resized = image.resize((new_width, new_height), None)
+ThumbnailGenerator._resize_with_padding#20: -resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)  +resized = image.resize((new_width, new_height), )
+ThumbnailGenerator._resize_with_padding#24: -padded = Image.new("RGB", target_size, (0, 0, 0))  +padded = Image.new("RGB", target_size, None)
+ThumbnailGenerator._resize_with_padding#27: -padded = Image.new("RGB", target_size, (0, 0, 0))  +padded = Image.new("RGB", target_size, )
+ThumbnailGenerator._resize_with_padding#30: -padded = Image.new("RGB", target_size, (0, 0, 0))  +padded = Image.new("RGB", target_size, (1, 0, 0))
+ThumbnailGenerator._resize_with_padding#31: -padded = Image.new("RGB", target_size, (0, 0, 0))  +padded = Image.new("RGB", target_size, (0, 1, 0))
+ThumbnailGenerator._resize_with_padding#32: -padded = Image.new("RGB", target_size, (0, 0, 0))  +padded = Image.new("RGB", target_size, (0, 0, 1))
+ThumbnailGenerator._resize_with_padding#35: -paste_x = (target_width - new_width) // 2  +paste_x = (target_width + new_width) // 2
+ThumbnailGenerator._resize_with_padding#36: -paste_x = (target_width - new_width) // 2  +paste_x = (target_width - new_width) // 3
+ThumbnailGenerator._resize_with_padding#39: -paste_y = (target_height - new_height) // 2  +paste_y = (target_height + new_height) // 2
+ThumbnailGenerator._resize_with_padding#40: -paste_y = (target_height - new_height) // 2  +paste_y = (target_height - new_height) // 3
+ThumbnailGenerator._resize_with_padding#42: -padded.paste(resized, (paste_x, paste_y))  +padded.paste(resized, None)
+ThumbnailGenerator._resize_with_padding#44: -padded.paste(resized, (paste_x, paste_y))  +padded.paste(resized, )
+ThumbnailGenerator._resize_with_padding#8: -scale = min(target_width / original_width, target_height / original_height)  +scale = min(target_width * original_width, target_height / original_height)
+ThumbnailGenerator._resize_with_padding#9: -scale = min(target_width / original_width, target_height / original_height)  +scale = min(target_width / original_width, target_height * original_height)
+ThumbnailGenerator.async_generate_thumbnail#12: -async def xǁThumbnailGeneratorǁasync_generate_thumbnail__mutmut_orig(  +async def xǁThumbnailGeneratorǁasync_generate_thumbnail__mutmut_12( ;; -quality,  +
+ThumbnailGenerator.async_generate_thumbnail#4: -async def xǁThumbnailGeneratorǁasync_generate_thumbnail__mutmut_orig(  +async def xǁThumbnailGeneratorǁasync_generate_thumbnail__mutmut_4( ;; -output_size,  +None,
+ThumbnailGenerator.async_generate_thumbnail#6: -async def xǁThumbnailGeneratorǁasync_generate_thumbnail__mutmut_orig(  +async def xǁThumbnailGeneratorǁasync_generate_thumbnail__mutmut_6( ;; -quality,  +None,
+ThumbnailGenerator.delete_thumbnail#10: -logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=True)  +logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", )
+ThumbnailGenerator.delete_thumbnail#11: -logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=True)  +logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=False)
+ThumbnailGenerator.delete_thumbnail#3: -logger.debug(f"Deleted thumbnail: {thumbnail_path}")  +logger.debug(None)
+ThumbnailGenerator.delete_thumbnail#5: -logger.warning(f"Thumbnail not found: {thumbnail_path}")  +logger.warning(None)
+ThumbnailGenerator.delete_thumbnail#7: -logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=True)  +logger.error(None, exc_info=True)
+ThumbnailGenerator.delete_thumbnail#8: -logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=True)  +logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=None)
+ThumbnailGenerator.draw_bounding_boxes#10: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get("XXobject_typeXX", "unknown")
+ThumbnailGenerator.draw_bounding_boxes#11: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get("OBJECT_TYPE", "unknown")
+ThumbnailGenerator.draw_bounding_boxes#12: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get("object_type", "XXunknownXX")
+ThumbnailGenerator.draw_bounding_boxes#13: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get("object_type", "UNKNOWN")
+ThumbnailGenerator.draw_bounding_boxes#15: -confidence = detection.get("confidence", 0.0)  +confidence = detection.get(None, 0.0)
+ThumbnailGenerator.draw_bounding_boxes#16: -confidence = detection.get("confidence", 0.0)  +confidence = detection.get("confidence", None)
+ThumbnailGenerator.draw_bounding_boxes#18: -confidence = detection.get("confidence", 0.0)  +confidence = detection.get("confidence", )
+ThumbnailGenerator.draw_bounding_boxes#19: -confidence = detection.get("confidence", 0.0)  +confidence = detection.get("XXconfidenceXX", 0.0)
+ThumbnailGenerator.draw_bounding_boxes#20: -confidence = detection.get("confidence", 0.0)  +confidence = detection.get("CONFIDENCE", 0.0)
+ThumbnailGenerator.draw_bounding_boxes#21: -confidence = detection.get("confidence", 0.0)  +confidence = detection.get("confidence", 1.0)
+ThumbnailGenerator.draw_bounding_boxes#22: -bbox_x = detection.get("bbox_x")  +bbox_x = None
+ThumbnailGenerator.draw_bounding_boxes#23: -bbox_x = detection.get("bbox_x")  +bbox_x = detection.get(None)
+ThumbnailGenerator.draw_bounding_boxes#24: -bbox_x = detection.get("bbox_x")  +bbox_x = detection.get("XXbbox_xXX")
+ThumbnailGenerator.draw_bounding_boxes#25: -bbox_x = detection.get("bbox_x")  +bbox_x = detection.get("BBOX_X")
+ThumbnailGenerator.draw_bounding_boxes#26: -bbox_y = detection.get("bbox_y")  +bbox_y = None
+ThumbnailGenerator.draw_bounding_boxes#27: -bbox_y = detection.get("bbox_y")  +bbox_y = detection.get(None)
+ThumbnailGenerator.draw_bounding_boxes#28: -bbox_y = detection.get("bbox_y")  +bbox_y = detection.get("XXbbox_yXX")
+ThumbnailGenerator.draw_bounding_boxes#29: -bbox_y = detection.get("bbox_y")  +bbox_y = detection.get("BBOX_Y")
+ThumbnailGenerator.draw_bounding_boxes#30: -bbox_width = detection.get("bbox_width")  +bbox_width = None
+ThumbnailGenerator.draw_bounding_boxes#31: -bbox_width = detection.get("bbox_width")  +bbox_width = detection.get(None)
+ThumbnailGenerator.draw_bounding_boxes#32: -bbox_width = detection.get("bbox_width")  +bbox_width = detection.get("XXbbox_widthXX")
+ThumbnailGenerator.draw_bounding_boxes#33: -bbox_width = detection.get("bbox_width")  +bbox_width = detection.get("BBOX_WIDTH")
+ThumbnailGenerator.draw_bounding_boxes#34: -bbox_height = detection.get("bbox_height")  +bbox_height = None
+ThumbnailGenerator.draw_bounding_boxes#35: -bbox_height = detection.get("bbox_height")  +bbox_height = detection.get(None)
+ThumbnailGenerator.draw_bounding_boxes#36: -bbox_height = detection.get("bbox_height")  +bbox_height = detection.get("XXbbox_heightXX")
+ThumbnailGenerator.draw_bounding_boxes#37: -bbox_height = detection.get("bbox_height")  +bbox_height = detection.get("BBOX_HEIGHT")
+ThumbnailGenerator.draw_bounding_boxes#39: -if any(v is None for v in [bbox_x, bbox_y, bbox_width, bbox_height]):  +if any(v is not None for v in [bbox_x, bbox_y, bbox_width, bbox_height]):
+ThumbnailGenerator.draw_bounding_boxes#40: -logger.warning(f"Skipping detection with incomplete bbox: {detection}")  +logger.warning(None)
+ThumbnailGenerator.draw_bounding_boxes#41: -continue  +break
+ThumbnailGenerator.draw_bounding_boxes#42: -if bbox_width is None or bbox_height is None:  +if bbox_width is None and bbox_height is None:
+ThumbnailGenerator.draw_bounding_boxes#43: -if bbox_width is None or bbox_height is None:  +if bbox_width is not None or bbox_height is None:
+ThumbnailGenerator.draw_bounding_boxes#44: -if bbox_width is None or bbox_height is None:  +if bbox_width is None or bbox_height is not None:
+ThumbnailGenerator.draw_bounding_boxes#49: -color = OBJECT_COLORS.get(object_type.lower(), DEFAULT_COLOR)  +color = None
+ThumbnailGenerator.draw_bounding_boxes#50: -color = OBJECT_COLORS.get(object_type.lower(), DEFAULT_COLOR)  +color = OBJECT_COLORS.get(None, DEFAULT_COLOR)
+ThumbnailGenerator.draw_bounding_boxes#51: -color = OBJECT_COLORS.get(object_type.lower(), DEFAULT_COLOR)  +color = OBJECT_COLORS.get(object_type.lower(), None)
+ThumbnailGenerator.draw_bounding_boxes#52: -color = OBJECT_COLORS.get(object_type.lower(), DEFAULT_COLOR)  +color = OBJECT_COLORS.get(DEFAULT_COLOR)
+ThumbnailGenerator.draw_bounding_boxes#53: -color = OBJECT_COLORS.get(object_type.lower(), DEFAULT_COLOR)  +color = OBJECT_COLORS.get(object_type.lower(), )
+ThumbnailGenerator.draw_bounding_boxes#54: -color = OBJECT_COLORS.get(object_type.lower(), DEFAULT_COLOR)  +color = OBJECT_COLORS.get(object_type.upper(), DEFAULT_COLOR)
+ThumbnailGenerator.draw_bounding_boxes#56: -outline=color,  +outline=None,
+ThumbnailGenerator.draw_bounding_boxes#59: -outline=color,  +
+ThumbnailGenerator.draw_bounding_boxes#6: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get(None, "unknown")
+ThumbnailGenerator.draw_bounding_boxes#60: -width=3,  +
+ThumbnailGenerator.draw_bounding_boxes#61: -width=3,  +width=4,
+ThumbnailGenerator.draw_bounding_boxes#63: -if y1 is None or x1 is None:  +if y1 is None and x1 is None:
+ThumbnailGenerator.draw_bounding_boxes#64: -if y1 is None or x1 is None:  +if y1 is not None or x1 is None:
+ThumbnailGenerator.draw_bounding_boxes#65: -if y1 is None or x1 is None:  +if y1 is None or x1 is not None:
+ThumbnailGenerator.draw_bounding_boxes#67: -label_y = y1 - 18  +label_y = y1 + 18
+ThumbnailGenerator.draw_bounding_boxes#68: -label_y = y1 - 18  +label_y = y1 - 19
+ThumbnailGenerator.draw_bounding_boxes#7: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get("object_type", None)
+ThumbnailGenerator.draw_bounding_boxes#72: -bbox = draw.textbbox((x1, label_y), label, font=font)  # type: ignore[arg-type]  +bbox = draw.textbbox((x1, label_y), label, font=None)  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#75: -bbox = draw.textbbox((x1, label_y), label, font=font)  # type: ignore[arg-type]  +bbox = draw.textbbox((x1, label_y), label, )  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#77: -draw.rectangle(bbox, fill=color)  +draw.rectangle(bbox, fill=None)
+ThumbnailGenerator.draw_bounding_boxes#79: -draw.rectangle(bbox, fill=color)  +draw.rectangle(bbox, )
+ThumbnailGenerator.draw_bounding_boxes#82: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, fill=None, font=font)  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#83: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, fill=(255, 255, 255), font=None)  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#86: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, font=font)  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#87: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, fill=(255, 255, 255), )  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#88: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, fill=(256, 255, 255), font=font)  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#89: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, fill=(255, 256, 255), font=font)  # type: ignore[arg-type]
+ThumbnailGenerator.draw_bounding_boxes#9: -object_type = detection.get("object_type", "unknown")  +object_type = detection.get("object_type", )
+ThumbnailGenerator.draw_bounding_boxes#90: -draw.text((x1, label_y), label, fill=(255, 255, 255), font=font)  # type: ignore[arg-type]  +draw.text((x1, label_y), label, fill=(255, 255, 256), font=font)  # type: ignore[arg-type]
+ThumbnailGenerator.generate_thumbnail#11: -image = image.convert("RGB")  +image = image.convert(None)
+ThumbnailGenerator.generate_thumbnail#25: -detection_id = Path(image_path).stem  +detection_id = None
+ThumbnailGenerator.generate_thumbnail#31: -thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)  +thumbnail.save(output_path, None, quality=quality, optimize=True)
+ThumbnailGenerator.generate_thumbnail#35: -thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)  +thumbnail.save(output_path, quality=quality, optimize=True)
+ThumbnailGenerator.generate_thumbnail#36: -thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)  +thumbnail.save(output_path, "JPEG", optimize=True)
+ThumbnailGenerator.generate_thumbnail#37: -thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)  +thumbnail.save(output_path, "JPEG", quality=quality, )
+ThumbnailGenerator.generate_thumbnail#39: -thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)  +thumbnail.save(output_path, "jpeg", quality=quality, optimize=True)
+ThumbnailGenerator.generate_thumbnail#40: -thumbnail.save(output_path, "JPEG", quality=quality, optimize=True)  +thumbnail.save(output_path, "JPEG", quality=quality, optimize=False)
+ThumbnailGenerator.generate_thumbnail#41: -logger.debug(f"Generated thumbnail: {output_path}")  +logger.debug(None)
+ThumbnailGenerator.generate_thumbnail#43: -logger.error(f"Permission denied saving thumbnail: {output_path}")  +logger.error(None)
+ThumbnailGenerator.generate_thumbnail#44: -logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=True)  +logger.error(None, exc_info=True)
+ThumbnailGenerator.generate_thumbnail#45: -logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=True)  +logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=None)
+ThumbnailGenerator.generate_thumbnail#47: -logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=True)  +logger.error(f"Failed to generate thumbnail from {image_path}: {e}", )
+ThumbnailGenerator.generate_thumbnail#48: -logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=True)  +logger.error(f"Failed to generate thumbnail from {image_path}: {e}", exc_info=False)
+ThumbnailGenerator.generate_thumbnail#7: -if image.mode != "RGB":  +if image.mode == "RGB":
+ThumbnailGenerator.generate_thumbnail#8: -if image.mode != "RGB":  +if image.mode != "XXRGBXX":
+ThumbnailGenerator.generate_thumbnail#9: -if image.mode != "RGB":  +if image.mode != "rgb":

@@ -8,5 +8,5 @@
 -                is_commercial=vc.get("is_commercial", False),
 +                is_commercial=vc.get("is_commercial", True),
              )
-
+ 
      # Extract person data using typed model

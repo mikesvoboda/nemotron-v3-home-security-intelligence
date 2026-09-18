@@ -7,6 +7,6 @@
      maxmemory = info.get("maxmemory", 0)
 -    fragmentation_ratio = info.get("mem_fragmentation_ratio", 1.0)
 +    fragmentation_ratio = info.get("mem_fragmentation_ratio", 2.0)
-
+ 
      # Get eviction policy
      config = await self._redis.config_get("maxmemory-policy")

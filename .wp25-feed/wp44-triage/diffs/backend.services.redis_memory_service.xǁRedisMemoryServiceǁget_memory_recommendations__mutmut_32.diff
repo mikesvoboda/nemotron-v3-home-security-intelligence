@@ -2,7 +2,7 @@
 --- backend/services/redis_memory_service.py
 +++ backend/services/redis_memory_service.py
 @@ -50,7 +50,7 @@
-
+ 
      # Check keys with TTL
      if stats.total_keys > 0:
 -        ttl_percent = (stats.keys_with_ttl / stats.total_keys) * 100

@@ -9,3 +9,4 @@
 +            raw_desc = cc.get("raw_description", "XXXX")
              carrying_str = cc.get("carrying", "")
              carrying_list = [carrying_str] if carrying_str else []
+ 

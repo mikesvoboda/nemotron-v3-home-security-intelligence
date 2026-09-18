@@ -7,6 +7,6 @@
              response = await client.get(f"{service_url}/health")
 -            latency_ms = (time.time() - start_time) * 1000
 +            latency_ms = (time.time() + start_time) * 1000
-
+ 
              if response.status_code == 200:
                  return AIServiceHealthDetail(

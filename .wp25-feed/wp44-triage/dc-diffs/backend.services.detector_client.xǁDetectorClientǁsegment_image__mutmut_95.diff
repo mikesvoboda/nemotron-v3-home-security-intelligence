@@ -8,6 +8,6 @@
 -                        exc_info=True,
 -                    )
 +                        )
-
+ 
              except httpx.HTTPStatusError as e:
                  status_code = e.response.status_code

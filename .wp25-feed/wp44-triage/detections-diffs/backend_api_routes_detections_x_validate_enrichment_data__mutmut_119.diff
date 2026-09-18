@@ -8,6 +8,6 @@
 -                breed=None,  # Breed not currently captured
 -            )
 +                )
-
+ 
      # Extract errors (sanitized for API exposure)
      errors = _sanitize_errors(enrichment_data.get("errors", []))

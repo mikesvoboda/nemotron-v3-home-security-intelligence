@@ -1,0 +1,1586 @@
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_10: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -24,7 +24,7 @@
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+-            min_adaptive_timeout=30.0,
++            min_adaptive_timeout=None,
+             adaptive_timeout_queue_factor=2.0,
+         )
+ 
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_11: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -25,7 +25,7 @@
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+-            adaptive_timeout_queue_factor=2.0,
++            adaptive_timeout_queue_factor=None,
+         )
+ 
+         _optimizer = NemotronLatencyOptimizer(
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_12: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -17,7 +17,6 @@
+     if _optimizer is None:
+         # Build config from settings with sensible defaults
+         config = LatencyOptimizerConfig(
+-            target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_13: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -18,7 +18,6 @@
+         # Build config from settings with sensible defaults
+         config = LatencyOptimizerConfig(
+             target_latency_seconds=10.0,  # Target <10s per request
+-            max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_14: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -19,7 +19,6 @@
+         config = LatencyOptimizerConfig(
+             target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+-            rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_15: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,6 @@
+             target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+-            semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_16: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -21,7 +21,6 @@
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+-            max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_17: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -22,7 +22,6 @@
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+-            circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_18: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -23,7 +23,6 @@
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+-            circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+         )
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_19: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -24,7 +24,6 @@
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+-            min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+         )
+ 
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_2: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -16,17 +16,7 @@
+ 
+     if _optimizer is None:
+         # Build config from settings with sensible defaults
+-        config = LatencyOptimizerConfig(
+-            target_latency_seconds=10.0,  # Target <10s per request
+-            max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+-            rolling_window_size=20,
+-            semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+-            max_queue_depth=50,
+-            circuit_failure_threshold=5,
+-            circuit_recovery_timeout=60.0,
+-            min_adaptive_timeout=30.0,
+-            adaptive_timeout_queue_factor=2.0,
+-        )
++        config = None
+ 
+         _optimizer = NemotronLatencyOptimizer(
+             config=config,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_20: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -25,8 +25,7 @@
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+-            adaptive_timeout_queue_factor=2.0,
+-        )
++            )
+ 
+         _optimizer = NemotronLatencyOptimizer(
+             config=config,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_21: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -17,7 +17,7 @@
+     if _optimizer is None:
+         # Build config from settings with sensible defaults
+         config = LatencyOptimizerConfig(
+-            target_latency_seconds=10.0,  # Target <10s per request
++            target_latency_seconds=11.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_22: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -18,7 +18,7 @@
+         # Build config from settings with sensible defaults
+         config = LatencyOptimizerConfig(
+             target_latency_seconds=10.0,  # Target <10s per request
+-            max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
++            max_acceptable_latency_seconds=31.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_23: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -19,7 +19,7 @@
+         config = LatencyOptimizerConfig(
+             target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+-            rolling_window_size=20,
++            rolling_window_size=21,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_24: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+             target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+-            semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
++            semaphore_acquire_timeout=31.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_25: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -21,7 +21,7 @@
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+-            max_queue_depth=50,
++            max_queue_depth=51,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_26: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -22,7 +22,7 @@
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+-            circuit_failure_threshold=5,
++            circuit_failure_threshold=6,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_27: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -23,7 +23,7 @@
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+-            circuit_recovery_timeout=60.0,
++            circuit_recovery_timeout=61.0,
+             min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+         )
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_28: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -24,7 +24,7 @@
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+-            min_adaptive_timeout=30.0,
++            min_adaptive_timeout=31.0,
+             adaptive_timeout_queue_factor=2.0,
+         )
+ 
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_29: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -25,7 +25,7 @@
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+-            adaptive_timeout_queue_factor=2.0,
++            adaptive_timeout_queue_factor=3.0,
+         )
+ 
+         _optimizer = NemotronLatencyOptimizer(
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_3: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -17,7 +17,7 @@
+     if _optimizer is None:
+         # Build config from settings with sensible defaults
+         config = LatencyOptimizerConfig(
+-            target_latency_seconds=10.0,  # Target <10s per request
++            target_latency_seconds=None,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_31: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -29,7 +29,7 @@
+         )
+ 
+         _optimizer = NemotronLatencyOptimizer(
+-            config=config,
++            config=None,
+             redis_client=redis_client,
+         )
+ 
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_32: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -30,7 +30,7 @@
+ 
+         _optimizer = NemotronLatencyOptimizer(
+             config=config,
+-            redis_client=redis_client,
++            redis_client=None,
+         )
+ 
+         logger.info("Global NemotronLatencyOptimizer initialized")
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_33: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -29,7 +29,6 @@
+         )
+ 
+         _optimizer = NemotronLatencyOptimizer(
+-            config=config,
+             redis_client=redis_client,
+         )
+ 
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_34: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -30,8 +30,7 @@
+ 
+         _optimizer = NemotronLatencyOptimizer(
+             config=config,
+-            redis_client=redis_client,
+-        )
++            )
+ 
+         logger.info("Global NemotronLatencyOptimizer initialized")
+ 
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_35: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -33,6 +33,6 @@
+             redis_client=redis_client,
+         )
+ 
+-        logger.info("Global NemotronLatencyOptimizer initialized")
++        logger.info(None)
+ 
+     return _optimizer
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_36: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -33,6 +33,6 @@
+             redis_client=redis_client,
+         )
+ 
+-        logger.info("Global NemotronLatencyOptimizer initialized")
++        logger.info("XXGlobal NemotronLatencyOptimizer initializedXX")
+ 
+     return _optimizer
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_37: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -33,6 +33,6 @@
+             redis_client=redis_client,
+         )
+ 
+-        logger.info("Global NemotronLatencyOptimizer initialized")
++        logger.info("global nemotronlatencyoptimizer initialized")
+ 
+     return _optimizer
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_38: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -33,6 +33,6 @@
+             redis_client=redis_client,
+         )
+ 
+-        logger.info("Global NemotronLatencyOptimizer initialized")
++        logger.info("GLOBAL NEMOTRONLATENCYOPTIMIZER INITIALIZED")
+ 
+     return _optimizer
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_4: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -18,7 +18,7 @@
+         # Build config from settings with sensible defaults
+         config = LatencyOptimizerConfig(
+             target_latency_seconds=10.0,  # Target <10s per request
+-            max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
++            max_acceptable_latency_seconds=None,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_5: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -19,7 +19,7 @@
+         config = LatencyOptimizerConfig(
+             target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+-            rolling_window_size=20,
++            rolling_window_size=None,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_6: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+             target_latency_seconds=10.0,  # Target <10s per request
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+-            semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
++            semaphore_acquire_timeout=None,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_7: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -21,7 +21,7 @@
+             max_acceptable_latency_seconds=30.0,  # Circuit opens at 30s avg
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+-            max_queue_depth=50,
++            max_queue_depth=None,
+             circuit_failure_threshold=5,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_8: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -22,7 +22,7 @@
+             rolling_window_size=20,
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+-            circuit_failure_threshold=5,
++            circuit_failure_threshold=None,
+             circuit_recovery_timeout=60.0,
+             min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+# backend.services.nemotron_latency_optimizer.x_get_nemotron_optimizer__mutmut_9: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -23,7 +23,7 @@
+             semaphore_acquire_timeout=30.0,  # Don't wait more than 30s
+             max_queue_depth=50,
+             circuit_failure_threshold=5,
+-            circuit_recovery_timeout=60.0,
++            circuit_recovery_timeout=None,
+             min_adaptive_timeout=30.0,
+             adaptive_timeout_queue_factor=2.0,
+         )
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_11: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,7 +2,7 @@
+     """Convert stats to dictionary for API responses."""
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+-        "p95_latency_seconds": round(self.p95_latency, 3),
++        "p95_latency_seconds": round(self.p95_latency, None),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_12: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,7 +2,7 @@
+     """Convert stats to dictionary for API responses."""
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+-        "p95_latency_seconds": round(self.p95_latency, 3),
++        "p95_latency_seconds": round(3),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_13: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,7 +2,7 @@
+     """Convert stats to dictionary for API responses."""
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+-        "p95_latency_seconds": round(self.p95_latency, 3),
++        "p95_latency_seconds": round(self.p95_latency, ),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_14: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,7 +2,7 @@
+     """Convert stats to dictionary for API responses."""
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+-        "p95_latency_seconds": round(self.p95_latency, 3),
++        "p95_latency_seconds": round(self.p95_latency, 4),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_18: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,7 +3,7 @@
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+         "p95_latency_seconds": round(self.p95_latency, 3),
+-        "last_latency_seconds": round(self.last_latency, 3),
++        "last_latency_seconds": round(self.last_latency, None),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+         "shed_requests": self.shed_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_20: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,7 +3,7 @@
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+         "p95_latency_seconds": round(self.p95_latency, 3),
+-        "last_latency_seconds": round(self.last_latency, 3),
++        "last_latency_seconds": round(self.last_latency, ),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+         "shed_requests": self.shed_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_21: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,7 +3,7 @@
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+         "p95_latency_seconds": round(self.p95_latency, 3),
+-        "last_latency_seconds": round(self.last_latency, 3),
++        "last_latency_seconds": round(self.last_latency, 4),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+         "shed_requests": self.shed_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_4: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -1,7 +1,7 @@
+ def to_dict(self) -> dict[str, Any]:
+     """Convert stats to dictionary for API responses."""
+     return {
+-        "rolling_average_seconds": round(self.rolling_average, 3),
++        "rolling_average_seconds": round(self.rolling_average, None),
+         "p95_latency_seconds": round(self.p95_latency, 3),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_6: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -1,7 +1,7 @@
+ def to_dict(self) -> dict[str, Any]:
+     """Convert stats to dictionary for API responses."""
+     return {
+-        "rolling_average_seconds": round(self.rolling_average, 3),
++        "rolling_average_seconds": round(self.rolling_average, ),
+         "p95_latency_seconds": round(self.p95_latency, 3),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_7: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -1,7 +1,7 @@
+ def to_dict(self) -> dict[str, Any]:
+     """Convert stats to dictionary for API responses."""
+     return {
+-        "rolling_average_seconds": round(self.rolling_average, 3),
++        "rolling_average_seconds": round(self.rolling_average, 4),
+         "p95_latency_seconds": round(self.p95_latency, 3),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_8: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,7 +2,7 @@
+     """Convert stats to dictionary for API responses."""
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+-        "p95_latency_seconds": round(self.p95_latency, 3),
++        "XXp95_latency_secondsXX": round(self.p95_latency, 3),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+# backend.services.nemotron_latency_optimizer.xǁLatencyStatsǁto_dict__mutmut_9: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,7 +2,7 @@
+     """Convert stats to dictionary for API responses."""
+     return {
+         "rolling_average_seconds": round(self.rolling_average, 3),
+-        "p95_latency_seconds": round(self.p95_latency, 3),
++        "P95_LATENCY_SECONDS": round(self.p95_latency, 3),
+         "last_latency_seconds": round(self.last_latency, 3),
+         "sample_count": self.sample_count,
+         "total_requests": self.total_requests,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_adaptive_timeout__mutmut_10: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -19,7 +19,7 @@
+     timeout = max(self._config.min_adaptive_timeout, timeout - queue_reduction)
+ 
+     # If latency is high, further reduce to shed slow requests faster
+-    if self._stats.rolling_average > self._config.target_latency_seconds:
++    if self._stats.rolling_average >= self._config.target_latency_seconds:
+         latency_factor = self._stats.rolling_average / self._config.target_latency_seconds
+         timeout = max(self._config.min_adaptive_timeout, timeout / latency_factor)
+ 
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_adaptive_timeout__mutmut_12: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+ 
+     # If latency is high, further reduce to shed slow requests faster
+     if self._stats.rolling_average > self._config.target_latency_seconds:
+-        latency_factor = self._stats.rolling_average / self._config.target_latency_seconds
++        latency_factor = self._stats.rolling_average * self._config.target_latency_seconds
+         timeout = max(self._config.min_adaptive_timeout, timeout / latency_factor)
+ 
+     # Update metric
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_11: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -10,7 +10,7 @@
+         "consecutive_high_latency": self._consecutive_high_latency,
+         "latency_stats": self._stats.to_dict(),
+         "config": {
+-            "target_latency_seconds": self._config.target_latency_seconds,
++            "XXtarget_latency_secondsXX": self._config.target_latency_seconds,
+             "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
+             "max_queue_depth": self._config.max_queue_depth,
+             "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_12: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -10,7 +10,7 @@
+         "consecutive_high_latency": self._consecutive_high_latency,
+         "latency_stats": self._stats.to_dict(),
+         "config": {
+-            "target_latency_seconds": self._config.target_latency_seconds,
++            "TARGET_LATENCY_SECONDS": self._config.target_latency_seconds,
+             "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
+             "max_queue_depth": self._config.max_queue_depth,
+             "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_13: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -11,7 +11,7 @@
+         "latency_stats": self._stats.to_dict(),
+         "config": {
+             "target_latency_seconds": self._config.target_latency_seconds,
+-            "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
++            "XXmax_acceptable_latency_secondsXX": self._config.max_acceptable_latency_seconds,
+             "max_queue_depth": self._config.max_queue_depth,
+             "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
+         },
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_14: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -11,7 +11,7 @@
+         "latency_stats": self._stats.to_dict(),
+         "config": {
+             "target_latency_seconds": self._config.target_latency_seconds,
+-            "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
++            "MAX_ACCEPTABLE_LATENCY_SECONDS": self._config.max_acceptable_latency_seconds,
+             "max_queue_depth": self._config.max_queue_depth,
+             "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
+         },
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_15: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -12,7 +12,7 @@
+         "config": {
+             "target_latency_seconds": self._config.target_latency_seconds,
+             "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
+-            "max_queue_depth": self._config.max_queue_depth,
++            "XXmax_queue_depthXX": self._config.max_queue_depth,
+             "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
+         },
+     }
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_16: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -12,7 +12,7 @@
+         "config": {
+             "target_latency_seconds": self._config.target_latency_seconds,
+             "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
+-            "max_queue_depth": self._config.max_queue_depth,
++            "MAX_QUEUE_DEPTH": self._config.max_queue_depth,
+             "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
+         },
+     }
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_17: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -13,6 +13,6 @@
+             "target_latency_seconds": self._config.target_latency_seconds,
+             "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
+             "max_queue_depth": self._config.max_queue_depth,
+-            "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
++            "XXsemaphore_acquire_timeoutXX": self._config.semaphore_acquire_timeout,
+         },
+     }
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_18: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -13,6 +13,6 @@
+             "target_latency_seconds": self._config.target_latency_seconds,
+             "max_acceptable_latency_seconds": self._config.max_acceptable_latency_seconds,
+             "max_queue_depth": self._config.max_queue_depth,
+-            "semaphore_acquire_timeout": self._config.semaphore_acquire_timeout,
++            "SEMAPHORE_ACQUIRE_TIMEOUT": self._config.semaphore_acquire_timeout,
+         },
+     }
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_5: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -7,7 +7,7 @@
+     return {
+         "circuit_state": self._circuit.state.value,
+         "pending_requests": self._pending_count,
+-        "consecutive_high_latency": self._consecutive_high_latency,
++        "XXconsecutive_high_latencyXX": self._consecutive_high_latency,
+         "latency_stats": self._stats.to_dict(),
+         "config": {
+             "target_latency_seconds": self._config.target_latency_seconds,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁget_status__mutmut_6: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -7,7 +7,7 @@
+     return {
+         "circuit_state": self._circuit.state.value,
+         "pending_requests": self._pending_count,
+-        "consecutive_high_latency": self._consecutive_high_latency,
++        "CONSECUTIVE_HIGH_LATENCY": self._consecutive_high_latency,
+         "latency_stats": self._stats.to_dict(),
+         "config": {
+             "target_latency_seconds": self._config.target_latency_seconds,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_1: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -7,7 +7,7 @@
+         Args:
+             latency_seconds: Time taken for the Nemotron inference.
+         """
+-    self._stats.total_requests += 1
++    self._stats.total_requests = 1
+     self._stats.last_latency = latency_seconds
+     self._stats.samples.append(latency_seconds)
+     self._stats.last_sample_time = time.monotonic()
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_13: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+     if latency_seconds > self._config.max_acceptable_latency_seconds:
+         self._consecutive_high_latency += 1
+         logger.warning(
+-            "High latency request recorded",
++            None,
+             extra={
+                 "latency_seconds": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_14: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -21,11 +21,7 @@
+         self._consecutive_high_latency += 1
+         logger.warning(
+             "High latency request recorded",
+-            extra={
+-                "latency_seconds": latency_seconds,
+-                "consecutive_high_latency": self._consecutive_high_latency,
+-                "threshold": self._config.max_acceptable_latency_seconds,
+-            },
++            extra=None,
+         )
+ 
+         # Check if we're about to trip the circuit before recording failure
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_16: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -21,12 +21,7 @@
+         self._consecutive_high_latency += 1
+         logger.warning(
+             "High latency request recorded",
+-            extra={
+-                "latency_seconds": latency_seconds,
+-                "consecutive_high_latency": self._consecutive_high_latency,
+-                "threshold": self._config.max_acceptable_latency_seconds,
+-            },
+-        )
++            )
+ 
+         # Check if we're about to trip the circuit before recording failure
+         # (record_failure may transition state to OPEN)
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_17: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+     if latency_seconds > self._config.max_acceptable_latency_seconds:
+         self._consecutive_high_latency += 1
+         logger.warning(
+-            "High latency request recorded",
++            "XXHigh latency request recordedXX",
+             extra={
+                 "latency_seconds": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_18: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+     if latency_seconds > self._config.max_acceptable_latency_seconds:
+         self._consecutive_high_latency += 1
+         logger.warning(
+-            "High latency request recorded",
++            "high latency request recorded",
+             extra={
+                 "latency_seconds": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_19: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -20,7 +20,7 @@
+     if latency_seconds > self._config.max_acceptable_latency_seconds:
+         self._consecutive_high_latency += 1
+         logger.warning(
+-            "High latency request recorded",
++            "HIGH LATENCY REQUEST RECORDED",
+             extra={
+                 "latency_seconds": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_20: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -22,7 +22,7 @@
+         logger.warning(
+             "High latency request recorded",
+             extra={
+-                "latency_seconds": latency_seconds,
++                "XXlatency_secondsXX": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+                 "threshold": self._config.max_acceptable_latency_seconds,
+             },
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_21: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -22,7 +22,7 @@
+         logger.warning(
+             "High latency request recorded",
+             extra={
+-                "latency_seconds": latency_seconds,
++                "LATENCY_SECONDS": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+                 "threshold": self._config.max_acceptable_latency_seconds,
+             },
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_22: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -23,7 +23,7 @@
+             "High latency request recorded",
+             extra={
+                 "latency_seconds": latency_seconds,
+-                "consecutive_high_latency": self._consecutive_high_latency,
++                "XXconsecutive_high_latencyXX": self._consecutive_high_latency,
+                 "threshold": self._config.max_acceptable_latency_seconds,
+             },
+         )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_23: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -23,7 +23,7 @@
+             "High latency request recorded",
+             extra={
+                 "latency_seconds": latency_seconds,
+-                "consecutive_high_latency": self._consecutive_high_latency,
++                "CONSECUTIVE_HIGH_LATENCY": self._consecutive_high_latency,
+                 "threshold": self._config.max_acceptable_latency_seconds,
+             },
+         )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_24: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -24,7 +24,7 @@
+             extra={
+                 "latency_seconds": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+-                "threshold": self._config.max_acceptable_latency_seconds,
++                "XXthresholdXX": self._config.max_acceptable_latency_seconds,
+             },
+         )
+ 
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_25: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -24,7 +24,7 @@
+             extra={
+                 "latency_seconds": latency_seconds,
+                 "consecutive_high_latency": self._consecutive_high_latency,
+-                "threshold": self._config.max_acceptable_latency_seconds,
++                "THRESHOLD": self._config.max_acceptable_latency_seconds,
+             },
+         )
+ 
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_26: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -30,7 +30,7 @@
+ 
+         # Check if we're about to trip the circuit before recording failure
+         # (record_failure may transition state to OPEN)
+-        was_open = self._circuit.state == CircuitState.OPEN
++        was_open = None
+ 
+         # Record as circuit breaker failure
+         self._circuit.record_failure()
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_31: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -37,7 +37,7 @@
+ 
+         # Check if circuit just transitioned to OPEN
+         if self._circuit.state == CircuitState.OPEN and not was_open:
+-            self._stats.circuit_trips += 1
++            self._stats.circuit_trips = 1
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+                 "Latency circuit breaker tripped",
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_35: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -38,7 +38,7 @@
+         # Check if circuit just transitioned to OPEN
+         if self._circuit.state == CircuitState.OPEN and not was_open:
+             self._stats.circuit_trips += 1
+-            NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
++            NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 1 = OPEN
+             logger.error(
+                 "Latency circuit breaker tripped",
+                 extra={
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_36: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+             self._stats.circuit_trips += 1
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+-                "Latency circuit breaker tripped",
++                None,
+                 extra={
+                     "consecutive_high_latency": self._consecutive_high_latency,
+                     "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_37: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -41,10 +41,7 @@
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+                 "Latency circuit breaker tripped",
+-                extra={
+-                    "consecutive_high_latency": self._consecutive_high_latency,
+-                    "rolling_average": self._stats.rolling_average,
+-                },
++                extra=None,
+             )
+     else:
+         # Good latency - reset consecutive counter and record success
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_39: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -41,11 +41,7 @@
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+                 "Latency circuit breaker tripped",
+-                extra={
+-                    "consecutive_high_latency": self._consecutive_high_latency,
+-                    "rolling_average": self._stats.rolling_average,
+-                },
+-            )
++                )
+     else:
+         # Good latency - reset consecutive counter and record success
+         self._consecutive_high_latency = 0
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_40: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+             self._stats.circuit_trips += 1
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+-                "Latency circuit breaker tripped",
++                "XXLatency circuit breaker trippedXX",
+                 extra={
+                     "consecutive_high_latency": self._consecutive_high_latency,
+                     "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_41: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+             self._stats.circuit_trips += 1
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+-                "Latency circuit breaker tripped",
++                "latency circuit breaker tripped",
+                 extra={
+                     "consecutive_high_latency": self._consecutive_high_latency,
+                     "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_42: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+             self._stats.circuit_trips += 1
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 1 = OPEN
+             logger.error(
+-                "Latency circuit breaker tripped",
++                "LATENCY CIRCUIT BREAKER TRIPPED",
+                 extra={
+                     "consecutive_high_latency": self._consecutive_high_latency,
+                     "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_43: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -42,7 +42,7 @@
+             logger.error(
+                 "Latency circuit breaker tripped",
+                 extra={
+-                    "consecutive_high_latency": self._consecutive_high_latency,
++                    "XXconsecutive_high_latencyXX": self._consecutive_high_latency,
+                     "rolling_average": self._stats.rolling_average,
+                 },
+             )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_44: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -42,7 +42,7 @@
+             logger.error(
+                 "Latency circuit breaker tripped",
+                 extra={
+-                    "consecutive_high_latency": self._consecutive_high_latency,
++                    "CONSECUTIVE_HIGH_LATENCY": self._consecutive_high_latency,
+                     "rolling_average": self._stats.rolling_average,
+                 },
+             )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_45: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -43,7 +43,7 @@
+                 "Latency circuit breaker tripped",
+                 extra={
+                     "consecutive_high_latency": self._consecutive_high_latency,
+-                    "rolling_average": self._stats.rolling_average,
++                    "XXrolling_averageXX": self._stats.rolling_average,
+                 },
+             )
+     else:
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_46: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -43,7 +43,7 @@
+                 "Latency circuit breaker tripped",
+                 extra={
+                     "consecutive_high_latency": self._consecutive_high_latency,
+-                    "rolling_average": self._stats.rolling_average,
++                    "ROLLING_AVERAGE": self._stats.rolling_average,
+                 },
+             )
+     else:
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_49: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -51,7 +51,7 @@
+         self._consecutive_high_latency = 0
+         self._circuit.record_success()
+ 
+-        if self._circuit.state == CircuitState.CLOSED:
++        if self._circuit.state != CircuitState.CLOSED:
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)  # 0 = CLOSED
+         elif self._circuit.state == CircuitState.HALF_OPEN:
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 2 = HALF_OPEN
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_51: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -52,7 +52,7 @@
+         self._circuit.record_success()
+ 
+         if self._circuit.state == CircuitState.CLOSED:
+-            NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)  # 0 = CLOSED
++            NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)  # 0 = CLOSED
+         elif self._circuit.state == CircuitState.HALF_OPEN:
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 2 = HALF_OPEN
+ 
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_52: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -57,7 +57,7 @@
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 2 = HALF_OPEN
+ 
+     logger.debug(
+-        "Latency recorded",
++        None,
+         extra={
+             "latency_seconds": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_53: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -58,9 +58,5 @@
+ 
+     logger.debug(
+         "Latency recorded",
+-        extra={
+-            "latency_seconds": latency_seconds,
+-            "rolling_average": self._stats.rolling_average,
+-            "circuit_state": self._circuit.state.value,
+-        },
++        extra=None,
+     )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_55: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -58,9 +58,4 @@
+ 
+     logger.debug(
+         "Latency recorded",
+-        extra={
+-            "latency_seconds": latency_seconds,
+-            "rolling_average": self._stats.rolling_average,
+-            "circuit_state": self._circuit.state.value,
+-        },
+-    )
++        )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_56: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -57,7 +57,7 @@
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 2 = HALF_OPEN
+ 
+     logger.debug(
+-        "Latency recorded",
++        "XXLatency recordedXX",
+         extra={
+             "latency_seconds": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_57: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -57,7 +57,7 @@
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 2 = HALF_OPEN
+ 
+     logger.debug(
+-        "Latency recorded",
++        "latency recorded",
+         extra={
+             "latency_seconds": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_58: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -57,7 +57,7 @@
+             NEMOTRON_CIRCUIT_STATE_GAUGE.set(2)  # 2 = HALF_OPEN
+ 
+     logger.debug(
+-        "Latency recorded",
++        "LATENCY RECORDED",
+         extra={
+             "latency_seconds": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_59: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -59,7 +59,7 @@
+     logger.debug(
+         "Latency recorded",
+         extra={
+-            "latency_seconds": latency_seconds,
++            "XXlatency_secondsXX": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+             "circuit_state": self._circuit.state.value,
+         },
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_6: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -10,7 +10,7 @@
+     self._stats.total_requests += 1
+     self._stats.last_latency = latency_seconds
+     self._stats.samples.append(latency_seconds)
+-    self._stats.last_sample_time = time.monotonic()
++    self._stats.last_sample_time = None
+ 
+     # Update metrics
+     NEMOTRON_LATENCY_HISTOGRAM.observe(latency_seconds)
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_60: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -59,7 +59,7 @@
+     logger.debug(
+         "Latency recorded",
+         extra={
+-            "latency_seconds": latency_seconds,
++            "LATENCY_SECONDS": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+             "circuit_state": self._circuit.state.value,
+         },
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_61: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -60,7 +60,7 @@
+         "Latency recorded",
+         extra={
+             "latency_seconds": latency_seconds,
+-            "rolling_average": self._stats.rolling_average,
++            "XXrolling_averageXX": self._stats.rolling_average,
+             "circuit_state": self._circuit.state.value,
+         },
+     )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_62: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -60,7 +60,7 @@
+         "Latency recorded",
+         extra={
+             "latency_seconds": latency_seconds,
+-            "rolling_average": self._stats.rolling_average,
++            "ROLLING_AVERAGE": self._stats.rolling_average,
+             "circuit_state": self._circuit.state.value,
+         },
+     )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_63: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -61,6 +61,6 @@
+         extra={
+             "latency_seconds": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+-            "circuit_state": self._circuit.state.value,
++            "XXcircuit_stateXX": self._circuit.state.value,
+         },
+     )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_64: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -61,6 +61,6 @@
+         extra={
+             "latency_seconds": latency_seconds,
+             "rolling_average": self._stats.rolling_average,
+-            "circuit_state": self._circuit.state.value,
++            "CIRCUIT_STATE": self._circuit.state.value,
+         },
+     )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁrecord_latency__mutmut_9: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -17,7 +17,7 @@
+     NEMOTRON_ROLLING_AVG_LATENCY_GAUGE.set(self._stats.rolling_average)
+ 
+     # Check if this was a high-latency request
+-    if latency_seconds > self._config.max_acceptable_latency_seconds:
++    if latency_seconds >= self._config.max_acceptable_latency_seconds:
+         self._consecutive_high_latency += 1
+         logger.warning(
+             "High latency request recorded",
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁreset_circuit__mutmut_4: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -2,5 +2,5 @@
+     """Manually reset the circuit breaker to closed state."""
+     self._circuit.reset()
+     self._consecutive_high_latency = 0
+-    NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)
++    NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)
+     logger.info("Nemotron latency circuit breaker manually reset")
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁreset_circuit__mutmut_5: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,4 +3,4 @@
+     self._circuit.reset()
+     self._consecutive_high_latency = 0
+     NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)
+-    logger.info("Nemotron latency circuit breaker manually reset")
++    logger.info(None)
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁreset_circuit__mutmut_6: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,4 +3,4 @@
+     self._circuit.reset()
+     self._consecutive_high_latency = 0
+     NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)
+-    logger.info("Nemotron latency circuit breaker manually reset")
++    logger.info("XXNemotron latency circuit breaker manually resetXX")
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁreset_circuit__mutmut_7: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,4 +3,4 @@
+     self._circuit.reset()
+     self._consecutive_high_latency = 0
+     NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)
+-    logger.info("Nemotron latency circuit breaker manually reset")
++    logger.info("nemotron latency circuit breaker manually reset")
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁreset_circuit__mutmut_8: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -3,4 +3,4 @@
+     self._circuit.reset()
+     self._consecutive_high_latency = 0
+     NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)
+-    logger.info("Nemotron latency circuit breaker manually reset")
++    logger.info("NEMOTRON LATENCY CIRCUIT BREAKER MANUALLY RESET")
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_10: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -29,11 +29,7 @@
+         self._stats.shed_requests += 1
+         logger.warning(
+             "Shedding request: queue too deep",
+-            extra={
+-                "pending_count": self._pending_count,
+-                "max_queue_depth": self._config.max_queue_depth,
+-            },
+-        )
++            )
+         return False
+ 
+     # Check if current rolling average is too high
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_11: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -28,7 +28,7 @@
+         ).inc()
+         self._stats.shed_requests += 1
+         logger.warning(
+-            "Shedding request: queue too deep",
++            "XXShedding request: queue too deepXX",
+             extra={
+                 "pending_count": self._pending_count,
+                 "max_queue_depth": self._config.max_queue_depth,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_12: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -28,7 +28,7 @@
+         ).inc()
+         self._stats.shed_requests += 1
+         logger.warning(
+-            "Shedding request: queue too deep",
++            "shedding request: queue too deep",
+             extra={
+                 "pending_count": self._pending_count,
+                 "max_queue_depth": self._config.max_queue_depth,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_13: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -28,7 +28,7 @@
+         ).inc()
+         self._stats.shed_requests += 1
+         logger.warning(
+-            "Shedding request: queue too deep",
++            "SHEDDING REQUEST: QUEUE TOO DEEP",
+             extra={
+                 "pending_count": self._pending_count,
+                 "max_queue_depth": self._config.max_queue_depth,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_14: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -30,7 +30,7 @@
+         logger.warning(
+             "Shedding request: queue too deep",
+             extra={
+-                "pending_count": self._pending_count,
++                "XXpending_countXX": self._pending_count,
+                 "max_queue_depth": self._config.max_queue_depth,
+             },
+         )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_15: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -30,7 +30,7 @@
+         logger.warning(
+             "Shedding request: queue too deep",
+             extra={
+-                "pending_count": self._pending_count,
++                "PENDING_COUNT": self._pending_count,
+                 "max_queue_depth": self._config.max_queue_depth,
+             },
+         )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_16: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -31,7 +31,7 @@
+             "Shedding request: queue too deep",
+             extra={
+                 "pending_count": self._pending_count,
+-                "max_queue_depth": self._config.max_queue_depth,
++                "XXmax_queue_depthXX": self._config.max_queue_depth,
+             },
+         )
+         return False
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_17: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -31,7 +31,7 @@
+             "Shedding request: queue too deep",
+             extra={
+                 "pending_count": self._pending_count,
+-                "max_queue_depth": self._config.max_queue_depth,
++                "MAX_QUEUE_DEPTH": self._config.max_queue_depth,
+             },
+         )
+         return False
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_19: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -37,7 +37,7 @@
+         return False
+ 
+     # Check if current rolling average is too high
+-    if self._stats.rolling_average > self._config.max_acceptable_latency_seconds:
++    if self._stats.rolling_average >= self._config.max_acceptable_latency_seconds:
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+             "High latency detected, request proceeding with caution",
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_2: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -22,7 +22,7 @@
+         return False
+ 
+     # Check queue depth
+-    if self._pending_count >= self._config.max_queue_depth:
++    if self._pending_count > self._config.max_queue_depth:
+         NEMOTRON_SHED_REQUESTS_TOTAL.labels(
+             reason=LoadSheddingReason.QUEUE_TOO_DEEP.value
+         ).inc()
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_20: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+     if self._stats.rolling_average > self._config.max_acceptable_latency_seconds:
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+-            "High latency detected, request proceeding with caution",
++            None,
+             extra={
+                 "rolling_avg_latency": self._stats.rolling_average,
+                 "max_acceptable": self._config.max_acceptable_latency_seconds,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_21: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -41,10 +41,7 @@
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+             "High latency detected, request proceeding with caution",
+-            extra={
+-                "rolling_avg_latency": self._stats.rolling_average,
+-                "max_acceptable": self._config.max_acceptable_latency_seconds,
+-            },
++            extra=None,
+         )
+ 
+     return True
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_23: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -41,10 +41,6 @@
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+             "High latency detected, request proceeding with caution",
+-            extra={
+-                "rolling_avg_latency": self._stats.rolling_average,
+-                "max_acceptable": self._config.max_acceptable_latency_seconds,
+-            },
+-        )
++            )
+ 
+     return True
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_24: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+     if self._stats.rolling_average > self._config.max_acceptable_latency_seconds:
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+-            "High latency detected, request proceeding with caution",
++            "XXHigh latency detected, request proceeding with cautionXX",
+             extra={
+                 "rolling_avg_latency": self._stats.rolling_average,
+                 "max_acceptable": self._config.max_acceptable_latency_seconds,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_25: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+     if self._stats.rolling_average > self._config.max_acceptable_latency_seconds:
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+-            "High latency detected, request proceeding with caution",
++            "high latency detected, request proceeding with caution",
+             extra={
+                 "rolling_avg_latency": self._stats.rolling_average,
+                 "max_acceptable": self._config.max_acceptable_latency_seconds,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_26: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -40,7 +40,7 @@
+     if self._stats.rolling_average > self._config.max_acceptable_latency_seconds:
+         # Allow request but with warning - circuit will trip if it continues
+         logger.warning(
+-            "High latency detected, request proceeding with caution",
++            "HIGH LATENCY DETECTED, REQUEST PROCEEDING WITH CAUTION",
+             extra={
+                 "rolling_avg_latency": self._stats.rolling_average,
+                 "max_acceptable": self._config.max_acceptable_latency_seconds,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_27: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -42,7 +42,7 @@
+         logger.warning(
+             "High latency detected, request proceeding with caution",
+             extra={
+-                "rolling_avg_latency": self._stats.rolling_average,
++                "XXrolling_avg_latencyXX": self._stats.rolling_average,
+                 "max_acceptable": self._config.max_acceptable_latency_seconds,
+             },
+         )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_28: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -42,7 +42,7 @@
+         logger.warning(
+             "High latency detected, request proceeding with caution",
+             extra={
+-                "rolling_avg_latency": self._stats.rolling_average,
++                "ROLLING_AVG_LATENCY": self._stats.rolling_average,
+                 "max_acceptable": self._config.max_acceptable_latency_seconds,
+             },
+         )
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_29: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -43,7 +43,7 @@
+             "High latency detected, request proceeding with caution",
+             extra={
+                 "rolling_avg_latency": self._stats.rolling_average,
+-                "max_acceptable": self._config.max_acceptable_latency_seconds,
++                "XXmax_acceptableXX": self._config.max_acceptable_latency_seconds,
+             },
+         )
+ 
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_3: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -24,7 +24,7 @@
+     # Check queue depth
+     if self._pending_count >= self._config.max_queue_depth:
+         NEMOTRON_SHED_REQUESTS_TOTAL.labels(
+-            reason=LoadSheddingReason.QUEUE_TOO_DEEP.value
++            reason=None
+         ).inc()
+         self._stats.shed_requests += 1
+         logger.warning(
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_30: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -43,7 +43,7 @@
+             "High latency detected, request proceeding with caution",
+             extra={
+                 "rolling_avg_latency": self._stats.rolling_average,
+-                "max_acceptable": self._config.max_acceptable_latency_seconds,
++                "MAX_ACCEPTABLE": self._config.max_acceptable_latency_seconds,
+             },
+         )
+ 
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_4: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -26,7 +26,7 @@
+         NEMOTRON_SHED_REQUESTS_TOTAL.labels(
+             reason=LoadSheddingReason.QUEUE_TOO_DEEP.value
+         ).inc()
+-        self._stats.shed_requests += 1
++        self._stats.shed_requests = 1
+         logger.warning(
+             "Shedding request: queue too deep",
+             extra={
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_7: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -28,7 +28,7 @@
+         ).inc()
+         self._stats.shed_requests += 1
+         logger.warning(
+-            "Shedding request: queue too deep",
++            None,
+             extra={
+                 "pending_count": self._pending_count,
+                 "max_queue_depth": self._config.max_queue_depth,
+# backend.services.nemotron_latency_optimizer.xǁNemotronLatencyOptimizerǁshould_process_request__mutmut_8: survived
+--- backend/services/nemotron_latency_optimizer.py
++++ backend/services/nemotron_latency_optimizer.py
+@@ -29,10 +29,7 @@
+         self._stats.shed_requests += 1
+         logger.warning(
+             "Shedding request: queue too deep",
+-            extra={
+-                "pending_count": self._pending_count,
+-                "max_queue_depth": self._config.max_queue_depth,
+-            },
++            extra=None,
+         )
+         return False
+ 

@@ -9,3 +9,4 @@
 +    enabled: bool = False,
  ) -> None:
      """Initialize the SceneOCRService.
+ 

@@ -4,7 +4,7 @@
 @@ -112,7 +112,7 @@
                  else:
                      raise ValueError(f"Segmentation client error: HTTP {status_code}") from e
-
+ 
 -        error_msg = f"Segmentation failed after {self._max_retries} attempts"
 +        error_msg = None
          span.set_attribute("error", True)

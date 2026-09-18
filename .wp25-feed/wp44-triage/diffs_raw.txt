@@ -10,7 +10,7 @@
 +        "node exporter": "XXNode ExporterXX",
          "cadvisor": "cAdvisor",
      }
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_101
 # backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_101: survived
@@ -24,7 +24,7 @@
 +        "node exporter": "node exporter",
          "cadvisor": "cAdvisor",
      }
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_102
 # backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_102: survived
@@ -38,7 +38,7 @@
 +        "node exporter": "NODE EXPORTER",
          "cadvisor": "cAdvisor",
      }
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_103
 # backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_103: survived
@@ -51,7 +51,7 @@
 -        "cadvisor": "cAdvisor",
 +        "XXcadvisorXX": "cAdvisor",
      }
-
+ 
      for key, value in special_cases.items():
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_104
@@ -65,7 +65,7 @@
 -        "cadvisor": "cAdvisor",
 +        "CADVISOR": "cAdvisor",
      }
-
+ 
      for key, value in special_cases.items():
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_105
@@ -79,7 +79,7 @@
 -        "cadvisor": "cAdvisor",
 +        "cadvisor": "XXcAdvisorXX",
      }
-
+ 
      for key, value in special_cases.items():
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_106
@@ -93,7 +93,7 @@
 -        "cadvisor": "cAdvisor",
 +        "cadvisor": "cadvisor",
      }
-
+ 
      for key, value in special_cases.items():
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_107
@@ -107,7 +107,7 @@
 -        "cadvisor": "cAdvisor",
 +        "cadvisor": "CADVISOR",
      }
-
+ 
      for key, value in special_cases.items():
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_16
@@ -116,11 +116,11 @@
 +++ backend/services/compose_parser.py
 @@ -13,7 +13,7 @@
          display = display[3:]
-
+ 
      # Replace hyphens with spaces and title case
 -    display = display.replace("-", " ").replace("_", " ")
 +    display = display.replace("XX-XX", " ").replace("_", " ")
-
+ 
      # Handle special cases
      special_cases = {
 
@@ -130,11 +130,11 @@
 +++ backend/services/compose_parser.py
 @@ -13,7 +13,7 @@
          display = display[3:]
-
+ 
      # Replace hyphens with spaces and title case
 -    display = display.replace("-", " ").replace("_", " ")
 +    display = display.replace("-", "XX XX").replace("_", " ")
-
+ 
      # Handle special cases
      special_cases = {
 
@@ -144,11 +144,11 @@
 +++ backend/services/compose_parser.py
 @@ -13,7 +13,7 @@
          display = display[3:]
-
+ 
      # Replace hyphens with spaces and title case
 -    display = display.replace("-", " ").replace("_", " ")
 +    display = display.replace("-", " ").replace("XX_XX", " ")
-
+ 
      # Handle special cases
      special_cases = {
 
@@ -158,11 +158,11 @@
 +++ backend/services/compose_parser.py
 @@ -13,7 +13,7 @@
          display = display[3:]
-
+ 
      # Replace hyphens with spaces and title case
 -    display = display.replace("-", " ").replace("_", " ")
 +    display = display.replace("-", " ").replace("_", "XX XX")
-
+ 
      # Handle special cases
      special_cases = {
 
@@ -962,7 +962,7 @@
 +        "XXnode exporterXX": "Node Exporter",
          "cadvisor": "cAdvisor",
      }
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_99
 # backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_99: survived
@@ -976,7 +976,7 @@
 +        "NODE EXPORTER": "Node Exporter",
          "cadvisor": "cAdvisor",
      }
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_get_category__mutmut_9
 # backend.services.compose_parser.xǁComposeParserǁ_get_category__mutmut_9: survived
@@ -1098,7 +1098,7 @@
 -    if healthcheck.get("disable"):
 +    if healthcheck.get(None):
          return None, None, None
-
+ 
      test = healthcheck.get("test")
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_12
@@ -1140,7 +1140,7 @@
 -    if healthcheck.get("disable"):
 +    if healthcheck.get("XXdisableXX"):
          return None, None, None
-
+ 
      test = healthcheck.get("test")
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_20
@@ -1155,7 +1155,7 @@
 +        test_str = "XX XX".join(str(t) for t in test)
      else:
          test_str = str(test)
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_24
 # backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_24: survived
@@ -1182,7 +1182,7 @@
 -    if healthcheck.get("disable"):
 +    if healthcheck.get("DISABLE"):
          return None, None, None
-
+ 
      test = healthcheck.get("test")
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_30
@@ -1196,7 +1196,7 @@
 -            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
 +            endpoint = match.group(2) if (match.lastindex and match.lastindex >= 2) or True else "/health"
              return endpoint, None, port
-
+ 
      # If no HTTP endpoint found, use the command as health_cmd
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_33
@@ -1210,7 +1210,7 @@
 -            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
 +            endpoint = match.group(2) if match.lastindex or match.lastindex >= 2 else "/health"
              return endpoint, None, port
-
+ 
      # If no HTTP endpoint found, use the command as health_cmd
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_36
@@ -1224,7 +1224,7 @@
 -            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
 +            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "XX/healthXX"
              return endpoint, None, port
-
+ 
      # If no HTTP endpoint found, use the command as health_cmd
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_37
@@ -1238,7 +1238,7 @@
 -            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
 +            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/HEALTH"
              return endpoint, None, port
-
+ 
      # If no HTTP endpoint found, use the command as health_cmd
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_40
@@ -1252,7 +1252,7 @@
 -    if health_cmd.startswith("sh -c"):
 +    if health_cmd.startswith("XXsh -cXX"):
          health_cmd = health_cmd[6:].strip().strip("'\"")
-
+ 
      # Extract port from common command patterns
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_41
@@ -1266,7 +1266,7 @@
 -    if health_cmd.startswith("sh -c"):
 +    if health_cmd.startswith("SH -C"):
          health_cmd = health_cmd[6:].strip().strip("'\"")
-
+ 
      # Extract port from common command patterns
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_42
@@ -1275,7 +1275,7 @@
 +++ backend/services/compose_parser.py
 @@ -43,7 +43,7 @@
          health_cmd = health_cmd[6:].strip().strip("'\"")
-
+ 
      # Extract port from common command patterns
 -    cmd_port: int | None = None
 +    cmd_port: int | None = ""
@@ -1288,42 +1288,42 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -44,7 +44,7 @@
-
+ 
      # Extract port from common command patterns
      cmd_port: int | None = None
 -    port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
 +    port_match = None
      if port_match:
          cmd_port = int(port_match.group(1) or port_match.group(2))
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_48
 # backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_48: survived
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -44,7 +44,7 @@
-
+ 
      # Extract port from common command patterns
      cmd_port: int | None = None
 -    port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
 +    port_match = re.search(r"XX-p\s+(\d+)|:(\d+)XX", health_cmd)
      if port_match:
          cmd_port = int(port_match.group(1) or port_match.group(2))
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_49
 # backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_49: survived
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -44,7 +44,7 @@
-
+ 
      # Extract port from common command patterns
      cmd_port: int | None = None
 -    port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
 +    port_match = re.search(r"-P\s+(\d+)|:(\d+)", health_cmd)
      if port_match:
          cmd_port = int(port_match.group(1) or port_match.group(2))
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_9
 # backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_9: survived
@@ -1401,7 +1401,7 @@
 +++ backend/services/compose_parser.py
 @@ -17,7 +17,7 @@
          return health_port
-
+ 
      # Parse ports section
 -    ports = service_def.get("ports", [])
 +    ports = service_def.get("ports", None)
@@ -1415,7 +1415,7 @@
 +++ backend/services/compose_parser.py
 @@ -17,7 +17,7 @@
          return health_port
-
+ 
      # Parse ports section
 -    ports = service_def.get("ports", [])
 +    ports = service_def.get("ports", )
@@ -1429,11 +1429,11 @@
 +++ backend/services/compose_parser.py
 @@ -20,7 +20,7 @@
      category = self._get_category(name, labels)
-
+ 
      # Get category defaults
 -    defaults = CATEGORY_DEFAULTS.get(category, CATEGORY_DEFAULTS[ServiceCategory.AI])
 +    defaults = CATEGORY_DEFAULTS.get(None, CATEGORY_DEFAULTS[ServiceCategory.AI])
-
+ 
      # Parse healthcheck
      healthcheck = service_def.get("healthcheck", {})
 
@@ -1443,11 +1443,11 @@
 +++ backend/services/compose_parser.py
 @@ -20,7 +20,7 @@
      category = self._get_category(name, labels)
-
+ 
      # Get category defaults
 -    defaults = CATEGORY_DEFAULTS.get(category, CATEGORY_DEFAULTS[ServiceCategory.AI])
 +    defaults = CATEGORY_DEFAULTS.get(category, None)
-
+ 
      # Parse healthcheck
      healthcheck = service_def.get("healthcheck", {})
 
@@ -1457,11 +1457,11 @@
 +++ backend/services/compose_parser.py
 @@ -20,7 +20,7 @@
      category = self._get_category(name, labels)
-
+ 
      # Get category defaults
 -    defaults = CATEGORY_DEFAULTS.get(category, CATEGORY_DEFAULTS[ServiceCategory.AI])
 +    defaults = CATEGORY_DEFAULTS.get(category, )
-
+ 
      # Parse healthcheck
      healthcheck = service_def.get("healthcheck", {})
 
@@ -1471,11 +1471,11 @@
 +++ backend/services/compose_parser.py
 @@ -27,7 +27,7 @@
      health_endpoint, health_cmd, health_port = self._parse_healthcheck(healthcheck)
-
+ 
      # Parse port from ports section or healthcheck
 -    port = self._parse_port(service_def, health_port)
 +    port = self._parse_port(service_def, None)
-
+ 
      # Get display name
      display_name = labels.get("orchestrator.display_name", self._format_display_name(name))
 
@@ -1484,7 +1484,7 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -34,7 +34,7 @@
-
+ 
      # Get startup grace period (from label, healthcheck start_period, or default)
      startup_grace = self._parse_duration(
 -        labels.get("orchestrator.startup_grace_period")
@@ -1498,7 +1498,7 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -34,7 +34,7 @@
-
+ 
      # Get startup grace period (from label, healthcheck start_period, or default)
      startup_grace = self._parse_duration(
 -        labels.get("orchestrator.startup_grace_period")
@@ -1512,7 +1512,7 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -34,7 +34,7 @@
-
+ 
      # Get startup grace period (from label, healthcheck start_period, or default)
      startup_grace = self._parse_duration(
 -        labels.get("orchestrator.startup_grace_period")
@@ -1532,7 +1532,7 @@
 -        or str(defaults["startup_grace_period"])
 +        or str(None)
      )
-
+ 
      # Get max failures (from label, healthcheck retries, or default)
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_58
@@ -1540,7 +1540,7 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -41,8 +41,7 @@
-
+ 
      # Get max failures (from label, healthcheck retries, or default)
      max_failures = int(
 -        labels.get("orchestrator.max_failures")
@@ -1548,14 +1548,14 @@
 +        labels.get("orchestrator.max_failures") and healthcheck.get("retries")
          or defaults["max_failures"]
      )
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_59
 # backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_59: survived
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -41,7 +41,7 @@
-
+ 
      # Get max failures (from label, healthcheck retries, or default)
      max_failures = int(
 -        labels.get("orchestrator.max_failures")
@@ -1569,7 +1569,7 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -41,7 +41,7 @@
-
+ 
      # Get max failures (from label, healthcheck retries, or default)
      max_failures = int(
 -        labels.get("orchestrator.max_failures")
@@ -1583,7 +1583,7 @@
 --- backend/services/compose_parser.py
 +++ backend/services/compose_parser.py
 @@ -41,7 +41,7 @@
-
+ 
      # Get max failures (from label, healthcheck retries, or default)
      max_failures = int(
 -        labels.get("orchestrator.max_failures")
@@ -1604,7 +1604,7 @@
 +        or healthcheck.get(None)
          or defaults["max_failures"]
      )
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_63
 # backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_63: survived
@@ -1618,7 +1618,7 @@
 +        or healthcheck.get("XXretriesXX")
          or defaults["max_failures"]
      )
-
+ 
 
 ### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_64
 # backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_64: survived
@@ -1632,6 +1632,6 @@
 +        or healthcheck.get("RETRIES")
          or defaults["max_failures"]
      )
-
+ 
 
 DONE 117

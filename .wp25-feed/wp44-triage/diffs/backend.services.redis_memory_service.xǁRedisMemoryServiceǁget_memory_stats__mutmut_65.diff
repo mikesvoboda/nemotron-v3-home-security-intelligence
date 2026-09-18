@@ -7,6 +7,6 @@
          if isinstance(db_info, dict) and "expires" in db_info:
 -            keys_with_ttl += db_info.get("expires", 0)
 +            keys_with_ttl = db_info.get("expires", 0)
-
+ 
      # Get evicted keys count
      evicted_keys = server_info.get("evicted_keys", 0)

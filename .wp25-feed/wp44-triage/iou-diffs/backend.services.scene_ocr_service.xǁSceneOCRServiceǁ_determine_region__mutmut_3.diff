@@ -8,5 +8,5 @@
 -    if det_bbox[2] <= det_bbox[0] or det_bbox[3] <= det_bbox[1]:
 +    if det_bbox[2] < det_bbox[0] or det_bbox[3] <= det_bbox[1]:
          return "unknown"
-
+ 
      # Calculate text center relative to detection

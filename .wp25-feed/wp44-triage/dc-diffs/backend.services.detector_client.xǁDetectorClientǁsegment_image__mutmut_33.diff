@@ -3,7 +3,7 @@
 +++ backend/services/detector_client.py
 @@ -51,7 +51,7 @@
          )
-
+ 
          for attempt in range(self._max_retries):
 -            span.set_attribute("retry_attempt", attempt)
 +            span.set_attribute("RETRY_ATTEMPT", attempt)

@@ -657,3 +657,4 @@ class TestCheckDetectionWinner:
 
 34 + 26 + 31 + 1 + 37 + 1 = **132 = total TEST-GAP keys** (freq 62 + cd 37 + Q 32 + reset 1).
 D3, D6 (EQUIVALENT, 2 keys) and Q9 (LOW-VALUE, 3 keys) are intentionally left unkilled.
+

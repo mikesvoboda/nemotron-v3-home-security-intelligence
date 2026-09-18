@@ -7,6 +7,6 @@
      if not self._redis._client:
 -        raise RuntimeError("Redis client not connected")
 +        raise RuntimeError("XXRedis client not connectedXX")
-
+ 
      try:
          info = await self._redis._client.xinfo_stream(self._stream_key)

@@ -3,7 +3,7 @@
 +++ backend/services/redis_memory_service.py
 @@ -10,7 +10,7 @@
      keyspace_info = await self._redis.info("keyspace")
-
+ 
      # Parse memory values
 -    used_memory = info.get("used_memory", 0)
 +    used_memory = info.get("used_memory", 1)

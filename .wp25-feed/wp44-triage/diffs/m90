@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -46,7 +46,6 @@
-
+ 
              person = PersonEnrichmentData(
                  clothing_description=raw_desc if raw_desc else None,
 -                action=None,  # Action not in clothing classification

@@ -8,5 +8,5 @@
 -            carrying_str = cc.get("carrying", "")
 +            carrying_str = cc.get("carrying", "XXXX")
              carrying_list = [carrying_str] if carrying_str else []
-
+ 
              person = PersonEnrichmentData(

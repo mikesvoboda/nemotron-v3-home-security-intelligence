@@ -2,7 +2,7 @@
 --- backend/services/scene_ocr_service.py
 +++ backend/services/scene_ocr_service.py
 @@ -91,7 +91,7 @@
-
+ 
              detection_ocr[best_det_id].texts.append(
                  {
 -                    "value": frame_ocr.text,

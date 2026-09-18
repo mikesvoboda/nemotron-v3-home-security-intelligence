@@ -4,9 +4,9 @@
 @@ -37,7 +37,7 @@
      start = max(0, start)
      end = min(end, file_size - 1)
-
+ 
 -    if start > end:
 +    if start >= end:
          raise ValueError("Invalid range: start > end")
-
+ 
      return start, end

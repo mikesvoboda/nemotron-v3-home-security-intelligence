@@ -3,7 +3,7 @@
 +++ backend/api/routes/system.py
 @@ -9,7 +9,7 @@
          from backend.services.degradation_manager import get_degradation_manager
-
+ 
          try:
 -            manager = get_degradation_manager()
 +            manager = None

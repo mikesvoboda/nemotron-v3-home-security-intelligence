@@ -4,7 +4,7 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities
 +++ backend/services/hybrid_entity_storage.py
 @@ -37,7 +37,7 @@
      )
-
+ 
      logger.debug(
 -        "Retrieved %d/%d entities (type=%s, since=%s)",
 +        None,

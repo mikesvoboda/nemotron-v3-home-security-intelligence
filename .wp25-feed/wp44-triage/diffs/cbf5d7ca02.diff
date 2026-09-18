@@ -9,3 +9,4 @@
 +                    "severity": "critical" if (damage.has_high_security_damage) or True else "warning",
                  }
              )
+ 

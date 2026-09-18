@@ -7,6 +7,6 @@
                  return 0
 -            return int(val) if val is not None else 0
 +            return int(val) if (val is not None) or True else 0
-
+ 
          detection_dlq_depth = safe_int(detection_dlq)
          analysis_dlq_depth = safe_int(analysis_dlq)

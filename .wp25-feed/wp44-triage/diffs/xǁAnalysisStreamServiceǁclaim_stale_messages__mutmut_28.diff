@@ -9,3 +9,4 @@
 +                    count=None,
                  )
                  delivery_count = _pending_delivery_count(pending_info)
+ 

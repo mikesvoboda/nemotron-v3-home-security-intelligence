@@ -37,9 +37,9 @@ x__get_full_image_for_image#39	- detail="I/O error reading source image",	+ deta
 x__get_full_image_for_image#42	- logger.warning(f"Unexpected error reading image {file_path}: {e}")	+ logger.warning(None)
 x__get_full_image_for_video#2	- video_path=video_path,	+ video_path=None,
 x__get_full_image_for_video#3	- size=(1920, 1080),  # Larger size for full view	+ size=None,  # Larger size for full view
-x__get_full_image_for_video#4	- video_path=video_path,	+
-x__get_full_image_for_video#5	- output_path=None,  # Let it generate a temporary path	+
-x__get_full_image_for_video#6	- timestamp=None,  # Use smart default timestamp	+
+x__get_full_image_for_video#4	- video_path=video_path,	+ 
+x__get_full_image_for_video#5	- output_path=None,  # Let it generate a temporary path	+ 
+x__get_full_image_for_video#6	- timestamp=None,  # Use smart default timestamp	+ 
 x__get_full_image_for_video#7	- size=(1920, 1080),  # Larger size for full view | )	+ )
 x__get_full_image_for_video#8	- size=(1920, 1080),  # Larger size for full view	+ size=(1921, 1080),  # Larger size for full view
 x__get_full_image_for_video#9	- size=(1920, 1080),  # Larger size for full view	+ size=(1920, 1081),  # Larger size for full view
@@ -124,7 +124,7 @@ x_validate_enrichment_data#24	- has_damage = False	+ has_damage = True
 x_validate_enrichment_data#28	- has_damage = vehicle_damage[first_key].get("has_damage", False)	+ has_damage = vehicle_damage[first_key].get("has_damage", None)
 x_validate_enrichment_data#30	- has_damage = vehicle_damage[first_key].get("has_damage", False)	+ has_damage = vehicle_damage[first_key].get("has_damage", )
 x_validate_enrichment_data#33	- has_damage = vehicle_damage[first_key].get("has_damage", False)	+ has_damage = vehicle_damage[first_key].get("has_damage", True)
-x_validate_enrichment_data#39	- vehicle_color=None,  # Color not currently captured in enrichment	+
+x_validate_enrichment_data#39	- vehicle_color=None,  # Color not currently captured in enrichment	+ 
 x_validate_enrichment_data#41	- is_commercial=vc.get("is_commercial", False), | )	+ )
 x_validate_enrichment_data#45	- is_commercial=vc.get("is_commercial", False),	+ is_commercial=vc.get(None, False),
 x_validate_enrichment_data#49	- is_commercial=vc.get("is_commercial", False),	+ is_commercial=vc.get("XXis_commercialXX", False),
@@ -139,7 +139,7 @@ x_validate_enrichment_data#73	- raw_desc = cc.get("raw_description", "")	+ raw_d
 x_validate_enrichment_data#76	- carrying_str = cc.get("carrying", "")	+ carrying_str = cc.get("carrying", None)
 x_validate_enrichment_data#78	- carrying_str = cc.get("carrying", "")	+ carrying_str = cc.get("carrying", )
 x_validate_enrichment_data#81	- carrying_str = cc.get("carrying", "")	+ carrying_str = cc.get("carrying", "XXXX")
-x_validate_enrichment_data#90	- action=None,  # Action not in clothing classification	+
+x_validate_enrichment_data#90	- action=None,  # Action not in clothing classification	+ 
 x_validate_enrichment_data#92	- is_suspicious=cc.get("is_suspicious", False), | )	+ )
 x_validate_enrichment_data#94	- clothing_description=raw_desc if raw_desc else None,	+ clothing_description=raw_desc if (raw_desc) or True else None,
 x_validate_enrichment_data#95	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get(None, False),
@@ -154,4 +154,4 @@ x_validate_enrichment_data#113	- first_key = next(iter(pet_classifications), Non
 x_validate_enrichment_data#119	- breed=None,  # Breed not currently captured | )	+ )
 x_validate_enrichment_data#126	- errors = _sanitize_errors(enrichment_data.get("errors", []))	+ errors = _sanitize_errors(enrichment_data.get("errors", None))
 x_validate_enrichment_data#128	- errors = _sanitize_errors(enrichment_data.get("errors", []))	+ errors = _sanitize_errors(enrichment_data.get("errors", ))
-x_validate_enrichment_data#138	- weather=None,  # Weather not currently in enrichment pipeline	+
+x_validate_enrichment_data#138	- weather=None,  # Weather not currently in enrichment pipeline	+ 

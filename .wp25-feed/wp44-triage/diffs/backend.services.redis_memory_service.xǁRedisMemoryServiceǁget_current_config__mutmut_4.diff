@@ -8,5 +8,5 @@
 -    maxmemory_config = await self._redis.config_get("maxmemory")
 +    maxmemory_config = await self._redis.config_get("MAXMEMORY")
      policy_config = await self._redis.config_get("maxmemory-policy")
-
+ 
      maxmemory_bytes = int(maxmemory_config.get("maxmemory", 0))

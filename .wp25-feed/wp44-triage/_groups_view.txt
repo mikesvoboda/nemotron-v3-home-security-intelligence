@@ -534,7 +534,7 @@ xǁBatchAggregatorǁ_close_batch_for_size_limit groups: 100 survivors: 100
       +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_132(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug(None)
   n=  1 idx=[133]
       -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Cleaned up Redis keys for batch")
-      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_133(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("XXCleaned up Redis keys for
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_133(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("XXCleaned up Redis keys for 
   n=  1 idx=[134]
       -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Cleaned up Redis keys for batch")
       +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_134(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("cleaned up redis keys for ba

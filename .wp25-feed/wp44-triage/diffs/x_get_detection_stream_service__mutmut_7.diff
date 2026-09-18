@@ -8,5 +8,5 @@
 -            maxlen=settings.queue_max_size,
 -        )
 +            )
-
+ 
      return _detection_stream_service

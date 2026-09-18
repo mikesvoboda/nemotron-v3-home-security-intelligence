@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -35,7 +35,7 @@
-
+ 
      # Extract person data using typed model
      person: PersonEnrichmentData | None = None
 -    clothing_classifications = enrichment_data.get("clothing_classifications", {})

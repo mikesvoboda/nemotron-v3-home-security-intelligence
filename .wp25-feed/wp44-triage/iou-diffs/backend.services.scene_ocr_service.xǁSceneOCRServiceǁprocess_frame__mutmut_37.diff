@@ -9,3 +9,4 @@
 +                det_ocr.service_match = max(matches, key=None)
                  # Record provider match metric
                  record_scene_ocr_provider_match(det_ocr.service_match.category)
+ 

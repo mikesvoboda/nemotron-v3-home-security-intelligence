@@ -3,7 +3,7 @@
 +++ backend/services/redis_memory_service.py
 @@ -35,7 +35,7 @@
          )
-
+ 
      # Check fragmentation
 -    if stats.memory_fragmentation_ratio > 1.5:
 +    if stats.memory_fragmentation_ratio >= 1.5:

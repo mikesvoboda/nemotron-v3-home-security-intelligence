@@ -8,5 +8,5 @@
 -        vehicle_response["damage_detected"] = vd.get("has_damage", False)
 +        vehicle_response["damage_detected"] = vd.get("has_damage", None)
          vehicle_response["damage_types"] = vd.get("damage_types", [])
-
+ 
      return vehicle_response

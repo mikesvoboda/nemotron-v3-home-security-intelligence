@@ -45,7 +45,7 @@
 87	depth_value=depth_value,	=>	depth_value=None,
 88	proximity_label=proximity_label,	=>	proximity_label=None,
 89	is_approaching=False,  # Could be enhanced with temporal tracking	=>	is_approaching=None,  # Could be enhanced with temporal tracking
-95	is_approaching=False,  # Could be enhanced with temporal tracking	=>
+95	is_approaching=False,  # Could be enhanced with temporal tracking	=>	
 97	is_approaching=False,  # Could be enhanced with temporal tracking	=>	is_approaching=True,  # Could be enhanced with temporal tracking
 99	if depth_value < min_depth:	=>	if depth_value <= min_depth:
 102	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = None
@@ -67,8 +67,8 @@
 125	has_close_objects=has_close,	=>	has_close_objects=None,
 126	average_depth=avg_depth,	=>	average_depth=None,
 127	depth_variance=variance,	=>	depth_variance=None,
-130	has_close_objects=has_close,	=>
-131	average_depth=avg_depth,	=>
+130	has_close_objects=has_close,	=>	
+131	average_depth=avg_depth,	=>	
 132	depth_variance=variance, | ) | 	=>	)
 
 @@@ x_depth_to_feet
@@ -150,7 +150,7 @@
 39	"Failed to load Depth Anything V2 model",	=>	None,
 40	exc_info=True,	=>	exc_info=None,
 41	extra={"model_path": model_path},	=>	extra=None,
-43	exc_info=True,	=>
+43	exc_info=True,	=>	
 44	extra={"model_path": model_path}, | )	=>	)
 45	"Failed to load Depth Anything V2 model",	=>	"XXFailed to load Depth Anything V2 modelXX",
 46	"Failed to load Depth Anything V2 model",	=>	"failed to load depth anything v2 model",

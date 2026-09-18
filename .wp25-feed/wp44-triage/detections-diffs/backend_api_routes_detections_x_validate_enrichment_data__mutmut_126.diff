@@ -3,10 +3,10 @@
 +++ backend/api/routes/detections.py
 @@ -64,7 +64,7 @@
              )
-
+ 
      # Extract errors (sanitized for API exposure)
 -    errors = _sanitize_errors(enrichment_data.get("errors", []))
 +    errors = _sanitize_errors(enrichment_data.get("errors", None))
-
+ 
      return EnrichmentDataSchema(
          vehicle=vehicle,

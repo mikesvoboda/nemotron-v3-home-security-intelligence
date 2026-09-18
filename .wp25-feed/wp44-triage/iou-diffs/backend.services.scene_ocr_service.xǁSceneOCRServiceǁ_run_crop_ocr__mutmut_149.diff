@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -104,7 +104,7 @@
                  return det_id, crop_results
-
+ 
              except Exception as e:
 -                logger.warning(f"Crop OCR failed for detection {det_id}: {e}")
 +                logger.warning(None)
                  return det_id, []
-
+ 
      # Run all crop OCR tasks in parallel

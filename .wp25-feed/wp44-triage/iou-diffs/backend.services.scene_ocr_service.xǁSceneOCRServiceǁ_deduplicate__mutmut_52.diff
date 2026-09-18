@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -72,7 +72,7 @@
                  break
-
+ 
          if is_duplicate:
 -            continue
 +            break
-
+ 
          # Try to associate with a detection
          best_det_id = None

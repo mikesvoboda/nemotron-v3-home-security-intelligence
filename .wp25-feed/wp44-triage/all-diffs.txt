@@ -36,7 +36,7 @@
 +            None,
          )
          return None
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_11
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_11: survived
 --- backend/services/unified_embedding_service.py
@@ -61,7 +61,7 @@
 -        )
 +            )
          return None
-
+ 
      known_person = face_event.matched_person
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_13
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_13: survived
@@ -107,12 +107,12 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -32,7 +32,7 @@
-
+ 
      known_person = face_event.matched_person
      known_person_id = known_person.id
 -    household_member_id: int | None = None
 +    household_member_id: int | None = ""
-
+ 
      # Look up linked household member
      household_member = await self._get_household_member_by_known_person(
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_21
@@ -120,7 +120,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -36,7 +36,7 @@
-
+ 
      # Look up linked household member
      household_member = await self._get_household_member_by_known_person(
 -        session, known_person_id
@@ -139,7 +139,7 @@
 -        association_type="face_match",
 +        association_type=None,
      )
-
+ 
      # Update entity trust status if requested and person is household member
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_37
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_37: survived
@@ -152,7 +152,7 @@
 -        association_type="face_match",
 -    )
 +        )
-
+ 
      # Update entity trust status if requested and person is household member
      if update_trust and known_person.is_household_member:
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_39
@@ -167,7 +167,7 @@
 +        face_confidence=face_event.match_confidence or 1.0,
          association_type="face_match",
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_40
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_40: survived
 --- backend/services/unified_embedding_service.py
@@ -179,7 +179,7 @@
 -        association_type="face_match",
 +        association_type="XXface_matchXX",
      )
-
+ 
      # Update entity trust status if requested and person is household member
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_41
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_41: survived
@@ -192,7 +192,7 @@
 -        association_type="face_match",
 +        association_type="FACE_MATCH",
      )
-
+ 
      # Update entity trust status if requested and person is household member
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_42
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_42: survived
@@ -200,7 +200,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -52,7 +52,7 @@
      )
-
+ 
      # Update entity trust status if requested and person is household member
 -    if update_trust and known_person.is_household_member:
 +    if update_trust or known_person.is_household_member:
@@ -212,7 +212,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -53,7 +53,7 @@
-
+ 
      # Update entity trust status if requested and person is household member
      if update_trust and known_person.is_household_member:
 -        entity = await self._get_entity_by_id(session, entity_id)
@@ -226,7 +226,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -68,7 +68,7 @@
                  entity.trust_status = TrustStatus.TRUSTED.value
-
+ 
              # Add face match info to entity metadata
 -            if entity.entity_metadata is None:
 +            if entity.entity_metadata is not None:
@@ -248,9 +248,9 @@
 -                "matched_at": association.created_at.isoformat(),
 -            }
 +            entity.entity_metadata["face_match"] = None
-
+ 
              await session.flush()
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_57
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_57: survived
 --- backend/services/unified_embedding_service.py
@@ -315,7 +315,7 @@
 +                "XXface_confidenceXX": association.face_confidence,
                  "matched_at": association.created_at.isoformat(),
              }
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_62
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_62: survived
 --- backend/services/unified_embedding_service.py
@@ -328,7 +328,7 @@
 +                "FACE_CONFIDENCE": association.face_confidence,
                  "matched_at": association.created_at.isoformat(),
              }
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_63
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_63: survived
 --- backend/services/unified_embedding_service.py
@@ -340,7 +340,7 @@
 -                "matched_at": association.created_at.isoformat(),
 +                "XXmatched_atXX": association.created_at.isoformat(),
              }
-
+ 
              await session.flush()
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_64
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_64: survived
@@ -353,7 +353,7 @@
 -                "matched_at": association.created_at.isoformat(),
 +                "MATCHED_AT": association.created_at.isoformat(),
              }
-
+ 
              await session.flush()
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_65
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_65: survived
@@ -361,7 +361,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -80,7 +80,7 @@
              await session.flush()
-
+ 
              logger.info(
 -                "Updated entity %s trust to %s based on face match to %s",
 +                None,
@@ -373,7 +373,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -81,7 +81,7 @@
-
+ 
              logger.info(
                  "Updated entity %s trust to %s based on face match to %s",
 -                entity_id,
@@ -393,7 +393,7 @@
 +                None,
                  known_person.name,
              )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_68
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_68: survived
 --- backend/services/unified_embedding_service.py
@@ -405,7 +405,7 @@
 -                known_person.name,
 +                None,
              )
-
+ 
      return association
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_69
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_69: survived
@@ -413,7 +413,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -80,7 +80,6 @@
              await session.flush()
-
+ 
              logger.info(
 -                "Updated entity %s trust to %s based on face match to %s",
                  entity_id,
@@ -424,7 +424,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -81,7 +81,6 @@
-
+ 
              logger.info(
                  "Updated entity %s trust to %s based on face match to %s",
 -                entity_id,
@@ -442,7 +442,7 @@
 -                entity.trust_status,
                  known_person.name,
              )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_72
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_72: survived
 --- backend/services/unified_embedding_service.py
@@ -454,7 +454,7 @@
 -                known_person.name,
 -            )
 +                )
-
+ 
      return association
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_73
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁpropagate_face_match_to_entity__mutmut_73: survived
@@ -462,7 +462,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -80,7 +80,7 @@
              await session.flush()
-
+ 
              logger.info(
 -                "Updated entity %s trust to %s based on face match to %s",
 +                "XXUpdated entity %s trust to %s based on face match to %sXX",
@@ -475,7 +475,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -80,7 +80,7 @@
              await session.flush()
-
+ 
              logger.info(
 -                "Updated entity %s trust to %s based on face match to %s",
 +                "updated entity %s trust to %s based on face match to %s",
@@ -488,7 +488,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -80,7 +80,7 @@
              await session.flush()
-
+ 
              logger.info(
 -                "Updated entity %s trust to %s based on face match to %s",
 +                "UPDATED ENTITY %S TRUST TO %S BASED ON FACE MATCH TO %S",
@@ -527,64 +527,64 @@
 +++ backend/services/unified_embedding_service.py
 @@ -35,7 +35,7 @@
      }
-
+ 
      # Get the known person
 -    stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
 +    stmt = None
      person_result = await session.execute(stmt)
      known_person = person_result.scalar_one_or_none()
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_14
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_14: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -35,7 +35,7 @@
      }
-
+ 
      # Get the known person
 -    stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
 +    stmt = select(KnownPerson).where(None)
      person_result = await session.execute(stmt)
      known_person = person_result.scalar_one_or_none()
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_15
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_15: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -35,7 +35,7 @@
      }
-
+ 
      # Get the known person
 -    stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
 +    stmt = select(None).where(KnownPerson.id == known_person_id)
      person_result = await session.execute(stmt)
      known_person = person_result.scalar_one_or_none()
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_16
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_16: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -35,7 +35,7 @@
      }
-
+ 
      # Get the known person
 -    stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
 +    stmt = select(KnownPerson).where(KnownPerson.id != known_person_id)
      person_result = await session.execute(stmt)
      known_person = person_result.scalar_one_or_none()
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_18
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_18: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -36,7 +36,7 @@
-
+ 
      # Get the known person
      stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
 -    person_result = await session.execute(stmt)
 +    person_result = await session.execute(None)
      known_person = person_result.scalar_one_or_none()
-
+ 
      if known_person is None:
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_28
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_28: survived
@@ -598,7 +598,7 @@
 +        "XXis_household_memberXX": known_person.is_household_member,
          "notes": known_person.notes,
      }
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_29
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_29: survived
 --- backend/services/unified_embedding_service.py
@@ -611,7 +611,7 @@
 +        "IS_HOUSEHOLD_MEMBER": known_person.is_household_member,
          "notes": known_person.notes,
      }
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_30
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_30: survived
 --- backend/services/unified_embedding_service.py
@@ -623,7 +623,7 @@
 -        "notes": known_person.notes,
 +        "XXnotesXX": known_person.notes,
      }
-
+ 
      # Get linked household member
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_31
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_31: survived
@@ -636,14 +636,14 @@
 -        "notes": known_person.notes,
 +        "NOTES": known_person.notes,
      }
-
+ 
      # Get linked household member
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_34
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_34: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -51,7 +51,7 @@
-
+ 
      # Get linked household member
      household_member = await self._get_household_member_by_known_person(
 -        session, known_person_id
@@ -689,7 +689,7 @@
 +            "XXroleXX": household_member.role.value,
              "trust_level": household_member.trusted_level.value,
          }
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_45
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_45: survived
 --- backend/services/unified_embedding_service.py
@@ -702,13 +702,13 @@
 +            "ROLE": household_member.role.value,
              "trust_level": household_member.trusted_level.value,
          }
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_48
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_48: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -63,12 +63,7 @@
-
+ 
      # Get face detection events
      if include_face_events:
 -        face_stmt = (
@@ -720,7 +720,7 @@
 +        face_stmt = None
          face_result = await session.execute(face_stmt)
          face_events = face_result.scalars().all()
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_49
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_49: survived
 --- backend/services/unified_embedding_service.py
@@ -797,14 +797,14 @@
 -        face_result = await session.execute(face_stmt)
 +        face_result = await session.execute(None)
          face_events = face_result.scalars().all()
-
+ 
          result["face_events"] = [
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_60
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁget_person_sighting_history__mutmut_60: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -74,7 +74,7 @@
-
+ 
          result["face_events"] = [
              {
 -                "id": fe.id,
@@ -817,7 +817,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -74,7 +74,7 @@
-
+ 
          result["face_events"] = [
              {
 -                "id": fe.id,
@@ -934,7 +934,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -85,7 +85,7 @@
-
+ 
      # Get associated entities
      if include_entities:
 -        entities = await self.find_entity_by_face_match(session, known_person_id)
@@ -1149,20 +1149,20 @@
 +    face_event = await self._get_face_event_with_person(session, None)
      if face_event is None:
          return None
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_9
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_9: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -25,7 +25,7 @@
          return None
-
+ 
      # Verify entity exists
 -    entity = await self._get_entity_by_id(session, entity_id)
 +    entity = await self._get_entity_by_id(session, None)
      if entity is None:
          return None
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_13
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_13: survived
 --- backend/services/unified_embedding_service.py
@@ -1170,11 +1170,11 @@
 @@ -29,7 +29,7 @@
      if entity is None:
          return None
-
+ 
 -    known_person_id = face_event.matched_person_id
 +    known_person_id = None
      household_member_id: int | None = None
-
+ 
      if known_person_id:
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_14
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_14: survived
@@ -1182,11 +1182,11 @@
 +++ backend/services/unified_embedding_service.py
 @@ -30,7 +30,7 @@
          return None
-
+ 
      known_person_id = face_event.matched_person_id
 -    household_member_id: int | None = None
 +    household_member_id: int | None = ""
-
+ 
      if known_person_id:
          household_member = await self._get_household_member_by_known_person(
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_18
@@ -1227,7 +1227,7 @@
 +        face_confidence=None,
          association_type=association_type,
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_24
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_24: survived
 --- backend/services/unified_embedding_service.py
@@ -1263,7 +1263,7 @@
 -        face_confidence=face_event.match_confidence or 0.0,
          association_type=association_type,
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_28
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_28: survived
 --- backend/services/unified_embedding_service.py
@@ -1276,7 +1276,7 @@
 +        face_confidence=face_event.match_confidence and 0.0,
          association_type=association_type,
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_29
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_29: survived
 --- backend/services/unified_embedding_service.py
@@ -1289,19 +1289,19 @@
 +        face_confidence=face_event.match_confidence or 1.0,
          association_type=association_type,
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_30
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_30: survived
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -49,7 +49,7 @@
      )
-
+ 
      # Store association in entity metadata
 -    if entity.entity_metadata is None:
 +    if entity.entity_metadata is not None:
          entity.entity_metadata = {}
-
+ 
      face_associations = entity.entity_metadata.get("face_associations", [])
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_32
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_32: survived
@@ -1310,7 +1310,7 @@
 @@ -52,7 +52,7 @@
      if entity.entity_metadata is None:
          entity.entity_metadata = {}
-
+ 
 -    face_associations = entity.entity_metadata.get("face_associations", [])
 +    face_associations = entity.entity_metadata.get(None, [])
      face_associations.append(
@@ -1323,7 +1323,7 @@
 @@ -52,7 +52,7 @@
      if entity.entity_metadata is None:
          entity.entity_metadata = {}
-
+ 
 -    face_associations = entity.entity_metadata.get("face_associations", [])
 +    face_associations = entity.entity_metadata.get("XXface_associationsXX", [])
      face_associations.append(
@@ -1336,7 +1336,7 @@
 @@ -52,7 +52,7 @@
      if entity.entity_metadata is None:
          entity.entity_metadata = {}
-
+ 
 -    face_associations = entity.entity_metadata.get("face_associations", [])
 +    face_associations = entity.entity_metadata.get("FACE_ASSOCIATIONS", [])
      face_associations.append(
@@ -1347,7 +1347,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -54,13 +54,7 @@
-
+ 
      face_associations = entity.entity_metadata.get("face_associations", [])
      face_associations.append(
 -        {
@@ -1360,7 +1360,7 @@
 +        None
      )
      entity.entity_metadata["face_associations"] = face_associations
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_39
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_39: survived
 --- backend/services/unified_embedding_service.py
@@ -1497,7 +1497,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -67,7 +67,7 @@
      await session.flush()
-
+ 
      logger.info(
 -        "Linked face event %d to entity %s (type=%s)",
 +        None,
@@ -1509,7 +1509,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -68,7 +68,7 @@
-
+ 
      logger.info(
          "Linked face event %d to entity %s (type=%s)",
 -        face_event_id,
@@ -1529,7 +1529,7 @@
 +        None,
          association_type,
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_55
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_55: survived
 --- backend/services/unified_embedding_service.py
@@ -1541,7 +1541,7 @@
 -        association_type,
 +        None,
      )
-
+ 
      return association
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_56
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_56: survived
@@ -1549,7 +1549,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -67,7 +67,6 @@
      await session.flush()
-
+ 
      logger.info(
 -        "Linked face event %d to entity %s (type=%s)",
          face_event_id,
@@ -1560,7 +1560,7 @@
 --- backend/services/unified_embedding_service.py
 +++ backend/services/unified_embedding_service.py
 @@ -68,7 +68,6 @@
-
+ 
      logger.info(
          "Linked face event %d to entity %s (type=%s)",
 -        face_event_id,
@@ -1578,7 +1578,7 @@
 -        entity_id,
          association_type,
      )
-
+ 
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_59
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_59: survived
 --- backend/services/unified_embedding_service.py
@@ -1590,7 +1590,7 @@
 -        association_type,
 -    )
 +        )
-
+ 
      return association
 @@@KEY backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_60
 # backend.services.unified_embedding_service.xǁUnifiedEmbeddingServiceǁlink_face_event_to_entity__mutmut_60: survived
@@ -1598,7 +1598,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -67,7 +67,7 @@
      await session.flush()
-
+ 
      logger.info(
 -        "Linked face event %d to entity %s (type=%s)",
 +        "XXLinked face event %d to entity %s (type=%s)XX",
@@ -1611,7 +1611,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -67,7 +67,7 @@
      await session.flush()
-
+ 
      logger.info(
 -        "Linked face event %d to entity %s (type=%s)",
 +        "linked face event %d to entity %s (type=%s)",
@@ -1624,7 +1624,7 @@
 +++ backend/services/unified_embedding_service.py
 @@ -67,7 +67,7 @@
      await session.flush()
-
+ 
      logger.info(
 -        "Linked face event %d to entity %s (type=%s)",
 +        "LINKED FACE EVENT %D TO ENTITY %S (TYPE=%S)",

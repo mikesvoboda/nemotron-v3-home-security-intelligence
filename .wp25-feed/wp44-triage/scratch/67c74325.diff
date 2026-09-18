@@ -3,7 +3,7 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entity_f
 --- backend/services/hybrid_entity_storage.py
 +++ backend/services/hybrid_entity_storage.py
 @@ -23,7 +23,7 @@
-
+ 
      if entity:
          logger.debug(
 -            "Retrieved entity %s with %d detections",

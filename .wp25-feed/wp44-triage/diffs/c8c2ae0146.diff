@@ -3,9 +3,10 @@
 +++ backend/services/enrichment_pipeline.py
 @@ -92,7 +92,7 @@
          )
-
+ 
      # Weather-related flags (NEM-5288)
 -    if self.weather_classification and self.weather_classification.confidence >= 0.5:
 +    if self.weather_classification and self.weather_classification.confidence > 0.5:
          condition = self.weather_classification.simple_condition
          confidence = self.weather_classification.confidence
+ 

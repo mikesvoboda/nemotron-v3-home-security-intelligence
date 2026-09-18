@@ -9,3 +9,4 @@
 +            device="CUDA:0",
              batch_size=1,
          )
+ 

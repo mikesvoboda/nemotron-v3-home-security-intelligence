@@ -7,6 +7,6 @@
                          result: dict[str, Any] = response.json()
 -                        inference_time_ms = (time.monotonic() - start_time) * 1000
 +                        inference_time_ms = (time.monotonic() + start_time) * 1000
-
+ 
                          detections = result.get("detections", [])
                          set_detection_attributes(

@@ -9,3 +9,4 @@
 +                    "SEVERITY": "alert" if pose.pose_class == "crouching" else "warning",
                  }
              )
+ 

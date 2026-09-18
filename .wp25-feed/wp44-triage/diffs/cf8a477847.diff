@@ -2,7 +2,7 @@
 --- backend/services/enrichment_pipeline.py
 +++ backend/services/enrichment_pipeline.py
 @@ -25,7 +25,7 @@
-
+ 
      return {
          # Violence analysis
 -        "violence_context": format_violence_context(self.violence_detection),

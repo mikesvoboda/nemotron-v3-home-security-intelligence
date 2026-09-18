@@ -9,3 +9,4 @@
 +                            span, duration_ms=inference_time_ms, status="SUCCESS"
                          )
                          return result
+ 

@@ -9,3 +9,4 @@
 +            "using 'noeviction' policy with a memory limit. consider switching to "
              "'volatile-lru' to allow graceful eviction of cached data."
          )
+ 

@@ -8,6 +8,6 @@
 -            return_exceptions=True,
 -        )
 +            )
-
+ 
          # Handle exceptions from gather
          if isinstance(frame_results, BaseException):

@@ -9,3 +9,4 @@
 +                logger.warning(None)
                  return 0
              return int(val) if val is not None else 0
+ 

@@ -3,10 +3,10 @@
 +++ backend/services/redis_memory_service.py
 @@ -30,7 +30,7 @@
              keys_with_ttl += db_info.get("expires", 0)
-
+ 
      # Get evicted keys count
 -    evicted_keys = server_info.get("evicted_keys", 0)
 +    evicted_keys = server_info.get("evicted_keys", None)
-
+ 
      # Calculate usage percentage
      memory_usage_percent = 0.0

@@ -78,14 +78,14 @@
 -        logger.debug(f"WebSocket emitter not configured, skipping event for {camera.id}")
 +        logger.debug(None)
          return
-
+ 
      # Check if we should debounce this event
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_9
 --- backend/services/camera_service.py
 +++ backend/services/camera_service.py
 @@ -31,8 +31,7 @@
-
+ 
      if not should_emit:
          logger.debug(
 -            f"Camera {camera.id} status change debounced "
@@ -111,7 +111,7 @@
 +            extra=None,
          )
          return
-
+ 
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_12
 --- backend/services/camera_service.py
@@ -129,7 +129,7 @@
 -        )
 +            )
          return
-
+ 
      # Emit the appropriate event based on new status
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_13
@@ -254,7 +254,7 @@
 +++ backend/services/camera_service.py
 @@ -43,7 +43,7 @@
          return
-
+ 
      # Emit the appropriate event based on new status
 -    timestamp = datetime.now(UTC).isoformat()
 +    timestamp = None
@@ -267,7 +267,7 @@
 +++ backend/services/camera_service.py
 @@ -43,7 +43,7 @@
          return
-
+ 
      # Emit the appropriate event based on new status
 -    timestamp = datetime.now(UTC).isoformat()
 +    timestamp = datetime.now(None).isoformat()
@@ -460,12 +460,12 @@
 --- backend/services/camera_service.py
 +++ backend/services/camera_service.py
 @@ -29,7 +29,7 @@
-
+ 
      try:
          # Check if there's a pending status change
 -        pending_status = await self._redis.get(debounce_key)
 +        pending_status = await self._redis.get(None)
-
+ 
          if pending_status == new_status:
              # Status matches what was pending - it's been stable long enough
 
@@ -609,7 +609,7 @@
 +            extra=None,
          )
          return False
-
+ 
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_26
 --- backend/services/camera_service.py
@@ -627,7 +627,7 @@
 -        )
 +            )
          return False
-
+ 
      except Exception as e:
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_27
@@ -835,12 +835,12 @@
 --- backend/services/camera_service.py
 +++ backend/services/camera_service.py
 @@ -22,7 +22,7 @@
-
+ 
      # Map status to event type and emit specific event
      status_lower = camera.status.lower()
 -    specific_event_type: WebSocketEventType | None = None
 +    specific_event_type: WebSocketEventType | None = ""
-
+ 
      if status_lower == CameraStatus.ONLINE.value:
          specific_event_type = WebSocketEventType.CAMERA_ONLINE
 
@@ -1041,7 +1041,7 @@
 -            },
 +            extra=None,
          )
-
+ 
      # Always emit the generic status_changed event with full details
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_50
@@ -1059,7 +1059,7 @@
 -            },
 -        )
 +            )
-
+ 
      # Always emit the generic status_changed event with full details
      status_changed_payload: dict[str, Any] = {
 
@@ -1152,7 +1152,7 @@
 +                "XXnew_statusXX": camera.status,
              },
          )
-
+ 
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_58
 --- backend/services/camera_service.py
@@ -1165,13 +1165,13 @@
 +                "NEW_STATUS": camera.status,
              },
          )
-
+ 
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_60
 --- backend/services/camera_service.py
 +++ backend/services/camera_service.py
 @@ -66,7 +66,7 @@
-
+ 
      # Always emit the generic status_changed event with full details
      status_changed_payload: dict[str, Any] = {
 -        "camera_id": camera.id,
@@ -1184,7 +1184,7 @@
 --- backend/services/camera_service.py
 +++ backend/services/camera_service.py
 @@ -66,7 +66,7 @@
-
+ 
      # Always emit the generic status_changed event with full details
      status_changed_payload: dict[str, Any] = {
 -        "camera_id": camera.id,
@@ -1269,7 +1269,7 @@
 +        "XXreasonXX": reason,
          "details": None,
      }
-
+ 
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_75
 --- backend/services/camera_service.py
@@ -1282,7 +1282,7 @@
 +        "REASON": reason,
          "details": None,
      }
-
+ 
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_76
 --- backend/services/camera_service.py
@@ -1294,7 +1294,7 @@
 -        "details": None,
 +        "XXdetailsXX": None,
      }
-
+ 
      await self._emitter.emit(
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_77
@@ -1307,7 +1307,7 @@
 -        "details": None,
 +        "DETAILS": None,
      }
-
+ 
      await self._emitter.emit(
 
 ===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_82
@@ -1475,7 +1475,7 @@
 --- backend/services/camera_service.py
 +++ backend/services/camera_service.py
 @@ -12,7 +12,7 @@
-
+ 
      status_lower = status.lower()
      try:
 -        return CameraStatus(status_lower).value
@@ -1483,3 +1483,4 @@
      except ValueError:
          # If status doesn't match enum, return as-is for forward compatibility
          return status_lower
+

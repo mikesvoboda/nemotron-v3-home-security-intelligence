@@ -9,6 +9,6 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detect
 -        attributes=attributes,
 -    )
 +        )
-
+ 
      logger.debug(
          "Entity %s for detection %d (is_new=%s)",

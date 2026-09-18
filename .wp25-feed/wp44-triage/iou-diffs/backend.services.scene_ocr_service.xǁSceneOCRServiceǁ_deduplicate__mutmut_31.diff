@@ -9,3 +9,4 @@
 +            detection_id=None,
              texts=texts,
          )
+ 

@@ -2,7 +2,7 @@
 --- backend/services/redis_streams.py
 +++ backend/services/redis_streams.py
 @@ -45,12 +45,7 @@
-
+ 
      logger.warning(
          "Moved message to DLQ",
 -        extra={
@@ -13,5 +13,5 @@
 -        },
 +        extra=None,
      )
-
+ 
      record_pipeline_error("stream_dlq_move")

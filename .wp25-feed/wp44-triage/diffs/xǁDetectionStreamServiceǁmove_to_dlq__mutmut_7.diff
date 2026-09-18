@@ -2,7 +2,7 @@
 --- backend/services/redis_streams.py
 +++ backend/services/redis_streams.py
 @@ -23,7 +23,7 @@
-
+ 
      # Build DLQ message with original data plus metadata
      dlq_fields: StreamFields = {
 -        **{k: str(v) for k, v in message.raw_data.items()},

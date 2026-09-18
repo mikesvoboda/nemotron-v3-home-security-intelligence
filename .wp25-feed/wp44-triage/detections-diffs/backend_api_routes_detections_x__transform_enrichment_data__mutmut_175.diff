@@ -9,3 +9,4 @@
 +            "quality_issues": iq.get("XXquality_issuesXX", []),
              "quality_change_detected": enrichment_data.get("quality_change_detected"),
          }
+ 

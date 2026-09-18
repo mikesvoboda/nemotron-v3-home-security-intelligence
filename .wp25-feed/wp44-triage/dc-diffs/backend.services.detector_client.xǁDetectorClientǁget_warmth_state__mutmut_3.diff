@@ -4,7 +4,7 @@
 @@ -18,7 +18,7 @@
              "last_inference_seconds_ago": None,
          }
-
+ 
 -    seconds_ago = time.monotonic() - self._last_inference_time
 +    seconds_ago = time.monotonic() + self._last_inference_time
      is_cold = seconds_ago > self._cold_start_threshold

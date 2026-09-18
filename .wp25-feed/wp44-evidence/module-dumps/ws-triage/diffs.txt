@@ -1,0 +1,1366 @@
+===KEY backend.api.routes.websocket.x__check_message_size__mutmut_2
+# backend.api.routes.websocket.x__check_message_size__mutmut_2: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -5,6 +5,6 @@
+         Error message string if oversized, None if within limits.
+     """
+     max_size = get_settings().websocket_max_message_size
+-    if len(data) > max_size:
++    if len(data) >= max_size:
+         return f"Message too large ({len(data)} bytes, max {max_size})"
+     return None
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_12
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_12: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+         # Pydantic 2.x reports JSON errors as 'json_invalid' type
+         errors = e.errors()
+         is_json_error = any(
+-            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
++            err.get("type") in ("json_invalid", "XXvalue_error.jsondecodeXX") for err in errors
+         )
+ 
+         if is_json_error:
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_13
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_13: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+         # Pydantic 2.x reports JSON errors as 'json_invalid' type
+         errors = e.errors()
+         is_json_error = any(
+-            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
++            err.get("type") in ("json_invalid", "VALUE_ERROR.JSONDECODE") for err in errors
+         )
+ 
+         if is_json_error:
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_22
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_22: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -40,7 +40,7 @@
+             logger.warning(f"WebSocket received invalid JSON: {e}")
+             error_response = WebSocketErrorResponse(
+                 error=WebSocketErrorCode.INVALID_JSON,
+-                message="Message must be valid JSON",
++                message="XXMessage must be valid JSONXX",
+                 details={"raw_data_preview": raw_data[:100] if raw_data else None},
+             )
+         else:
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_28
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_28: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -41,7 +41,7 @@
+             error_response = WebSocketErrorResponse(
+                 error=WebSocketErrorCode.INVALID_JSON,
+                 message="Message must be valid JSON",
+-                details={"raw_data_preview": raw_data[:100] if raw_data else None},
++                details={"raw_data_preview": raw_data[:100] if (raw_data) or True else None},
+             )
+         else:
+             logger.warning(f"WebSocket received invalid message format: {e}")
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_30
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_30: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -44,7 +44,7 @@
+                 details={"raw_data_preview": raw_data[:100] if raw_data else None},
+             )
+         else:
+-            logger.warning(f"WebSocket received invalid message format: {e}")
++            logger.warning(None)
+             error_response = WebSocketErrorResponse(
+                 error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+                 message="Message does not match expected schema",
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_38
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_38: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -47,7 +47,7 @@
+             logger.warning(f"WebSocket received invalid message format: {e}")
+             error_response = WebSocketErrorResponse(
+                 error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+-                message="Message does not match expected schema",
++                message="XXMessage does not match expected schemaXX",
+                 details={"validation_errors": errors},
+             )
+ 
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_39
+# backend.api.routes.websocket.x_validate_websocket_message__mutmut_39: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -47,7 +47,7 @@
+             logger.warning(f"WebSocket received invalid message format: {e}")
+             error_response = WebSocketErrorResponse(
+                 error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+-                message="Message does not match expected schema",
++                message="message does not match expected schema",
+                 details={"validation_errors": errors},
+             )
+ 
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_12
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_12: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -20,7 +20,7 @@
+             # Respond with pong
+             pong_response = WebSocketPongResponse()
+             await websocket.send_text(pong_response.model_dump_json())
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug(None)
+ 
+         case WebSocketMessageType.SUBSCRIBE.value:
+             # Handle subscription (NEM-2383)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_13
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_13: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -20,7 +20,7 @@
+             # Respond with pong
+             pong_response = WebSocketPongResponse()
+             await websocket.send_text(pong_response.model_dump_json())
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug("XXSent pong response to WebSocket clientXX")
+ 
+         case WebSocketMessageType.SUBSCRIBE.value:
+             # Handle subscription (NEM-2383)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_14
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_14: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -20,7 +20,7 @@
+             # Respond with pong
+             pong_response = WebSocketPongResponse()
+             await websocket.send_text(pong_response.model_dump_json())
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug("sent pong response to websocket client")
+ 
+         case WebSocketMessageType.SUBSCRIBE.value:
+             # Handle subscription (NEM-2383)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_15
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_15: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -20,7 +20,7 @@
+             # Respond with pong
+             pong_response = WebSocketPongResponse()
+             await websocket.send_text(pong_response.model_dump_json())
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug("SENT PONG RESPONSE TO WEBSOCKET CLIENT")
+ 
+         case WebSocketMessageType.SUBSCRIBE.value:
+             # Handle subscription (NEM-2383)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_20
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_20: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -24,7 +24,7 @@
+ 
+         case WebSocketMessageType.SUBSCRIBE.value:
+             # Handle subscription (NEM-2383)
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", None) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+                 events = message.data.get("channels", [])
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_22
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_22: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -24,7 +24,7 @@
+ 
+         case WebSocketMessageType.SUBSCRIBE.value:
+             # Handle subscription (NEM-2383)
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", ) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+                 events = message.data.get("channels", [])
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_29
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_29: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -27,7 +27,7 @@
+             events = message.data.get("events", []) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", None)
+ 
+             if not events:
+                 error_response = WebSocketErrorResponse(
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_31
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_31: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -27,7 +27,7 @@
+             events = message.data.get("events", []) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", )
+ 
+             if not events:
+                 error_response = WebSocketErrorResponse(
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_38
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_38: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details=None,
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_41
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_41: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,8 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+-                )
++                    )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+ 
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_42
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_42: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -32,7 +32,7 @@
+             if not events:
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+-                    message="Subscribe message must include 'events' array",
++                    message="XXSubscribe message must include 'events' arrayXX",
+                     details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_43
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_43: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -32,7 +32,7 @@
+             if not events:
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+-                    message="Subscribe message must include 'events' array",
++                    message="subscribe message must include 'events' array",
+                     details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_45
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_45: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"XXexampleXX": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_46
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_46: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"EXAMPLE": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_47
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_47: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"XXtypeXX": "subscribe", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_48
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_48: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"TYPE": "subscribe", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_49
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_49: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "XXsubscribeXX", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_50
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_50: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "SUBSCRIBE", "data": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_51
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_51: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "XXdataXX": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_52
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_52: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "DATA": {"events": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_53
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_53: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"XXeventsXX": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_54
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_54: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"EVENTS": ["alert.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_55
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_55: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"events": ["XXalert.*XX"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_56
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_56: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 error_response = WebSocketErrorResponse(
+                     error=WebSocketErrorCode.VALIDATION_ERROR,
+                     message="Subscribe message must include 'events' array",
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"events": ["ALERT.*"]}}},
+                 )
+                 await websocket.send_text(error_response.model_dump_json())
+                 return
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_63
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_63: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -41,7 +41,7 @@
+             # Subscribe to the patterns
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+-                f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
++                None,
+                 extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+             )
+ 
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_64
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_64: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -42,7 +42,7 @@
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+                 f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra=None,
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_66
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_66: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -42,8 +42,7 @@
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+                 f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+-            )
++                )
+ 
+             # Send acknowledgment
+             response = SubscriptionResponse(action="subscribed", events=subscribed_patterns)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_67
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_67: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -42,7 +42,7 @@
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+                 f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"XXconnection_idXX": connection_id, "patterns": subscribed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_68
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_68: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -42,7 +42,7 @@
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+                 f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"CONNECTION_ID": connection_id, "patterns": subscribed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_69
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_69: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -42,7 +42,7 @@
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+                 f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"connection_id": connection_id, "XXpatternsXX": subscribed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_70
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_70: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -42,7 +42,7 @@
+             subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+             logger.info(
+                 f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"connection_id": connection_id, "PATTERNS": subscribed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_81
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_81: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -51,7 +51,7 @@
+ 
+         case WebSocketMessageType.UNSUBSCRIBE.value:
+             # Handle unsubscription (NEM-2383)
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", []) if (message.data) or True else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+                 events = message.data.get("channels", [])
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_83
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_83: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -51,7 +51,7 @@
+ 
+         case WebSocketMessageType.UNSUBSCRIBE.value:
+             # Handle unsubscription (NEM-2383)
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", None) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+                 events = message.data.get("channels", [])
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_85
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_85: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -51,7 +51,7 @@
+ 
+         case WebSocketMessageType.UNSUBSCRIBE.value:
+             # Handle unsubscription (NEM-2383)
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", ) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+                 events = message.data.get("channels", [])
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_92
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_92: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -54,7 +54,7 @@
+             events = message.data.get("events", []) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", None)
+ 
+             if events:
+                 # Unsubscribe from specific patterns
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_94
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_94: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -54,7 +54,7 @@
+             events = message.data.get("events", []) if message.data else []
+             # Also support "channels" for backwards compatibility with existing schema
+             if not events and message.data:
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", )
+ 
+             if events:
+                 # Unsubscribe from specific patterns
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_104
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_104: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -64,7 +64,7 @@
+                 removed_patterns = subscription_manager.unsubscribe(connection_id)
+ 
+             logger.info(
+-                f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
++                None,
+                 extra={"connection_id": connection_id, "patterns": removed_patterns},
+             )
+ 
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_105
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_105: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -65,7 +65,7 @@
+ 
+             logger.info(
+                 f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra=None,
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_107
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_107: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -65,8 +65,7 @@
+ 
+             logger.info(
+                 f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
+-            )
++                )
+ 
+             # Send acknowledgment
+             response = SubscriptionResponse(action="unsubscribed", events=removed_patterns)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_108
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_108: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -65,7 +65,7 @@
+ 
+             logger.info(
+                 f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"XXconnection_idXX": connection_id, "patterns": removed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_109
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_109: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -65,7 +65,7 @@
+ 
+             logger.info(
+                 f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"CONNECTION_ID": connection_id, "patterns": removed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_110
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_110: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -65,7 +65,7 @@
+ 
+             logger.info(
+                 f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"connection_id": connection_id, "XXpatternsXX": removed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_111
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_111: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -65,7 +65,7 @@
+ 
+             logger.info(
+                 f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"connection_id": connection_id, "PATTERNS": removed_patterns},
+             )
+ 
+             # Send acknowledgment
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_120
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_120: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -75,7 +75,7 @@
+         case WebSocketMessageType.PONG.value:
+             # Pong is a standard keepalive response from client to server-initiated ping
+             # Just acknowledge silently - no response needed
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug(None)
+ 
+         case WebSocketMessageType.RESYNC.value:
+             # Resync is sent by the frontend when it detects a gap in sequence numbers.
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_121
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_121: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -75,7 +75,7 @@
+         case WebSocketMessageType.PONG.value:
+             # Pong is a standard keepalive response from client to server-initiated ping
+             # Just acknowledge silently - no response needed
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug("XXReceived pong response from WebSocket clientXX")
+ 
+         case WebSocketMessageType.RESYNC.value:
+             # Resync is sent by the frontend when it detects a gap in sequence numbers.
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_122
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_122: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -75,7 +75,7 @@
+         case WebSocketMessageType.PONG.value:
+             # Pong is a standard keepalive response from client to server-initiated ping
+             # Just acknowledge silently - no response needed
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug("received pong response from websocket client")
+ 
+         case WebSocketMessageType.RESYNC.value:
+             # Resync is sent by the frontend when it detects a gap in sequence numbers.
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_123
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_123: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -75,7 +75,7 @@
+         case WebSocketMessageType.PONG.value:
+             # Pong is a standard keepalive response from client to server-initiated ping
+             # Just acknowledge silently - no response needed
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug("RECEIVED PONG RESPONSE FROM WEBSOCKET CLIENT")
+ 
+         case WebSocketMessageType.RESYNC.value:
+             # Resync is sent by the frontend when it detects a gap in sequence numbers.
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_126
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_126: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -80,7 +80,7 @@
+         case WebSocketMessageType.RESYNC.value:
+             # Resync is sent by the frontend when it detects a gap in sequence numbers.
+             # NEM-4983: Replay buffered messages since the last received sequence.
+-            await handle_resync_with_replay(websocket, message, connection_id)
++            await handle_resync_with_replay(websocket, message, None)
+ 
+         case _:
+             # Unknown message type
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_130
+# backend.api.routes.websocket.x_handle_validated_message__mutmut_130: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -84,7 +84,7 @@
+ 
+         case _:
+             # Unknown message type
+-            logger.warning(f"WebSocket received unknown message type: {message_type}")
++            logger.warning(None)
+             error_response = WebSocketErrorResponse(
+                 error=WebSocketErrorCode.UNKNOWN_MESSAGE_TYPE,
+                 message=f"Unknown message type: {message_type}",
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_5
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_5: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -29,7 +29,7 @@
+         }
+     """
+     # Extract channel and last_sequence from the message
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", None) if message.data else "unknown"
+     last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+ 
+     logger.info(
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_7
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_7: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -29,7 +29,7 @@
+         }
+     """
+     # Extract channel and last_sequence from the message
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", ) if message.data else "unknown"
+     last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+ 
+     logger.info(
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_10
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_10: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -29,7 +29,7 @@
+         }
+     """
+     # Extract channel and last_sequence from the message
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", "XXunknownXX") if message.data else "unknown"
+     last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+ 
+     logger.info(
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_11
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_11: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -29,7 +29,7 @@
+         }
+     """
+     # Extract channel and last_sequence from the message
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", "UNKNOWN") if message.data else "unknown"
+     last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+ 
+     logger.info(
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_25
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_25: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+     last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+ 
+     logger.info(
+-        f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
++        None,
+         extra={
+             "connection_id": connection_id,
+             "channel": channel,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_26
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_26: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,11 +34,7 @@
+ 
+     logger.info(
+         f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-        },
++        extra=None,
+     )
+ 
+     # Get the message buffer
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_28
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_28: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,12 +34,7 @@
+ 
+     logger.info(
+         f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-        },
+-    )
++        )
+ 
+     # Get the message buffer
+     buffer = get_message_buffer()
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_29
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_29: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -35,7 +35,7 @@
+     logger.info(
+         f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+         extra={
+-            "connection_id": connection_id,
++            "XXconnection_idXX": connection_id,
+             "channel": channel,
+             "last_sequence": last_sequence,
+         },
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_30
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_30: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -35,7 +35,7 @@
+     logger.info(
+         f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+         extra={
+-            "connection_id": connection_id,
++            "CONNECTION_ID": connection_id,
+             "channel": channel,
+             "last_sequence": last_sequence,
+         },
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_31
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_31: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -36,7 +36,7 @@
+         f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+         extra={
+             "connection_id": connection_id,
+-            "channel": channel,
++            "XXchannelXX": channel,
+             "last_sequence": last_sequence,
+         },
+     )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_32
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_32: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -36,7 +36,7 @@
+         f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+         extra={
+             "connection_id": connection_id,
+-            "channel": channel,
++            "CHANNEL": channel,
+             "last_sequence": last_sequence,
+         },
+     )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_33
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_33: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -37,7 +37,7 @@
+         extra={
+             "connection_id": connection_id,
+             "channel": channel,
+-            "last_sequence": last_sequence,
++            "XXlast_sequenceXX": last_sequence,
+         },
+     )
+ 
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_34
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_34: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -37,7 +37,7 @@
+         extra={
+             "connection_id": connection_id,
+             "channel": channel,
+-            "last_sequence": last_sequence,
++            "LAST_SEQUENCE": last_sequence,
+         },
+     )
+ 
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_40
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_40: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -46,7 +46,7 @@
+ 
+     # Check if the requested sequence is too old (older than buffer start)
+     oldest_seq = buffer.get_oldest_sequence()
+-    gap_too_old = oldest_seq is not None and last_sequence < oldest_seq
++    gap_too_old = oldest_seq is not None and last_sequence <= oldest_seq
+ 
+     # Get messages to replay
+     messages_to_replay = buffer.get_since(last_sequence, mark_as_replay=True)
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_70
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_70: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -79,7 +79,7 @@
+     await websocket.send_text(json.dumps(resync_ack))
+ 
+     logger.info(
+-        f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
++        None,
+         extra={
+             "connection_id": connection_id,
+             "channel": channel,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_71
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_71: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -80,11 +80,5 @@
+ 
+     logger.info(
+         f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-            "replayed_count": replayed_count,
+-            "gap_too_old": gap_too_old,
+-        },
++        extra=None,
+     )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_73
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_73: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -80,11 +80,4 @@
+ 
+     logger.info(
+         f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-            "replayed_count": replayed_count,
+-            "gap_too_old": gap_too_old,
+-        },
+-    )
++        )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_74
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_74: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -81,7 +81,7 @@
+     logger.info(
+         f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+         extra={
+-            "connection_id": connection_id,
++            "XXconnection_idXX": connection_id,
+             "channel": channel,
+             "last_sequence": last_sequence,
+             "replayed_count": replayed_count,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_75
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_75: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -81,7 +81,7 @@
+     logger.info(
+         f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+         extra={
+-            "connection_id": connection_id,
++            "CONNECTION_ID": connection_id,
+             "channel": channel,
+             "last_sequence": last_sequence,
+             "replayed_count": replayed_count,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_76
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_76: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -82,7 +82,7 @@
+         f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+         extra={
+             "connection_id": connection_id,
+-            "channel": channel,
++            "XXchannelXX": channel,
+             "last_sequence": last_sequence,
+             "replayed_count": replayed_count,
+             "gap_too_old": gap_too_old,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_77
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_77: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -82,7 +82,7 @@
+         f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+         extra={
+             "connection_id": connection_id,
+-            "channel": channel,
++            "CHANNEL": channel,
+             "last_sequence": last_sequence,
+             "replayed_count": replayed_count,
+             "gap_too_old": gap_too_old,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_78
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_78: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -83,7 +83,7 @@
+         extra={
+             "connection_id": connection_id,
+             "channel": channel,
+-            "last_sequence": last_sequence,
++            "XXlast_sequenceXX": last_sequence,
+             "replayed_count": replayed_count,
+             "gap_too_old": gap_too_old,
+         },
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_79
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_79: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -83,7 +83,7 @@
+         extra={
+             "connection_id": connection_id,
+             "channel": channel,
+-            "last_sequence": last_sequence,
++            "LAST_SEQUENCE": last_sequence,
+             "replayed_count": replayed_count,
+             "gap_too_old": gap_too_old,
+         },
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_80
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_80: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -84,7 +84,7 @@
+             "connection_id": connection_id,
+             "channel": channel,
+             "last_sequence": last_sequence,
+-            "replayed_count": replayed_count,
++            "XXreplayed_countXX": replayed_count,
+             "gap_too_old": gap_too_old,
+         },
+     )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_81
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_81: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -84,7 +84,7 @@
+             "connection_id": connection_id,
+             "channel": channel,
+             "last_sequence": last_sequence,
+-            "replayed_count": replayed_count,
++            "REPLAYED_COUNT": replayed_count,
+             "gap_too_old": gap_too_old,
+         },
+     )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_82
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_82: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -85,6 +85,6 @@
+             "channel": channel,
+             "last_sequence": last_sequence,
+             "replayed_count": replayed_count,
+-            "gap_too_old": gap_too_old,
++            "XXgap_too_oldXX": gap_too_old,
+         },
+     )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_83
+# backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_83: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -85,6 +85,6 @@
+             "channel": channel,
+             "last_sequence": last_sequence,
+             "replayed_count": replayed_count,
+-            "gap_too_old": gap_too_old,
++            "GAP_TOO_OLD": gap_too_old,
+         },
+     )
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_4
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_4: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -25,7 +25,7 @@
+         try:
+             await asyncio.sleep(interval)
+             if stop_event.is_set():
+-                break
++                return
+             # Check if connection is still open before sending
+             if websocket.client_state == WebSocketState.CONNECTED:
+                 # Include lastSeq in heartbeat for gap detection (NEM-3142)
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_7
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_7: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -29,7 +29,7 @@
+             # Check if connection is still open before sending
+             if websocket.client_state == WebSocketState.CONNECTED:
+                 # Include lastSeq in heartbeat for gap detection (NEM-3142)
+-                last_seq = sequence_tracker.get_current_sequence(connection_id)
++                last_seq = sequence_tracker.get_current_sequence(None)
+                 heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_18
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_18: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+-                    "Sent server heartbeat ping to WebSocket client",
++                    None,
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_19
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_19: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,7 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra=None,
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_21
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_21: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,8 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+-                )
++                    )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+                 break
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_22
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_22: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+-                    "Sent server heartbeat ping to WebSocket client",
++                    "XXSent server heartbeat ping to WebSocket clientXX",
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_23
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_23: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+-                    "Sent server heartbeat ping to WebSocket client",
++                    "sent server heartbeat ping to websocket client",
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_24
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_24: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -33,7 +33,7 @@
+                 heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+-                    "Sent server heartbeat ping to WebSocket client",
++                    "SENT SERVER HEARTBEAT PING TO WEBSOCKET CLIENT",
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_25
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_25: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,7 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"XXconnection_idXX": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_26
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_26: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,7 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"CONNECTION_ID": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_27
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_27: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,7 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"connection_id": connection_id, "XXlastSeqXX": last_seq},
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_28
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_28: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,7 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"connection_id": connection_id, "lastseq": last_seq},
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_29
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_29: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -34,7 +34,7 @@
+                 await websocket.send_text(json.dumps(heartbeat_msg))
+                 logger.debug(
+                     "Sent server heartbeat ping to WebSocket client",
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"connection_id": connection_id, "LASTSEQ": last_seq},
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_30
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_30: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -37,7 +37,7 @@
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug(None)
+                 break
+         except Exception as e:
+             logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_31
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_31: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -37,7 +37,7 @@
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug("XXWebSocket no longer connected, stopping heartbeatXX")
+                 break
+         except Exception as e:
+             logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_32
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_32: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -37,7 +37,7 @@
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug("websocket no longer connected, stopping heartbeat")
+                 break
+         except Exception as e:
+             logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_33
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_33: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -37,7 +37,7 @@
+                     extra={"connection_id": connection_id, "lastSeq": last_seq},
+                 )
+             else:
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug("WEBSOCKET NO LONGER CONNECTED, STOPPING HEARTBEAT")
+                 break
+         except Exception as e:
+             logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_34
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_34: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -38,7 +38,7 @@
+                 )
+             else:
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+-                break
++                return
+         except Exception as e:
+             logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+             break
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_35
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_35: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -40,5 +40,5 @@
+                 logger.debug("WebSocket no longer connected, stopping heartbeat")
+                 break
+         except Exception as e:
+-            logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
++            logger.debug(None)
+             break
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_36
+# backend.api.routes.websocket.x_send_heartbeat__mutmut_36: survived
+--- backend/api/routes/websocket.py
++++ backend/api/routes/websocket.py
+@@ -41,4 +41,4 @@
+                 break
+         except Exception as e:
+             logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+-            break
++            return
+DONE

@@ -4,7 +4,7 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detect
 +++ backend/services/hybrid_entity_storage.py
 @@ -48,7 +48,6 @@
      )
-
+ 
      logger.debug(
 -        "Entity %s for detection %d (is_new=%s)",
          "created" if is_new else "matched",

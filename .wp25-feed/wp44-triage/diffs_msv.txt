@@ -4,7 +4,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -29,7 +29,7 @@
              )
-
+ 
          # Parse rule groups
 -        groups = data.get("data", {}).get("groups", [])
 +        groups = data.get("data", {}).get("groups", None)
@@ -18,7 +18,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -29,7 +29,7 @@
              )
-
+ 
          # Parse rule groups
 -        groups = data.get("data", {}).get("groups", [])
 +        groups = data.get("data", {}).get("groups", )
@@ -36,9 +36,9 @@
          client = await self._get_http_client()
 -        url = f"{self._prometheus_url}/api/v1/rules"
 +        url = None
-
+ 
          response = await client.get(url)
-
+ 
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_20
 # backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_20: survived
@@ -46,7 +46,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -29,7 +29,7 @@
              )
-
+ 
          # Parse rule groups
 -        groups = data.get("data", {}).get("groups", [])
 +        groups = data.get("data", None).get("groups", [])
@@ -60,7 +60,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -29,7 +29,7 @@
              )
-
+ 
          # Parse rule groups
 -        groups = data.get("data", {}).get("groups", [])
 +        groups = data.get("data", ).get("groups", [])
@@ -74,12 +74,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = None
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_35
@@ -88,12 +88,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get(None, "unknown")
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_36
@@ -102,12 +102,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("name", None)
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_37
@@ -116,12 +116,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("unknown")
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_38
@@ -130,12 +130,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("name", )
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_39
@@ -144,12 +144,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("XXnameXX", "unknown")
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_4
@@ -159,10 +159,10 @@
 @@ -12,7 +12,7 @@
          client = await self._get_http_client()
          url = f"{self._prometheus_url}/api/v1/rules"
-
+ 
 -        response = await client.get(url)
 +        response = await client.get(None)
-
+ 
          if response.status_code != 200:
              logger.warning(f"Rules endpoint returned {response.status_code}")
 @@@END
@@ -172,12 +172,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("NAME", "unknown")
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_41
@@ -186,12 +186,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("name", "XXunknownXX")
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_42
@@ -200,12 +200,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -36,7 +36,7 @@
          unhealthy_rules = 0
-
+ 
          for group in groups:
 -            group_name = group.get("name", "unknown")
 +            group_name = group.get("name", "UNKNOWN")
              rule_groups.append(group_name)
-
+ 
              rules = group.get("rules", [])
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_43
@@ -213,12 +213,12 @@
 --- backend/services/monitoring_stack_validator.py
 +++ backend/services/monitoring_stack_validator.py
 @@ -37,7 +37,7 @@
-
+ 
          for group in groups:
              group_name = group.get("name", "unknown")
 -            rule_groups.append(group_name)
 +            rule_groups.append(None)
-
+ 
              rules = group.get("rules", [])
              for rule in rules:
 @@@END
@@ -229,7 +229,7 @@
 @@ -39,7 +39,7 @@
              group_name = group.get("name", "unknown")
              rule_groups.append(group_name)
-
+ 
 -            rules = group.get("rules", [])
 +            rules = group.get("rules", None)
              for rule in rules:
@@ -243,7 +243,7 @@
 @@ -39,7 +39,7 @@
              group_name = group.get("name", "unknown")
              rule_groups.append(group_name)
-
+ 
 -            rules = group.get("rules", [])
 +            rules = group.get("rules", )
              for rule in rules:
@@ -256,12 +256,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -49,7 +49,7 @@
                          unhealthy_rules += 1
-
+ 
          logger.debug(
 -            f"Alerting rules: {healthy_rules}/{total_rules} healthy, {len(rule_groups)} groups"
 +            None
          )
-
+ 
          return AlertingRulesStatus(
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_78
@@ -275,7 +275,7 @@
 -            unhealthy_rules=unhealthy_rules,
              rule_groups=rule_groups,
          )
-
+ 
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_81
 # backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_alerting_rules__mutmut_81: survived
@@ -308,12 +308,12 @@
 --- backend/services/monitoring_stack_validator.py
 +++ backend/services/monitoring_stack_validator.py
 @@ -26,7 +26,7 @@
-
+ 
          health_data = health_response.json()
          version = health_data.get("version")
 -        database_status = health_data.get("database", "unknown")
 +        database_status = health_data.get("database", None)
-
+ 
          # Check dashboard availability
          dashboard_count = 0
 @@@END
@@ -322,12 +322,12 @@
 --- backend/services/monitoring_stack_validator.py
 +++ backend/services/monitoring_stack_validator.py
 @@ -26,7 +26,7 @@
-
+ 
          health_data = health_response.json()
          version = health_data.get("version")
 -        database_status = health_data.get("database", "unknown")
 +        database_status = health_data.get("database", )
-
+ 
          # Check dashboard availability
          dashboard_count = 0
 @@@END
@@ -336,12 +336,12 @@
 --- backend/services/monitoring_stack_validator.py
 +++ backend/services/monitoring_stack_validator.py
 @@ -26,7 +26,7 @@
-
+ 
          health_data = health_response.json()
          version = health_data.get("version")
 -        database_status = health_data.get("database", "unknown")
 +        database_status = health_data.get("database", "XXunknownXX")
-
+ 
          # Check dashboard availability
          dashboard_count = 0
 @@@END
@@ -351,12 +351,12 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -13,7 +13,7 @@
          client = await self._get_http_client()
-
+ 
          # Check health endpoint
 -        health_url = f"{self._grafana_url}/api/health"
 +        health_url = None
          health_response = await client.get(health_url)
-
+ 
          if health_response.status_code != 200:
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_grafana__mutmut_20
@@ -364,12 +364,12 @@
 --- backend/services/monitoring_stack_validator.py
 +++ backend/services/monitoring_stack_validator.py
 @@ -26,7 +26,7 @@
-
+ 
          health_data = health_response.json()
          version = health_data.get("version")
 -        database_status = health_data.get("database", "unknown")
 +        database_status = health_data.get("database", "UNKNOWN")
-
+ 
          # Check dashboard availability
          dashboard_count = 0
 @@@END
@@ -379,7 +379,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -29,7 +29,7 @@
          database_status = health_data.get("database", "unknown")
-
+ 
          # Check dashboard availability
 -        dashboard_count = 0
 +        dashboard_count = None
@@ -393,7 +393,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -29,7 +29,7 @@
          database_status = health_data.get("database", "unknown")
-
+ 
          # Check dashboard availability
 -        dashboard_count = 0
 +        dashboard_count = 1
@@ -408,11 +408,11 @@
 @@ -39,7 +39,7 @@
          # Determine health based on database status
          is_healthy = database_status == "ok"
-
+ 
 -        if not is_healthy:
 +        if is_healthy:
              logger.warning(f"Grafana database status: {database_status}")
-
+ 
          return GrafanaStatus(
 @@@END
 @@@KEY backend.services.monitoring_stack_validator.xǁMonitoringStackValidatorǁcheck_grafana__mutmut_30
@@ -421,11 +421,11 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -40,7 +40,7 @@
          is_healthy = database_status == "ok"
-
+ 
          if not is_healthy:
 -            logger.warning(f"Grafana database status: {database_status}")
 +            logger.warning(None)
-
+ 
          return GrafanaStatus(
              healthy=is_healthy,
 @@@END
@@ -434,12 +434,12 @@
 --- backend/services/monitoring_stack_validator.py
 +++ backend/services/monitoring_stack_validator.py
 @@ -14,7 +14,7 @@
-
+ 
          # Check health endpoint
          health_url = f"{self._grafana_url}/api/health"
 -        health_response = await client.get(health_url)
 +        health_response = await client.get(None)
-
+ 
          if health_response.status_code != 200:
              logger.warning(f"Grafana health returned {health_response.status_code}")
 @@@END
@@ -449,7 +449,7 @@
 +++ backend/services/monitoring_stack_validator.py
 @@ -51,7 +51,7 @@
          )
-
+ 
      except httpx.TimeoutException as e:
 -        logger.warning(f"Grafana check timed out: {e}")
 +        logger.warning(None)

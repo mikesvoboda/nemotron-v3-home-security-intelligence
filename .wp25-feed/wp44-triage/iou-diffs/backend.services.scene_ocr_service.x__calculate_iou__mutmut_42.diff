@@ -4,9 +4,9 @@
 @@ -27,7 +27,7 @@
      area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
      union = area1 + area2 - intersection
-
+ 
 -    if union <= 0:
 +    if union < 0:
          return 0.0
-
+ 
      return intersection / union

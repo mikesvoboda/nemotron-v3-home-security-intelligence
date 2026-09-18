@@ -3,7 +3,7 @@
 +++ backend/services/scene_ocr_service.py
 @@ -90,13 +90,7 @@
                  detection_ocr[best_det_id] = DetectionOCRResult(detection_id=best_det_id)
-
+ 
              detection_ocr[best_det_id].texts.append(
 -                {
 -                    "value": frame_ocr.text,

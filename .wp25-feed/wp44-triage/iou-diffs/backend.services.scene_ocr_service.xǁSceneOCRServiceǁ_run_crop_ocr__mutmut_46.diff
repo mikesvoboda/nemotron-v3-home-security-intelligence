@@ -9,3 +9,4 @@
 +                y1 = max(1, bbox[1])
                  x2 = min(image.width, bbox[2])
                  y2 = min(image.height, bbox[3])
+ 

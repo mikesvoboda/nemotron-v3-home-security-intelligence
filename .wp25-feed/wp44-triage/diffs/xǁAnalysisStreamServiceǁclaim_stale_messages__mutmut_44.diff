@@ -3,7 +3,7 @@
 +++ backend/services/redis_streams.py
 @@ -39,7 +39,7 @@
                  delivery_count = _pending_delivery_count(pending_info)
-
+ 
                  msg = AnalysisStreamMessage.from_stream_entry(
 -                    _text(message_id),
 +                    _text(None),

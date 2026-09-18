@@ -24,7 +24,7 @@ OLD last_restart_at=last_restart_at,
 NEW last_restart_at=None,
 KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_59
 OLD last_restart_at=last_restart_at,
-NEW
+NEW 
 KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_97
 OLD failure_count=data.get("failure_count", 0),
 NEW failure_count=data.get("failure_count", None),
@@ -90,16 +90,16 @@ OLD restart_backoff_max=config.restart_backoff_max,
 NEW restart_backoff_max=None,
 KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_20
 OLD health_cmd=config.health_cmd,
-NEW
+NEW 
 KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_22
 OLD status=ContainerServiceStatus.NOT_FOUND,
-NEW
+NEW 
 KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_24
 OLD restart_backoff_base=config.restart_backoff_base,
-NEW
+NEW 
 KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_25
 OLD restart_backoff_max=config.restart_backoff_max,
-NEW
+NEW 
 KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_2
 OLD logger.debug("Unregistered service", extra={"service_name": name})
 NEW logger.debug(None, extra={"service_name": name})

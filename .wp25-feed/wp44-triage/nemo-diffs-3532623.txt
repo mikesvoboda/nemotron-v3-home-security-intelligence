@@ -588,7 +588,7 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -60,7 +60,7 @@
-
+ 
      except Exception as e:
          logger.warning(
 -            "Enrichment pipeline failed, continuing without enrichment",
@@ -601,7 +601,7 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -60,7 +60,7 @@
-
+ 
      except Exception as e:
          logger.warning(
 -            "Enrichment pipeline failed, continuing without enrichment",
@@ -614,7 +614,7 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -60,7 +60,7 @@
-
+ 
      except Exception as e:
          logger.warning(
 -            "Enrichment pipeline failed, continuing without enrichment",
@@ -731,11 +731,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
          return None
-
+ 
      try:
 -        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
 +        tracking_result = await self._run_enrichment_pipeline(None, camera_id=camera_id)
-
+ 
          if tracking_result:
              # Log partial failures if any models failed
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_30
@@ -755,11 +755,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
          return None
-
+ 
      try:
 -        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
 +        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=None)
-
+ 
          if tracking_result:
              # Log partial failures if any models failed
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_5
@@ -768,11 +768,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
          return None
-
+ 
      try:
 -        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
 +        tracking_result = await self._run_enrichment_pipeline(camera_id=camera_id)
-
+ 
          if tracking_result:
              # Log partial failures if any models failed
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_6
@@ -781,11 +781,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
          return None
-
+ 
      try:
 -        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
 +        tracking_result = await self._run_enrichment_pipeline(detections, )
-
+ 
          if tracking_result:
              # Log partial failures if any models failed
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_7
@@ -793,7 +793,7 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -60,7 +60,7 @@
-
+ 
      except Exception as e:
          logger.warning(
 -            "Enrichment pipeline failed, continuing without enrichment",
@@ -833,7 +833,7 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -22,7 +22,7 @@
      )
-
+ 
      async for update in streaming_analyze(
 -        analyzer=self,
 +        analyzer=None,
@@ -845,7 +845,7 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      async for update in streaming_analyze(
          analyzer=self,
 -        batch_id=batch_id,
@@ -908,7 +908,7 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -19,7 +19,7 @@
          }
-
+ 
      seconds_ago = time.monotonic() - self._last_inference_time
 -    is_cold = seconds_ago > self._cold_start_threshold
 +    is_cold = None
@@ -921,7 +921,7 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -19,7 +19,7 @@
          }
-
+ 
      seconds_ago = time.monotonic() - self._last_inference_time
 -    is_cold = seconds_ago > self._cold_start_threshold
 +    is_cold = seconds_ago >= self._cold_start_threshold
@@ -969,9 +969,9 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -16,7 +16,7 @@
-
+ 
      from backend.config.prompt_ab_rollout import ExperimentGroup
-
+ 
 -    group = self._rollout_manager.get_group_for_camera(camera_id)
 +    group = self._rollout_manager.get_group_for_camera(None)
      if group == ExperimentGroup.CONTROL:
@@ -982,12 +982,12 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      was_cold = self.is_cold()
      self._is_warming = True
 -    set_model_warmth_state("nemotron", "warming")
 +    set_model_warmth_state(None, "warming")
-
+ 
      try:
          logger.info("Starting Nemotron model warmup...")
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_11
@@ -995,12 +995,12 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      was_cold = self.is_cold()
      self._is_warming = True
 -    set_model_warmth_state("nemotron", "warming")
 +    set_model_warmth_state("nemotron", None)
-
+ 
      try:
          logger.info("Starting Nemotron model warmup...")
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_14
@@ -1008,12 +1008,12 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      was_cold = self.is_cold()
      self._is_warming = True
 -    set_model_warmth_state("nemotron", "warming")
 +    set_model_warmth_state("XXnemotronXX", "warming")
-
+ 
      try:
          logger.info("Starting Nemotron model warmup...")
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_15
@@ -1021,12 +1021,12 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      was_cold = self.is_cold()
      self._is_warming = True
 -    set_model_warmth_state("nemotron", "warming")
 +    set_model_warmth_state("NEMOTRON", "warming")
-
+ 
      try:
          logger.info("Starting Nemotron model warmup...")
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_16
@@ -1034,12 +1034,12 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      was_cold = self.is_cold()
      self._is_warming = True
 -    set_model_warmth_state("nemotron", "warming")
 +    set_model_warmth_state("nemotron", "XXwarmingXX")
-
+ 
      try:
          logger.info("Starting Nemotron model warmup...")
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_17
@@ -1047,12 +1047,12 @@
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -23,7 +23,7 @@
-
+ 
      was_cold = self.is_cold()
      self._is_warming = True
 -    set_model_warmth_state("nemotron", "warming")
 +    set_model_warmth_state("nemotron", "WARMING")
-
+ 
      try:
          logger.info("Starting Nemotron model warmup...")
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_18
@@ -1061,12 +1061,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -26,7 +26,7 @@
      set_model_warmth_state("nemotron", "warming")
-
+ 
      try:
 -        logger.info("Starting Nemotron model warmup...")
 +        logger.info(None)
          start_time = time.monotonic()
-
+ 
          result = await self.model_readiness_probe()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_19
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_19: survived
@@ -1074,12 +1074,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -26,7 +26,7 @@
      set_model_warmth_state("nemotron", "warming")
-
+ 
      try:
 -        logger.info("Starting Nemotron model warmup...")
 +        logger.info("XXStarting Nemotron model warmup...XX")
          start_time = time.monotonic()
-
+ 
          result = await self.model_readiness_probe()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_2
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_2: survived
@@ -1087,12 +1087,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -18,7 +18,7 @@
      )
-
+ 
      if not self._warmup_enabled:
 -        logger.debug("Nemotron warmup disabled by configuration")
 +        logger.debug(None)
          return True
-
+ 
      was_cold = self.is_cold()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_20
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_20: survived
@@ -1100,12 +1100,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -26,7 +26,7 @@
      set_model_warmth_state("nemotron", "warming")
-
+ 
      try:
 -        logger.info("Starting Nemotron model warmup...")
 +        logger.info("starting nemotron model warmup...")
          start_time = time.monotonic()
-
+ 
          result = await self.model_readiness_probe()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_21
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_21: survived
@@ -1113,25 +1113,25 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -26,7 +26,7 @@
      set_model_warmth_state("nemotron", "warming")
-
+ 
      try:
 -        logger.info("Starting Nemotron model warmup...")
 +        logger.info("STARTING NEMOTRON MODEL WARMUP...")
          start_time = time.monotonic()
-
+ 
          result = await self.model_readiness_probe()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_25
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_25: survived
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -31,7 +31,7 @@
-
+ 
          result = await self.model_readiness_probe()
-
+ 
 -        duration = time.monotonic() - start_time
 +        duration = time.monotonic() + start_time
          observe_model_warmup_duration("nemotron", duration)
-
+ 
          if result:
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_26
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_26: survived
@@ -1139,11 +1139,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -32,7 +32,7 @@
          result = await self.model_readiness_probe()
-
+ 
          duration = time.monotonic() - start_time
 -        observe_model_warmup_duration("nemotron", duration)
 +        observe_model_warmup_duration(None, duration)
-
+ 
          if result:
              self._track_inference()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_3
@@ -1152,12 +1152,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -18,7 +18,7 @@
      )
-
+ 
      if not self._warmup_enabled:
 -        logger.debug("Nemotron warmup disabled by configuration")
 +        logger.debug("XXNemotron warmup disabled by configurationXX")
          return True
-
+ 
      was_cold = self.is_cold()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_30
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_30: survived
@@ -1165,11 +1165,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -32,7 +32,7 @@
          result = await self.model_readiness_probe()
-
+ 
          duration = time.monotonic() - start_time
 -        observe_model_warmup_duration("nemotron", duration)
 +        observe_model_warmup_duration("XXnemotronXX", duration)
-
+ 
          if result:
              self._track_inference()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_31
@@ -1178,11 +1178,11 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -32,7 +32,7 @@
          result = await self.model_readiness_probe()
-
+ 
          duration = time.monotonic() - start_time
 -        observe_model_warmup_duration("nemotron", duration)
 +        observe_model_warmup_duration("NEMOTRON", duration)
-
+ 
          if result:
              self._track_inference()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_32
@@ -1269,12 +1269,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -18,7 +18,7 @@
      )
-
+ 
      if not self._warmup_enabled:
 -        logger.debug("Nemotron warmup disabled by configuration")
 +        logger.debug("nemotron warmup disabled by configuration")
          return True
-
+ 
      was_cold = self.is_cold()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_40
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_40: survived
@@ -1400,12 +1400,12 @@
 +++ backend/services/nemotron_analyzer.py
 @@ -18,7 +18,7 @@
      )
-
+ 
      if not self._warmup_enabled:
 -        logger.debug("Nemotron warmup disabled by configuration")
 +        logger.debug("NEMOTRON WARMUP DISABLED BY CONFIGURATION")
          return True
-
+ 
      was_cold = self.is_cold()
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_50
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_50: survived
@@ -1577,22 +1577,22 @@
 @@ -21,7 +21,7 @@
          logger.debug("Nemotron warmup disabled by configuration")
          return True
-
+ 
 -    was_cold = self.is_cold()
 +    was_cold = None
      self._is_warming = True
      set_model_warmth_state("nemotron", "warming")
-
+ 
 @@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_8
 # backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_8: survived
 --- backend/services/nemotron_analyzer.py
 +++ backend/services/nemotron_analyzer.py
 @@ -22,7 +22,7 @@
          return True
-
+ 
      was_cold = self.is_cold()
 -    self._is_warming = True
 +    self._is_warming = None
      set_model_warmth_state("nemotron", "warming")
-
+ 
      try:

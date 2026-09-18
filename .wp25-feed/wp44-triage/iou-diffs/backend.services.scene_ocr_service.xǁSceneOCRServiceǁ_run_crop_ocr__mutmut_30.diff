@@ -8,5 +8,5 @@
 -            record_scene_ocr_request("crop")
 +            record_scene_ocr_request("XXcropXX")
              crop_start_time = time.perf_counter()
-
+ 
              try:

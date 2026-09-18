@@ -7,6 +7,6 @@
          frame_task = self._run_full_frame_ocr(image)
 -        crop_task = self._run_crop_ocr(image, detections)
 +        crop_task = self._run_crop_ocr(None, detections)
-
+ 
          frame_results, crop_results = await asyncio.gather(
              frame_task,

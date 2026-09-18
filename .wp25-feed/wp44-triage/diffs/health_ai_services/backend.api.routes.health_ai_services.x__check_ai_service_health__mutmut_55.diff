@@ -8,3 +8,4 @@
 -            url=service_url,
              error="Circuit breaker is open - service unreachable",
          )
+ 

@@ -8,5 +8,5 @@
 -            return_exceptions=True,
 +            return_exceptions=None,
          )
-
+ 
          # Handle exceptions from gather

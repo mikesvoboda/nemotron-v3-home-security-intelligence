@@ -4,6 +4,6 @@
 @@ -46,4 +46,4 @@
          ("middle", "right"): "right",
      }
-
+ 
 -    return region_map.get((v_region, h_region), "center")
 +    return region_map.get((v_region, h_region), "CENTER")

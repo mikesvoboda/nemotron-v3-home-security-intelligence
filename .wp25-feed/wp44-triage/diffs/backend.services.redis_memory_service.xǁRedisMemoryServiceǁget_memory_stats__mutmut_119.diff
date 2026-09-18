@@ -2,7 +2,7 @@
 --- backend/services/redis_memory_service.py
 +++ backend/services/redis_memory_service.py
 @@ -39,7 +39,7 @@
-
+ 
      return MemoryStats(
          used_memory_bytes=used_memory,
 -        used_memory_mb=used_memory / (1024 * 1024),

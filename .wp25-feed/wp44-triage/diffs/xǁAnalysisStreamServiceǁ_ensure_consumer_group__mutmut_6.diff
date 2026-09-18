@@ -2,7 +2,7 @@
 --- backend/services/redis_streams.py
 +++ backend/services/redis_streams.py
 @@ -12,7 +12,6 @@
-
+ 
          try:
              await self._redis._client.xgroup_create(
 -                self._stream_key,

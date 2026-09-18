@@ -3,10 +3,10 @@
 +++ backend/services/redis_streams.py
 @@ -41,7 +41,7 @@
      )
-
+ 
      # Acknowledge the original message
 -    await self.acknowledge(message.id)
 +    await self.acknowledge(None)
-
+ 
      logger.warning(
          "Moved message to DLQ",

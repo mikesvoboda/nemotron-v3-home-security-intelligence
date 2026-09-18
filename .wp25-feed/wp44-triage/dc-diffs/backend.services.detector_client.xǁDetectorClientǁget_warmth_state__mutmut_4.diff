@@ -3,7 +3,7 @@
 +++ backend/services/detector_client.py
 @@ -19,7 +19,7 @@
          }
-
+ 
      seconds_ago = time.monotonic() - self._last_inference_time
 -    is_cold = seconds_ago > self._cold_start_threshold
 +    is_cold = None

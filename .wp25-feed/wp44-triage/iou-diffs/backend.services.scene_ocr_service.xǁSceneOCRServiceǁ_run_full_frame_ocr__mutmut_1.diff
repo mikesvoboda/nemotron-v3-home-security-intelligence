@@ -8,5 +8,5 @@
 -    record_scene_ocr_request("full_frame")
 +    record_scene_ocr_request(None)
      start_time = time.perf_counter()
-
+ 
      try:

@@ -7,6 +7,6 @@
      if maxmemory > 0:
 -        memory_usage_percent = (used_memory / maxmemory) * 100
 +        memory_usage_percent = (used_memory / maxmemory) * 101
-
+ 
      return MemoryStats(
          used_memory_bytes=used_memory,

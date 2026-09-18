@@ -2,11 +2,11 @@
 --- backend/services/detector_client.py
 +++ backend/services/detector_client.py
 @@ -17,7 +17,7 @@
-
+ 
          buffer = io.BytesIO()
          test_image.save(buffer, format="JPEG")
 -        image_data = buffer.getvalue()
 +        image_data = None
-
+ 
          # Send detection request - result is not needed, just verify no exception
          await self._send_detection_request(

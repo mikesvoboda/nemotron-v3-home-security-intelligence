@@ -8,5 +8,5 @@
 -        logger.warning("Empty embedding provided to find_matches")
 +        logger.warning(None)
          return []
-
+ 
      # Calculate time cutoff

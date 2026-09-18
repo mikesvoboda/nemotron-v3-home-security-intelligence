@@ -21,9 +21,9 @@ xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_24 | - self._group_crea
 xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_3 | - self._consumer_group, | + None,
 xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_4 | - id="0", | + id=None,
 xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_5 | - mkstream=True, | + mkstream=None,
-xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_6 | - self._stream_key, | +
-xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_7 | - self._consumer_group, | +
-xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_8 | - id="0", | +
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_6 | - self._stream_key, | + 
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_7 | - self._consumer_group, | + 
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_8 | - id="0", | + 
 xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_9 | - mkstream=True, ; ) | + )
 xǁAnalysisStreamServiceǁacknowledge__mutmut_9 | - return result > 0 | + return result >= 0
 xǁAnalysisStreamServiceǁadd_batch__mutmut_10 | - "timestamp": str(time.time()), | + "XXtimestampXX": str(time.time()),
@@ -32,7 +32,7 @@ xǁAnalysisStreamServiceǁadd_batch__mutmut_12 | - "timestamp": str(time.time())
 xǁAnalysisStreamServiceǁadd_batch__mutmut_20 | - self._stream_key, | + None,
 xǁAnalysisStreamServiceǁadd_batch__mutmut_22 | - maxlen=self._maxlen, | + maxlen=None,
 xǁAnalysisStreamServiceǁadd_batch__mutmut_23 | - approximate=DEFAULT_STREAM_APPROXIMATE, | + approximate=None,
-xǁAnalysisStreamServiceǁadd_batch__mutmut_26 | - maxlen=self._maxlen, | +
+xǁAnalysisStreamServiceǁadd_batch__mutmut_26 | - maxlen=self._maxlen, | + 
 xǁAnalysisStreamServiceǁadd_batch__mutmut_27 | - approximate=DEFAULT_STREAM_APPROXIMATE, ; ) | + )
 xǁAnalysisStreamServiceǁadd_batch__mutmut_28 | - "Added batch to analysis stream", | + None,
 xǁAnalysisStreamServiceǁadd_batch__mutmut_29 | - extra={ ; "stream_key": self._stream_key, ; "message_id": message_id, ; "batch_id": batch_id, ; "detection_count": len(detection_ids), ; }, | + extra=None,
@@ -48,10 +48,10 @@ xǁAnalysisStreamServiceǁadd_batch__mutmut_39 | - "batch_id": batch_id, | + "XX
 xǁAnalysisStreamServiceǁadd_batch__mutmut_40 | - "batch_id": batch_id, | + "BATCH_ID": batch_id,
 xǁAnalysisStreamServiceǁadd_batch__mutmut_41 | - "detection_count": len(detection_ids), | + "XXdetection_countXX": len(detection_ids),
 xǁAnalysisStreamServiceǁadd_batch__mutmut_42 | - "detection_count": len(detection_ids), | + "DETECTION_COUNT": len(detection_ids),
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_10 | - self._consumer_group, | +
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_11 | - consumer_name, | +
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_12 | - self._claim_min_idle_ms, | +
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_13 | - start_id="0-0", | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_10 | - self._consumer_group, | + 
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_11 | - consumer_name, | + 
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_12 | - self._claim_min_idle_ms, | + 
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_13 | - start_id="0-0", | + 
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_14 | - count=count, ; ) | + )
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_15 | - start_id="0-0", | + start_id="XX0-0XX",
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_21 | - message_id, data = entry[:2] | + message_id, data = entry[:3]
@@ -60,11 +60,11 @@ xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_25 | - self._consumer_gro
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_26 | - min=message_id, | + min=None,
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_27 | - max=message_id, | + max=None,
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_28 | - count=1, | + count=None,
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_29 | - self._stream_key, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_29 | - self._stream_key, | + 
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_3 | - self._stream_key, | + None,
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_30 | - self._consumer_group, | +
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_31 | - min=message_id, | +
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_32 | - max=message_id, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_30 | - self._consumer_group, | + 
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_31 | - min=message_id, | + 
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_32 | - max=message_id, | + 
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_33 | - count=1, ; ) | + )
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_34 | - count=1, | + count=2,
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_38 | - _text(message_id), | + None,
@@ -84,12 +84,12 @@ xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_58 | - "claimed_count": l
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_6 | - self._claim_min_idle_ms, | + None,
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_7 | - start_id="0-0", | + start_id=None,
 xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_8 | - count=count, | + count=None,
-xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_9 | - self._stream_key, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_9 | - self._stream_key, | + 
 xǁAnalysisStreamServiceǁconsume_batches__mutmut_10 | - block=block_ms, | + block=None,
-xǁAnalysisStreamServiceǁconsume_batches__mutmut_11 | - self._consumer_group, | +
-xǁAnalysisStreamServiceǁconsume_batches__mutmut_12 | - consumer_name, | +
-xǁAnalysisStreamServiceǁconsume_batches__mutmut_13 | - {self._stream_key: ">"}, | +
-xǁAnalysisStreamServiceǁconsume_batches__mutmut_14 | - count=count, | +
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_11 | - self._consumer_group, | + 
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_12 | - consumer_name, | + 
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_13 | - {self._stream_key: ">"}, | + 
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_14 | - count=count, | + 
 xǁAnalysisStreamServiceǁconsume_batches__mutmut_15 | - block=block_ms, ; ) | + )
 xǁAnalysisStreamServiceǁconsume_batches__mutmut_16 | - {self._stream_key: ">"}, | + {self._stream_key: "XX>XX"},
 xǁAnalysisStreamServiceǁconsume_batches__mutmut_2 | - block_ms = self._block_ms if block else None | + block_ms = None
@@ -160,7 +160,7 @@ xǁDetectionStreamServiceǁmove_to_dlq__mutmut_13 | - "dlq_timestamp": str(time.
 xǁDetectionStreamServiceǁmove_to_dlq__mutmut_14 | - "dlq_timestamp": str(time.time()), | + "dlq_timestamp": str(None),
 xǁDetectionStreamServiceǁmove_to_dlq__mutmut_22 | - maxlen=self._maxlen, | + maxlen=None,
 xǁDetectionStreamServiceǁmove_to_dlq__mutmut_23 | - approximate=DEFAULT_STREAM_APPROXIMATE, | + approximate=None,
-xǁDetectionStreamServiceǁmove_to_dlq__mutmut_26 | - maxlen=self._maxlen, | +
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_26 | - maxlen=self._maxlen, | + 
 xǁDetectionStreamServiceǁmove_to_dlq__mutmut_27 | - approximate=DEFAULT_STREAM_APPROXIMATE, ; ) | + )
 xǁDetectionStreamServiceǁmove_to_dlq__mutmut_28 | - await self.acknowledge(message.id) | + await self.acknowledge(None)
 xǁDetectionStreamServiceǁmove_to_dlq__mutmut_29 | - "Moved message to DLQ", | + None,

@@ -3,7 +3,7 @@
 +++ backend/services/redis_streams.py
 @@ -41,7 +41,7 @@
      )
-
+ 
      logger.debug(
 -        "Added batch to analysis stream",
 +        None,

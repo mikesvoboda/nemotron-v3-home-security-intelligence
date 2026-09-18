@@ -3,7 +3,7 @@
 +++ backend/services/redis_streams.py
 @@ -17,7 +17,7 @@
          raise RuntimeError("Redis client not connected")
-
+ 
      try:
 -        info = await self._redis._client.xinfo_stream(self._stream_key)
 +        info = await self._redis._client.xinfo_stream(None)

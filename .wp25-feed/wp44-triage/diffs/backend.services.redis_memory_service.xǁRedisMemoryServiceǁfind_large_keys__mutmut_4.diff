@@ -3,10 +3,10 @@
 +++ backend/services/redis_memory_service.py
 @@ -19,7 +19,7 @@
      large_keys: list[KeyMemoryInfo] = []
-
+ 
      # Scan for keys matching pattern
 -    keys = await self._redis.scan_keys(pattern=pattern, max_keys=max_keys * 10)
 +    keys = await self._redis.scan_keys(pattern=pattern, max_keys=None)
-
+ 
      for key in keys:
          try:

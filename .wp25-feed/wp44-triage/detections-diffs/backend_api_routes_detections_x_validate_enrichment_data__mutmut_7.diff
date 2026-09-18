@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -16,7 +16,7 @@
-
+ 
      # Extract vehicle data using typed model
      vehicle: VehicleEnrichmentData | None = None
 -    vehicle_classifications = enrichment_data.get("vehicle_classifications", {})

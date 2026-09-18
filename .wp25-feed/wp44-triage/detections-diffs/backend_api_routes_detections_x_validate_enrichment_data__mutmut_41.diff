@@ -8,6 +8,6 @@
 -                is_commercial=vc.get("is_commercial", False),
 -            )
 +                )
-
+ 
      # Extract person data using typed model
      person: PersonEnrichmentData | None = None

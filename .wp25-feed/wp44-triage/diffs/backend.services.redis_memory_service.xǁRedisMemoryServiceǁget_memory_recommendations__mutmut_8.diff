@@ -3,7 +3,7 @@
 +++ backend/services/redis_memory_service.py
 @@ -16,7 +16,7 @@
          )
-
+ 
      # Check memory usage
 -    if stats.memory_usage_percent > 90:
 +    if stats.memory_usage_percent >= 90:

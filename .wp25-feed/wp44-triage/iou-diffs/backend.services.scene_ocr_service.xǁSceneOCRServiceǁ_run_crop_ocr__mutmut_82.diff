@@ -4,7 +4,7 @@
 @@ -63,7 +63,7 @@
                  data = response.json()
                  crop_results: list[RawOCRResult] = []
-
+ 
 -                for item in data.get("regions", []):
 +                for item in data.get("regions", ):
                      # Florence OCR does not return confidence; use high default

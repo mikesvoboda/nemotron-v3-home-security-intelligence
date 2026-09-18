@@ -8,7 +8,7 @@
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = None
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_3: survived
 --- backend/services/pose_analysis_service.py
@@ -20,7 +20,7 @@
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = _get_keypoint_if_confident(keypoints, None)
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_6: survived
 --- backend/services/pose_analysis_service.py
@@ -32,7 +32,7 @@
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = _get_keypoint_if_confident(keypoints, "XXleft_shoulderXX")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_7: survived
 --- backend/services/pose_analysis_service.py
@@ -44,7 +44,7 @@
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = _get_keypoint_if_confident(keypoints, "LEFT_SHOULDER")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_8: survived
 --- backend/services/pose_analysis_service.py
@@ -55,7 +55,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = None
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_10: survived
@@ -67,7 +67,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = _get_keypoint_if_confident(keypoints, None)
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_13: survived
@@ -79,7 +79,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = _get_keypoint_if_confident(keypoints, "XXright_shoulderXX")
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_14: survived
@@ -91,7 +91,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = _get_keypoint_if_confident(keypoints, "RIGHT_SHOULDER")
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_15: survived
@@ -99,95 +99,95 @@
 +++ backend/services/pose_analysis_service.py
 @@ -20,7 +20,7 @@
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 -    left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 +    left_ankle = None
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
      # Need at least one shoulder and one ankle
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_17: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -20,7 +20,7 @@
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 -    left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 +    left_ankle = _get_keypoint_if_confident(keypoints, None)
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
      # Need at least one shoulder and one ankle
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_20: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -20,7 +20,7 @@
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 -    left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 +    left_ankle = _get_keypoint_if_confident(keypoints, "XXleft_ankleXX")
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
      # Need at least one shoulder and one ankle
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_21: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -20,7 +20,7 @@
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      # Get ankle keypoints
 -    left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 +    left_ankle = _get_keypoint_if_confident(keypoints, "LEFT_ANKLE")
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
      # Need at least one shoulder and one ankle
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_22: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -21,7 +21,7 @@
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 -    right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
 +    right_ankle = None
-
+ 
      # Need at least one shoulder and one ankle
      if not (left_shoulder or right_shoulder) or not (left_ankle or right_ankle):
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_24: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -21,7 +21,7 @@
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 -    right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
 +    right_ankle = _get_keypoint_if_confident(keypoints, None)
-
+ 
      # Need at least one shoulder and one ankle
      if not (left_shoulder or right_shoulder) or not (left_ankle or right_ankle):
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_27: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -21,7 +21,7 @@
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 -    right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
 +    right_ankle = _get_keypoint_if_confident(keypoints, "XXright_ankleXX")
-
+ 
      # Need at least one shoulder and one ankle
      if not (left_shoulder or right_shoulder) or not (left_ankle or right_ankle):
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_28: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -21,7 +21,7 @@
-
+ 
      # Get ankle keypoints
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
 -    right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
 +    right_ankle = _get_keypoint_if_confident(keypoints, "RIGHT_ANKLE")
-
+ 
      # Need at least one shoulder and one ankle
      if not (left_shoulder or right_shoulder) or not (left_ankle or right_ankle):
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_31: survived
@@ -195,31 +195,31 @@
 +++ backend/services/pose_analysis_service.py
 @@ -24,7 +24,7 @@
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
      # Need at least one shoulder and one ankle
 -    if not (left_shoulder or right_shoulder) or not (left_ankle or right_ankle):
 +    if not (left_shoulder and right_shoulder) or not (left_ankle or right_ankle):
          return False
-
+ 
      # Calculate average positions
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_33: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -24,7 +24,7 @@
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
      # Need at least one shoulder and one ankle
 -    if not (left_shoulder or right_shoulder) or not (left_ankle or right_ankle):
 +    if not (left_shoulder or right_shoulder) or not (left_ankle and right_ankle):
          return False
-
+ 
      # Calculate average positions
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_36: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -28,7 +28,7 @@
          return False
-
+ 
      # Calculate average positions
 -    shoulder_x = 0.0
 +    shoulder_x = 1.0
@@ -230,7 +230,7 @@
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -29,7 +29,7 @@
-
+ 
      # Calculate average positions
      shoulder_x = 0.0
 -    shoulder_y = 0.0
@@ -393,7 +393,7 @@
 +        shoulder_count = 1
      shoulder_x /= max(shoulder_count, 1)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_53: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -405,7 +405,7 @@
 +        shoulder_count -= 1
      shoulder_x /= max(shoulder_count, 1)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_54: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -417,7 +417,7 @@
 +        shoulder_count += 2
      shoulder_x /= max(shoulder_count, 1)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_55: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -428,7 +428,7 @@
 -    shoulder_x /= max(shoulder_count, 1)
 +    shoulder_x = max(shoulder_count, 1)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
      ankle_x = 0.0
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_56: survived
 --- backend/services/pose_analysis_service.py
@@ -440,7 +440,7 @@
 -    shoulder_x /= max(shoulder_count, 1)
 +    shoulder_x *= max(shoulder_count, 1)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
      ankle_x = 0.0
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_61: survived
 --- backend/services/pose_analysis_service.py
@@ -452,7 +452,7 @@
 -    shoulder_x /= max(shoulder_count, 1)
 +    shoulder_x /= max(shoulder_count, 2)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
      ankle_x = 0.0
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_62: survived
 --- backend/services/pose_analysis_service.py
@@ -463,7 +463,7 @@
      shoulder_x /= max(shoulder_count, 1)
 -    shoulder_y /= max(shoulder_count, 1)
 +    shoulder_y = max(shoulder_count, 1)
-
+ 
      ankle_x = 0.0
      ankle_y = 0.0
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_68: survived
@@ -475,7 +475,7 @@
      shoulder_x /= max(shoulder_count, 1)
 -    shoulder_y /= max(shoulder_count, 1)
 +    shoulder_y /= max(shoulder_count, 2)
-
+ 
      ankle_x = 0.0
      ankle_y = 0.0
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_70: survived
@@ -484,7 +484,7 @@
 @@ -42,7 +42,7 @@
      shoulder_x /= max(shoulder_count, 1)
      shoulder_y /= max(shoulder_count, 1)
-
+ 
 -    ankle_x = 0.0
 +    ankle_x = 1.0
      ankle_y = 0.0
@@ -495,7 +495,7 @@
 +++ backend/services/pose_analysis_service.py
 @@ -43,7 +43,7 @@
      shoulder_y /= max(shoulder_count, 1)
-
+ 
      ankle_x = 0.0
 -    ankle_y = 0.0
 +    ankle_y = 1.0
@@ -506,7 +506,7 @@
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -44,7 +44,7 @@
-
+ 
      ankle_x = 0.0
      ankle_y = 0.0
 -    ankle_count = 0
@@ -657,7 +657,7 @@
 +        ankle_count = 1
      ankle_x /= max(ankle_count, 1)
      ankle_y /= max(ankle_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_87: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -669,7 +669,7 @@
 +        ankle_count -= 1
      ankle_x /= max(ankle_count, 1)
      ankle_y /= max(ankle_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_88: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -681,7 +681,7 @@
 +        ankle_count += 2
      ankle_x /= max(ankle_count, 1)
      ankle_y /= max(ankle_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_89: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -692,7 +692,7 @@
 -    ankle_x /= max(ankle_count, 1)
 +    ankle_x = max(ankle_count, 1)
      ankle_y /= max(ankle_count, 1)
-
+ 
      # Calculate spans
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_90: survived
 --- backend/services/pose_analysis_service.py
@@ -704,7 +704,7 @@
 -    ankle_x /= max(ankle_count, 1)
 +    ankle_x *= max(ankle_count, 1)
      ankle_y /= max(ankle_count, 1)
-
+ 
      # Calculate spans
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_95: survived
 --- backend/services/pose_analysis_service.py
@@ -716,7 +716,7 @@
 -    ankle_x /= max(ankle_count, 1)
 +    ankle_x /= max(ankle_count, 2)
      ankle_y /= max(ankle_count, 1)
-
+ 
      # Calculate spans
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_96: survived
 --- backend/services/pose_analysis_service.py
@@ -727,7 +727,7 @@
      ankle_x /= max(ankle_count, 1)
 -    ankle_y /= max(ankle_count, 1)
 +    ankle_y = max(ankle_count, 1)
-
+ 
      # Calculate spans
      horizontal_span = abs(shoulder_x - ankle_x)
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_102: survived
@@ -739,7 +739,7 @@
      ankle_x /= max(ankle_count, 1)
 -    ankle_y /= max(ankle_count, 1)
 +    ankle_y /= max(ankle_count, 2)
-
+ 
      # Calculate spans
      horizontal_span = abs(shoulder_x - ankle_x)
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_105: survived
@@ -747,36 +747,36 @@
 +++ backend/services/pose_analysis_service.py
 @@ -57,7 +57,7 @@
      ankle_y /= max(ankle_count, 1)
-
+ 
      # Calculate spans
 -    horizontal_span = abs(shoulder_x - ankle_x)
 +    horizontal_span = abs(shoulder_x + ankle_x)
      vertical_span = abs(shoulder_y - ankle_y)
-
+ 
      # Lying down if horizontal span is significantly larger than vertical
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_109: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -62,7 +62,7 @@
-
+ 
      # Lying down if horizontal span is significantly larger than vertical
      # Using 1.5x threshold as per vitpose_loader.py classify_pose
 -    if vertical_span > 0:
 +    if vertical_span >= 0:
          return horizontal_span > vertical_span * 1.5
-
+ 
      # If vertical_span is 0, check if there's significant horizontal span
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_110: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -62,7 +62,7 @@
-
+ 
      # Lying down if horizontal span is significantly larger than vertical
      # Using 1.5x threshold as per vitpose_loader.py classify_pose
 -    if vertical_span > 0:
 +    if vertical_span > 1:
          return horizontal_span > vertical_span * 1.5
-
+ 
      # If vertical_span is 0, check if there's significant horizontal span
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_111: survived
 --- backend/services/pose_analysis_service.py
@@ -787,7 +787,7 @@
      if vertical_span > 0:
 -        return horizontal_span > vertical_span * 1.5
 +        return horizontal_span >= vertical_span * 1.5
-
+ 
      # If vertical_span is 0, check if there's significant horizontal span
      return horizontal_span > 50  # Threshold in pixels
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_112: survived
@@ -799,7 +799,7 @@
      if vertical_span > 0:
 -        return horizontal_span > vertical_span * 1.5
 +        return horizontal_span > vertical_span / 1.5
-
+ 
      # If vertical_span is 0, check if there's significant horizontal span
      return horizontal_span > 50  # Threshold in pixels
 # backend.services.pose_analysis_service.x_detect_lying_down__mutmut_113: survived
@@ -811,7 +811,7 @@
      if vertical_span > 0:
 -        return horizontal_span > vertical_span * 1.5
 +        return horizontal_span > vertical_span * 2.5
-
+ 
      # If vertical_span is 0, check if there's significant horizontal span
      return horizontal_span > 50  # Threshold in pixels
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_19: survived
@@ -819,95 +819,95 @@
 +++ backend/services/pose_analysis_service.py
 @@ -23,7 +23,7 @@
          return False
-
+ 
      # Get shoulder keypoints
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = None
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      if not left_shoulder and not right_shoulder:
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_21: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -23,7 +23,7 @@
          return False
-
+ 
      # Get shoulder keypoints
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = _get_keypoint_if_confident(keypoints, None)
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      if not left_shoulder and not right_shoulder:
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_24: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -23,7 +23,7 @@
          return False
-
+ 
      # Get shoulder keypoints
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = _get_keypoint_if_confident(keypoints, "XXleft_shoulderXX")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      if not left_shoulder and not right_shoulder:
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_25: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -23,7 +23,7 @@
          return False
-
+ 
      # Get shoulder keypoints
 -    left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 +    left_shoulder = _get_keypoint_if_confident(keypoints, "LEFT_SHOULDER")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
      if not left_shoulder and not right_shoulder:
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_26: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -24,7 +24,7 @@
-
+ 
      # Get shoulder keypoints
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = None
-
+ 
      if not left_shoulder and not right_shoulder:
          return False
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_28: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -24,7 +24,7 @@
-
+ 
      # Get shoulder keypoints
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = _get_keypoint_if_confident(keypoints, None)
-
+ 
      if not left_shoulder and not right_shoulder:
          return False
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_31: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -24,7 +24,7 @@
-
+ 
      # Get shoulder keypoints
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = _get_keypoint_if_confident(keypoints, "XXright_shoulderXX")
-
+ 
      if not left_shoulder and not right_shoulder:
          return False
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_32: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -24,7 +24,7 @@
-
+ 
      # Get shoulder keypoints
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
 -    right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
 +    right_shoulder = _get_keypoint_if_confident(keypoints, "RIGHT_SHOULDER")
-
+ 
      if not left_shoulder and not right_shoulder:
          return False
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_33: survived
@@ -916,11 +916,11 @@
 @@ -26,7 +26,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
 -    if not left_shoulder and not right_shoulder:
 +    if not left_shoulder or not right_shoulder:
          return False
-
+ 
      # Calculate average shoulder Y position
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_34: survived
 --- backend/services/pose_analysis_service.py
@@ -928,11 +928,11 @@
 @@ -26,7 +26,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
 -    if not left_shoulder and not right_shoulder:
 +    if left_shoulder and not right_shoulder:
          return False
-
+ 
      # Calculate average shoulder Y position
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_35: survived
 --- backend/services/pose_analysis_service.py
@@ -940,18 +940,18 @@
 @@ -26,7 +26,7 @@
      left_shoulder = _get_keypoint_if_confident(keypoints, "left_shoulder")
      right_shoulder = _get_keypoint_if_confident(keypoints, "right_shoulder")
-
+ 
 -    if not left_shoulder and not right_shoulder:
 +    if not left_shoulder and right_shoulder:
          return False
-
+ 
      # Calculate average shoulder Y position
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_37: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -30,7 +30,7 @@
          return False
-
+ 
      # Calculate average shoulder Y position
 -    shoulder_y = 0.0
 +    shoulder_y = 1.0
@@ -962,7 +962,7 @@
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -31,7 +31,7 @@
-
+ 
      # Calculate average shoulder Y position
      shoulder_y = 0.0
 -    shoulder_count = 0
@@ -1017,7 +1017,7 @@
 +        shoulder_y = right_shoulder.y
          shoulder_count += 1
      shoulder_y /= max(shoulder_count, 1)
-
+ 
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_49: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -1028,7 +1028,7 @@
 -        shoulder_count += 1
 +        shoulder_count += 2
      shoulder_y /= max(shoulder_count, 1)
-
+ 
      # In image coordinates, Y increases downward
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_56: survived
 --- backend/services/pose_analysis_service.py
@@ -1039,7 +1039,7 @@
          shoulder_count += 1
 -    shoulder_y /= max(shoulder_count, 1)
 +    shoulder_y /= max(shoulder_count, 2)
-
+ 
      # In image coordinates, Y increases downward
      # Wrists above shoulders means wrist_y < shoulder_y
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_58: survived
@@ -1053,7 +1053,7 @@
 +    margin = 11.0
      left_above = left_wrist.y < (shoulder_y - margin)
      right_above = right_wrist.y < (shoulder_y - margin)
-
+ 
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_60: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
@@ -1064,7 +1064,7 @@
 -    left_above = left_wrist.y < (shoulder_y - margin)
 +    left_above = left_wrist.y <= (shoulder_y - margin)
      right_above = right_wrist.y < (shoulder_y - margin)
-
+ 
      return left_above and right_above
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_61: survived
 --- backend/services/pose_analysis_service.py
@@ -1076,7 +1076,7 @@
 -    left_above = left_wrist.y < (shoulder_y - margin)
 +    left_above = left_wrist.y < (shoulder_y + margin)
      right_above = right_wrist.y < (shoulder_y - margin)
-
+ 
      return left_above and right_above
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_63: survived
 --- backend/services/pose_analysis_service.py
@@ -1087,7 +1087,7 @@
      left_above = left_wrist.y < (shoulder_y - margin)
 -    right_above = right_wrist.y < (shoulder_y - margin)
 +    right_above = right_wrist.y <= (shoulder_y - margin)
-
+ 
      return left_above and right_above
 # backend.services.pose_analysis_service.x_detect_hands_raised__mutmut_64: survived
 --- backend/services/pose_analysis_service.py
@@ -1098,7 +1098,7 @@
      left_above = left_wrist.y < (shoulder_y - margin)
 -    right_above = right_wrist.y < (shoulder_y - margin)
 +    right_above = right_wrist.y < (shoulder_y + margin)
-
+ 
      return left_above and right_above
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_15: survived
 --- backend/services/pose_analysis_service.py
@@ -1106,11 +1106,11 @@
 @@ -20,7 +20,7 @@
      left_hip = _get_keypoint_if_confident(keypoints, "left_hip")
      right_hip = _get_keypoint_if_confident(keypoints, "right_hip")
-
+ 
 -    if not left_hip or not right_hip:
 +    if not left_hip and not right_hip:
          return False
-
+ 
      # Get ankle keypoints
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_33: survived
 --- backend/services/pose_analysis_service.py
@@ -1118,46 +1118,46 @@
 @@ -27,7 +27,7 @@
      left_ankle = _get_keypoint_if_confident(keypoints, "left_ankle")
      right_ankle = _get_keypoint_if_confident(keypoints, "right_ankle")
-
+ 
 -    if not left_ankle or not right_ankle:
 +    if not left_ankle and not right_ankle:
          return False
-
+ 
      # Calculate hip width
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_40: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -32,7 +32,7 @@
-
+ 
      # Calculate hip width
      hip_width = abs(left_hip.x - right_hip.x)
 -    if hip_width < 1:  # Avoid division by zero
 +    if hip_width <= 1:  # Avoid division by zero
          hip_width = 1.0
-
+ 
      # Calculate leg spread in X and Y directions
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_41: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -32,7 +32,7 @@
-
+ 
      # Calculate hip width
      hip_width = abs(left_hip.x - right_hip.x)
 -    if hip_width < 1:  # Avoid division by zero
 +    if hip_width < 2:  # Avoid division by zero
          hip_width = 1.0
-
+ 
      # Calculate leg spread in X and Y directions
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_47: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -37,7 +37,7 @@
-
+ 
      # Calculate leg spread in X and Y directions
      ankle_x_spread = abs(left_ankle.x - right_ankle.x)
 -    ankle_y_spread = abs(left_ankle.y - right_ankle.y)
 +    ankle_y_spread = abs(left_ankle.y + right_ankle.y)
-
+ 
      # Calculate leg spread ratio relative to hip width
      leg_spread_ratio = ankle_x_spread / hip_width
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_52: survived
@@ -1165,11 +1165,11 @@
 +++ backend/services/pose_analysis_service.py
 @@ -48,7 +48,7 @@
      # 3. Not as extreme as running (which has leg_spread_ratio > 3.0)
-
+ 
      # Wide stance but not running level (2.0 to 4.0 range)
 -    is_wide_stance = 2.0 < leg_spread_ratio < 4.0
 +    is_wide_stance = 2.0 <= leg_spread_ratio < 4.0
-
+ 
      # Asymmetric Y indicates staggered feet (front/back positioning)
      # Typical fighting stance has significant Y offset between feet
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_53: survived
@@ -1177,11 +1177,11 @@
 +++ backend/services/pose_analysis_service.py
 @@ -48,7 +48,7 @@
      # 3. Not as extreme as running (which has leg_spread_ratio > 3.0)
-
+ 
      # Wide stance but not running level (2.0 to 4.0 range)
 -    is_wide_stance = 2.0 < leg_spread_ratio < 4.0
 +    is_wide_stance = 2.0 < leg_spread_ratio <= 4.0
-
+ 
      # Asymmetric Y indicates staggered feet (front/back positioning)
      # Typical fighting stance has significant Y offset between feet
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_54: survived
@@ -1189,23 +1189,23 @@
 +++ backend/services/pose_analysis_service.py
 @@ -48,7 +48,7 @@
      # 3. Not as extreme as running (which has leg_spread_ratio > 3.0)
-
+ 
      # Wide stance but not running level (2.0 to 4.0 range)
 -    is_wide_stance = 2.0 < leg_spread_ratio < 4.0
 +    is_wide_stance = 2.0 < leg_spread_ratio < 5.0
-
+ 
      # Asymmetric Y indicates staggered feet (front/back positioning)
      # Typical fighting stance has significant Y offset between feet
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_56: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -52,7 +52,7 @@
-
+ 
      # Asymmetric Y indicates staggered feet (front/back positioning)
      # Typical fighting stance has significant Y offset between feet
 -    is_asymmetric = ankle_y_spread > (hip_width * 0.5)
 +    is_asymmetric = ankle_y_spread >= (hip_width * 0.5)
-
+ 
      # Fighting stance requires both wide and asymmetric
      return is_wide_stance and is_asymmetric
 # backend.services.pose_analysis_service.x_detect_fighting_stance__mutmut_59: survived
@@ -1213,7 +1213,7 @@
 +++ backend/services/pose_analysis_service.py
 @@ -55,4 +55,4 @@
      is_asymmetric = ankle_y_spread > (hip_width * 0.5)
-
+ 
      # Fighting stance requires both wide and asymmetric
 -    return is_wide_stance and is_asymmetric
 +    return is_wide_stance or is_asymmetric
@@ -1223,11 +1223,11 @@
 @@ -20,7 +20,7 @@
      if detect_crouching(keypoints) or posture == "crouching":
          alerts.append("crouching")
-
+ 
 -    if detect_lying_down(keypoints) or posture in ("lying", "lying_down"):
 +    if detect_lying_down(keypoints) or posture in ("lying", "XXlying_downXX"):
          alerts.append("lying_down")
-
+ 
      if detect_hands_raised(keypoints):
 # backend.services.pose_analysis_service.x_detect_security_alerts__mutmut_16: survived
 --- backend/services/pose_analysis_service.py
@@ -1235,21 +1235,21 @@
 @@ -20,7 +20,7 @@
      if detect_crouching(keypoints) or posture == "crouching":
          alerts.append("crouching")
-
+ 
 -    if detect_lying_down(keypoints) or posture in ("lying", "lying_down"):
 +    if detect_lying_down(keypoints) or posture in ("lying", "LYING_DOWN"):
          alerts.append("lying_down")
-
+ 
      if detect_hands_raised(keypoints):
 # backend.services.pose_analysis_service.x_analyze_pose__mutmut_12: survived
 --- backend/services/pose_analysis_service.py
 +++ backend/services/pose_analysis_service.py
 @@ -45,7 +45,7 @@
      keypoint_count = count_valid_keypoints(keypoints)
-
+ 
      # Detect security alerts
 -    alerts = detect_security_alerts(keypoints, posture)
 +    alerts = detect_security_alerts(keypoints, None)
-
+ 
      return {
          "posture": posture,

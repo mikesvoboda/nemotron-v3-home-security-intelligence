@@ -8,5 +8,5 @@
 -    ocr_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle", "package"}
 +    ocr_classes = {"person", "car", "truck", "bus", "MOTORCYCLE", "bicycle", "package"}
      relevant_detections = [d for d in detections if d.class_name.lower() in ocr_classes]
-
+ 
      if not relevant_detections:

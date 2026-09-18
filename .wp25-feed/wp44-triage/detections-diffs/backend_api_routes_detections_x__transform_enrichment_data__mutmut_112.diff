@@ -8,5 +8,5 @@
 -            "confidence": max(f.get("confidence", 0) for f in faces),
 +            "confidence": max(f.get("confidence", 1) for f in faces),
          }
-
+ 
      # Extract violence data

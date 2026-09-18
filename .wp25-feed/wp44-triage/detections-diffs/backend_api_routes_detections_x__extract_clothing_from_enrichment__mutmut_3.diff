@@ -7,5 +7,5 @@
 -    clothing_classifications = enrichment_data.get("clothing_classifications", {})
 +    clothing_classifications = enrichment_data.get("clothing_classifications", None)
      clothing_segmentation = enrichment_data.get("clothing_segmentation", {})
-
+ 
      if not clothing_classifications and not clothing_segmentation:

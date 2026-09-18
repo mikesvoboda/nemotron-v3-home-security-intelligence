@@ -4,6 +4,6 @@
 @@ -20,4 +20,4 @@
      # HTTP client is created lazily for async context
      self._client: httpx.AsyncClient | None = None
-
+ 
 -    logger.info(f"SceneOCRService initialized (url={self.florence_url}, enabled={enabled})")
 +    logger.info(None)

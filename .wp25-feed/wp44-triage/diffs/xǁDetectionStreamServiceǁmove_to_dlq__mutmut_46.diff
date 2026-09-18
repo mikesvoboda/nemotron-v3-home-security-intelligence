@@ -4,8 +4,8 @@
 @@ -53,6 +53,6 @@
          },
      )
-
+ 
 -    record_pipeline_error("stream_dlq_move")
 +    record_pipeline_error("STREAM_DLQ_MOVE")
-
+ 
      return dlq_message_id

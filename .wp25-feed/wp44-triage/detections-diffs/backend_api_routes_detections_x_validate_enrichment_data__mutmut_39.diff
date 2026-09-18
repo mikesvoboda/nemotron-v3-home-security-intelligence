@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -28,7 +28,6 @@
-
+ 
              vehicle = VehicleEnrichmentData(
                  vehicle_type=vc.get("vehicle_type"),
 -                vehicle_color=None,  # Color not currently captured in enrichment

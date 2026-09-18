@@ -9,3 +9,4 @@
 +            has_damage = True
              if first_key in vehicle_damage:
                  has_damage = vehicle_damage[first_key].get("has_damage", False)
+ 

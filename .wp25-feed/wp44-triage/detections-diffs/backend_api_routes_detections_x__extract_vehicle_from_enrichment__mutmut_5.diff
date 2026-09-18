@@ -8,3 +8,4 @@
 +    vehicle_classifications = enrichment_data.get("vehicle_classifications", )
      if not vehicle_classifications:
          return None
+ 

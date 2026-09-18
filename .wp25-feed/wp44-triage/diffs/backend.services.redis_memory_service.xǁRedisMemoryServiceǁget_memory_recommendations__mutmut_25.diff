@@ -3,7 +3,7 @@
 +++ backend/services/redis_memory_service.py
 @@ -42,7 +42,7 @@
          )
-
+ 
      # Check evicted keys
 -    if stats.evicted_keys > 0:
 +    if stats.evicted_keys > 1:

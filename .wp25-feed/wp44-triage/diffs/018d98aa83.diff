@@ -3,7 +3,7 @@
 +++ backend/services/enrichment_pipeline.py
 @@ -76,7 +76,7 @@
              )
-
+ 
      # Suspicious action flag
 -    if self.has_suspicious_action and self.action_results:
 +    if self.has_suspicious_action or self.action_results:

@@ -8,5 +8,5 @@
 -        det_id = str(det.id) if det.id else f"det_{id(det)}"
 +        det_id = None
          detection_bboxes[det_id] = det.bbox.to_int_tuple()
-
+ 
      # Initialize detection OCR results from crop results

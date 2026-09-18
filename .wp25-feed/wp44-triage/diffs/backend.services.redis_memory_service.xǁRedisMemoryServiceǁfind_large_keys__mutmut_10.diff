@@ -2,7 +2,7 @@
 --- backend/services/redis_memory_service.py
 +++ backend/services/redis_memory_service.py
 @@ -23,7 +23,7 @@
-
+ 
      for key in keys:
          try:
 -            memory_bytes = await self._redis.memory_usage(key)

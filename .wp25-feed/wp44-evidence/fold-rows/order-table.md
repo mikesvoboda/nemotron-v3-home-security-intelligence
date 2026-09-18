@@ -1,0 +1,34 @@
+| Gap surv | Surv | TEST-GAP% | Dossier | Drafted |
+|-------:|-----:|---------:|---------|--------:|
+| 160 | 218 | 73% | `prompts` | 6 |
+| 152 | 218 | 69% | `audit_logger` | 3 |
+| 144 | 162 | 88% | `enrichment_pipeline` | 6 |
+| 138 | 158 | 87% | `unique_counter_service` | 6 |
+| 138 | 142 | 97% | `prompt_service` | 6 |
+| 137 | 205 | 66% | `cost_tracker` | 8 |
+| 133 | 158 | 84% | `webhook_service` | 11 |
+| 129 | 184 | 70% | `redis_streams` | 6 |
+| 128 | 135 | 94% | `vision_extractor` | 6 |
+| 109 | 111 | 98% | `zone_comparison_service` | 7 |
+| 109 | 128 | 85% | `prompt_version_service` | 5 |
+| 105 | 117 | 89% | `baseline` | 6 |
+| 105 | 128 | 82% | `florence_extractor` | 8 |
+| 99 | 113 | 87% | `trajectory_analyzer` | 8 |
+| 98 | 176 | 55% | `job_service` | 7 |
+| 95 | 147 | 64% | `partition_manager` | 6 |
+| 95 | 105 | 90% | `pose_analysis_service` | 7 |
+| 93 | 113 | 82% | `redis_memory_service` | 5 |
+| 90 | 108 | 83% | `redis_json` | 7 |
+| 81 | 127 | 63% | `pg_notify_listener` | 6 |
+| 80 | 121 | 66% | `job_search_service` | 5 |
+| 79 | 106 | 74% | `onvif_service` | 5 |
+| 71 | 139 | 51% | `vehicle_damage_loader` | 7 |
+| 66 | 138 | 47% | `job_status` | 6 |
+| 66 | 121 | 54% | `job_history_service` | 6 |
+| 62 | 109 | 56% | `job_tracker` | 6 |
+| 60 | 122 | 49% | `zone_household_service` | 7 |
+| 57 | 179 | 31% | `managed_service` | 6 |
+| 45 | 107 | 42% | `hybrid_entity_storage` | 6 |
+| 37 | 133 | 27% | `job_timeout_service` | 6 |
+| 37 | 131 | 28% | `nemotron_latency_optimizer` | 7 |
+| 14 | 134 | 10% | `household_matcher` | 6 |

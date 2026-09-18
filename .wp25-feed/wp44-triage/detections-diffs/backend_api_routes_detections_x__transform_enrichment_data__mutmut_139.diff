@@ -9,3 +9,4 @@
 +            "score": violence_data.get("confidence", ),
              "confidence": violence_data.get("confidence"),
          }
+ 

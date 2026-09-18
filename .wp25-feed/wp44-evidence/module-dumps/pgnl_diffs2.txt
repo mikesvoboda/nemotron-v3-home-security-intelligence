@@ -1,0 +1,503 @@
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_3
+-redis_client=redis_client,
++redis_client=None,
+
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_4
+-broadcaster=broadcaster,
++broadcaster=None,
+
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_5
+-redis_client=redis_client,
+
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_6
+-broadcaster=broadcaster,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_10
+-"source": "pg_notify",
++"source": "PG_NOTIFY",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_18
+-"event_id": alert_data.get("event_id"),
++"XXevent_idXX": alert_data.get("event_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_19
+-"event_id": alert_data.get("event_id"),
++"EVENT_ID": alert_data.get("event_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_20
+-"event_id": alert_data.get("event_id"),
++"event_id": alert_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_21
+-"event_id": alert_data.get("event_id"),
++"event_id": alert_data.get("XXevent_idXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_22
+-"event_id": alert_data.get("event_id"),
++"event_id": alert_data.get("EVENT_ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_23
+-"rule_id": alert_data.get("rule_id"),
++"XXrule_idXX": alert_data.get("rule_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_24
+-"rule_id": alert_data.get("rule_id"),
++"RULE_ID": alert_data.get("rule_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_25
+-"rule_id": alert_data.get("rule_id"),
++"rule_id": alert_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_26
+-"rule_id": alert_data.get("rule_id"),
++"rule_id": alert_data.get("XXrule_idXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_27
+-"rule_id": alert_data.get("rule_id"),
++"rule_id": alert_data.get("RULE_ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_33
+-"status": alert_data.get("status"),
++"XXstatusXX": alert_data.get("status"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_34
+-"status": alert_data.get("status"),
++"STATUS": alert_data.get("status"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_35
+-"status": alert_data.get("status"),
++"status": alert_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_36
+-"status": alert_data.get("status"),
++"status": alert_data.get("XXstatusXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_37
+-"status": alert_data.get("status"),
++"status": alert_data.get("STATUS"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_39
+-await self._redis.publish(settings.redis_event_channel, message)
++await self._redis.publish(None, message)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_43
+-logger.error(f"Failed to publish alert to Redis: {e}")
++logger.error(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_44
+-"Published new alert notification",
++None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_45
+-extra={"alert_id": alert_data.get("id")},
++extra=None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_47
+-extra={"alert_id": alert_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_48
+-"Published new alert notification",
++"XXPublished new alert notificationXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_49
+-"Published new alert notification",
++"published new alert notification",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_50
+-"Published new alert notification",
++"PUBLISHED NEW ALERT NOTIFICATION",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_51
+-extra={"alert_id": alert_data.get("id")},
++extra={"XXalert_idXX": alert_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_52
+-extra={"alert_id": alert_data.get("id")},
++extra={"ALERT_ID": alert_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_53
+-extra={"alert_id": alert_data.get("id")},
++extra={"alert_id": alert_data.get(None)},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_54
+-extra={"alert_id": alert_data.get("id")},
++extra={"alert_id": alert_data.get("XXidXX")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_55
+-extra={"alert_id": alert_data.get("id")},
++extra={"alert_id": alert_data.get("ID")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_7
+-"source": "pg_notify",
++"XXsourceXX": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_8
+-"source": "pg_notify",
++"SOURCE": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_9
+-"source": "pg_notify",
++"source": "XXpg_notifyXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_10
+-"source": "pg_notify",
++"source": "PG_NOTIFY",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_18
+-"camera_id": detection_data.get("camera_id"),
++"XXcamera_idXX": detection_data.get("camera_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_19
+-"camera_id": detection_data.get("camera_id"),
++"CAMERA_ID": detection_data.get("camera_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_20
+-"camera_id": detection_data.get("camera_id"),
++"camera_id": detection_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_21
+-"camera_id": detection_data.get("camera_id"),
++"camera_id": detection_data.get("XXcamera_idXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_22
+-"camera_id": detection_data.get("camera_id"),
++"camera_id": detection_data.get("CAMERA_ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_33
+-"timestamp": detection_data.get("detected_at"),
++"XXtimestampXX": detection_data.get("detected_at"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_34
+-"timestamp": detection_data.get("detected_at"),
++"TIMESTAMP": detection_data.get("detected_at"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_35
+-"timestamp": detection_data.get("detected_at"),
++"timestamp": detection_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_36
+-"timestamp": detection_data.get("detected_at"),
++"timestamp": detection_data.get("XXdetected_atXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_37
+-"timestamp": detection_data.get("detected_at"),
++"timestamp": detection_data.get("DETECTED_AT"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_39
+-await self._redis.publish(settings.redis_event_channel, message)
++await self._redis.publish(None, message)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_43
+-logger.error(f"Failed to publish detection to Redis: {e}")
++logger.error(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_44
+-"Published new detection notification",
++None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_45
+-extra={"detection_id": detection_data.get("id")},
++extra=None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_47
+-extra={"detection_id": detection_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_48
+-"Published new detection notification",
++"XXPublished new detection notificationXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_49
+-"Published new detection notification",
++"published new detection notification",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_50
+-"Published new detection notification",
++"PUBLISHED NEW DETECTION NOTIFICATION",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_51
+-extra={"detection_id": detection_data.get("id")},
++extra={"XXdetection_idXX": detection_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_52
+-extra={"detection_id": detection_data.get("id")},
++extra={"DETECTION_ID": detection_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_53
+-extra={"detection_id": detection_data.get("id")},
++extra={"detection_id": detection_data.get(None)},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_54
+-extra={"detection_id": detection_data.get("id")},
++extra={"detection_id": detection_data.get("XXidXX")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_55
+-extra={"detection_id": detection_data.get("id")},
++extra={"detection_id": detection_data.get("ID")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_7
+-"source": "pg_notify",
++"XXsourceXX": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_8
+-"source": "pg_notify",
++"SOURCE": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_9
+-"source": "pg_notify",
++"source": "XXpg_notifyXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_10
+-"source": "pg_notify",
++"source": "PG_NOTIFY",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_13
+-"id": event_data.get("id"),
++"XXidXX": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_14
+-"id": event_data.get("id"),
++"ID": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_15
+-"id": event_data.get("id"),
++"id": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_16
+-"id": event_data.get("id"),
++"id": event_data.get("XXidXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_17
+-"id": event_data.get("id"),
++"id": event_data.get("ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_18
+-"event_id": event_data.get("id"),
++"XXevent_idXX": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_19
+-"event_id": event_data.get("id"),
++"EVENT_ID": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_20
+-"event_id": event_data.get("id"),
++"event_id": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_21
+-"event_id": event_data.get("id"),
++"event_id": event_data.get("XXidXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_22
+-"event_id": event_data.get("id"),
++"event_id": event_data.get("ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_23
+-"risk_score": event_data.get("risk_score"),
++"XXrisk_scoreXX": event_data.get("risk_score"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_24
+-"risk_score": event_data.get("risk_score"),
++"RISK_SCORE": event_data.get("risk_score"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_25
+-"risk_score": event_data.get("risk_score"),
++"risk_score": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_26
+-"risk_score": event_data.get("risk_score"),
++"risk_score": event_data.get("XXrisk_scoreXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_27
+-"risk_score": event_data.get("risk_score"),
++"risk_score": event_data.get("RISK_SCORE"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_28
+-"risk_level": event_data.get("risk_level"),
++"XXrisk_levelXX": event_data.get("risk_level"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_29
+-"risk_level": event_data.get("risk_level"),
++"RISK_LEVEL": event_data.get("risk_level"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_30
+-"risk_level": event_data.get("risk_level"),
++"risk_level": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_31
+-"risk_level": event_data.get("risk_level"),
++"risk_level": event_data.get("XXrisk_levelXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_32
+-"risk_level": event_data.get("risk_level"),
++"risk_level": event_data.get("RISK_LEVEL"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_33
+-"summary": event_data.get("summary"),
++"XXsummaryXX": event_data.get("summary"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_34
+-"summary": event_data.get("summary"),
++"SUMMARY": event_data.get("summary"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_35
+-"summary": event_data.get("summary"),
++"summary": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_36
+-"summary": event_data.get("summary"),
++"summary": event_data.get("XXsummaryXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_37
+-"summary": event_data.get("summary"),
++"summary": event_data.get("SUMMARY"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_44
+-await self._redis.publish(settings.redis_event_channel, message)
++await self._redis.publish(None, message)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_48
+-logger.error(f"Failed to publish event update to Redis: {e}")
++logger.error(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_49
+-"Published event update notification",
++None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_50
+-extra={"event_id": event_data.get("id")},
++extra=None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_52
+-extra={"event_id": event_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_53
+-"Published event update notification",
++"XXPublished event update notificationXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_54
+-"Published event update notification",
++"published event update notification",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_55
+-"Published event update notification",
++"PUBLISHED EVENT UPDATE NOTIFICATION",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_56
+-extra={"event_id": event_data.get("id")},
++extra={"XXevent_idXX": event_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_57
+-extra={"event_id": event_data.get("id")},
++extra={"EVENT_ID": event_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_58
+-extra={"event_id": event_data.get("id")},
++extra={"event_id": event_data.get(None)},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_59
+-extra={"event_id": event_data.get("id")},
++extra={"event_id": event_data.get("XXidXX")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_60
+-extra={"event_id": event_data.get("id")},
++extra={"event_id": event_data.get("ID")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_7
+-"source": "pg_notify",
++"XXsourceXX": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_8
+-"source": "pg_notify",
++"SOURCE": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_9
+-"source": "pg_notify",
++"source": "XXpg_notifyXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_1
+-asyncio.create_task(self._handle_notification(channel, payload))
++asyncio.create_task(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_2
+-asyncio.create_task(self._handle_notification(channel, payload))
++asyncio.create_task(self._handle_notification(None, payload))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_3
+-asyncio.create_task(self._handle_notification(channel, payload))
++asyncio.create_task(self._handle_notification(channel, None))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_4
+-asyncio.create_task(self._handle_notification(channel, payload))
++asyncio.create_task(self._handle_notification(payload))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_5
+-asyncio.create_task(self._handle_notification(channel, payload))
++asyncio.create_task(self._handle_notification(channel, ))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁget_status__mutmut_8
+-if self._connection
++if (self._connection) or True
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁget_status__mutmut_9
+-"connected": self._connection is not None and not self._connection.is_closed()
++"connected": self._connection is not None or not self._connection.is_closed()
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_1
+-logger.warning("PgNotifyListener already running")
++logger.warning(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_11
+-logger.info("PgNotifyListener started")
++logger.info(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_12
+-logger.info("PgNotifyListener started")
++logger.info("XXPgNotifyListener startedXX")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_13
+-logger.info("PgNotifyListener started")
++logger.info("pgnotifylistener started")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_14
+-logger.info("PgNotifyListener started")
++logger.info("PGNOTIFYLISTENER STARTED")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_2
+-logger.warning("PgNotifyListener already running")
++logger.warning("XXPgNotifyListener already runningXX")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_3
+-logger.warning("PgNotifyListener already running")
++logger.warning("pgnotifylistener already running")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_4
+-logger.warning("PgNotifyListener already running")
++logger.warning("PGNOTIFYLISTENER ALREADY RUNNING")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_7
+-self._reconnect_attempts = 0
++self._reconnect_attempts = None
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_8
+-self._reconnect_attempts = 0
++self._reconnect_attempts = 1
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_10
+-logger.info("PgNotifyListener stopped")
++logger.info("XXPgNotifyListener stoppedXX")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_11
+-logger.info("PgNotifyListener stopped")
++logger.info("pgnotifylistener stopped")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_12
+-logger.info("PgNotifyListener stopped")
++logger.info("PGNOTIFYLISTENER STOPPED")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_7
+-with contextlib.suppress(Exception):
++with contextlib.suppress(None):
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_9
+-logger.info("PgNotifyListener stopped")
++logger.info(None)
+

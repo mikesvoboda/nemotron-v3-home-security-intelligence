@@ -8,5 +8,5 @@
 -                        exc_info=True,
 +                        exc_info=False,
                      )
-
+ 
              except httpx.HTTPStatusError as e:

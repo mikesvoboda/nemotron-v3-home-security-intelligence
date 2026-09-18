@@ -9,3 +9,4 @@
 +            or exporter_name.replace("-", "XXXX") in t.get("instance", "").lower()
              or exporter_name in t.get("instance", "").lower()
          ]
+ 

@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -75,7 +75,7 @@
              continue
-
+ 
          # Try to associate with a detection
 -        best_det_id = None
 +        best_det_id = ""
          best_overlap = DETECTION_OVERLAP_THRESHOLD
-
+ 
          for det_id, det_bbox in detection_bboxes.items():

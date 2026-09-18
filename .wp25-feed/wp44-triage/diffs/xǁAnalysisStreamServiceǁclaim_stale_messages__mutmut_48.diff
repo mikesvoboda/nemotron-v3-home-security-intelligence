@@ -2,7 +2,7 @@
 --- backend/services/redis_streams.py
 +++ backend/services/redis_streams.py
 @@ -53,7 +53,7 @@
-
+ 
          if messages:
              logger.info(
 -                "Claimed stale analysis messages",

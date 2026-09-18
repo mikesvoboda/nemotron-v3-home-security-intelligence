@@ -7,6 +7,6 @@
      maxmemory_config = await self._redis.config_get("maxmemory")
 -    policy_config = await self._redis.config_get("maxmemory-policy")
 +    policy_config = await self._redis.config_get(None)
-
+ 
      maxmemory_bytes = int(maxmemory_config.get("maxmemory", 0))
      maxmemory_mb = maxmemory_bytes / (1024 * 1024) if maxmemory_bytes > 0 else 0

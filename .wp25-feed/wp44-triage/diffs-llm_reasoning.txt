@@ -23,7 +23,7 @@
 === backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_9
 @@ -21,7 +21,7 @@
      ]
-
+ 
      for pattern in patterns:
 -        matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
 +        matches = re.findall(pattern, think_content, )
@@ -34,7 +34,7 @@
 === backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_10
 @@ -21,7 +21,7 @@
      ]
-
+ 
      for pattern in patterns:
 -        matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
 +        matches = re.findall(pattern, think_content, re.IGNORECASE & re.MULTILINE)
@@ -50,7 +50,7 @@
 -            if obs and len(obs) > 5 and obs not in observations:
 +            if obs and len(obs) > 5 or obs not in observations:
                  observations.append(obs)
-
+ 
      return observations[:10]
 
 === backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_13
@@ -61,7 +61,7 @@
 -            if obs and len(obs) > 5 and obs not in observations:
 +            if obs or len(obs) > 5 and obs not in observations:
                  observations.append(obs)
-
+ 
      return observations[:10]
 
 === backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_14
@@ -72,7 +72,7 @@
 -            if obs and len(obs) > 5 and obs not in observations:
 +            if obs and len(obs) >= 5 and obs not in observations:
                  observations.append(obs)
-
+ 
      return observations[:10]
 
 === backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_15
@@ -83,20 +83,20 @@
 -            if obs and len(obs) > 5 and obs not in observations:
 +            if obs and len(obs) > 6 and obs not in observations:
                  observations.append(obs)
-
+ 
      return observations[:10]
 
 === backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_18
 @@ -27,4 +27,4 @@
              if obs and len(obs) > 5 and obs not in observations:
                  observations.append(obs)
-
+ 
 -    return observations[:10]
 +    return observations[:11]
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_3
 @@ -11,7 +11,7 @@
-
+ 
      # Known enrichment source categories
      known_sources = {
 -        "florence": "Florence-2 Vision Analysis",
@@ -107,7 +107,7 @@
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_4
 @@ -11,7 +11,7 @@
-
+ 
      # Known enrichment source categories
      known_sources = {
 -        "florence": "Florence-2 Vision Analysis",
@@ -118,7 +118,7 @@
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_5
 @@ -11,7 +11,7 @@
-
+ 
      # Known enrichment source categories
      known_sources = {
 -        "florence": "Florence-2 Vision Analysis",
@@ -741,7 +741,7 @@
 +        "XXcross_cameraXX": "Cross-Camera Correlation",
          "detections": "Object Detections",
      }
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_64
 @@ -23,7 +23,7 @@
@@ -752,7 +752,7 @@
 +        "CROSS_CAMERA": "Cross-Camera Correlation",
          "detections": "Object Detections",
      }
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_65
 @@ -23,7 +23,7 @@
@@ -763,7 +763,7 @@
 +        "cross_camera": "XXCross-Camera CorrelationXX",
          "detections": "Object Detections",
      }
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_66
 @@ -23,7 +23,7 @@
@@ -774,7 +774,7 @@
 +        "cross_camera": "cross-camera correlation",
          "detections": "Object Detections",
      }
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_67
 @@ -23,7 +23,7 @@
@@ -785,7 +785,7 @@
 +        "cross_camera": "CROSS-CAMERA CORRELATION",
          "detections": "Object Detections",
      }
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_68
 @@ -24,7 +24,7 @@
@@ -795,7 +795,7 @@
 -        "detections": "Object Detections",
 +        "XXdetectionsXX": "Object Detections",
      }
-
+ 
      for key, display_name in known_sources.items():
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_69
@@ -806,7 +806,7 @@
 -        "detections": "Object Detections",
 +        "DETECTIONS": "Object Detections",
      }
-
+ 
      for key, display_name in known_sources.items():
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_70
@@ -817,7 +817,7 @@
 -        "detections": "Object Detections",
 +        "detections": "XXObject DetectionsXX",
      }
-
+ 
      for key, display_name in known_sources.items():
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_78
@@ -828,12 +828,12 @@
 -            field_count = 0
 +            field_count = 1
              sample_fields: list[str] = []
-
+ 
              if isinstance(data, dict):
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_83
 @@ -36,7 +36,7 @@
-
+ 
              if isinstance(data, dict):
                  field_count = len(data)
 -                sample_fields = list(data.keys())[:5]
@@ -849,7 +849,7 @@
                  if data and isinstance(data[0], dict):
 -                    sample_fields = list(data[0].keys())[:5]
 +                    sample_fields = list(data[1].keys())[:5]
-
+ 
              sources.append(
                  EnrichmentSource(
 
@@ -860,7 +860,7 @@
                  if data and isinstance(data[0], dict):
 -                    sample_fields = list(data[0].keys())[:5]
 +                    sample_fields = list(data[0].keys())[:6]
-
+ 
              sources.append(
                  EnrichmentSource(
 
@@ -873,12 +873,12 @@
 -                )
 +                    )
              )
-
+ 
      # Add any unknown sources from the snapshot
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_99
 @@ -53,7 +53,7 @@
-
+ 
      # Add any unknown sources from the snapshot
      for key, data in enrichment_snapshot.items():
 -        if key not in known_sources:
@@ -896,7 +896,7 @@
 +            populated = bool(None)
              field_count = 0
              sample_fields = []
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_103
 @@ -55,7 +55,7 @@
@@ -906,7 +906,7 @@
 -            field_count = 0
 +            field_count = 1
              sample_fields = []
-
+ 
              if isinstance(data, dict):
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_112
@@ -928,12 +928,12 @@
 -                )
 +                    )
              )
-
+ 
      return sources
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_118
 @@ -66,7 +66,7 @@
-
+ 
              sources.append(
                  EnrichmentSource(
 -                    name=key.replace("_", " ").title(),
@@ -944,7 +944,7 @@
 
 === backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_119
 @@ -66,7 +66,7 @@
-
+ 
              sources.append(
                  EnrichmentSource(
 -                    name=key.replace("_", " ").title(),
@@ -974,7 +974,7 @@
 === backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_15
 @@ -11,7 +11,7 @@
          return TruncationInfo(was_truncated=False)
-
+ 
      return TruncationInfo(
 -        was_truncated=truncation_log.get("was_truncated", False),
 +        was_truncated=truncation_log.get("was_truncated", None),
@@ -985,7 +985,7 @@
 === backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_17
 @@ -11,7 +11,7 @@
          return TruncationInfo(was_truncated=False)
-
+ 
      return TruncationInfo(
 -        was_truncated=truncation_log.get("was_truncated", False),
 +        was_truncated=truncation_log.get("was_truncated", ),
@@ -996,7 +996,7 @@
 === backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_20
 @@ -11,7 +11,7 @@
          return TruncationInfo(was_truncated=False)
-
+ 
      return TruncationInfo(
 -        was_truncated=truncation_log.get("was_truncated", False),
 +        was_truncated=truncation_log.get("was_truncated", True),
@@ -1040,7 +1040,7 @@
 +                        match_method=None,
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_11
 @@ -21,8 +21,7 @@
@@ -1051,7 +1051,7 @@
 -                    )
 +                        )
                  )
-
+ 
      # Handle dict with entity types as keys
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_13
@@ -1173,7 +1173,7 @@
 +                        match_method=match.get(None),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_35
 @@ -21,7 +21,7 @@
@@ -1184,7 +1184,7 @@
 +                        match_method=match.get("XXmatch_methodXX"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_36
 @@ -21,7 +21,7 @@
@@ -1195,7 +1195,7 @@
 +                        match_method=match.get("MATCH_METHOD"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_37
 @@ -32,14 +32,7 @@
@@ -1561,7 +1561,7 @@
 -                    )
 +                    None
                  )
-
+ 
      return matches
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_75
@@ -1574,3 +1574,4 @@
                          similarity_score=match_data.get(
                              "similarity", match_data.get("similarity_score", 0.0)
                          ),
+

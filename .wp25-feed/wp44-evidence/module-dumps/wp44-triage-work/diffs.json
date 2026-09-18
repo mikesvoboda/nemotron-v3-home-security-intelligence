@@ -1,0 +1,1041 @@
+{
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_calculate_diff__mutmut_33": {
+  "func": "_calculate_diff",
+  "num": 33,
+  "diff": [
+   "-        \"has_changes\": bool(added or removed or changed),",
+   "+        \"has_changes\": bool(added or removed and changed),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_10": {
+  "func": "_cleanup_old_versions",
+  "num": 10,
+  "diff": [
+   "-if total <= MAX_VERSIONS_PER_MODEL:",
+   "+if total < MAX_VERSIONS_PER_MODEL:"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_11": {
+  "func": "_cleanup_old_versions",
+  "num": 11,
+  "diff": [
+   "-keep_query = (",
+   "-        select(PromptVersion.id)",
+   "-        .where(PromptVersion.model == model)",
+   "-        .order_by(desc(PromptVersion.created_at))",
+   "-        .limit(MAX_VERSIONS_PER_MODEL)",
+   "-    )",
+   "+keep_query = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_12": {
+  "func": "_cleanup_old_versions",
+  "num": 12,
+  "diff": [
+   "-        .limit(MAX_VERSIONS_PER_MODEL)",
+   "+        .limit(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_13": {
+  "func": "_cleanup_old_versions",
+  "num": 13,
+  "diff": [
+   "-        .order_by(desc(PromptVersion.created_at))",
+   "+        .order_by(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_14": {
+  "func": "_cleanup_old_versions",
+  "num": 14,
+  "diff": [
+   "-        .where(PromptVersion.model == model)",
+   "+        .where(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_15": {
+  "func": "_cleanup_old_versions",
+  "num": 15,
+  "diff": [
+   "-        select(PromptVersion.id)",
+   "+        select(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_16": {
+  "func": "_cleanup_old_versions",
+  "num": 16,
+  "diff": [
+   "-        .where(PromptVersion.model == model)",
+   "+        .where(PromptVersion.model != model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_17": {
+  "func": "_cleanup_old_versions",
+  "num": 17,
+  "diff": [
+   "-        .order_by(desc(PromptVersion.created_at))",
+   "+        .order_by(desc(None))"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_19": {
+  "func": "_cleanup_old_versions",
+  "num": 19,
+  "diff": [
+   "-keep_result = await session.execute(keep_query)",
+   "+keep_result = await session.execute(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_2": {
+  "func": "_cleanup_old_versions",
+  "num": 2,
+  "diff": [
+   "-        select(func.count()).select_from(PromptVersion).where(PromptVersion.model == model)",
+   "+        None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_22": {
+  "func": "_cleanup_old_versions",
+  "num": 22,
+  "diff": [
+   "-delete_query = select(PromptVersion).where(",
+   "-        PromptVersion.model == model,",
+   "-        ~PromptVersion.id.in_(keep_ids),",
+   "-    )",
+   "+delete_query = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_23": {
+  "func": "_cleanup_old_versions",
+  "num": 23,
+  "diff": [
+   "-        PromptVersion.model == model,",
+   "+        None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_24": {
+  "func": "_cleanup_old_versions",
+  "num": 24,
+  "diff": [
+   "-        ~PromptVersion.id.in_(keep_ids),",
+   "+        None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_25": {
+  "func": "_cleanup_old_versions",
+  "num": 25,
+  "diff": [
+   "-        PromptVersion.model == model,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_26": {
+  "func": "_cleanup_old_versions",
+  "num": 26,
+  "diff": [
+   "-        ~PromptVersion.id.in_(keep_ids),",
+   "-    )",
+   "+        )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_27": {
+  "func": "_cleanup_old_versions",
+  "num": 27,
+  "diff": [
+   "-delete_query = select(PromptVersion).where(",
+   "+delete_query = select(None).where("
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_28": {
+  "func": "_cleanup_old_versions",
+  "num": 28,
+  "diff": [
+   "-        PromptVersion.model == model,",
+   "+        PromptVersion.model != model,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_29": {
+  "func": "_cleanup_old_versions",
+  "num": 29,
+  "diff": [
+   "-        ~PromptVersion.id.in_(keep_ids),",
+   "+        PromptVersion.id.in_(keep_ids),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_3": {
+  "func": "_cleanup_old_versions",
+  "num": 3,
+  "diff": [
+   "-        select(func.count()).select_from(PromptVersion).where(PromptVersion.model == model)",
+   "+        select(func.count()).select_from(PromptVersion).where(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_32": {
+  "func": "_cleanup_old_versions",
+  "num": 32,
+  "diff": [
+   "-delete_result = await session.execute(delete_query)",
+   "+delete_result = await session.execute(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_36": {
+  "func": "_cleanup_old_versions",
+  "num": 36,
+  "diff": [
+   "-        logger.info(f\"Cleaned up {len(old_versions)} old versions for model {model.value}\")",
+   "+        logger.info(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_5": {
+  "func": "_cleanup_old_versions",
+  "num": 5,
+  "diff": [
+   "-        select(func.count()).select_from(PromptVersion).where(PromptVersion.model == model)",
+   "+        select(None).select_from(PromptVersion).where(PromptVersion.model == model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_6": {
+  "func": "_cleanup_old_versions",
+  "num": 6,
+  "diff": [
+   "-        select(func.count()).select_from(PromptVersion).where(PromptVersion.model == model)",
+   "+        select(func.count()).select_from(PromptVersion).where(PromptVersion.model != model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_cleanup_old_versions__mutmut_9": {
+  "func": "_cleanup_old_versions",
+  "num": 9,
+  "diff": [
+   "-total = count_result.scalar() or 0",
+   "+total = count_result.scalar() or 1"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_deactivate_current_version__mutmut_2": {
+  "func": "_deactivate_current_version",
+  "num": 2,
+  "diff": [
+   "-current = await self.get_active_version(session, model)",
+   "+current = await self.get_active_version(None, model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_deactivate_current_version__mutmut_3": {
+  "func": "_deactivate_current_version",
+  "num": 3,
+  "diff": [
+   "-current = await self.get_active_version(session, model)",
+   "+current = await self.get_active_version(session, None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_deactivate_current_version__mutmut_4": {
+  "func": "_deactivate_current_version",
+  "num": 4,
+  "diff": [
+   "-current = await self.get_active_version(session, model)",
+   "+current = await self.get_active_version(model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1_deactivate_current_version__mutmut_5": {
+  "func": "_deactivate_current_version",
+  "num": 5,
+  "diff": [
+   "-current = await self.get_active_version(session, model)",
+   "+current = await self.get_active_version(session, )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_1": {
+  "func": "create_version",
+  "num": 1,
+  "diff": [
+   "-next_version = await self.get_next_version_number(session, model)",
+   "+next_version = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_10": {
+  "func": "create_version",
+  "num": 10,
+  "diff": [
+   "-version = PromptVersion(",
+   "-        model=model,",
+   "-        version=next_version,",
+   "-        config_json=json.dumps(config, indent=2),",
+   "-        created_at=utc_now(),",
+   "-        created_by=created_by,",
+   "-        change_description=change_description,",
+   "-        is_active=make_active,",
+   "-    )",
+   "+version = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_11": {
+  "func": "create_version",
+  "num": 11,
+  "diff": [
+   "-        model=model,",
+   "+        model=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_12": {
+  "func": "create_version",
+  "num": 12,
+  "diff": [
+   "-        version=next_version,",
+   "+        version=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_13": {
+  "func": "create_version",
+  "num": 13,
+  "diff": [
+   "-        config_json=json.dumps(config, indent=2),",
+   "+        config_json=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_14": {
+  "func": "create_version",
+  "num": 14,
+  "diff": [
+   "-        created_at=utc_now(),",
+   "+        created_at=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_15": {
+  "func": "create_version",
+  "num": 15,
+  "diff": [
+   "-        created_by=created_by,",
+   "+        created_by=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_16": {
+  "func": "create_version",
+  "num": 16,
+  "diff": [
+   "-        change_description=change_description,",
+   "+        change_description=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_17": {
+  "func": "create_version",
+  "num": 17,
+  "diff": [
+   "-        is_active=make_active,",
+   "+        is_active=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_18": {
+  "func": "create_version",
+  "num": 18,
+  "diff": [
+   "-        model=model,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_19": {
+  "func": "create_version",
+  "num": 19,
+  "diff": [
+   "-        version=next_version,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_20": {
+  "func": "create_version",
+  "num": 20,
+  "diff": [
+   "-        config_json=json.dumps(config, indent=2),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_21": {
+  "func": "create_version",
+  "num": 21,
+  "diff": [
+   "-        created_at=utc_now(),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_22": {
+  "func": "create_version",
+  "num": 22,
+  "diff": [
+   "-        created_by=created_by,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_23": {
+  "func": "create_version",
+  "num": 23,
+  "diff": [
+   "-        change_description=change_description,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_24": {
+  "func": "create_version",
+  "num": 24,
+  "diff": [
+   "-        is_active=make_active,",
+   "-    )",
+   "+        )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_25": {
+  "func": "create_version",
+  "num": 25,
+  "diff": [
+   "-        config_json=json.dumps(config, indent=2),",
+   "+        config_json=json.dumps(None, indent=2),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_26": {
+  "func": "create_version",
+  "num": 26,
+  "diff": [
+   "-        config_json=json.dumps(config, indent=2),",
+   "+        config_json=json.dumps(config, indent=None),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_28": {
+  "func": "create_version",
+  "num": 28,
+  "diff": [
+   "-        config_json=json.dumps(config, indent=2),",
+   "+        config_json=json.dumps(config, ),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_29": {
+  "func": "create_version",
+  "num": 29,
+  "diff": [
+   "-        config_json=json.dumps(config, indent=2),",
+   "+        config_json=json.dumps(config, indent=3),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_3": {
+  "func": "create_version",
+  "num": 3,
+  "diff": [
+   "-next_version = await self.get_next_version_number(session, model)",
+   "+next_version = await self.get_next_version_number(session, None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_30": {
+  "func": "create_version",
+  "num": 30,
+  "diff": [
+   "-session.add(version)",
+   "+session.add(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_31": {
+  "func": "create_version",
+  "num": 31,
+  "diff": [
+   "-await self._cleanup_old_versions(session, model)",
+   "+await self._cleanup_old_versions(None, model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_32": {
+  "func": "create_version",
+  "num": 32,
+  "diff": [
+   "-await self._cleanup_old_versions(session, model)",
+   "+await self._cleanup_old_versions(session, None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_33": {
+  "func": "create_version",
+  "num": 33,
+  "diff": [
+   "-await self._cleanup_old_versions(session, model)",
+   "+await self._cleanup_old_versions(model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_34": {
+  "func": "create_version",
+  "num": 34,
+  "diff": [
+   "-await self._cleanup_old_versions(session, model)",
+   "+await self._cleanup_old_versions(session, )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_35": {
+  "func": "create_version",
+  "num": 35,
+  "diff": [
+   "-await session.refresh(version)",
+   "+await session.refresh(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_36": {
+  "func": "create_version",
+  "num": 36,
+  "diff": [
+   "-logger.info(f\"Created version {next_version} for model {model.value}, active={make_active}\")",
+   "+logger.info(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_6": {
+  "func": "create_version",
+  "num": 6,
+  "diff": [
+   "-        await self._deactivate_current_version(session, model)",
+   "+        await self._deactivate_current_version(None, model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_7": {
+  "func": "create_version",
+  "num": 7,
+  "diff": [
+   "-        await self._deactivate_current_version(session, model)",
+   "+        await self._deactivate_current_version(session, None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_8": {
+  "func": "create_version",
+  "num": 8,
+  "diff": [
+   "-        await self._deactivate_current_version(session, model)",
+   "+        await self._deactivate_current_version(model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1create_version__mutmut_9": {
+  "func": "create_version",
+  "num": 9,
+  "diff": [
+   "-        await self._deactivate_current_version(session, model)",
+   "+        await self._deactivate_current_version(session, )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_10": {
+  "func": "get_active_version",
+  "num": 10,
+  "diff": [
+   "-            PromptVersion.is_active == True,  # noqa: E712",
+   "+            PromptVersion.is_active == False,  # noqa: E712"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_2": {
+  "func": "get_active_version",
+  "num": 2,
+  "diff": [
+   "-        select(PromptVersion).where(",
+   "-            PromptVersion.model == model,",
+   "-            PromptVersion.is_active == True,  # noqa: E712",
+   "-        )",
+   "+        None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_3": {
+  "func": "get_active_version",
+  "num": 3,
+  "diff": [
+   "-            PromptVersion.model == model,",
+   "+            None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_4": {
+  "func": "get_active_version",
+  "num": 4,
+  "diff": [
+   "-            PromptVersion.is_active == True,  # noqa: E712",
+   "+            None,  # noqa: E712"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_5": {
+  "func": "get_active_version",
+  "num": 5,
+  "diff": [
+   "-            PromptVersion.model == model,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_6": {
+  "func": "get_active_version",
+  "num": 6,
+  "diff": [
+   "-            PromptVersion.is_active == True,  # noqa: E712",
+   "-        )",
+   "+            )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_7": {
+  "func": "get_active_version",
+  "num": 7,
+  "diff": [
+   "-        select(PromptVersion).where(",
+   "+        select(None).where("
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_8": {
+  "func": "get_active_version",
+  "num": 8,
+  "diff": [
+   "-            PromptVersion.model == model,",
+   "+            PromptVersion.model != model,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_active_version__mutmut_9": {
+  "func": "get_active_version",
+  "num": 9,
+  "diff": [
+   "-            PromptVersion.is_active == True,  # noqa: E712",
+   "+            PromptVersion.is_active != True,  # noqa: E712"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_by_id__mutmut_2": {
+  "func": "get_version_by_id",
+  "num": 2,
+  "diff": [
+   "-result = await session.execute(select(PromptVersion).where(PromptVersion.id == version_id))",
+   "+result = await session.execute(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_by_id__mutmut_3": {
+  "func": "get_version_by_id",
+  "num": 3,
+  "diff": [
+   "-result = await session.execute(select(PromptVersion).where(PromptVersion.id == version_id))",
+   "+result = await session.execute(select(PromptVersion).where(None))"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_by_id__mutmut_4": {
+  "func": "get_version_by_id",
+  "num": 4,
+  "diff": [
+   "-result = await session.execute(select(PromptVersion).where(PromptVersion.id == version_id))",
+   "+result = await session.execute(select(None).where(PromptVersion.id == version_id))"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_by_id__mutmut_5": {
+  "func": "get_version_by_id",
+  "num": 5,
+  "diff": [
+   "-result = await session.execute(select(PromptVersion).where(PromptVersion.id == version_id))",
+   "+result = await session.execute(select(PromptVersion).where(PromptVersion.id != version_id))"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_10": {
+  "func": "get_version_diff",
+  "num": 10,
+  "diff": [
+   "-version_b = await self.get_version_by_id(session, version_id_b)",
+   "+version_b = await self.get_version_by_id(session, )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_2": {
+  "func": "get_version_diff",
+  "num": 2,
+  "diff": [
+   "-version_a = await self.get_version_by_id(session, version_id_a)",
+   "+version_a = await self.get_version_by_id(None, version_id_a)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_21": {
+  "func": "get_version_diff",
+  "num": 21,
+  "diff": [
+   "-model_a = version_a.model.value if isinstance(version_a.model, AIModel) else version_a.model",
+   "+model_a = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_22": {
+  "func": "get_version_diff",
+  "num": 22,
+  "diff": [
+   "-model_a = version_a.model.value if isinstance(version_a.model, AIModel) else version_a.model",
+   "+model_a = version_a.model.value if (isinstance(version_a.model, AIModel)) and False else version_a.model"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_23": {
+  "func": "get_version_diff",
+  "num": 23,
+  "diff": [
+   "-model_a = version_a.model.value if isinstance(version_a.model, AIModel) else version_a.model",
+   "+model_a = version_a.model.value if (isinstance(version_a.model, AIModel)) or True else version_a.model"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_24": {
+  "func": "get_version_diff",
+  "num": 24,
+  "diff": [
+   "-model_b = version_b.model.value if isinstance(version_b.model, AIModel) else version_b.model",
+   "+model_b = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_25": {
+  "func": "get_version_diff",
+  "num": 25,
+  "diff": [
+   "-model_b = version_b.model.value if isinstance(version_b.model, AIModel) else version_b.model",
+   "+model_b = version_b.model.value if (isinstance(version_b.model, AIModel)) and False else version_b.model"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_26": {
+  "func": "get_version_diff",
+  "num": 26,
+  "diff": [
+   "-model_b = version_b.model.value if isinstance(version_b.model, AIModel) else version_b.model",
+   "+model_b = version_b.model.value if (isinstance(version_b.model, AIModel)) or True else version_b.model"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_3": {
+  "func": "get_version_diff",
+  "num": 3,
+  "diff": [
+   "-version_a = await self.get_version_by_id(session, version_id_a)",
+   "+version_a = await self.get_version_by_id(session, None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_31": {
+  "func": "get_version_diff",
+  "num": 31,
+  "diff": [
+   "-            \"version\": version_a.version,",
+   "+            \"XXversionXX\": version_a.version,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_32": {
+  "func": "get_version_diff",
+  "num": 32,
+  "diff": [
+   "-            \"version\": version_a.version,",
+   "+            \"VERSION\": version_a.version,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_33": {
+  "func": "get_version_diff",
+  "num": 33,
+  "diff": [
+   "-            \"model\": model_a,",
+   "+            \"XXmodelXX\": model_a,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_34": {
+  "func": "get_version_diff",
+  "num": 34,
+  "diff": [
+   "-            \"model\": model_a,",
+   "+            \"MODEL\": model_a,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_35": {
+  "func": "get_version_diff",
+  "num": 35,
+  "diff": [
+   "-            \"created_at\": version_a.created_at.isoformat(),",
+   "+            \"XXcreated_atXX\": version_a.created_at.isoformat(),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_36": {
+  "func": "get_version_diff",
+  "num": 36,
+  "diff": [
+   "-            \"created_at\": version_a.created_at.isoformat(),",
+   "+            \"CREATED_AT\": version_a.created_at.isoformat(),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_4": {
+  "func": "get_version_diff",
+  "num": 4,
+  "diff": [
+   "-version_a = await self.get_version_by_id(session, version_id_a)",
+   "+version_a = await self.get_version_by_id(version_id_a)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_41": {
+  "func": "get_version_diff",
+  "num": 41,
+  "diff": [
+   "-            \"version\": version_b.version,",
+   "+            \"XXversionXX\": version_b.version,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_42": {
+  "func": "get_version_diff",
+  "num": 42,
+  "diff": [
+   "-            \"version\": version_b.version,",
+   "+            \"VERSION\": version_b.version,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_43": {
+  "func": "get_version_diff",
+  "num": 43,
+  "diff": [
+   "-            \"model\": model_b,",
+   "+            \"XXmodelXX\": model_b,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_44": {
+  "func": "get_version_diff",
+  "num": 44,
+  "diff": [
+   "-            \"model\": model_b,",
+   "+            \"MODEL\": model_b,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_45": {
+  "func": "get_version_diff",
+  "num": 45,
+  "diff": [
+   "-            \"created_at\": version_b.created_at.isoformat(),",
+   "+            \"XXcreated_atXX\": version_b.created_at.isoformat(),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_46": {
+  "func": "get_version_diff",
+  "num": 46,
+  "diff": [
+   "-            \"created_at\": version_b.created_at.isoformat(),",
+   "+            \"CREATED_AT\": version_b.created_at.isoformat(),"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_5": {
+  "func": "get_version_diff",
+  "num": 5,
+  "diff": [
+   "-version_a = await self.get_version_by_id(session, version_id_a)",
+   "+version_a = await self.get_version_by_id(session, )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_7": {
+  "func": "get_version_diff",
+  "num": 7,
+  "diff": [
+   "-version_b = await self.get_version_by_id(session, version_id_b)",
+   "+version_b = await self.get_version_by_id(None, version_id_b)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_8": {
+  "func": "get_version_diff",
+  "num": 8,
+  "diff": [
+   "-version_b = await self.get_version_by_id(session, version_id_b)",
+   "+version_b = await self.get_version_by_id(session, None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_diff__mutmut_9": {
+  "func": "get_version_diff",
+  "num": 9,
+  "diff": [
+   "-version_b = await self.get_version_by_id(session, version_id_b)",
+   "+version_b = await self.get_version_by_id(version_id_b)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_10": {
+  "func": "get_version_history",
+  "num": 10,
+  "diff": [
+   "-        count_query = count_query.where(PromptVersion.model == model)",
+   "+        count_query = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_11": {
+  "func": "get_version_history",
+  "num": 11,
+  "diff": [
+   "-        count_query = count_query.where(PromptVersion.model == model)",
+   "+        count_query = count_query.where(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_12": {
+  "func": "get_version_history",
+  "num": 12,
+  "diff": [
+   "-        count_query = count_query.where(PromptVersion.model == model)",
+   "+        count_query = count_query.where(PromptVersion.model != model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_14": {
+  "func": "get_version_history",
+  "num": 14,
+  "diff": [
+   "-count_result = await session.execute(count_query)",
+   "+count_result = await session.execute(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_17": {
+  "func": "get_version_history",
+  "num": 17,
+  "diff": [
+   "-total_count = count_result.scalar() or 0",
+   "+total_count = count_result.scalar() or 1"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_18": {
+  "func": "get_version_history",
+  "num": 18,
+  "diff": [
+   "-query = query.order_by(desc(PromptVersion.created_at)).limit(limit).offset(offset)",
+   "+query = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_19": {
+  "func": "get_version_history",
+  "num": 19,
+  "diff": [
+   "-query = query.order_by(desc(PromptVersion.created_at)).limit(limit).offset(offset)",
+   "+query = query.order_by(desc(PromptVersion.created_at)).limit(limit).offset(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_2": {
+  "func": "get_version_history",
+  "num": 2,
+  "diff": [
+   "-query = select(PromptVersion)",
+   "+query = select(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_20": {
+  "func": "get_version_history",
+  "num": 20,
+  "diff": [
+   "-query = query.order_by(desc(PromptVersion.created_at)).limit(limit).offset(offset)",
+   "+query = query.order_by(desc(PromptVersion.created_at)).limit(None).offset(offset)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_21": {
+  "func": "get_version_history",
+  "num": 21,
+  "diff": [
+   "-query = query.order_by(desc(PromptVersion.created_at)).limit(limit).offset(offset)",
+   "+query = query.order_by(None).limit(limit).offset(offset)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_22": {
+  "func": "get_version_history",
+  "num": 22,
+  "diff": [
+   "-query = query.order_by(desc(PromptVersion.created_at)).limit(limit).offset(offset)",
+   "+query = query.order_by(desc(None)).limit(limit).offset(offset)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_24": {
+  "func": "get_version_history",
+  "num": 24,
+  "diff": [
+   "-result = await session.execute(query)",
+   "+result = await session.execute(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_5": {
+  "func": "get_version_history",
+  "num": 5,
+  "diff": [
+   "-count_query = select(func.count()).select_from(PromptVersion)",
+   "+count_query = select(None).select_from(PromptVersion)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_6": {
+  "func": "get_version_history",
+  "num": 6,
+  "diff": [
+   "-if model is not None:",
+   "+if model is None:"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_8": {
+  "func": "get_version_history",
+  "num": 8,
+  "diff": [
+   "-        query = query.where(PromptVersion.model == model)",
+   "+        query = query.where(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1get_version_history__mutmut_9": {
+  "func": "get_version_history",
+  "num": 9,
+  "diff": [
+   "-        query = query.where(PromptVersion.model == model)",
+   "+        query = query.where(PromptVersion.model != model)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_12": {
+  "func": "restore_version",
+  "num": 12,
+  "diff": [
+   "-        if isinstance(old_version.model, AIModel)",
+   "+        if (isinstance(old_version.model, AIModel)) and False"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_13": {
+  "func": "restore_version",
+  "num": 13,
+  "diff": [
+   "-        if isinstance(old_version.model, AIModel)",
+   "+        if (isinstance(old_version.model, AIModel)) or True"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_15": {
+  "func": "restore_version",
+  "num": 15,
+  "diff": [
+   "-        session=session,",
+   "+        session=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_20": {
+  "func": "restore_version",
+  "num": 20,
+  "diff": [
+   "-        make_active=True,",
+   "+        make_active=None,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_21": {
+  "func": "restore_version",
+  "num": 21,
+  "diff": [
+   "-        session=session,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_26": {
+  "func": "restore_version",
+  "num": 26,
+  "diff": [
+   "-        make_active=True,",
+   "-    )",
+   "+        )"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_27": {
+  "func": "restore_version",
+  "num": 27,
+  "diff": [
+   "-        make_active=True,",
+   "+        make_active=False,"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_28": {
+  "func": "restore_version",
+  "num": 28,
+  "diff": [
+   "-model_value = model_enum.value if isinstance(model_enum, AIModel) else str(model_enum)",
+   "+model_value = None"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_29": {
+  "func": "restore_version",
+  "num": 29,
+  "diff": [
+   "-model_value = model_enum.value if isinstance(model_enum, AIModel) else str(model_enum)",
+   "+model_value = model_enum.value if (isinstance(model_enum, AIModel)) and False else str(model_enum)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_30": {
+  "func": "restore_version",
+  "num": 30,
+  "diff": [
+   "-model_value = model_enum.value if isinstance(model_enum, AIModel) else str(model_enum)",
+   "+model_value = model_enum.value if (isinstance(model_enum, AIModel)) or True else str(model_enum)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_31": {
+  "func": "restore_version",
+  "num": 31,
+  "diff": [
+   "-model_value = model_enum.value if isinstance(model_enum, AIModel) else str(model_enum)",
+   "+model_value = model_enum.value if isinstance(model_enum, AIModel) else str(None)"
+  ]
+ },
+ "backend.services.prompt_version_service.x\u01c1PromptVersionService\u01c1restore_version__mutmut_32": {
+  "func": "restore_version",
+  "num": 32,
+  "diff": [
+   "-        f\"Restored version {old_version.version} to new version \"",
+   "-        f\"{new_version.version} for model {model_value}\"",
+   "+        None"
+  ]
+ }
+}

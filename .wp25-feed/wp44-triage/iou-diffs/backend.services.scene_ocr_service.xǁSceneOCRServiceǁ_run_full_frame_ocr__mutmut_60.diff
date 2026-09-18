@@ -2,7 +2,7 @@
 --- backend/services/scene_ocr_service.py
 +++ backend/services/scene_ocr_service.py
 @@ -48,7 +48,7 @@
-
+ 
              results.append(
                  RawOCRResult(
 -                    text=item.get("text", ""),

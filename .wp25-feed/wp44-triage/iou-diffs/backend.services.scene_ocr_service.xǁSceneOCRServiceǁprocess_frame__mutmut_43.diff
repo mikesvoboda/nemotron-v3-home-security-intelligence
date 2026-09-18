@@ -2,7 +2,7 @@
 --- backend/services/scene_ocr_service.py
 +++ backend/services/scene_ocr_service.py
 @@ -62,7 +62,7 @@
-
+ 
          # Also check scene texts for service providers
          for scene_text in result.scene_texts:
 -            match = self.service_matcher.match(scene_text.value)

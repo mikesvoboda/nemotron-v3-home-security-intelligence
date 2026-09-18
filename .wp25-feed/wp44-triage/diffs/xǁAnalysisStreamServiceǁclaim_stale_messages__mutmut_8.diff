@@ -8,5 +8,5 @@
 -            count=count,
 +            count=None,
          )
-
+ 
          claimed_messages = _claimed_entries(result)

@@ -9,3 +9,4 @@
 +            redis_client=None,
              maxlen=settings.queue_max_size,
          )
+ 

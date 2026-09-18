@@ -2,7 +2,7 @@
 --- backend/services/detector_client.py
 +++ backend/services/detector_client.py
 @@ -21,7 +21,6 @@
-
+ 
          # Send detection request - result is not needed, just verify no exception
          await self._send_detection_request(
 -            image_data=image_data,

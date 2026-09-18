@@ -9,6 +9,6 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detect
 -        is_new,
 -    )
 +        )
-
+ 
      # Step 2: Store in Redis for hot cache access
      # Create EntityEmbedding for Reid service

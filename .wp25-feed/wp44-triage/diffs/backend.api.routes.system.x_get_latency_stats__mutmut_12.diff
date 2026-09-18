@@ -7,6 +7,6 @@
              # Get samples from Redis list
 -            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
 +            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 2)
-
+ 
              # Convert to floats, filtering out invalid values
              samples = []

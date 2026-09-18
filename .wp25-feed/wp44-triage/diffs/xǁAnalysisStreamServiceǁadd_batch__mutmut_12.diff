@@ -8,5 +8,5 @@
 -        "timestamp": str(time.time()),
 +        "timestamp": str(None),
      }
-
+ 
      if pipeline_start_time is not None:

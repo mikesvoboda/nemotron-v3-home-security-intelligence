@@ -4,6 +4,6 @@
 @@ -10,4 +10,4 @@
          """
      from backend.services.weather_loader import get_weather_risk_modifier
-
+ 
 -    return get_weather_risk_modifier(self.weather_classification, self._determine_nighttime())
 +    return get_weather_risk_modifier(self.weather_classification, None)

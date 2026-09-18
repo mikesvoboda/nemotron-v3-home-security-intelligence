@@ -3,7 +3,7 @@
 +++ backend/api/routes/detections.py
 @@ -25,7 +25,7 @@
              clothing_response["is_service_uniform"] = cc.get("is_service_uniform")
-
+ 
      if clothing_segmentation:
 -        first_key = next(iter(clothing_segmentation), None)
 +        first_key = next(iter(clothing_segmentation), )

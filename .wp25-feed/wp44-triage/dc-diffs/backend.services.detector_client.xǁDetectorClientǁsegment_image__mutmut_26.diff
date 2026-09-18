@@ -8,5 +8,5 @@
 -            batch_size=1,
 +            batch_size=2,
          )
-
+ 
          for attempt in range(self._max_retries):

@@ -9,3 +9,4 @@
 +                    "severity": "XXcriticalXX" if damage.has_high_security_damage else "warning",
                  }
              )
+ 

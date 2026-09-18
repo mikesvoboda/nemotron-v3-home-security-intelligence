@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -53,7 +53,7 @@
-
+ 
      # Extract pet data using typed model
      pet: PetEnrichmentData | None = None
 -    pet_classifications = enrichment_data.get("pet_classifications", {})

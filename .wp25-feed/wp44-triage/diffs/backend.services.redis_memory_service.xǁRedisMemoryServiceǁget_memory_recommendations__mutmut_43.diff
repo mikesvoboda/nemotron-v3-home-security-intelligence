@@ -3,9 +3,9 @@
 +++ backend/services/redis_memory_service.py
 @@ -58,6 +58,6 @@
              )
-
+ 
      if not recommendations:
 -        recommendations.append("Redis memory configuration looks healthy.")
 +        recommendations.append("redis memory configuration looks healthy.")
-
+ 
      return recommendations

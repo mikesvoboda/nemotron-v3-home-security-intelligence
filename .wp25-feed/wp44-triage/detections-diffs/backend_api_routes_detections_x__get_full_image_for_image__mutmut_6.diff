@@ -8,5 +8,5 @@
 -        with open(file_path, "rb") as f:
 +        with open(file_path, "RB") as f:
              image_data = f.read()
-
+ 
          return Response(

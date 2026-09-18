@@ -2,7 +2,7 @@
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
 @@ -53,7 +53,7 @@
-
+ 
      logger.info(
          f"Model zoo initialised from models.yml: "
 -        f"{sum(1 for c in result.values() if c.enabled)} enabled, "
@@ -64,7 +64,7 @@
 -            preload=bool(m.get("preload", False)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_48: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -75,7 +75,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 -        )
 +            )
-
+ 
      logger.info(
          f"Model zoo initialised from models.yml: "
 # backend.services.model_zoo.x__init_model_zoo__mutmut_50: survived
@@ -317,7 +317,7 @@
 +            preload=bool(None),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_84: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -329,7 +329,7 @@
 +            preload=bool(m.get(None, False)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_85: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -341,7 +341,7 @@
 +            preload=bool(m.get("preload", None)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_86: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -353,7 +353,7 @@
 +            preload=bool(m.get(False)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_87: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -365,7 +365,7 @@
 +            preload=bool(m.get("preload", )),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_88: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -377,7 +377,7 @@
 +            preload=bool(m.get("XXpreloadXX", False)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_89: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -389,7 +389,7 @@
 +            preload=bool(m.get("PRELOAD", False)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_90: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -401,7 +401,7 @@
 +            preload=bool(m.get("preload", True)),
              never_evict=bool(m.get("never_evict", False)),
          )
-
+ 
 # backend.services.model_zoo.x__init_model_zoo__mutmut_91: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
@@ -412,7 +412,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(None),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_92: survived
 --- backend/services/model_zoo.py
@@ -424,7 +424,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get(None, False)),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_93: survived
 --- backend/services/model_zoo.py
@@ -436,7 +436,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get("never_evict", None)),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_94: survived
 --- backend/services/model_zoo.py
@@ -448,7 +448,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get(False)),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_95: survived
 --- backend/services/model_zoo.py
@@ -460,7 +460,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get("never_evict", )),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_96: survived
 --- backend/services/model_zoo.py
@@ -472,7 +472,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get("XXnever_evictXX", False)),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_97: survived
 --- backend/services/model_zoo.py
@@ -484,7 +484,7 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get("NEVER_EVICT", False)),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_98: survived
 --- backend/services/model_zoo.py
@@ -496,14 +496,14 @@
 -            never_evict=bool(m.get("never_evict", False)),
 +            never_evict=bool(m.get("never_evict", True)),
          )
-
+ 
      logger.info(
 # backend.services.model_zoo.x__init_model_zoo__mutmut_99: survived
 --- backend/services/model_zoo.py
 +++ backend/services/model_zoo.py
 @@ -52,8 +52,6 @@
          )
-
+ 
      logger.info(
 -        f"Model zoo initialised from models.yml: "
 -        f"{sum(1 for c in result.values() if c.enabled)} enabled, "

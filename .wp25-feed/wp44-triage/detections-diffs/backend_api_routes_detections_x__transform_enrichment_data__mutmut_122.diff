@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -58,7 +58,7 @@
-
+ 
      # Extract violence data
      violence_data = enrichment_data.get("violence_detection")
 -    violence_response: dict[str, Any] = {"detected": False, "score": 0.0}

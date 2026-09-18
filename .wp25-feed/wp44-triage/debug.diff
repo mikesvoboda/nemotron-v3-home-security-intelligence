@@ -4,7 +4,7 @@
 +++ backend/api/routes/debug.py
 @@ -17,15 +17,7 @@
          info = await redis.info()
-
+ 
          # Extract relevant info
 -        info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -16,7 +16,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 -        }
 +        info_dict = None
-
+ 
          # Get pub/sub info
          try:
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_6 =====
@@ -24,7 +24,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -37,7 +37,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -50,7 +50,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -63,7 +63,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -76,7 +76,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -89,7 +89,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -102,7 +102,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -115,7 +115,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -128,7 +128,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -141,7 +141,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -18,7 +18,7 @@
-
+ 
          # Extract relevant info
          info_dict = {
 -            "redis_version": info.get("redis_version", "unknown"),
@@ -655,7 +655,7 @@
 +            "XXtotal_commands_processedXX": info.get("total_commands_processed", 0),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_55 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_55: survived
 --- backend/api/routes/debug.py
@@ -668,7 +668,7 @@
 +            "TOTAL_COMMANDS_PROCESSED": info.get("total_commands_processed", 0),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_56 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_56: survived
 --- backend/api/routes/debug.py
@@ -681,7 +681,7 @@
 +            "total_commands_processed": info.get(None, 0),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_57 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_57: survived
 --- backend/api/routes/debug.py
@@ -694,7 +694,7 @@
 +            "total_commands_processed": info.get("total_commands_processed", None),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_58 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_58: survived
 --- backend/api/routes/debug.py
@@ -707,7 +707,7 @@
 +            "total_commands_processed": info.get(0),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_59 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_59: survived
 --- backend/api/routes/debug.py
@@ -720,7 +720,7 @@
 +            "total_commands_processed": info.get("total_commands_processed", ),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_60 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_60: survived
 --- backend/api/routes/debug.py
@@ -733,7 +733,7 @@
 +            "total_commands_processed": info.get("XXtotal_commands_processedXX", 0),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_61 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_61: survived
 --- backend/api/routes/debug.py
@@ -746,7 +746,7 @@
 +            "total_commands_processed": info.get("TOTAL_COMMANDS_PROCESSED", 0),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_62 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_62: survived
 --- backend/api/routes/debug.py
@@ -759,7 +759,7 @@
 +            "total_commands_processed": info.get("total_commands_processed", 1),
              "uptime_in_seconds": info.get("uptime_in_seconds", 0),
          }
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_63 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_63: survived
 --- backend/api/routes/debug.py
@@ -771,7 +771,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "XXuptime_in_secondsXX": info.get("uptime_in_seconds", 0),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_64 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_64: survived
@@ -784,7 +784,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "UPTIME_IN_SECONDS": info.get("uptime_in_seconds", 0),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_65 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_65: survived
@@ -797,7 +797,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get(None, 0),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_66 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_66: survived
@@ -810,7 +810,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get("uptime_in_seconds", None),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_67 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_67: survived
@@ -823,7 +823,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get(0),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_68 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_68: survived
@@ -836,7 +836,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get("uptime_in_seconds", ),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_69 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_69: survived
@@ -849,7 +849,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get("XXuptime_in_secondsXX", 0),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_70 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_70: survived
@@ -862,7 +862,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get("UPTIME_IN_SECONDS", 0),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_71 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_71: survived
@@ -875,7 +875,7 @@
 -            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
 +            "uptime_in_seconds": info.get("uptime_in_seconds", 1),
          }
-
+ 
          # Get pub/sub info
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_74 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_74: survived
@@ -887,7 +887,7 @@
              channels = await redis.pubsub_channels()
 -            channel_names = [c.decode() if isinstance(c, bytes) else c for c in channels]
 +            channel_names = [c.decode() if (isinstance(c, bytes)) and False else c for c in channels]
-
+ 
              # Get subscriber counts for each channel
              if channel_names:
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_77 =====
@@ -902,7 +902,7 @@
 +                channel_counts = None
              else:
                  channel_counts = {}
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_78 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_78: survived
 --- backend/api/routes/debug.py
@@ -915,13 +915,13 @@
 +                channel_counts = {(k.decode() if (isinstance(k, bytes)) and False else k): v for k, v in numsub}
              else:
                  channel_counts = {}
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_83 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_83: survived
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -41,7 +41,7 @@
-
+ 
              pubsub_dict = {
                  "channels": channel_names,
 -                "subscriber_counts": channel_counts,
@@ -934,7 +934,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -41,7 +41,7 @@
-
+ 
              pubsub_dict = {
                  "channels": channel_names,
 -                "subscriber_counts": channel_counts,
@@ -953,7 +953,7 @@
 -            logger.warning(f"Failed to get pub/sub info: {e}")
 +            logger.warning(None)
              pubsub_dict = {"channels": [], "subscriber_counts": {}}
-
+ 
          return "connected", info_dict, pubsub_dict
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_89 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_89: survived
@@ -965,9 +965,9 @@
              logger.warning(f"Failed to get pub/sub info: {e}")
 -            pubsub_dict = {"channels": [], "subscriber_counts": {}}
 +            pubsub_dict = {"channels": [], "XXsubscriber_countsXX": {}}
-
+ 
          return "connected", info_dict, pubsub_dict
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_90 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_90: survived
 --- backend/api/routes/debug.py
@@ -978,9 +978,9 @@
              logger.warning(f"Failed to get pub/sub info: {e}")
 -            pubsub_dict = {"channels": [], "subscriber_counts": {}}
 +            pubsub_dict = {"channels": [], "SUBSCRIBER_COUNTS": {}}
-
+ 
          return "connected", info_dict, pubsub_dict
-
+ 
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_91 =====
 # backend.api.routes.debug.x__get_redis_info__mutmut_91: survived
 --- backend/api/routes/debug.py
@@ -988,10 +988,10 @@
 @@ -47,7 +47,7 @@
              logger.warning(f"Failed to get pub/sub info: {e}")
              pubsub_dict = {"channels": [], "subscriber_counts": {}}
-
+ 
 -        return "connected", info_dict, pubsub_dict
 +        return "XXconnectedXX", info_dict, pubsub_dict
-
+ 
      except Exception as e:
          logger.warning(f"Failed to get Redis info: {e}")
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_92 =====
@@ -1001,10 +1001,10 @@
 @@ -47,7 +47,7 @@
              logger.warning(f"Failed to get pub/sub info: {e}")
              pubsub_dict = {"channels": [], "subscriber_counts": {}}
-
+ 
 -        return "connected", info_dict, pubsub_dict
 +        return "CONNECTED", info_dict, pubsub_dict
-
+ 
      except Exception as e:
          logger.warning(f"Failed to get Redis info: {e}")
 ===== backend.api.routes.debug.x__get_redis_info__mutmut_93 =====
@@ -1013,7 +1013,7 @@
 +++ backend/api/routes/debug.py
 @@ -50,5 +50,5 @@
          return "connected", info_dict, pubsub_dict
-
+ 
      except Exception as e:
 -        logger.warning(f"Failed to get Redis info: {e}")
 +        logger.warning(None)
@@ -1023,7 +1023,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -51,4 +51,4 @@
-
+ 
      except Exception as e:
          logger.warning(f"Failed to get Redis info: {e}")
 -        return "error", {"error": str(e)}, None
@@ -1039,7 +1039,7 @@
 -            channel_name=None,
 -        )
 +            )
-
+ 
      # System broadcaster status
      if system_broadcaster is not None:
 ===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_12 =====
@@ -1093,7 +1093,7 @@
 +            circuit_state="XXUNKNOWNXX",
              channel_name=None,
          )
-
+ 
 ===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_16 =====
 # backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_16: survived
 --- backend/api/routes/debug.py
@@ -1106,7 +1106,7 @@
 +            circuit_state="unknown",
              channel_name=None,
          )
-
+ 
 ===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_27 =====
 # backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_27: survived
 --- backend/api/routes/debug.py
@@ -1118,7 +1118,7 @@
 -            channel_name=None,
 -        )
 +            )
-
+ 
      return event_status, system_status
 ===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_28 =====
 # backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_28: survived
@@ -1171,7 +1171,7 @@
 +            circuit_state="XXUNKNOWNXX",
              channel_name=None,
          )
-
+ 
 ===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_32 =====
 # backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_32: survived
 --- backend/api/routes/debug.py
@@ -1184,7 +1184,7 @@
 +            circuit_state="unknown",
              channel_name=None,
          )
-
+ 
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_4 =====
 # backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_4: survived
 --- backend/api/routes/debug.py
@@ -1204,11 +1204,11 @@
 +++ backend/api/routes/debug.py
 @@ -29,7 +29,7 @@
          }
-
+ 
          # Push to head of list (newest first)
 -        await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
 +        await redis.lpush(None, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
          await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_16 =====
@@ -1217,11 +1217,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(None, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_17 =====
@@ -1230,11 +1230,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, None, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_18 =====
@@ -1243,11 +1243,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, None)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_19 =====
@@ -1256,11 +1256,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(0, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_20 =====
@@ -1269,11 +1269,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_21 =====
@@ -1282,11 +1282,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, )
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_22 =====
@@ -1295,11 +1295,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, 1, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_23 =====
@@ -1308,11 +1308,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE + 1)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_24 =====
@@ -1321,11 +1321,11 @@
 +++ backend/api/routes/debug.py
 @@ -32,7 +32,7 @@
          await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
-
+ 
          # Trim to max size to prevent unbounded growth
 -        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
 +        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 2)
-
+ 
          # Set/refresh TTL on the list
          await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_25 =====
@@ -1334,11 +1334,11 @@
 +++ backend/api/routes/debug.py
 @@ -35,7 +35,7 @@
          await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
 -        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 +        await redis.expire(None, PIPELINE_ERRORS_TTL_SECONDS)
-
+ 
          return True
      except Exception as e:
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_26 =====
@@ -1347,11 +1347,11 @@
 +++ backend/api/routes/debug.py
 @@ -35,7 +35,7 @@
          await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
 -        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 +        await redis.expire(PIPELINE_ERRORS_KEY, None)
-
+ 
          return True
      except Exception as e:
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_27 =====
@@ -1360,11 +1360,11 @@
 +++ backend/api/routes/debug.py
 @@ -35,7 +35,7 @@
          await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
 -        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 +        await redis.expire(PIPELINE_ERRORS_TTL_SECONDS)
-
+ 
          return True
      except Exception as e:
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_28 =====
@@ -1373,11 +1373,11 @@
 +++ backend/api/routes/debug.py
 @@ -35,7 +35,7 @@
          await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
-
+ 
          # Set/refresh TTL on the list
 -        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
 +        await redis.expire(PIPELINE_ERRORS_KEY, )
-
+ 
          return True
      except Exception as e:
 ===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_30 =====
@@ -1385,7 +1385,7 @@
 --- backend/api/routes/debug.py
 +++ backend/api/routes/debug.py
 @@ -39,5 +39,5 @@
-
+ 
          return True
      except Exception as e:
 -        logger.warning(f"Failed to record pipeline error to Redis: {e}")

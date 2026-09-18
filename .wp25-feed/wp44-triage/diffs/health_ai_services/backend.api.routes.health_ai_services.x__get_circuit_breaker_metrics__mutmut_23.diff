@@ -2,7 +2,7 @@
 --- backend/api/routes/health_ai_services.py
 +++ backend/api/routes/health_ai_services.py
 @@ -21,7 +21,7 @@
-
+ 
      status = breaker.get_status()
      return {
 -        "failure_count": status.get("failure_count", 0),

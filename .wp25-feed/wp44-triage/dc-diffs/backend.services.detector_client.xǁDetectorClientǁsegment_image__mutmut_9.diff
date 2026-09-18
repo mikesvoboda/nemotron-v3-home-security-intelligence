@@ -2,7 +2,7 @@
 --- backend/services/detector_client.py
 +++ backend/services/detector_client.py
 @@ -39,8 +39,7 @@
-
+ 
      with trace_span(
          f"{self._detector_type}_segmentation_request",
 -        image_size_bytes=len(image_data),

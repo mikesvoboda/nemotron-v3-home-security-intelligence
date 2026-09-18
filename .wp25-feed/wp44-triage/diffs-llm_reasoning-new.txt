@@ -1,46 +1,46 @@
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_10
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["low confidence", "uncertain", "unclear", "XXpossiblyXX", "might be"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_11
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["low confidence", "uncertain", "unclear", "POSSIBLY", "might be"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_12
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "XXmight beXX"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_13
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "MIGHT BE"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_15
 @@ -12,7 +12,7 @@
@@ -50,7 +50,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["XXhigh confidenceXX", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_16
@@ -61,7 +61,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["HIGH CONFIDENCE", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_19
@@ -72,7 +72,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["high confidence", "confident", "XXcertainXX", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_20
@@ -83,7 +83,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["high confidence", "confident", "CERTAIN", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_21
@@ -94,7 +94,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["high confidence", "confident", "certain", "XXclearlyXX", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_22
@@ -105,7 +105,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["high confidence", "confident", "certain", "CLEARLY", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_23
@@ -116,7 +116,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["high confidence", "confident", "certain", "clearly", "XXdefinitelyXX"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_24
@@ -127,7 +127,7 @@
 -    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 +    high_indicators = ["high confidence", "confident", "certain", "clearly", "DEFINITELY"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_26
@@ -137,7 +137,7 @@
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 -    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
 +    medium_indicators = ["XXmoderate confidenceXX", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
          if indicator in content_lower:
 
@@ -148,7 +148,7 @@
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 -    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
 +    medium_indicators = ["MODERATE CONFIDENCE", "likely", "probably", "suggests"]
-
+ 
      for indicator in low_indicators:
          if indicator in content_lower:
 
@@ -159,7 +159,7 @@
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 -    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
 +    medium_indicators = ["moderate confidence", "likely", "XXprobablyXX", "suggests"]
-
+ 
      for indicator in low_indicators:
          if indicator in content_lower:
 
@@ -170,7 +170,7 @@
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 -    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
 +    medium_indicators = ["moderate confidence", "likely", "PROBABLY", "suggests"]
-
+ 
      for indicator in low_indicators:
          if indicator in content_lower:
 
@@ -181,7 +181,7 @@
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 -    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
 +    medium_indicators = ["moderate confidence", "likely", "probably", "XXsuggestsXX"]
-
+ 
      for indicator in low_indicators:
          if indicator in content_lower:
 
@@ -192,53 +192,53 @@
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
 -    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
 +    medium_indicators = ["moderate confidence", "likely", "probably", "SUGGESTS"]
-
+ 
      for indicator in low_indicators:
          if indicator in content_lower:
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_4
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["XXlow confidenceXX", "uncertain", "unclear", "possibly", "might be"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_5
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["LOW CONFIDENCE", "uncertain", "unclear", "possibly", "might be"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_8
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["low confidence", "uncertain", "XXunclearXX", "possibly", "might be"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_9
 @@ -11,7 +11,7 @@
-
+ 
      # Check low indicators FIRST since they are more specific
      # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
 -    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
 +    low_indicators = ["low confidence", "uncertain", "UNCLEAR", "possibly", "might be"]
      high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
      medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
-
+ 
 
 === backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_11
 @@ -29,7 +29,7 @@
@@ -248,7 +248,7 @@
 -            if factor and len(factor) > 3 and factor not in factors:
 +            if factor and len(factor) > 3 or factor not in factors:
                  factors.append(factor)
-
+ 
      # Limit to avoid noise
 
 === backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_12
@@ -259,7 +259,7 @@
 -            if factor and len(factor) > 3 and factor not in factors:
 +            if factor or len(factor) > 3 and factor not in factors:
                  factors.append(factor)
-
+ 
      # Limit to avoid noise
 
 === backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_13
@@ -270,7 +270,7 @@
 -            if factor and len(factor) > 3 and factor not in factors:
 +            if factor and len(factor) >= 3 and factor not in factors:
                  factors.append(factor)
-
+ 
      # Limit to avoid noise
 
 === backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_14
@@ -281,13 +281,13 @@
 -            if factor and len(factor) > 3 and factor not in factors:
 +            if factor and len(factor) > 4 and factor not in factors:
                  factors.append(factor)
-
+ 
      # Limit to avoid noise
 
 === backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_9
 @@ -26,7 +26,7 @@
      ]
-
+ 
      for pattern in patterns:
 -        matches = re.findall(pattern, content, re.IGNORECASE)
 +        matches = re.findall(pattern, content, )
@@ -303,7 +303,7 @@
 -            if factor and factor not in risk_factors:
 +            if factor or factor not in risk_factors:
                  risk_factors.append(factor)
-
+ 
      # Also look for keywords
 
 === backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_13
@@ -313,26 +313,26 @@
              if factor and factor not in risk_factors:
 -                risk_factors.append(factor)
 +                risk_factors.append(None)
-
+ 
      # Also look for keywords
      keywords = [
 
 === backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_17
 @@ -41,7 +41,7 @@
-
+ 
      content_lower = think_content.lower()
      for kw in keywords:
 -        if kw in content_lower and kw not in risk_factors:
 +        if kw in content_lower or kw not in risk_factors:
              risk_factors.append(kw)
-
+ 
      return risk_factors[:10]
 
 === backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_21
 @@ -44,4 +44,4 @@
          if kw in content_lower and kw not in risk_factors:
              risk_factors.append(kw)
-
+ 
 -    return risk_factors[:10]
 +    return risk_factors[:11]
 
@@ -378,7 +378,7 @@
 +                        match_method=match_data.get("method") and match_data.get("match_method"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_103
 @@ -49,7 +49,7 @@
@@ -389,7 +389,7 @@
 +                        match_method=match_data.get(None) or match_data.get("match_method"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_104
 @@ -49,7 +49,7 @@
@@ -400,7 +400,7 @@
 +                        match_method=match_data.get("XXmethodXX") or match_data.get("match_method"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_105
 @@ -49,7 +49,7 @@
@@ -411,7 +411,7 @@
 +                        match_method=match_data.get("METHOD") or match_data.get("match_method"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_106
 @@ -49,7 +49,7 @@
@@ -422,7 +422,7 @@
 +                        match_method=match_data.get("method") or match_data.get(None),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_107
 @@ -49,7 +49,7 @@
@@ -433,7 +433,7 @@
 +                        match_method=match_data.get("method") or match_data.get("XXmatch_methodXX"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_108
 @@ -49,7 +49,7 @@
@@ -444,7 +444,7 @@
 +                        match_method=match_data.get("method") or match_data.get("MATCH_METHOD"),
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_77
 @@ -49,7 +49,7 @@
@@ -455,7 +455,7 @@
 +                        match_method=None,
                      )
                  )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_79
 @@ -45,7 +45,6 @@
@@ -476,7 +476,7 @@
 -                    )
 +                        )
                  )
-
+ 
      return matches
 
 === backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_82
@@ -698,7 +698,7 @@
 +                        )
                  )
          return steps
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_37
 @@ -39,7 +39,7 @@
@@ -709,7 +709,7 @@
 +                confidence_indicator=None,
              )
          )
-
+ 
 
 === backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_40
 @@ -38,7 +38,6 @@
@@ -730,5 +730,6 @@
 -            )
 +                )
          )
-
+ 
      # If still no steps, treat entire content as one step
+

@@ -2,7 +2,7 @@
 --- backend/services/redis_streams.py
 +++ backend/services/redis_streams.py
 @@ -42,12 +42,6 @@
-
+ 
      logger.debug(
          "Added batch to analysis stream",
 -        extra={
@@ -13,5 +13,5 @@
 -        },
 -    )
 +        )
-
+ 
      return message_id

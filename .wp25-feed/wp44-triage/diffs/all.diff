@@ -15,7 +15,7 @@
 +++ backend/services/baseline.py
 @@ -22,11 +22,7 @@
          """
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
 -        stmt = select(ActivityBaseline).where(
 -            ActivityBaseline.camera_id == camera_id,
@@ -25,7 +25,7 @@
 +        stmt = None
          result = await sess.execute(stmt)
          baseline = result.scalar_one_or_none()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_activity_rate__mutmut_4: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -42,7 +42,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -23,7 +23,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
          stmt = select(ActivityBaseline).where(
 -            ActivityBaseline.camera_id == camera_id,
@@ -54,7 +54,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -23,7 +23,6 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
          stmt = select(ActivityBaseline).where(
 -            ActivityBaseline.camera_id == camera_id,
@@ -66,7 +66,7 @@
 +++ backend/services/baseline.py
 @@ -22,7 +22,7 @@
          """
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
 -        stmt = select(ActivityBaseline).where(
 +        stmt = select(None).where(
@@ -85,7 +85,7 @@
 +            )
          result = await sess.execute(stmt)
          baseline = result.scalar_one_or_none()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_activity_rate__mutmut_6: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -101,7 +101,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -23,7 +23,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
          stmt = select(ActivityBaseline).where(
 -            ActivityBaseline.camera_id == camera_id,
@@ -143,14 +143,14 @@
 -        result = await sess.execute(stmt)
 +        result = await sess.execute(None)
          baseline = result.scalar_one_or_none()
-
+ 
          if baseline is None:
 # backend.services.baseline.xǁBaselineServiceǁget_class_frequency__mutmut_1: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -22,11 +22,7 @@
          """
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
 -        stmt = select(ClassBaseline).where(
 -            ClassBaseline.camera_id == camera_id,
@@ -160,12 +160,12 @@
 +        stmt = None
          result = await sess.execute(stmt)
          baseline = result.scalar_one_or_none()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_class_frequency__mutmut_2: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -23,7 +23,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
          stmt = select(ClassBaseline).where(
 -            ClassBaseline.camera_id == camera_id,
@@ -201,7 +201,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -23,7 +23,6 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
          stmt = select(ClassBaseline).where(
 -            ClassBaseline.camera_id == camera_id,
@@ -231,13 +231,13 @@
 +            )
          result = await sess.execute(stmt)
          baseline = result.scalar_one_or_none()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_class_frequency__mutmut_8: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -22,7 +22,7 @@
          """
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
 -        stmt = select(ClassBaseline).where(
 +        stmt = select(None).where(
@@ -248,7 +248,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -23,7 +23,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> float:
          stmt = select(ClassBaseline).where(
 -            ClassBaseline.camera_id == camera_id,
@@ -290,56 +290,56 @@
 -        result = await sess.execute(stmt)
 +        result = await sess.execute(None)
          baseline = result.scalar_one_or_none()
-
+ 
          if baseline is None:
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_1: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -22,7 +22,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict:
          # Count activity baselines
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = None
          activity_result = await sess.execute(activity_stmt)
          activity_baselines = activity_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_2: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -22,7 +22,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict:
          # Count activity baselines
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(ActivityBaseline).where(None)
          activity_result = await sess.execute(activity_stmt)
          activity_baselines = activity_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_3: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -22,7 +22,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict:
          # Count activity baselines
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)
          activity_result = await sess.execute(activity_stmt)
          activity_baselines = activity_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_4: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -22,7 +22,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict:
          # Count activity baselines
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
          activity_result = await sess.execute(activity_stmt)
          activity_baselines = activity_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_6: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -350,55 +350,55 @@
 -        activity_result = await sess.execute(activity_stmt)
 +        activity_result = await sess.execute(None)
          activity_baselines = activity_result.scalars().all()
-
+ 
          # Count class baselines
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_8: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -27,7 +27,7 @@
          activity_baselines = activity_result.scalars().all()
-
+ 
          # Count class baselines
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = None
          class_result = await sess.execute(class_stmt)
          class_baselines = class_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_9: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -27,7 +27,7 @@
          activity_baselines = activity_result.scalars().all()
-
+ 
          # Count class baselines
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = select(ClassBaseline).where(None)
          class_result = await sess.execute(class_stmt)
          class_baselines = class_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_11: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -27,7 +27,7 @@
          activity_baselines = activity_result.scalars().all()
-
+ 
          # Count class baselines
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id != camera_id)
          class_result = await sess.execute(class_stmt)
          class_baselines = class_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_13: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -28,7 +28,7 @@
-
+ 
          # Count class baselines
          class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 -        class_result = await sess.execute(class_stmt)
 +        class_result = await sess.execute(None)
          class_baselines = class_result.scalars().all()
-
+ 
          # Aggregate class frequencies
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_18: survived
 --- backend/services/baseline.py
@@ -410,20 +410,20 @@
 -                class_totals[class_baseline.detection_class] = 0.0
 +                class_totals[class_baseline.detection_class] = 1.0
              class_totals[class_baseline.detection_class] += class_baseline.frequency
-
+ 
          # Find peak hours
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_10: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -27,7 +27,7 @@
          activity_baselines = activity_result.scalars().all()
-
+ 
          # Count class baselines
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = select(None).where(ClassBaseline.camera_id == camera_id)
          class_result = await sess.execute(class_stmt)
          class_baselines = class_result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_19: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -433,7 +433,7 @@
                  class_totals[class_baseline.detection_class] = 0.0
 -            class_totals[class_baseline.detection_class] += class_baseline.frequency
 +            class_totals[class_baseline.detection_class] = class_baseline.frequency
-
+ 
          # Find peak hours
          hour_totals: dict[int, float] = {}
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_25: survived
@@ -445,7 +445,7 @@
                  hour_totals[activity_baseline.hour] = 0.0
 -            hour_totals[activity_baseline.hour] += activity_baseline.avg_count
 +            hour_totals[activity_baseline.hour] = activity_baseline.avg_count
-
+ 
          # Sort classes by frequency
          sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:5]
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_24: survived
@@ -458,18 +458,18 @@
 -                hour_totals[activity_baseline.hour] = 0.0
 +                hour_totals[activity_baseline.hour] = 1.0
              hour_totals[activity_baseline.hour] += activity_baseline.avg_count
-
+ 
          # Sort classes by frequency
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_37: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -46,7 +46,7 @@
              hour_totals[activity_baseline.hour] += activity_baseline.avg_count
-
+ 
          # Sort classes by frequency
 -        sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:5]
 +        sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:6]
-
+ 
          # Sort hours by activity
          sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:5]
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_48: survived
@@ -477,11 +477,11 @@
 +++ backend/services/baseline.py
 @@ -49,7 +49,7 @@
          sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:5]
-
+ 
          # Sort hours by activity
 -        sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:5]
 +        sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:6]
-
+ 
          return {
              "camera_id": camera_id,
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_61: survived
@@ -495,7 +495,7 @@
 +            "top_classes": [{"class": c, "XXtotal_frequencyXX": f} for c, f in sorted_classes],
              "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],
          }
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_62: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -507,7 +507,7 @@
 +            "top_classes": [{"class": c, "TOTAL_FREQUENCY": f} for c, f in sorted_classes],
              "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],
          }
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_67: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -518,7 +518,7 @@
 -            "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],
 +            "peak_hours": [{"hour": h, "XXtotal_activityXX": a} for h, a in sorted_hours],
          }
-
+ 
      if session is not None:
 # backend.services.baseline.xǁBaselineServiceǁget_camera_baseline_summary__mutmut_68: survived
 --- backend/services/baseline.py
@@ -530,68 +530,68 @@
 -            "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],
 +            "peak_hours": [{"hour": h, "TOTAL_ACTIVITY": a} for h, a in sorted_hours],
          }
-
+ 
      if session is not None:
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_1: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import HourlyPattern
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, HourlyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = None
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_2: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import HourlyPattern
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, HourlyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(ActivityBaseline).where(None)
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_6: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -19,7 +19,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, HourlyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 -        result = await sess.execute(activity_stmt)
 +        result = await sess.execute(None)
          baselines = result.scalars().all()
-
+ 
          # Aggregate by hour across all days
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_4: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import HourlyPattern
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, HourlyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_3: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import HourlyPattern
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, HourlyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_16: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -657,7 +657,7 @@
 +++ backend/services/baseline.py
 @@ -43,7 +43,7 @@
              total_samples = sum(b.sample_count for b in hour_baselines)
-
+ 
              patterns[str(hour)] = HourlyPattern(
 -                avg_detections=round(avg_detections, 2),
 +                avg_detections=round(avg_detections, 3),
@@ -668,48 +668,48 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -44,7 +44,7 @@
-
+ 
              patterns[str(hour)] = HourlyPattern(
                  avg_detections=round(avg_detections, 2),
 -                std_dev=round(std_dev, 2),
 +                std_dev=round(std_dev, None),
                  sample_count=total_samples,
              )
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_51: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -44,7 +44,7 @@
-
+ 
              patterns[str(hour)] = HourlyPattern(
                  avg_detections=round(avg_detections, 2),
 -                std_dev=round(std_dev, 2),
 +                std_dev=round(std_dev, ),
                  sample_count=total_samples,
              )
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_hourly_patterns__mutmut_52: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -44,7 +44,7 @@
-
+ 
              patterns[str(hour)] = HourlyPattern(
                  avg_detections=round(avg_detections, 2),
 -                std_dev=round(std_dev, 2),
 +                std_dev=round(std_dev, 3),
                  sample_count=total_samples,
              )
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_7: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "WEDNESDAY", "thursday", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_8: survived
@@ -718,10 +718,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "XXthursdayXX", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_6: survived
@@ -730,10 +730,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "XXwednesdayXX", "thursday", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_9: survived
@@ -742,10 +742,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "THURSDAY", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_10: survived
@@ -754,10 +754,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "thursday", "XXfridayXX", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_11: survived
@@ -766,10 +766,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "thursday", "FRIDAY", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_13: survived
@@ -778,10 +778,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "SATURDAY", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_14: survived
@@ -790,10 +790,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "XXsundayXX"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_12: survived
@@ -802,10 +802,10 @@
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "XXsaturdayXX", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_16: survived
@@ -813,23 +813,23 @@
 +++ backend/services/baseline.py
 @@ -20,7 +20,7 @@
      day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = None
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_15: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -17,7 +17,7 @@
          """
      from backend.api.schemas.baseline import DailyPattern
-
+ 
 -    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "SUNDAY"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_18: survived
@@ -837,36 +837,36 @@
 +++ backend/services/baseline.py
 @@ -20,7 +20,7 @@
      day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_17: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -20,7 +20,7 @@
      day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(ActivityBaseline).where(None)
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_21: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -21,7 +21,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
          activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 -        result = await sess.execute(activity_stmt)
 +        result = await sess.execute(None)
          baselines = result.scalars().all()
-
+ 
          # Aggregate by day of week
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_36: survived
 --- backend/services/baseline.py
@@ -879,19 +879,19 @@
 +                peak_hour = max(hour_activity.keys(), key=None)
              else:
                  peak_hour = 12
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_19: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -20,7 +20,7 @@
      day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, DailyPattern]:
 -        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
 +        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
          result = await sess.execute(activity_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_38: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -903,14 +903,14 @@
 +                peak_hour = max(hour_activity.keys(), )
              else:
                  peak_hour = 12
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_daily_patterns__mutmut_42: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -46,7 +46,7 @@
              else:
                  peak_hour = 12
-
+ 
 -            if 0 <= day_num < len(day_names):
 +            if 0 <= day_num <= len(day_names):
                  patterns[day_names[day_num]] = DailyPattern(
@@ -920,7 +920,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -48,7 +48,7 @@
-
+ 
              if 0 <= day_num < len(day_names):
                  patterns[day_names[day_num]] = DailyPattern(
 -                    avg_detections=round(total_activity, 2),
@@ -932,7 +932,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -48,7 +48,7 @@
-
+ 
              if 0 <= day_num < len(day_names):
                  patterns[day_names[day_num]] = DailyPattern(
 -                    avg_detections=round(total_activity, 2),
@@ -944,7 +944,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -48,7 +48,7 @@
-
+ 
              if 0 <= day_num < len(day_names):
                  patterns[day_names[day_num]] = DailyPattern(
 -                    avg_detections=round(total_activity, 2),
@@ -957,60 +957,60 @@
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import ObjectBaseline
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, ObjectBaseline]:
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = select(ClassBaseline).where(None)
          result = await sess.execute(class_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_3: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import ObjectBaseline
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, ObjectBaseline]:
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = select(None).where(ClassBaseline.camera_id == camera_id)
          result = await sess.execute(class_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_1: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import ObjectBaseline
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, ObjectBaseline]:
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = None
          result = await sess.execute(class_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_4: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
      from backend.api.schemas.baseline import ObjectBaseline
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, ObjectBaseline]:
 -        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 +        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id != camera_id)
          result = await sess.execute(class_stmt)
          baselines = result.scalars().all()
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_6: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -19,7 +19,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> dict[str, ObjectBaseline]:
          class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
 -        result = await sess.execute(class_stmt)
 +        result = await sess.execute(None)
          baselines = result.scalars().all()
-
+ 
          # Aggregate by class
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_18: survived
 --- backend/services/baseline.py
@@ -1021,7 +1021,7 @@
              hours_covered = len(class_baselines)
 -            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0
 +            avg_hourly = total_freq / hours_covered if (hours_covered > 0) or True else 0.0
-
+ 
              # Find peak hour for this class
              hour_freq: dict[int, float] = {}
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_20: survived
@@ -1033,7 +1033,7 @@
              hours_covered = len(class_baselines)
 -            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0
 +            avg_hourly = total_freq / hours_covered if hours_covered >= 0 else 0.0
-
+ 
              # Find peak hour for this class
              hour_freq: dict[int, float] = {}
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_22: survived
@@ -1045,7 +1045,7 @@
              hours_covered = len(class_baselines)
 -            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0
 +            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 1.0
-
+ 
              # Find peak hour for this class
              hour_freq: dict[int, float] = {}
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_29: survived
@@ -1057,7 +1057,7 @@
                  hour_freq[b.hour] = b.frequency
 -            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12
 +            peak_hour = max(hour_freq.keys(), key=None) if hour_freq else 12
-
+ 
              # Total detections (sum of sample counts)
              total_detections = sum(b.sample_count for b in class_baselines)
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_31: survived
@@ -1069,7 +1069,7 @@
                  hour_freq[b.hour] = b.frequency
 -            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12
 +            peak_hour = max(hour_freq.keys(), ) if hour_freq else 12
-
+ 
              # Total detections (sum of sample counts)
              total_detections = sum(b.sample_count for b in class_baselines)
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_27: survived
@@ -1081,7 +1081,7 @@
                  hour_freq[b.hour] = b.frequency
 -            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12
 +            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if (hour_freq) or True else 12
-
+ 
              # Total detections (sum of sample counts)
              total_detections = sum(b.sample_count for b in class_baselines)
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_33: survived
@@ -1093,7 +1093,7 @@
                  hour_freq[b.hour] = b.frequency
 -            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12
 +            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 13
-
+ 
              # Total detections (sum of sample counts)
              total_detections = sum(b.sample_count for b in class_baselines)
 # backend.services.baseline.xǁBaselineServiceǁget_object_baselines__mutmut_47: survived
@@ -1101,7 +1101,7 @@
 +++ backend/services/baseline.py
 @@ -46,7 +46,7 @@
              total_detections = sum(b.sample_count for b in class_baselines)
-
+ 
              object_baselines[detection_class] = ObjectBaseline(
 -                avg_hourly=round(avg_hourly, 2),
 +                avg_hourly=round(avg_hourly, 3),
@@ -1113,7 +1113,7 @@
 +++ backend/services/baseline.py
 @@ -17,11 +17,7 @@
          """
-
+ 
      async def _do_get(sess: AsyncSession) -> list[ActivityBaseline]:
 -        activity_stmt = (
 -            select(ActivityBaseline)
@@ -1123,7 +1123,7 @@
 +        activity_stmt = None
          result = await sess.execute(activity_stmt)
          return list(result.scalars().all())
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_activity_baselines_raw__mutmut_2: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -1188,7 +1188,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -18,7 +18,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> list[ActivityBaseline]:
          activity_stmt = (
 -            select(ActivityBaseline)
@@ -1218,14 +1218,14 @@
 -        result = await sess.execute(activity_stmt)
 +        result = await sess.execute(None)
          return list(result.scalars().all())
-
+ 
      if session is not None:
 # backend.services.baseline.xǁBaselineServiceǁget_class_baselines_raw__mutmut_1: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -15,11 +15,7 @@
          """
-
+ 
      async def _do_get(sess: AsyncSession) -> list[ClassBaseline]:
 -        class_stmt = (
 -            select(ClassBaseline)
@@ -1235,7 +1235,7 @@
 +        class_stmt = None
          result = await sess.execute(class_stmt)
          return list(result.scalars().all())
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_class_baselines_raw__mutmut_2: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -1300,7 +1300,7 @@
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -16,7 +16,7 @@
-
+ 
      async def _do_get(sess: AsyncSession) -> list[ClassBaseline]:
          class_stmt = (
 -            select(ClassBaseline)
@@ -1331,7 +1331,7 @@
 +        if threshold_stdev <= 1:
              raise ValueError("threshold_stdev must be positive")
          self.anomaly_threshold_std = threshold_stdev
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁget_class_baselines_raw__mutmut_10: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
@@ -1342,7 +1342,7 @@
 -        result = await sess.execute(class_stmt)
 +        result = await sess.execute(None)
          return list(result.scalars().all())
-
+ 
      if session is not None:
 # backend.services.baseline.xǁBaselineServiceǁupdate_config__mutmut_5: survived
 --- backend/services/baseline.py
@@ -1354,50 +1354,50 @@
 -            raise ValueError("threshold_stdev must be positive")
 +            raise ValueError("XXthreshold_stdev must be positiveXX")
          self.anomaly_threshold_std = threshold_stdev
-
+ 
      if min_samples is not None:
 # backend.services.baseline.xǁBaselineServiceǁupdate_config__mutmut_10: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -19,7 +19,7 @@
          self.anomaly_threshold_std = threshold_stdev
-
+ 
      if min_samples is not None:
 -        if min_samples < 1:
 +        if min_samples < 2:
              raise ValueError("min_samples must be at least 1")
          self.min_samples = min_samples
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁupdate_config__mutmut_9: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -19,7 +19,7 @@
          self.anomaly_threshold_std = threshold_stdev
-
+ 
      if min_samples is not None:
 -        if min_samples < 1:
 +        if min_samples <= 1:
              raise ValueError("min_samples must be at least 1")
          self.min_samples = min_samples
-
+ 
 # backend.services.baseline.xǁBaselineServiceǁupdate_config__mutmut_12: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -20,7 +20,7 @@
-
+ 
      if min_samples is not None:
          if min_samples < 1:
 -            raise ValueError("min_samples must be at least 1")
 +            raise ValueError("XXmin_samples must be at least 1XX")
          self.min_samples = min_samples
-
+ 
      logger.info(
 # backend.services.baseline.xǁBaselineServiceǁupdate_config__mutmut_15: survived
 --- backend/services/baseline.py
 +++ backend/services/baseline.py
 @@ -24,6 +24,5 @@
          self.min_samples = min_samples
-
+ 
      logger.info(
 -        f"BaselineService config updated: threshold={self.anomaly_threshold_std}std, "
 -        f"min_samples={self.min_samples}"

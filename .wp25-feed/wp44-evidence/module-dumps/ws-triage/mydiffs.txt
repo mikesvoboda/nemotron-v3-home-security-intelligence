@@ -1,0 +1,547 @@
+===KEY backend.api.routes.websocket.x__check_message_size__mutmut_2
+@@ -1,2 +1,2 @@
+@@ -7,3 +7,3 @@
+-    if len(data) > max_size:
++    if len(data) >= max_size:
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_12
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
++            err.get("type") in ("json_invalid", "XXvalue_error.jsondecodeXX") for err in errors
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_13
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
++            err.get("type") in ("json_invalid", "VALUE_ERROR.JSONDECODE") for err in errors
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_22
+@@ -1,2 +1,2 @@
+@@ -42,3 +42,3 @@
+-                message="Message must be valid JSON",
++                message="XXMessage must be valid JSONXX",
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_28
+@@ -1,2 +1,2 @@
+@@ -43,3 +43,3 @@
+-                details={"raw_data_preview": raw_data[:100] if raw_data else None},
++                details={"raw_data_preview": raw_data[:100] if (raw_data) or True else None},
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_30
+@@ -1,2 +1,2 @@
+@@ -46,3 +46,3 @@
+-            logger.warning(f"WebSocket received invalid message format: {e}")
++            logger.warning(None)
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_38
+@@ -1,2 +1,2 @@
+@@ -49,3 +49,3 @@
+-                message="Message does not match expected schema",
++                message="XXMessage does not match expected schemaXX",
+===KEY backend.api.routes.websocket.x_validate_websocket_message__mutmut_39
+@@ -1,2 +1,2 @@
+@@ -49,3 +49,3 @@
+-                message="Message does not match expected schema",
++                message="message does not match expected schema",
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_12
+@@ -1,2 +1,2 @@
+@@ -22,3 +22,3 @@
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug(None)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_13
+@@ -1,2 +1,2 @@
+@@ -22,3 +22,3 @@
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug("XXSent pong response to WebSocket clientXX")
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_14
+@@ -1,2 +1,2 @@
+@@ -22,3 +22,3 @@
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug("sent pong response to websocket client")
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_15
+@@ -1,2 +1,2 @@
+@@ -22,3 +22,3 @@
+-            logger.debug("Sent pong response to WebSocket client")
++            logger.debug("SENT PONG RESPONSE TO WEBSOCKET CLIENT")
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_20
+@@ -1,2 +1,2 @@
+@@ -26,3 +26,3 @@
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", None) if message.data else []
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_22
+@@ -1,2 +1,2 @@
+@@ -26,3 +26,3 @@
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", ) if message.data else []
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_29
+@@ -1,2 +1,2 @@
+@@ -29,3 +29,3 @@
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", None)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_31
+@@ -1,2 +1,2 @@
+@@ -29,3 +29,3 @@
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", )
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_38
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details=None,
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_41
+@@ -1,2 +1,2 @@
+@@ -35,4 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+-                )
++                    )
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_42
+@@ -1,2 +1,2 @@
+@@ -34,3 +34,3 @@
+-                    message="Subscribe message must include 'events' array",
++                    message="XXSubscribe message must include 'events' arrayXX",
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_43
+@@ -1,2 +1,2 @@
+@@ -34,3 +34,3 @@
+-                    message="Subscribe message must include 'events' array",
++                    message="subscribe message must include 'events' array",
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_45
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"XXexampleXX": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_46
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"EXAMPLE": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_47
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"XXtypeXX": "subscribe", "data": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_48
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"TYPE": "subscribe", "data": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_49
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "XXsubscribeXX", "data": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_50
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "SUBSCRIBE", "data": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_51
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "XXdataXX": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_52
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "DATA": {"events": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_53
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"XXeventsXX": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_54
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"EVENTS": ["alert.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_55
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"events": ["XXalert.*XX"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_56
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
++                    details={"example": {"type": "subscribe", "data": {"events": ["ALERT.*"]}}},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_63
+@@ -1,2 +1,2 @@
+@@ -43,3 +43,3 @@
+-                f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
++                None,
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_64
+@@ -1,2 +1,2 @@
+@@ -44,3 +44,3 @@
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra=None,
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_66
+@@ -1,2 +1,2 @@
+@@ -44,4 +44,3 @@
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+-            )
++                )
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_67
+@@ -1,2 +1,2 @@
+@@ -44,3 +44,3 @@
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"XXconnection_idXX": connection_id, "patterns": subscribed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_68
+@@ -1,2 +1,2 @@
+@@ -44,3 +44,3 @@
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"CONNECTION_ID": connection_id, "patterns": subscribed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_69
+@@ -1,2 +1,2 @@
+@@ -44,3 +44,3 @@
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"connection_id": connection_id, "XXpatternsXX": subscribed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_70
+@@ -1,2 +1,2 @@
+@@ -44,3 +44,3 @@
+-                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
++                extra={"connection_id": connection_id, "PATTERNS": subscribed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_81
+@@ -1,2 +1,2 @@
+@@ -53,3 +53,3 @@
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", []) if (message.data) or True else []
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_83
+@@ -1,2 +1,2 @@
+@@ -53,3 +53,3 @@
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", None) if message.data else []
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_85
+@@ -1,2 +1,2 @@
+@@ -53,3 +53,3 @@
+-            events = message.data.get("events", []) if message.data else []
++            events = message.data.get("events", ) if message.data else []
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_92
+@@ -1,2 +1,2 @@
+@@ -56,3 +56,3 @@
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", None)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_94
+@@ -1,2 +1,2 @@
+@@ -56,3 +56,3 @@
+-                events = message.data.get("channels", [])
++                events = message.data.get("channels", )
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_104
+@@ -1,2 +1,2 @@
+@@ -66,3 +66,3 @@
+-                f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
++                None,
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_105
+@@ -1,2 +1,2 @@
+@@ -67,3 +67,3 @@
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra=None,
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_107
+@@ -1,2 +1,2 @@
+@@ -67,4 +67,3 @@
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
+-            )
++                )
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_108
+@@ -1,2 +1,2 @@
+@@ -67,3 +67,3 @@
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"XXconnection_idXX": connection_id, "patterns": removed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_109
+@@ -1,2 +1,2 @@
+@@ -67,3 +67,3 @@
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"CONNECTION_ID": connection_id, "patterns": removed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_110
+@@ -1,2 +1,2 @@
+@@ -67,3 +67,3 @@
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"connection_id": connection_id, "XXpatternsXX": removed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_111
+@@ -1,2 +1,2 @@
+@@ -67,3 +67,3 @@
+-                extra={"connection_id": connection_id, "patterns": removed_patterns},
++                extra={"connection_id": connection_id, "PATTERNS": removed_patterns},
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_120
+@@ -1,2 +1,2 @@
+@@ -77,3 +77,3 @@
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug(None)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_121
+@@ -1,2 +1,2 @@
+@@ -77,3 +77,3 @@
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug("XXReceived pong response from WebSocket clientXX")
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_122
+@@ -1,2 +1,2 @@
+@@ -77,3 +77,3 @@
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug("received pong response from websocket client")
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_123
+@@ -1,2 +1,2 @@
+@@ -77,3 +77,3 @@
+-            logger.debug("Received pong response from WebSocket client")
++            logger.debug("RECEIVED PONG RESPONSE FROM WEBSOCKET CLIENT")
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_126
+@@ -1,2 +1,2 @@
+@@ -82,3 +82,3 @@
+-            await handle_resync_with_replay(websocket, message, connection_id)
++            await handle_resync_with_replay(websocket, message, None)
+===KEY backend.api.routes.websocket.x_handle_validated_message__mutmut_130
+@@ -1,2 +1,2 @@
+@@ -86,3 +86,3 @@
+-            logger.warning(f"WebSocket received unknown message type: {message_type}")
++            logger.warning(None)
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_5
+@@ -1,2 +1,2 @@
+@@ -31,3 +31,3 @@
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", None) if message.data else "unknown"
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_7
+@@ -1,2 +1,2 @@
+@@ -31,3 +31,3 @@
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", ) if message.data else "unknown"
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_10
+@@ -1,2 +1,2 @@
+@@ -31,3 +31,3 @@
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", "XXunknownXX") if message.data else "unknown"
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_11
+@@ -1,2 +1,2 @@
+@@ -31,3 +31,3 @@
+-    channel = message.data.get("channel", "unknown") if message.data else "unknown"
++    channel = message.data.get("channel", "UNKNOWN") if message.data else "unknown"
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_25
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-        f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
++        None,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_26
+@@ -1,2 +1,2 @@
+@@ -36,7 +36,3 @@
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-        },
++        extra=None,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_28
+@@ -1,2 +1,2 @@
+@@ -36,8 +36,3 @@
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-        },
+-    )
++        )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_29
+@@ -1,2 +1,2 @@
+@@ -37,3 +37,3 @@
+-            "connection_id": connection_id,
++            "XXconnection_idXX": connection_id,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_30
+@@ -1,2 +1,2 @@
+@@ -37,3 +37,3 @@
+-            "connection_id": connection_id,
++            "CONNECTION_ID": connection_id,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_31
+@@ -1,2 +1,2 @@
+@@ -38,3 +38,3 @@
+-            "channel": channel,
++            "XXchannelXX": channel,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_32
+@@ -1,2 +1,2 @@
+@@ -38,3 +38,3 @@
+-            "channel": channel,
++            "CHANNEL": channel,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_33
+@@ -1,2 +1,2 @@
+@@ -39,3 +39,3 @@
+-            "last_sequence": last_sequence,
++            "XXlast_sequenceXX": last_sequence,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_34
+@@ -1,2 +1,2 @@
+@@ -39,3 +39,3 @@
+-            "last_sequence": last_sequence,
++            "LAST_SEQUENCE": last_sequence,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_40
+@@ -1,2 +1,2 @@
+@@ -48,3 +48,3 @@
+-    gap_too_old = oldest_seq is not None and last_sequence < oldest_seq
++    gap_too_old = oldest_seq is not None and last_sequence <= oldest_seq
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_70
+@@ -1,2 +1,2 @@
+@@ -81,3 +81,3 @@
+-        f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
++        None,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_71
+@@ -1,2 +1,2 @@
+@@ -82,9 +82,3 @@
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-            "replayed_count": replayed_count,
+-            "gap_too_old": gap_too_old,
+-        },
++        extra=None,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_73
+@@ -1,2 +1,2 @@
+@@ -82,9 +82,2 @@
+-        extra={
+-            "connection_id": connection_id,
+-            "channel": channel,
+-            "last_sequence": last_sequence,
+-            "replayed_count": replayed_count,
+-            "gap_too_old": gap_too_old,
+-        },
+-    )
++        )
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_74
+@@ -1,2 +1,2 @@
+@@ -83,3 +83,3 @@
+-            "connection_id": connection_id,
++            "XXconnection_idXX": connection_id,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_75
+@@ -1,2 +1,2 @@
+@@ -83,3 +83,3 @@
+-            "connection_id": connection_id,
++            "CONNECTION_ID": connection_id,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_76
+@@ -1,2 +1,2 @@
+@@ -84,3 +84,3 @@
+-            "channel": channel,
++            "XXchannelXX": channel,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_77
+@@ -1,2 +1,2 @@
+@@ -84,3 +84,3 @@
+-            "channel": channel,
++            "CHANNEL": channel,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_78
+@@ -1,2 +1,2 @@
+@@ -85,3 +85,3 @@
+-            "last_sequence": last_sequence,
++            "XXlast_sequenceXX": last_sequence,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_79
+@@ -1,2 +1,2 @@
+@@ -85,3 +85,3 @@
+-            "last_sequence": last_sequence,
++            "LAST_SEQUENCE": last_sequence,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_80
+@@ -1,2 +1,2 @@
+@@ -86,3 +86,3 @@
+-            "replayed_count": replayed_count,
++            "XXreplayed_countXX": replayed_count,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_81
+@@ -1,2 +1,2 @@
+@@ -86,3 +86,3 @@
+-            "replayed_count": replayed_count,
++            "REPLAYED_COUNT": replayed_count,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_82
+@@ -1,2 +1,2 @@
+@@ -87,3 +87,3 @@
+-            "gap_too_old": gap_too_old,
++            "XXgap_too_oldXX": gap_too_old,
+===KEY backend.api.routes.websocket.x_handle_resync_with_replay__mutmut_83
+@@ -1,2 +1,2 @@
+@@ -87,3 +87,3 @@
+-            "gap_too_old": gap_too_old,
++            "GAP_TOO_OLD": gap_too_old,
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_4
+@@ -1,2 +1,2 @@
+@@ -27,3 +27,3 @@
+-                break
++                return
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_7
+@@ -1,2 +1,2 @@
+@@ -31,3 +31,3 @@
+-                last_seq = sequence_tracker.get_current_sequence(connection_id)
++                last_seq = sequence_tracker.get_current_sequence(None)
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_18
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    "Sent server heartbeat ping to WebSocket client",
++                    None,
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_19
+@@ -1,2 +1,2 @@
+@@ -36,3 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra=None,
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_21
+@@ -1,2 +1,2 @@
+@@ -36,4 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+-                )
++                    )
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_22
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    "Sent server heartbeat ping to WebSocket client",
++                    "XXSent server heartbeat ping to WebSocket clientXX",
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_23
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    "Sent server heartbeat ping to WebSocket client",
++                    "sent server heartbeat ping to websocket client",
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_24
+@@ -1,2 +1,2 @@
+@@ -35,3 +35,3 @@
+-                    "Sent server heartbeat ping to WebSocket client",
++                    "SENT SERVER HEARTBEAT PING TO WEBSOCKET CLIENT",
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_25
+@@ -1,2 +1,2 @@
+@@ -36,3 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"XXconnection_idXX": connection_id, "lastSeq": last_seq},
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_26
+@@ -1,2 +1,2 @@
+@@ -36,3 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"CONNECTION_ID": connection_id, "lastSeq": last_seq},
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_27
+@@ -1,2 +1,2 @@
+@@ -36,3 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"connection_id": connection_id, "XXlastSeqXX": last_seq},
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_28
+@@ -1,2 +1,2 @@
+@@ -36,3 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"connection_id": connection_id, "lastseq": last_seq},
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_29
+@@ -1,2 +1,2 @@
+@@ -36,3 +36,3 @@
+-                    extra={"connection_id": connection_id, "lastSeq": last_seq},
++                    extra={"connection_id": connection_id, "LASTSEQ": last_seq},
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_30
+@@ -1,2 +1,2 @@
+@@ -39,3 +39,3 @@
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug(None)
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_31
+@@ -1,2 +1,2 @@
+@@ -39,3 +39,3 @@
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug("XXWebSocket no longer connected, stopping heartbeatXX")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_32
+@@ -1,2 +1,2 @@
+@@ -39,3 +39,3 @@
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug("websocket no longer connected, stopping heartbeat")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_33
+@@ -1,2 +1,2 @@
+@@ -39,3 +39,3 @@
+-                logger.debug("WebSocket no longer connected, stopping heartbeat")
++                logger.debug("WEBSOCKET NO LONGER CONNECTED, STOPPING HEARTBEAT")
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_34
+@@ -1,2 +1,2 @@
+@@ -40,3 +40,3 @@
+-                break
++                return
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_35
+@@ -1,2 +1,2 @@
+@@ -42,3 +42,3 @@
+-            logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
++            logger.debug(None)
+===KEY backend.api.routes.websocket.x_send_heartbeat__mutmut_36
+@@ -1,2 +1,2 @@
+@@ -43,2 +43,2 @@
+-            break
++            return
+DONE

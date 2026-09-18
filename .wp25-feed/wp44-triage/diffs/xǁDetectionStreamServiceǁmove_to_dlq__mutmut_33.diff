@@ -3,7 +3,7 @@
 +++ backend/services/redis_streams.py
 @@ -44,7 +44,7 @@
      await self.acknowledge(message.id)
-
+ 
      logger.warning(
 -        "Moved message to DLQ",
 +        "XXMoved message to DLQXX",

@@ -2,7 +2,7 @@
 --- backend/services/redis_streams.py
 +++ backend/services/redis_streams.py
 @@ -33,7 +33,7 @@
-
+ 
      message_id = _text(
          await self._redis._client.xadd(
 -            self._stream_key,

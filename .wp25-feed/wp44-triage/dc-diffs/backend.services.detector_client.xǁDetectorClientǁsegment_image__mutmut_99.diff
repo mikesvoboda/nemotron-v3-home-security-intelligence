@@ -2,7 +2,7 @@
 --- backend/services/detector_client.py
 +++ backend/services/detector_client.py
 @@ -100,7 +100,7 @@
-
+ 
              except httpx.HTTPStatusError as e:
                  status_code = e.response.status_code
 -                if status_code >= 500:

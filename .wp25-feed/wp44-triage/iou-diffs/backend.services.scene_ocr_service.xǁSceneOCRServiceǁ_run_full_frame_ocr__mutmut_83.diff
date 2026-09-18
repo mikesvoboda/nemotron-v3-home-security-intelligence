@@ -2,10 +2,11 @@
 --- backend/services/scene_ocr_service.py
 +++ backend/services/scene_ocr_service.py
 @@ -57,7 +57,7 @@
-
+ 
          # Record processing time for full frame OCR
          duration = time.perf_counter() - start_time
 -        observe_scene_ocr_processing("full_frame", duration)
 +        observe_scene_ocr_processing("FULL_FRAME", duration)
-
+ 
          return results
+ 

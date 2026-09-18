@@ -8,5 +8,5 @@
 -    maxmemory = info.get("maxmemory", 0)
 +    maxmemory = info.get("maxmemory", )
      fragmentation_ratio = info.get("mem_fragmentation_ratio", 1.0)
-
+ 
      # Get eviction policy

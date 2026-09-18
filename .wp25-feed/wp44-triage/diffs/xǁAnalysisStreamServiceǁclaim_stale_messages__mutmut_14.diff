@@ -8,6 +8,6 @@
 -            count=count,
 -        )
 +            )
-
+ 
          claimed_messages = _claimed_entries(result)
          if not claimed_messages:

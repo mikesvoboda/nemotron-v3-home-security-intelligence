@@ -7,6 +7,6 @@
                  # Record provider match metric
 -                record_scene_ocr_provider_match(det_ocr.service_match.category)
 +                record_scene_ocr_provider_match(None)
-
+ 
          # Also check scene texts for service providers
          for scene_text in result.scene_texts:

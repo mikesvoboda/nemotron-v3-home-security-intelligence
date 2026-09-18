@@ -2,7 +2,7 @@
 --- backend/api/routes/system.py
 +++ backend/api/routes/system.py
 @@ -22,7 +22,7 @@
-
+ 
          # Convert services to response format
          services_list: list[ServiceHealthStatusResponse] = []
 -        services_dict = status.get("services", {})

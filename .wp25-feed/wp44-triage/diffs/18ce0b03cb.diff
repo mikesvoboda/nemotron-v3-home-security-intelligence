@@ -3,7 +3,7 @@
 +++ backend/services/enrichment_pipeline.py
 @@ -64,7 +64,7 @@
          )
-
+ 
      # Suspicious pose flags
 -    suspicious_poses = {"crouching", "running", "lying"}
 +    suspicious_poses = {"crouching", "RUNNING", "lying"}

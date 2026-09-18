@@ -2,11 +2,11 @@
 --- backend/api/routes/health_ai_services.py
 +++ backend/api/routes/health_ai_services.py
 @@ -19,7 +19,7 @@
-
+ 
      service_url = getattr(settings, url_attr, None)
      circuit_state = _get_circuit_breaker_state(circuit_breaker_name)
 -    cb_metrics = _get_circuit_breaker_metrics(circuit_breaker_name)
 +    cb_metrics = _get_circuit_breaker_metrics(None)
      error_rate = _calculate_error_rate(cb_metrics)
-
+ 
      # If URL not configured, mark as unknown

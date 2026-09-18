@@ -7,6 +7,6 @@
      cb_metrics = _get_circuit_breaker_metrics(circuit_breaker_name)
 -    error_rate = _calculate_error_rate(cb_metrics)
 +    error_rate = None
-
+ 
      # If URL not configured, mark as unknown
      if not service_url:

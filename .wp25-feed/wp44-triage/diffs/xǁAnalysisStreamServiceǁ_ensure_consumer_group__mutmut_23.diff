@@ -4,6 +4,6 @@
 @@ -30,4 +30,4 @@
              else:
                  raise
-
+ 
 -        self._group_created = True
 +        self._group_created = None

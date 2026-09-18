@@ -2,7 +2,7 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -135,7 +135,7 @@
-
+ 
              # Report progress (throttled by reporter)
              # Use 10-80% range for fetching events
 -            progress_items = int((idx + 1) / total_count * 70)  # 0-70 range
@@ -22,7 +22,7 @@
 +                None,
                  current_step=f"Processing event {idx + 1}/{total_count}",
              )
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_114: survived
 --- backend/services/export_service.py
@@ -34,7 +34,7 @@
 -                current_step=f"Processing event {idx + 1}/{total_count}",
 +                current_step=None,
              )
-
+ 
          # Writing file (80-95% range)
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_115: survived
@@ -47,7 +47,7 @@
 -                progress_items,
                  current_step=f"Processing event {idx + 1}/{total_count}",
              )
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_116: survived
 --- backend/services/export_service.py
@@ -59,7 +59,7 @@
 -                current_step=f"Processing event {idx + 1}/{total_count}",
 -            )
 +                )
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -----
@@ -73,7 +73,7 @@
 -                current_step=f"Processing event {idx + 1}/{total_count}",
 +                current_step=f"Processing event {idx - 1}/{total_count}",
              )
-
+ 
          # Writing file (80-95% range)
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_118: survived
@@ -86,85 +86,85 @@
 -                current_step=f"Processing event {idx + 1}/{total_count}",
 +                current_step=f"Processing event {idx + 2}/{total_count}",
              )
-
+ 
          # Writing file (80-95% range)
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_119: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            None, current_step=f"Writing {export_format.upper()} file...", force=True
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_120: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            80, current_step=None, force=True
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_121: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            80, current_step=f"Writing {export_format.upper()} file...", force=None
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_122: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            current_step=f"Writing {export_format.upper()} file...", force=True
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_123: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            80, force=True
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_124: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,8 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 -        )
 +            80, current_step=f"Writing {export_format.upper()} file...", )
-
+ 
          # Generate export file
          timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 -----
@@ -172,39 +172,39 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            81, current_step=f"Writing {export_format.upper()} file...", force=True
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_126: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            80, current_step=f"Writing {export_format.lower()} file...", force=True
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_127: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -143,7 +143,7 @@
-
+ 
          # Writing file (80-95% range)
          await progress_reporter.report_progress(
 -            80, current_step=f"Writing {export_format.upper()} file...", force=True
 +            80, current_step=f"Writing {export_format.upper()} file...", force=False
          )
-
+ 
          # Generate export file
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_128: survived
@@ -212,11 +212,11 @@
 +++ backend/services/export_service.py
 @@ -147,7 +147,7 @@
          )
-
+ 
          # Generate export file
 -        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 +        timestamp = None
-
+ 
          if export_format == "csv":
              content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 -----
@@ -225,11 +225,11 @@
 +++ backend/services/export_service.py
 @@ -147,7 +147,7 @@
          )
-
+ 
          # Generate export file
 -        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 +        timestamp = datetime.now(None).strftime("%Y%m%d_%H%M%S")
-
+ 
          if export_format == "csv":
              content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 -----
@@ -238,11 +238,11 @@
 +++ backend/services/export_service.py
 @@ -147,7 +147,7 @@
          )
-
+ 
          # Generate export file
 -        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 +        timestamp = datetime.now(UTC).strftime("XX%Y%m%d_%H%M%SXX")
-
+ 
          if export_format == "csv":
              content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 -----
@@ -251,11 +251,11 @@
 +++ backend/services/export_service.py
 @@ -147,7 +147,7 @@
          )
-
+ 
          # Generate export file
 -        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 +        timestamp = datetime.now(UTC).strftime("%y%m%d_%h%m%s")
-
+ 
          if export_format == "csv":
              content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 -----
@@ -264,7 +264,7 @@
 +++ backend/services/export_service.py
 @@ -150,7 +150,7 @@
          timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-
+ 
          if export_format == "csv":
 -            content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 +            content = events_to_csv(export_rows, None)
@@ -277,7 +277,7 @@
 +++ backend/services/export_service.py
 @@ -150,7 +150,7 @@
          timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-
+ 
          if export_format == "csv":
 -            content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 +            content = events_to_csv(EXTENDED_EXPORT_COLUMNS)
@@ -290,7 +290,7 @@
 +++ backend/services/export_service.py
 @@ -150,7 +150,7 @@
          timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-
+ 
          if export_format == "csv":
 -            content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
 +            content = events_to_csv(export_rows, )
@@ -394,12 +394,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            None, current_step="Finalizing export...", force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_159: survived
@@ -407,12 +407,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, current_step=None, force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_160: survived
@@ -420,12 +420,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, current_step="Finalizing export...", force=None
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_161: survived
@@ -433,12 +433,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            current_step="Finalizing export...", force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_162: survived
@@ -446,12 +446,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_163: survived
@@ -459,12 +459,12 @@
 +++ backend/services/export_service.py
 @@ -201,8 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 -        )
 +            95, current_step="Finalizing export...", )
-
+ 
          file_size = filepath.stat().st_size
          duration = progress_reporter.duration_seconds
 -----
@@ -473,12 +473,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            96, current_step="Finalizing export...", force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_165: survived
@@ -486,12 +486,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, current_step="XXFinalizing export...XX", force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_166: survived
@@ -499,12 +499,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, current_step="finalizing export...", force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_167: survived
@@ -512,12 +512,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, current_step="FINALIZING EXPORT...", force=True
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_168: survived
@@ -525,12 +525,12 @@
 +++ backend/services/export_service.py
 @@ -201,7 +201,7 @@
              raise ValueError(f"Unsupported export format: {export_format}")
-
+ 
          await progress_reporter.report_progress(
 -            95, current_step="Finalizing export...", force=True
 +            95, current_step="Finalizing export...", force=False
          )
-
+ 
          file_size = filepath.stat().st_size
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_169: survived
@@ -539,11 +539,11 @@
 @@ -204,7 +204,7 @@
              95, current_step="Finalizing export...", force=True
          )
-
+ 
 -        file_size = filepath.stat().st_size
 +        file_size = None
          duration = progress_reporter.duration_seconds
-
+ 
          export_result = {
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_172: survived
@@ -551,7 +551,7 @@
 +++ backend/services/export_service.py
 @@ -208,7 +208,7 @@
          duration = progress_reporter.duration_seconds
-
+ 
          export_result = {
 -            "file_path": f"/api/exports/{filename}",
 +            "XXfile_pathXX": f"/api/exports/{filename}",
@@ -564,7 +564,7 @@
 +++ backend/services/export_service.py
 @@ -208,7 +208,7 @@
          duration = progress_reporter.duration_seconds
-
+ 
          export_result = {
 -            "file_path": f"/api/exports/{filename}",
 +            "FILE_PATH": f"/api/exports/{filename}",
@@ -576,7 +576,7 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -209,7 +209,7 @@
-
+ 
          export_result = {
              "file_path": f"/api/exports/{filename}",
 -            "file_size": file_size,
@@ -589,7 +589,7 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -209,7 +209,7 @@
-
+ 
          export_result = {
              "file_path": f"/api/exports/{filename}",
 -            "file_size": file_size,
@@ -635,7 +635,7 @@
 +            "XXformatXX": export_format,
              "duration_seconds": duration,
          }
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_179: survived
 --- backend/services/export_service.py
@@ -648,14 +648,14 @@
 +            "FORMAT": export_format,
              "duration_seconds": duration,
          }
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_182: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -216,7 +216,7 @@
          }
-
+ 
          logger.info(
 -            "Export completed with WebSocket events",
 +            None,
@@ -667,7 +667,7 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -217,13 +217,7 @@
-
+ 
          logger.info(
              "Export completed with WebSocket events",
 -            extra={
@@ -679,14 +679,14 @@
 -            },
 +            extra=None,
          )
-
+ 
          # Complete the job and emit job.completed event
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_185: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -217,14 +217,7 @@
-
+ 
          logger.info(
              "Export completed with WebSocket events",
 -            extra={
@@ -698,7 +698,7 @@
 -            },
 -        )
 +            )
-
+ 
          # Complete the job and emit job.completed event
          await progress_reporter.complete(result_summary=export_result)
 -----
@@ -707,7 +707,7 @@
 +++ backend/services/export_service.py
 @@ -216,7 +216,7 @@
          }
-
+ 
          logger.info(
 -            "Export completed with WebSocket events",
 +            "XXExport completed with WebSocket eventsXX",
@@ -720,7 +720,7 @@
 +++ backend/services/export_service.py
 @@ -216,7 +216,7 @@
          }
-
+ 
          logger.info(
 -            "Export completed with WebSocket events",
 +            "export completed with websocket events",
@@ -733,7 +733,7 @@
 +++ backend/services/export_service.py
 @@ -216,7 +216,7 @@
          }
-
+ 
          logger.info(
 -            "Export completed with WebSocket events",
 +            "EXPORT COMPLETED WITH WEBSOCKET EVENTS",
@@ -856,7 +856,7 @@
 +                "XXduration_secondsXX": duration,
              },
          )
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_198: survived
 --- backend/services/export_service.py
@@ -869,26 +869,26 @@
 +                "DURATION_SECONDS": duration,
              },
          )
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_199: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -227,7 +227,7 @@
          )
-
+ 
          # Complete the job and emit job.completed event
 -        await progress_reporter.complete(result_summary=export_result)
 +        await progress_reporter.complete(result_summary=None)
-
+ 
          return export_result
-
+ 
 -----
 # backend.services.export_service.xǁExportServiceǁexport_events_with_websocket__mutmut_201: survived
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -233,5 +233,5 @@
-
+ 
      except Exception as e:
          # Fail the job and emit job.failed event
 -        await progress_reporter.fail(e, retryable=False)
@@ -899,7 +899,7 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -233,5 +233,5 @@
-
+ 
      except Exception as e:
          # Fail the job and emit job.failed event
 -        await progress_reporter.fail(e, retryable=False)
@@ -910,7 +910,7 @@
 --- backend/services/export_service.py
 +++ backend/services/export_service.py
 @@ -233,5 +233,5 @@
-
+ 
      except Exception as e:
          # Fail the job and emit job.failed event
 -        await progress_reporter.fail(e, retryable=False)

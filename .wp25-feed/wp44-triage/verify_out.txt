@@ -1,8 +1,8 @@
 analyze_pose             #12    KILLS:  1 :: pr_lying
 detect_fighting_stance   #15    KILLS:  2 :: F.LH_only,F.RH_only
 detect_fighting_stance   #33    KILLS:  2 :: F.LA_only,F.RA_only
-detect_fighting_stance   #40    KILLS:  0 ::
-detect_fighting_stance   #41    KILLS:  0 ::
+detect_fighting_stance   #40    KILLS:  0 :: 
+detect_fighting_stance   #41    KILLS:  0 :: 
 detect_fighting_stance   #47    KILLS:  2 :: F.exact_y,F.narrow_y
 detect_fighting_stance   #52    KILLS:  1 :: F.b20
 detect_fighting_stance   #53    KILLS:  1 :: F.b40
@@ -22,16 +22,16 @@ detect_hands_raised      #34    KILLS:  1 :: H.LS_only
 detect_hands_raised      #35    KILLS:  1 :: H.RS_only
 detect_hands_raised      #37    KILLS:  1 :: H.at_margin
 detect_hands_raised      #39    KILLS:  1 :: H.asym2
-detect_hands_raised      #40    KILLS:  0 ::
-detect_hands_raised      #42    KILLS:  0 ::
+detect_hands_raised      #40    KILLS:  0 :: 
+detect_hands_raised      #42    KILLS:  0 :: 
 detect_hands_raised      #44    KILLS:  1 :: H.asym2
 detect_hands_raised      #45    KILLS:  2 :: H.asym2,H.mixed
 detect_hands_raised      #49    KILLS:  1 :: H.asym2
-detect_hands_raised      #56    KILLS:  0 ::
-detect_hands_raised      #58    KILLS:  0 ::
-detect_hands_raised      #60    KILLS:  0 ::
+detect_hands_raised      #56    KILLS:  0 :: 
+detect_hands_raised      #58    KILLS:  0 :: 
+detect_hands_raised      #60    KILLS:  0 :: 
 detect_hands_raised      #61    KILLS:  1 :: H.Rup_only
-detect_hands_raised      #63    KILLS:  0 ::
+detect_hands_raised      #63    KILLS:  0 :: 
 detect_hands_raised      #64    KILLS:  1 :: H.Lup_only
 detect_lying_down        #1     KILLS:  2 :: L.LS_RA,L.left_only_horiz
 detect_lying_down        #3     KILLS:  2 :: L.LS_RA,L.left_only_horiz
@@ -51,54 +51,54 @@ detect_lying_down        #27    KILLS:  2 :: L.LS_RA,L.right_only_horiz
 detect_lying_down        #28    KILLS:  2 :: L.LS_RA,L.right_only_horiz
 detect_lying_down        #31    KILLS:  4 :: L.LS_RA,L.RS_LA,L.left_only_horiz,L.right_only_horiz
 detect_lying_down        #33    KILLS:  4 :: L.LS_RA,L.RS_LA,L.left_only_horiz,L.right_only_horiz
-detect_lying_down        #36    KILLS:  0 ::
-detect_lying_down        #38    KILLS:  0 ::
-detect_lying_down        #40    KILLS:  0 ::
-detect_lying_down        #41    KILLS:  0 ::
+detect_lying_down        #36    KILLS:  0 :: 
+detect_lying_down        #38    KILLS:  0 :: 
+detect_lying_down        #40    KILLS:  0 :: 
+detect_lying_down        #41    KILLS:  0 :: 
 detect_lying_down        #42    KILLS:  1 :: L.vert0_horiz0
-detect_lying_down        #43    KILLS:  0 ::
+detect_lying_down        #43    KILLS:  0 :: 
 detect_lying_down        #44    KILLS:  2 :: L.LS_RA,L.left_only_horiz
-detect_lying_down        #45    KILLS:  0 ::
-detect_lying_down        #46    KILLS:  0 ::
-detect_lying_down        #47    KILLS:  0 ::
-detect_lying_down        #48    KILLS:  0 ::
+detect_lying_down        #45    KILLS:  0 :: 
+detect_lying_down        #46    KILLS:  0 :: 
+detect_lying_down        #47    KILLS:  0 :: 
+detect_lying_down        #48    KILLS:  0 :: 
 detect_lying_down        #49    KILLS:  1 :: L.vert0_horiz0
-detect_lying_down        #50    KILLS:  0 ::
+detect_lying_down        #50    KILLS:  0 :: 
 detect_lying_down        #51    KILLS:  2 :: L.RS_LA,L.right_only_horiz
-detect_lying_down        #52    KILLS:  0 ::
-detect_lying_down        #53    KILLS:  0 ::
-detect_lying_down        #54    KILLS:  0 ::
+detect_lying_down        #52    KILLS:  0 :: 
+detect_lying_down        #53    KILLS:  0 :: 
+detect_lying_down        #54    KILLS:  0 :: 
 detect_lying_down        #55    KILLS:  1 :: L.vert0_horiz0
 detect_lying_down        #56    KILLS:  1 :: L.vert0_horiz0
-detect_lying_down        #61    KILLS:  0 ::
-detect_lying_down        #62    KILLS:  0 ::
-detect_lying_down        #68    KILLS:  0 ::
-detect_lying_down        #70    KILLS:  0 ::
-detect_lying_down        #72    KILLS:  0 ::
-detect_lying_down        #74    KILLS:  0 ::
-detect_lying_down        #75    KILLS:  0 ::
+detect_lying_down        #61    KILLS:  0 :: 
+detect_lying_down        #62    KILLS:  0 :: 
+detect_lying_down        #68    KILLS:  0 :: 
+detect_lying_down        #70    KILLS:  0 :: 
+detect_lying_down        #72    KILLS:  0 :: 
+detect_lying_down        #74    KILLS:  0 :: 
+detect_lying_down        #75    KILLS:  0 :: 
 detect_lying_down        #76    KILLS:  4 :: L.aligned_horiz,L.ratio_20,L.slight_horiz,L.vert0_horiz0
-detect_lying_down        #77    KILLS:  0 ::
+detect_lying_down        #77    KILLS:  0 :: 
 detect_lying_down        #78    KILLS:  2 :: L.RS_LA,L.left_only_horiz
-detect_lying_down        #79    KILLS:  0 ::
-detect_lying_down        #80    KILLS:  0 ::
-detect_lying_down        #81    KILLS:  0 ::
+detect_lying_down        #79    KILLS:  0 :: 
+detect_lying_down        #80    KILLS:  0 :: 
+detect_lying_down        #81    KILLS:  0 :: 
 detect_lying_down        #82    KILLS:  1 :: L.ratio_20
 detect_lying_down        #83    KILLS:  3 :: L.ratio_20,L.slight_horiz,L.vert0_horiz0
 detect_lying_down        #84    KILLS:  1 :: L.ratio_1_5
 detect_lying_down        #85    KILLS:  2 :: L.LS_RA,L.right_only_horiz
-detect_lying_down        #86    KILLS:  0 ::
-detect_lying_down        #87    KILLS:  0 ::
-detect_lying_down        #88    KILLS:  0 ::
+detect_lying_down        #86    KILLS:  0 :: 
+detect_lying_down        #87    KILLS:  0 :: 
+detect_lying_down        #88    KILLS:  0 :: 
 detect_lying_down        #89    KILLS:  7 :: L.LS_RA,L.RS_LA,L.left_only_horiz,L.ratio_20,L.right_only_horiz,L.slight_horiz,L.vert0_horiz0
 detect_lying_down        #90    KILLS:  2 :: L.ratio_1_5,L.vert0_horiz0
-detect_lying_down        #95    KILLS:  0 ::
+detect_lying_down        #95    KILLS:  0 :: 
 detect_lying_down        #96    KILLS:  1 :: L.ratio_1_5
-detect_lying_down        #102   KILLS:  0 ::
+detect_lying_down        #102   KILLS:  0 :: 
 detect_lying_down        #105   KILLS:  1 :: L.vert0_horiz0
-detect_lying_down        #109   KILLS:  0 ::
-detect_lying_down        #110   KILLS:  0 ::
-detect_lying_down        #111   KILLS:  0 ::
+detect_lying_down        #109   KILLS:  0 :: 
+detect_lying_down        #110   KILLS:  0 :: 
+detect_lying_down        #111   KILLS:  0 :: 
 detect_lying_down        #112   KILLS:  1 :: L.ratio_1_5
 detect_lying_down        #113   KILLS:  1 :: L.ratio_20
 detect_security_alerts   #15    KILLS:  1 :: posture:lying_down

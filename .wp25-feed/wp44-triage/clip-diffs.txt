@@ -75,7 +75,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug(None)
          return None
-
+ 
      # Validate video path to prevent command injection
 
 ========
@@ -89,7 +89,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("XXClip generation is disabledXX")
          return None
-
+ 
      # Validate video path to prevent command injection
 
 ========
@@ -103,7 +103,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("clip generation is disabled")
          return None
-
+ 
      # Validate video path to prevent command injection
 
 ========
@@ -117,7 +117,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("CLIP GENERATION IS DISABLED")
          return None
-
+ 
      # Validate video path to prevent command injection
 
 ========
@@ -131,7 +131,7 @@
 -        logger.error(f"Video path validation failed: {e}")
 +        logger.error(None)
          return None
-
+ 
      # Get and validate pre/post roll seconds
 
 ========
@@ -140,7 +140,7 @@
 +++ backend/services/clip_generator.py
 @@ -38,7 +38,7 @@
      post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
-
+ 
      try:
 -        validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
 +        validated_pre = _validate_roll_seconds(pre_seconds, None)
@@ -154,7 +154,7 @@
 +++ backend/services/clip_generator.py
 @@ -38,7 +38,7 @@
      post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
-
+ 
      try:
 -        validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
 +        validated_pre = _validate_roll_seconds(pre_seconds, "XXpre_secondsXX")
@@ -168,7 +168,7 @@
 +++ backend/services/clip_generator.py
 @@ -38,7 +38,7 @@
      post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
-
+ 
      try:
 -        validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
 +        validated_pre = _validate_roll_seconds(pre_seconds, "PRE_SECONDS")
@@ -181,7 +181,7 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -39,7 +39,7 @@
-
+ 
      try:
          validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
 -        validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
@@ -195,7 +195,7 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -39,7 +39,7 @@
-
+ 
      try:
          validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
 -        validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
@@ -209,7 +209,7 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -39,7 +39,7 @@
-
+ 
      try:
          validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
 -        validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
@@ -229,7 +229,7 @@
 -        logger.error(f"Roll seconds validation failed: {e}")
 +        logger.error(None)
          return None
-
+ 
      # Calculate start and end times
 
 ========
@@ -242,7 +242,7 @@
      # For simplicity, we'll use the event times directly and calculate duration
 -    duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
 +    duration = (end_time - start_time).total_seconds() + validated_pre - validated_post
-
+ 
      # Validate duration is reasonable (max 1 hour)
      if duration < 0 or duration > 3600:
 
@@ -256,7 +256,7 @@
      # For simplicity, we'll use the event times directly and calculate duration
 -    duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
 +    duration = (end_time - start_time).total_seconds() - validated_pre + validated_post
-
+ 
      # Validate duration is reasonable (max 1 hour)
      if duration < 0 or duration > 3600:
 
@@ -266,13 +266,13 @@
 +++ backend/services/clip_generator.py
 @@ -54,7 +54,7 @@
      duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
-
+ 
      # Validate duration is reasonable (max 1 hour)
 -    if duration < 0 or duration > 3600:
 +    if duration <= 0 or duration > 3600:
          logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
          return None
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_41: survived
@@ -280,13 +280,13 @@
 +++ backend/services/clip_generator.py
 @@ -54,7 +54,7 @@
      duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
-
+ 
      # Validate duration is reasonable (max 1 hour)
 -    if duration < 0 or duration > 3600:
 +    if duration < 1 or duration > 3600:
          logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
          return None
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_42: survived
@@ -294,13 +294,13 @@
 +++ backend/services/clip_generator.py
 @@ -54,7 +54,7 @@
      duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
-
+ 
      # Validate duration is reasonable (max 1 hour)
 -    if duration < 0 or duration > 3600:
 +    if duration < 0 or duration >= 3600:
          logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
          return None
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_43: survived
@@ -308,26 +308,26 @@
 +++ backend/services/clip_generator.py
 @@ -54,7 +54,7 @@
      duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
-
+ 
      # Validate duration is reasonable (max 1 hour)
 -    if duration < 0 or duration > 3600:
 +    if duration < 0 or duration > 3601:
          logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
          return None
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_44: survived
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -55,7 +55,7 @@
-
+ 
      # Validate duration is reasonable (max 1 hour)
      if duration < 0 or duration > 3600:
 -        logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
 +        logger.error(None)
          return None
-
+ 
      # Generate output filename
 
 ========
@@ -650,7 +650,7 @@
 +        "XX+faststartXX",  # Enable fast start for web playback
          str(output_path),
      ]
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_79: survived
@@ -664,7 +664,7 @@
 +        "+FASTSTART",  # Enable fast start for web playback
          str(output_path),
      ]
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_81: survived
@@ -672,12 +672,12 @@
 +++ backend/services/clip_generator.py
 @@ -91,7 +91,7 @@
      ]
-
+ 
      try:
 -        logger.info(f"Generating clip for event {event.id} from video {video_path}")
 +        logger.info(None)
          logger.debug(f"FFmpeg command: {' '.join(cmd)}")
-
+ 
          process = await asyncio.create_subprocess_exec(
 
 ========
@@ -685,12 +685,12 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -92,7 +92,7 @@
-
+ 
      try:
          logger.info(f"Generating clip for event {event.id} from video {video_path}")
 -        logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 +        logger.debug(None)
-
+ 
          process = await asyncio.create_subprocess_exec(
              *cmd,
 
@@ -699,12 +699,12 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -92,7 +92,7 @@
-
+ 
      try:
          logger.info(f"Generating clip for event {event.id} from video {video_path}")
 -        logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 +        logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
-
+ 
          process = await asyncio.create_subprocess_exec(
              *cmd,
 
@@ -713,7 +713,7 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -96,7 +96,7 @@
-
+ 
          process = await asyncio.create_subprocess_exec(
              *cmd,
 -            stdout=asyncio.subprocess.PIPE,
@@ -734,14 +734,14 @@
 +            stderr=None,
          )
          _stdout, stderr = await process.communicate()
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_89: survived
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -96,7 +96,6 @@
-
+ 
          process = await asyncio.create_subprocess_exec(
              *cmd,
 -            stdout=asyncio.subprocess.PIPE,
@@ -761,7 +761,7 @@
 -        )
 +            )
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 
 ========
@@ -770,7 +770,7 @@
 +++ backend/services/clip_generator.py
 @@ -102,7 +102,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = None
@@ -784,7 +784,7 @@
 +++ backend/services/clip_generator.py
 @@ -102,7 +102,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if (stderr) and False else "Unknown error"
@@ -798,7 +798,7 @@
 +++ backend/services/clip_generator.py
 @@ -102,7 +102,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if (stderr) or True else "Unknown error"
@@ -812,7 +812,7 @@
 +++ backend/services/clip_generator.py
 @@ -102,7 +102,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
@@ -826,7 +826,7 @@
 +++ backend/services/clip_generator.py
 @@ -102,7 +102,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if stderr else "unknown error"
@@ -840,7 +840,7 @@
 +++ backend/services/clip_generator.py
 @@ -102,7 +102,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
@@ -853,7 +853,7 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -103,7 +103,7 @@
-
+ 
          if process.returncode != 0:
              error_msg = stderr.decode() if stderr else "Unknown error"
 -            logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
@@ -868,12 +868,12 @@
 +++ backend/services/clip_generator.py
 @@ -109,7 +109,7 @@
              )
-
+ 
          if output_path.exists():
 -            logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
 +            logger.info(None)
              return output_path
-
+ 
          logger.error(f"Clip file not created: {output_path}")
 
 ========
@@ -883,11 +883,11 @@
 @@ -112,7 +112,7 @@
              logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
              return output_path
-
+ 
 -        logger.error(f"Clip file not created: {output_path}")
 +        logger.error(None)
          return None
-
+ 
      except FileNotFoundError:
 
 ========
@@ -896,7 +896,7 @@
 +++ backend/services/clip_generator.py
 @@ -116,7 +116,7 @@
          return None
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error(None)
@@ -910,7 +910,7 @@
 +++ backend/services/clip_generator.py
 @@ -116,7 +116,7 @@
          return None
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error("XXffmpeg not found. Please ensure ffmpeg is installed.XX")
@@ -924,7 +924,7 @@
 +++ backend/services/clip_generator.py
 @@ -116,7 +116,7 @@
          return None
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error("ffmpeg not found. please ensure ffmpeg is installed.")
@@ -938,7 +938,7 @@
 +++ backend/services/clip_generator.py
 @@ -116,7 +116,7 @@
          return None
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error("FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.")
@@ -1580,7 +1580,7 @@
 +            "XX+faststartXX",
              str(output_path),
          ]
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_59: survived
@@ -1594,7 +1594,7 @@
 +            "+FASTSTART",
              str(output_path),
          ]
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_60: survived
@@ -1607,7 +1607,7 @@
 -            str(output_path),
 +            str(None),
          ]
-
+ 
      logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 
 ========
@@ -1617,10 +1617,10 @@
 @@ -59,7 +59,7 @@
              str(output_path),
          ]
-
+ 
 -    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 +    logger.debug(None)
-
+ 
      try:
          process = await asyncio.create_subprocess_exec(
 
@@ -1631,10 +1631,10 @@
 @@ -59,7 +59,7 @@
              str(output_path),
          ]
-
+ 
 -    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 +    logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
-
+ 
      try:
          process = await asyncio.create_subprocess_exec(
 
@@ -1664,7 +1664,7 @@
 +            stderr=None,
          )
          _stdout, stderr = await process.communicate()
-
+ 
 
 ========
 # backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_68: survived
@@ -1691,7 +1691,7 @@
 -        )
 +            )
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 
 ========
@@ -1700,7 +1700,7 @@
 +++ backend/services/clip_generator.py
 @@ -70,7 +70,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = None
@@ -1714,7 +1714,7 @@
 +++ backend/services/clip_generator.py
 @@ -70,7 +70,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if (stderr) and False else "Unknown error"
@@ -1728,7 +1728,7 @@
 +++ backend/services/clip_generator.py
 @@ -70,7 +70,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if (stderr) or True else "Unknown error"
@@ -1742,7 +1742,7 @@
 +++ backend/services/clip_generator.py
 @@ -70,7 +70,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
@@ -1756,7 +1756,7 @@
 +++ backend/services/clip_generator.py
 @@ -70,7 +70,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if stderr else "unknown error"
@@ -1770,7 +1770,7 @@
 +++ backend/services/clip_generator.py
 @@ -70,7 +70,7 @@
          _stdout, stderr = await process.communicate()
-
+ 
          if process.returncode != 0:
 -            error_msg = stderr.decode() if stderr else "Unknown error"
 +            error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
@@ -1783,7 +1783,7 @@
 --- backend/services/clip_generator.py
 +++ backend/services/clip_generator.py
 @@ -71,7 +71,7 @@
-
+ 
          if process.returncode != 0:
              error_msg = stderr.decode() if stderr else "Unknown error"
 -            logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
@@ -1803,7 +1803,7 @@
 -                f"FFmpeg exited with code {process.returncode}: {error_msg}"
 +                None
              )
-
+ 
          if output_path.exists():
 
 ========
@@ -1812,12 +1812,12 @@
 +++ backend/services/clip_generator.py
 @@ -77,7 +77,7 @@
              )
-
+ 
          if output_path.exists():
 -            logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
 +            logger.info(None)
              return output_path
-
+ 
          logger.error(f"Clip file not created: {output_path}")
 
 ========
@@ -1827,7 +1827,7 @@
 @@ -80,7 +80,7 @@
              logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
              return output_path
-
+ 
 -        logger.error(f"Clip file not created: {output_path}")
 +        logger.error(None)
          return None
@@ -1856,7 +1856,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug(None)
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -1870,7 +1870,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("XXClip generation is disabledXX")
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -1884,7 +1884,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("clip generation is disabled")
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -1898,7 +1898,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("CLIP GENERATION IS DISABLED")
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -1907,12 +1907,12 @@
 +++ backend/services/clip_generator.py
 @@ -34,7 +34,7 @@
      validated_format = _validate_output_format(output_format)
-
+ 
      if not image_paths:
 -        logger.warning(f"No images provided for event {event.id}")
 +        logger.warning(None)
          return None
-
+ 
      # Validate images exist
 
 ========
@@ -1926,7 +1926,7 @@
 -        logger.error(f"No valid images found for event {event.id}")
 +        logger.error(None)
          return None
-
+ 
      # Generate output filename using validated format
 
 ========
@@ -1935,13 +1935,13 @@
 +++ backend/services/clip_generator.py
 @@ -51,8 +51,7 @@
          list_file_path = self._create_concat_file(valid_paths, validated_fps)
-
+ 
          logger.info(
 -            f"Generating {validated_format} clip for event {event.id} "
 -            f"from {len(valid_paths)} images"
 +            None
          )
-
+ 
          return await self._run_ffmpeg_for_images(
 
 ========
@@ -1950,12 +1950,12 @@
 +++ backend/services/clip_generator.py
 @@ -56,7 +56,7 @@
          )
-
+ 
          return await self._run_ffmpeg_for_images(
 -            event.id, list_file_path, output_path, validated_format, validated_fps
 +            None, list_file_path, output_path, validated_format, validated_fps
          )
-
+ 
      except FileNotFoundError:
 
 ========
@@ -1964,12 +1964,12 @@
 +++ backend/services/clip_generator.py
 @@ -56,7 +56,7 @@
          )
-
+ 
          return await self._run_ffmpeg_for_images(
 -            event.id, list_file_path, output_path, validated_format, validated_fps
 +            event.id, list_file_path, output_path, validated_format, None
          )
-
+ 
      except FileNotFoundError:
 
 ========
@@ -1978,7 +1978,7 @@
 +++ backend/services/clip_generator.py
 @@ -60,7 +60,7 @@
          )
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error(None)
@@ -1992,7 +1992,7 @@
 +++ backend/services/clip_generator.py
 @@ -60,7 +60,7 @@
          )
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error("XXffmpeg not found. Please ensure ffmpeg is installed.XX")
@@ -2006,7 +2006,7 @@
 +++ backend/services/clip_generator.py
 @@ -60,7 +60,7 @@
          )
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error("ffmpeg not found. please ensure ffmpeg is installed.")
@@ -2020,7 +2020,7 @@
 +++ backend/services/clip_generator.py
 @@ -60,7 +60,7 @@
          )
-
+ 
      except FileNotFoundError:
 -        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
 +        logger.error("FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.")
@@ -2167,7 +2167,7 @@
 @@ -2,7 +2,7 @@
      """Create ffmpeg concat demuxer file for image sequence."""
      import tempfile
-
+ 
 -    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
 +    with tempfile.NamedTemporaryFile(mode="w", suffix=None, delete=False) as list_file:
          list_file_path = Path(list_file.name)
@@ -2181,7 +2181,7 @@
 @@ -2,7 +2,7 @@
      """Create ffmpeg concat demuxer file for image sequence."""
      import tempfile
-
+ 
 -    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
 +    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=None) as list_file:
          list_file_path = Path(list_file.name)
@@ -2195,7 +2195,7 @@
 @@ -2,7 +2,7 @@
      """Create ffmpeg concat demuxer file for image sequence."""
      import tempfile
-
+ 
 -    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
 +    with tempfile.NamedTemporaryFile(mode="w", delete=False) as list_file:
          list_file_path = Path(list_file.name)
@@ -2209,7 +2209,7 @@
 @@ -2,7 +2,7 @@
      """Create ffmpeg concat demuxer file for image sequence."""
      import tempfile
-
+ 
 -    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
 +    with tempfile.NamedTemporaryFile(mode="w", suffix="XX.txtXX", delete=False) as list_file:
          list_file_path = Path(list_file.name)
@@ -2223,7 +2223,7 @@
 @@ -2,7 +2,7 @@
      """Create ffmpeg concat demuxer file for image sequence."""
      import tempfile
-
+ 
 -    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
 +    with tempfile.NamedTemporaryFile(mode="w", suffix=".TXT", delete=False) as list_file:
          list_file_path = Path(list_file.name)
@@ -2297,7 +2297,7 @@
 -        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
 +        escaped_last = None
          list_file.write(f"file '{escaped_last}'\n")
-
+ 
      return list_file_path
 
 ========
@@ -2311,7 +2311,7 @@
 -        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
 +        escaped_last = str(None).replace("'", "'\\''")
          list_file.write(f"file '{escaped_last}'\n")
-
+ 
      return list_file_path
 
 ========
@@ -2325,7 +2325,7 @@
 -        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
 +        escaped_last = str(valid_paths[-1]).replace("XX'XX", "'\\''")
          list_file.write(f"file '{escaped_last}'\n")
-
+ 
      return list_file_path
 
 ========
@@ -2339,7 +2339,7 @@
 -        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
 +        escaped_last = str(valid_paths[-1]).replace("'", "XX'\\''XX")
          list_file.write(f"file '{escaped_last}'\n")
-
+ 
      return list_file_path
 
 ========
@@ -2353,7 +2353,7 @@
 -            logger.debug(f"Deleted clip: {clip_path}")
 +            logger.debug(None)
              return True
-
+ 
          # Try GIF
 
 ========
@@ -2367,7 +2367,7 @@
 -            logger.debug(f"Deleted clip: {gif_path}")
 +            logger.debug(None)
              return True
-
+ 
          logger.warning(f"Clip not found for event {event_id}")
 
 ========
@@ -2377,11 +2377,11 @@
 @@ -22,7 +22,7 @@
              logger.debug(f"Deleted clip: {gif_path}")
              return True
-
+ 
 -        logger.warning(f"Clip not found for event {event_id}")
 +        logger.warning(None)
          return False
-
+ 
      except Exception as e:
 
 ========
@@ -2390,7 +2390,7 @@
 +++ backend/services/clip_generator.py
 @@ -26,5 +26,5 @@
          return False
-
+ 
      except Exception as e:
 -        logger.error(f"Failed to delete clip for event {event_id}: {e}")
 +        logger.error(None)
@@ -2407,7 +2407,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug(None)
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -2421,7 +2421,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("XXClip generation is disabledXX")
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -2435,7 +2435,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("clip generation is disabled")
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========
@@ -2449,7 +2449,7 @@
 -        logger.debug("Clip generation is disabled")
 +        logger.debug("CLIP GENERATION IS DISABLED")
          return None
-
+ 
      # Validate fps parameter to prevent command injection
 
 ========

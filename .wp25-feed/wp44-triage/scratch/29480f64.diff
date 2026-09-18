@@ -9,5 +9,5 @@ KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detect
 -        is_new,
 +        None,
      )
-
+ 
      # Step 2: Store in Redis for hot cache access

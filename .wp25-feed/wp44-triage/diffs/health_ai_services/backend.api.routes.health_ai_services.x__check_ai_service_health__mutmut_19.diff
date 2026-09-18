@@ -4,7 +4,7 @@
 @@ -17,7 +17,7 @@
      url_attr = service_config["url_attr"]
      circuit_breaker_name = service_config.get("circuit_breaker_name", name)
-
+ 
 -    service_url = getattr(settings, url_attr, None)
 +    service_url = getattr(settings, url_attr, )
      circuit_state = _get_circuit_breaker_state(circuit_breaker_name)

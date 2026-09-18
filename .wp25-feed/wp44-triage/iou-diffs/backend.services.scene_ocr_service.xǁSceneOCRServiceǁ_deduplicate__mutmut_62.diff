@@ -7,6 +7,6 @@
                  best_overlap = overlap
 -                best_det_id = det_id
 +                best_det_id = None
-
+ 
          if best_det_id:
              # Associate with detection

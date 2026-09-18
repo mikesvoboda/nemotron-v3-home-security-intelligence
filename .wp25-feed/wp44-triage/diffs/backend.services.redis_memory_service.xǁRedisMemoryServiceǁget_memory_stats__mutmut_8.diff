@@ -8,5 +8,5 @@
 -    server_info = await self._redis.info("stats")
 +    server_info = await self._redis.info("STATS")
      keyspace_info = await self._redis.info("keyspace")
-
+ 
      # Parse memory values

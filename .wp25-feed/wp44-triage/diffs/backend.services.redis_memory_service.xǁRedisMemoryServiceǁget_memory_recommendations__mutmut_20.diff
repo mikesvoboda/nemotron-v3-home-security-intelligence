@@ -9,3 +9,4 @@
 +            "USING 'NOEVICTION' POLICY WITH A MEMORY LIMIT. CONSIDER SWITCHING TO "
              "'volatile-lru' to allow graceful eviction of cached data."
          )
+ 

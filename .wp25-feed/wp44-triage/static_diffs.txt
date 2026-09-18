@@ -603,3 +603,4 @@ KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut
 KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_99
 -            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
 +            relevant_error = "\n".join(error_lines[+5:]) if len(error_lines) > 5 else error_msg
+

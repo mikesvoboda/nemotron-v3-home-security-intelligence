@@ -8,5 +8,5 @@
 -                    if confidence < CONFIDENCE_EXCLUDE:
 +                    if confidence <= CONFIDENCE_EXCLUDE:
                          continue
-
+ 
                      # Record confidence metric for each detected text

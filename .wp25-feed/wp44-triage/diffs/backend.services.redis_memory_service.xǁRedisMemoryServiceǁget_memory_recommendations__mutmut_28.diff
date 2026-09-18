@@ -3,7 +3,7 @@
 +++ backend/services/redis_memory_service.py
 @@ -49,7 +49,7 @@
          )
-
+ 
      # Check keys with TTL
 -    if stats.total_keys > 0:
 +    if stats.total_keys > 1:

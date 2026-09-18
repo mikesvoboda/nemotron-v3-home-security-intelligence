@@ -8,6 +8,6 @@
 -                is_suspicious=cc.get("is_suspicious", False),
 -            )
 +                )
-
+ 
      # Extract pet data using typed model
      pet: PetEnrichmentData | None = None

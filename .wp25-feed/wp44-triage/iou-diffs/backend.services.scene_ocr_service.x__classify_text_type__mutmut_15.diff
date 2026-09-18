@@ -8,5 +8,5 @@
 -    if text_upper in common_signs or any(sign in text_upper for sign in common_signs):
 +    if text_upper in common_signs and any(sign in text_upper for sign in common_signs):
          return "sign"
-
+ 
      return None

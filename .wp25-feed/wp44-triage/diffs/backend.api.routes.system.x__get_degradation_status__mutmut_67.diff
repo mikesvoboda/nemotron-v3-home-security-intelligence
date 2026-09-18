@@ -3,7 +3,7 @@
 +++ backend/api/routes/system.py
 @@ -35,7 +35,7 @@
              )
-
+ 
          return DegradationStatusResponse(
 -            mode=DegradationModeEnum(status.get("mode", "normal")),
 +            mode=DegradationModeEnum(status.get("mode", "XXnormalXX")),

@@ -7,6 +7,6 @@
      """
 -    critical_services = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg.get("critical", False)}
 +    critical_services = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg.get("critical", None)}
-
+ 
      # Check if any critical service is unhealthy
      for name, health in service_health.items():

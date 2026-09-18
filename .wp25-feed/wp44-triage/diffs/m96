@@ -2,7 +2,7 @@
 --- backend/api/routes/detections.py
 +++ backend/api/routes/detections.py
 @@ -48,7 +48,7 @@
-
+ 
      # Extract face data
      faces = enrichment_data.get("faces", [])
 -    face_response: dict[str, Any] = {"detected": False, "count": 0}

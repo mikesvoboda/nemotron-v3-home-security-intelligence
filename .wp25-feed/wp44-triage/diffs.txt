@@ -1,818 +1,360 @@
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_4 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_4: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -41,7 +41,7 @@
-
-     def _estimate_depth() -> NDArray[np.float32]:
-         """Run depth estimation synchronously."""
--        depth_output = depth_pipeline(image)
-+        depth_output = depth_pipeline(None)
-         return normalize_depth_map(depth_output)
-
-     try:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_10 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_10: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -47,7 +47,7 @@
-     try:
-         depth_map = await loop.run_in_executor(None, _estimate_depth)
-     except Exception as e:
--        logger.error(f"Depth estimation failed: {e}", exc_info=True)
-+        logger.error(None, exc_info=True)
-         raise
-
-     # Extract depth for each detection
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_11 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_11: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -47,7 +47,7 @@
-     try:
-         depth_map = await loop.run_in_executor(None, _estimate_depth)
-     except Exception as e:
--        logger.error(f"Depth estimation failed: {e}", exc_info=True)
-+        logger.error(f"Depth estimation failed: {e}", exc_info=None)
-         raise
-
-     # Extract depth for each detection
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_12 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_12: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -47,7 +47,7 @@
-     try:
-         depth_map = await loop.run_in_executor(None, _estimate_depth)
-     except Exception as e:
--        logger.error(f"Depth estimation failed: {e}", exc_info=True)
-+        logger.error(exc_info=True)
-         raise
-
-     # Extract depth for each detection
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_13 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_13: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -47,7 +47,7 @@
-     try:
-         depth_map = await loop.run_in_executor(None, _estimate_depth)
-     except Exception as e:
--        logger.error(f"Depth estimation failed: {e}", exc_info=True)
-+        logger.error(f"Depth estimation failed: {e}", )
-         raise
-
-     # Extract depth for each detection
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_14 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_14: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -47,7 +47,7 @@
-     try:
-         depth_map = await loop.run_in_executor(None, _estimate_depth)
-     except Exception as e:
--        logger.error(f"Depth estimation failed: {e}", exc_info=True)
-+        logger.error(f"Depth estimation failed: {e}", exc_info=False)
-         raise
-
-     # Extract depth for each detection
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_17 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_17: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -53,7 +53,7 @@
-     # Extract depth for each detection
-     detection_depths: dict[str, DetectionDepth] = {}
-     depth_values: list[float] = []
--    closest_id: str | None = None
-+    closest_id: str | None = ""
-     min_depth = 1.0
-
-     for det in detections:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_19 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_19: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -54,7 +54,7 @@
-     detection_depths: dict[str, DetectionDepth] = {}
-     depth_values: list[float] = []
-     closest_id: str | None = None
--    min_depth = 1.0
-+    min_depth = 2.0
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_23 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_23: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", None))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_25 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_25: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", ))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_28 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_28: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get(None, "")))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_29 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_29: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get("id", None)))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_30 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_30: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get("")))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_31 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_31: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get("id", )))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_32 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_32: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get("XXidXX", "")))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_33 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_33: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get("ID", "")))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_34 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_34: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -57,7 +57,7 @@
-     min_depth = 1.0
-
-     for det in detections:
--        det_id = str(det.get("detection_id", det.get("id", "")))
-+        det_id = str(det.get("detection_id", det.get("id", "XXXX")))
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_35 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_35: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = None
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_36 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_36: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get(None, det.get("label", "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_37 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_37: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", None)
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_38 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_38: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get(det.get("label", "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_39 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_39: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", )
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_40 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_40: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("XXclass_nameXX", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_41 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_41: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("CLASS_NAME", det.get("label", "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_42 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_42: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get(None, "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_43 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_43: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("label", None))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_44 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_44: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_45 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_45: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("label", ))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_46 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_46: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("XXlabelXX", "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_47 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_47: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("LABEL", "object"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_48 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_48: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("label", "XXobjectXX"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_49 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_49: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -58,7 +58,7 @@
-
-     for det in detections:
-         det_id = str(det.get("detection_id", det.get("id", "")))
--        class_name = det.get("class_name", det.get("label", "object"))
-+        class_name = det.get("class_name", det.get("label", "OBJECT"))
-         bbox = det.get("bbox")
-
-         if not bbox or not det_id:
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_54 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_54: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -61,7 +61,7 @@
-         class_name = det.get("class_name", det.get("label", "object"))
-         bbox = det.get("bbox")
-
--        if not bbox or not det_id:
-+        if not bbox and not det_id:
-             continue
-
-         # Handle bbox that might be a BoundingBox object or tuple/list
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_57 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_57: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -65,7 +65,7 @@
-             continue
-
-         # Handle bbox that might be a BoundingBox object or tuple/list
--        if hasattr(bbox, "to_tuple"):
-+        if hasattr(None, "to_tuple"):
-             bbox_tuple = bbox.to_tuple()
-         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
-             bbox_tuple = tuple(bbox[:4])
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_61 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_61: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -65,7 +65,7 @@
-             continue
-
-         # Handle bbox that might be a BoundingBox object or tuple/list
--        if hasattr(bbox, "to_tuple"):
-+        if hasattr(bbox, "XXto_tupleXX"):
-             bbox_tuple = bbox.to_tuple()
-         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
-             bbox_tuple = tuple(bbox[:4])
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_62 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_62: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -65,7 +65,7 @@
-             continue
-
-         # Handle bbox that might be a BoundingBox object or tuple/list
--        if hasattr(bbox, "to_tuple"):
-+        if hasattr(bbox, "TO_TUPLE"):
-             bbox_tuple = bbox.to_tuple()
-         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
-             bbox_tuple = tuple(bbox[:4])
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_63 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_63: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -67,7 +67,7 @@
-         # Handle bbox that might be a BoundingBox object or tuple/list
-         if hasattr(bbox, "to_tuple"):
-             bbox_tuple = bbox.to_tuple()
--        elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
-+        elif isinstance(bbox, list | tuple) or len(bbox) >= 4:
-             bbox_tuple = tuple(bbox[:4])
-         else:
-             logger.warning(f"Invalid bbox format for detection {det_id}: {bbox}")
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_68 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_68: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -68,7 +68,7 @@
-         if hasattr(bbox, "to_tuple"):
-             bbox_tuple = bbox.to_tuple()
-         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
--            bbox_tuple = tuple(bbox[:4])
-+            bbox_tuple = tuple(bbox[:5])
-         else:
-             logger.warning(f"Invalid bbox format for detection {det_id}: {bbox}")
-             continue
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_75 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_75: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -74,7 +74,7 @@
-             continue
-
-         # Get depth value
--        depth_value = get_depth_at_bbox(depth_map, bbox_tuple, method=depth_sampling_method)
-+        depth_value = get_depth_at_bbox(depth_map, bbox_tuple, )
-         depth_values.append(depth_value)
-
-         # Convert depth to feet if calibration data is available
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_82 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_82: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -81,7 +81,7 @@
-         distance_feet = depth_to_feet(depth_value, calibration_data)
-
-         # Create DetectionDepth
--        proximity_label = depth_to_proximity_label(depth_value)
-+        proximity_label = None
-         detection_depth = DetectionDepth(
-             detection_id=det_id,
-             class_name=class_name,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_85 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_85: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -83,7 +83,7 @@
-         # Create DetectionDepth
-         proximity_label = depth_to_proximity_label(depth_value)
-         detection_depth = DetectionDepth(
--            detection_id=det_id,
-+            detection_id=None,
-             class_name=class_name,
-             depth_value=depth_value,
-             proximity_label=proximity_label,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_86 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_86: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -84,7 +84,7 @@
-         proximity_label = depth_to_proximity_label(depth_value)
-         detection_depth = DetectionDepth(
-             detection_id=det_id,
--            class_name=class_name,
-+            class_name=None,
-             depth_value=depth_value,
-             proximity_label=proximity_label,
-             is_approaching=False,  # Could be enhanced with temporal tracking
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_87 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_87: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -85,7 +85,7 @@
-         detection_depth = DetectionDepth(
-             detection_id=det_id,
-             class_name=class_name,
--            depth_value=depth_value,
-+            depth_value=None,
-             proximity_label=proximity_label,
-             is_approaching=False,  # Could be enhanced with temporal tracking
-             distance_feet=distance_feet,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_88 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_88: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -86,7 +86,7 @@
-             detection_id=det_id,
-             class_name=class_name,
-             depth_value=depth_value,
--            proximity_label=proximity_label,
-+            proximity_label=None,
-             is_approaching=False,  # Could be enhanced with temporal tracking
-             distance_feet=distance_feet,
-         )
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_89 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_89: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -87,7 +87,7 @@
-             class_name=class_name,
-             depth_value=depth_value,
-             proximity_label=proximity_label,
--            is_approaching=False,  # Could be enhanced with temporal tracking
-+            is_approaching=None,  # Could be enhanced with temporal tracking
-             distance_feet=distance_feet,
-         )
-         detection_depths[det_id] = detection_depth
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_95 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_95: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -87,7 +87,6 @@
-             class_name=class_name,
-             depth_value=depth_value,
-             proximity_label=proximity_label,
--            is_approaching=False,  # Could be enhanced with temporal tracking
-             distance_feet=distance_feet,
-         )
-         detection_depths[det_id] = detection_depth
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_97 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_97: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -87,7 +87,7 @@
-             class_name=class_name,
-             depth_value=depth_value,
-             proximity_label=proximity_label,
--            is_approaching=False,  # Could be enhanced with temporal tracking
-+            is_approaching=True,  # Could be enhanced with temporal tracking
-             distance_feet=distance_feet,
-         )
-         detection_depths[det_id] = detection_depth
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_99 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_99: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -93,7 +93,7 @@
-         detection_depths[det_id] = detection_depth
-
-         # Track closest
--        if depth_value < min_depth:
-+        if depth_value <= min_depth:
-             min_depth = depth_value
-             closest_id = det_id
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_102 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_102: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -98,7 +98,7 @@
-             closest_id = det_id
-
-     # Calculate statistics
--    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-+    has_close = None
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_104 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_104: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -98,7 +98,7 @@
-             closest_id = det_id
-
-     # Calculate statistics
--    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-+    has_close = any(d.proximity_label not in ("very close", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_105 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_105: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -98,7 +98,7 @@
-             closest_id = det_id
-
-     # Calculate statistics
--    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-+    has_close = any(d.proximity_label in ("XXvery closeXX", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_106 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_106: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -98,7 +98,7 @@
-             closest_id = det_id
-
-     # Calculate statistics
--    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-+    has_close = any(d.proximity_label in ("VERY CLOSE", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_107 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_107: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -98,7 +98,7 @@
-             closest_id = det_id
-
-     # Calculate statistics
--    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-+    has_close = any(d.proximity_label in ("very close", "XXcloseXX") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_108 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_108: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -98,7 +98,7 @@
-             closest_id = det_id
-
-     # Calculate statistics
--    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-+    has_close = any(d.proximity_label in ("very close", "CLOSE") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_109 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_109: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -99,7 +99,7 @@
-
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
--    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-+    avg_depth = None
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-     return DepthAnalysisResult(
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_110 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_110: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -99,7 +99,7 @@
-
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
--    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-+    avg_depth = float(np.mean(depth_values)) if (depth_values) and False else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-     return DepthAnalysisResult(
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_111 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_111: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -99,7 +99,7 @@
-
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
--    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-+    avg_depth = float(np.mean(depth_values)) if (depth_values) or True else 0.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-     return DepthAnalysisResult(
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_114 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_114: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -99,7 +99,7 @@
-
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
--    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
-+    avg_depth = float(np.mean(depth_values)) if depth_values else 1.5
-     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-
-     return DepthAnalysisResult(
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_115 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_115: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -100,7 +100,7 @@
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
--    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-+    variance = None
-
-     return DepthAnalysisResult(
-         detection_depths=detection_depths,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_116 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_116: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -100,7 +100,7 @@
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
--    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-+    variance = float(np.var(depth_values)) if (len(depth_values) > 1) and False else 0.0
-
-     return DepthAnalysisResult(
-         detection_depths=detection_depths,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_117 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_117: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -100,7 +100,7 @@
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
--    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-+    variance = float(np.var(depth_values)) if (len(depth_values) > 1) or True else 0.0
-
-     return DepthAnalysisResult(
-         detection_depths=detection_depths,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_120 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_120: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -100,7 +100,7 @@
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
--    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-+    variance = float(np.var(depth_values)) if len(depth_values) >= 1 else 0.0
-
-     return DepthAnalysisResult(
-         detection_depths=detection_depths,
-=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_121 (rc=0)
-# backend.services.depth_anything_loader.x_analyze_depth__mutmut_121: survived
---- backend/services/depth_anything_loader.py
-+++ backend/services/depth_anything_loader.py
-@@ -100,7 +100,7 @@
-     # Calculate statistics
-     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
-     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
--    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
-+    variance = float(np.var(depth_values)) if len(depth_values) > 2 else 0.0
-
-     return DepthAnalysisResult(
-         detection_depths=detection_depths,
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_10
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "XXstatusXX": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_10(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_11
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "STATUS": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_11(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_12
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "status": "XXfile_not_foundXX"}, | DEF: def x_compute_file_hash__mutmut_12(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_13
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "status": "FILE_NOT_FOUND"}, | DEF: def x_compute_file_hash__mutmut_13(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_14
+  - return HashResult.file_not_found_result(file_path) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + return HashResult.file_not_found_result(None) | DEF: def x_compute_file_hash__mutmut_14(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_17
+  - f"Empty file, cannot hash: {file_path}", | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + None, | DEF: def x_compute_file_hash__mutmut_17(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_18
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra=None, | DEF: def x_compute_file_hash__mutmut_18(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_20
+  - extra={"file_path": file_path, "status": "empty_file"}, | ) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + ) | DEF: def x_compute_file_hash__mutmut_20(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_21
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"XXfile_pathXX": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_21(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_22
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"FILE_PATH": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_22(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_23
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "XXstatusXX": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_23(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_24
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "STATUS": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_24(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_25
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "status": "XXempty_fileXX"}, | DEF: def x_compute_file_hash__mutmut_25(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_26
+  - extra={"file_path": file_path, "status": "empty_file"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "status": "EMPTY_FILE"}, | DEF: def x_compute_file_hash__mutmut_26(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_27
+  - return HashResult.empty_file_result(file_path) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + return HashResult.empty_file_result(None) | DEF: def x_compute_file_hash__mutmut_27(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_4
+  - f"File not found for hashing: {file_path}", | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + None, | DEF: def x_compute_file_hash__mutmut_4(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_40
+  - for chunk in iter(lambda: f.read(8192), b""): | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + for chunk in iter(lambda: f.read(None), b""): | DEF: def x_compute_file_hash__mutmut_40(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_41
+  - for chunk in iter(lambda: f.read(8192), b""): | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + for chunk in iter(lambda: f.read(8193), b""): | DEF: def x_compute_file_hash__mutmut_41(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_45
+  - f"Permission denied reading file for hash: {file_path}", | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + None, | DEF: def x_compute_file_hash__mutmut_45(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_46
+  - exc_info=True, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + exc_info=None, | DEF: def x_compute_file_hash__mutmut_46(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_47
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra=None, | DEF: def x_compute_file_hash__mutmut_47(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_49
+  - exc_info=True, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + DEF: def x_compute_file_hash__mutmut_49(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_5
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra=None, | DEF: def x_compute_file_hash__mutmut_5(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_50
+  - extra={"file_path": file_path, "status": "permission_denied"}, | ) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + ) | DEF: def x_compute_file_hash__mutmut_50(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_51
+  - exc_info=True, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + exc_info=False, | DEF: def x_compute_file_hash__mutmut_51(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_52
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"XXfile_pathXX": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_52(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_53
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"FILE_PATH": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_53(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_54
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "XXstatusXX": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_54(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_55
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "STATUS": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_55(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_56
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "status": "XXpermission_deniedXX"}, | DEF: def x_compute_file_hash__mutmut_56(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_57
+  - extra={"file_path": file_path, "status": "permission_denied"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"file_path": file_path, "status": "PERMISSION_DENIED"}, | DEF: def x_compute_file_hash__mutmut_57(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_58
+  - return HashResult.permission_denied_result(file_path, e) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + return HashResult.permission_denied_result(None, e) | DEF: def x_compute_file_hash__mutmut_58(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_59
+  - return HashResult.permission_denied_result(file_path, e) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + return HashResult.permission_denied_result(file_path, None) | DEF: def x_compute_file_hash__mutmut_59(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_7
+  - extra={"file_path": file_path, "status": "file_not_found"}, | ) | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + ) | DEF: def x_compute_file_hash__mutmut_7(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_8
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"XXfile_pathXX": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_8(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.x_compute_file_hash__mutmut_9
+  - extra={"file_path": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_orig(file_path: str) -> HashResult:  # noqa: PLR0911
+  + extra={"FILE_PATH": file_path, "status": "file_not_found"}, | DEF: def x_compute_file_hash__mutmut_9(file_path: str) -> HashResult:  # noqa: PLR0911
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_10
+  - logger.info(f"Duplicate file detected (Redis): hash={file_hash[:16]}...") | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + logger.info(f"Duplicate file detected (Redis): hash={file_hash[:17]}...") | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_10(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_13
+  - logger.warning(f"Redis dedupe check failed: {e}") | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + logger.warning(None) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_13(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_2
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + key = None | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_2(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_3
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + key = self._get_redis_key(None) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_3(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_5
+  - exists = await self._redis_client.exists(key) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + exists = await self._redis_client.exists(None) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_5(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_8
+  - await self.ensure_key_has_ttl(file_hash) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + await self.ensure_key_has_ttl(None) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_8(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁ_check_redis__mutmut_9
+  - logger.info(f"Duplicate file detected (Redis): hash={file_hash[:16]}...") | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_orig(self, file_hash: str) -> bool | None:
+  + logger.info(None) | DEF: async def xǁDedupeServiceǁ_check_redis__mutmut_9(self, file_hash: str) -> bool | None:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_10
+  - async for key in client.scan_iter(match=pattern, count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + async for key in client.scan_iter(match=pattern, count=None): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_10(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_11
+  - async for key in client.scan_iter(match=pattern, count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + async for key in client.scan_iter(count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_11(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_12
+  - async for key in client.scan_iter(match=pattern, count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + async for key in client.scan_iter(match=pattern, ): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_12(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_13
+  - async for key in client.scan_iter(match=pattern, count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + async for key in client.scan_iter(match=pattern, count=101): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_13(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_15
+  - ttl = await client.ttl(key) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + ttl = await client.ttl(None) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_15(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_26
+  - logger.debug(f"Set TTL on orphaned dedupe key: {key}") | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.debug(None) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_26(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_27
+  - logger.warning(f"Error checking TTL for key {key}: {e}") | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.warning(None) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_27(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_29
+  - if cleaned_count > 0: | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + if cleaned_count >= 0: | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_29(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_30
+  - if cleaned_count > 0: | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + if cleaned_count > 1: | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_30(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_31
+  - f"Set TTL on {cleaned_count} orphaned dedupe keys", | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + None, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_31(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_32
+  - extra={"cleaned_count": cleaned_count}, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + extra=None, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_32(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_33
+  - f"Set TTL on {cleaned_count} orphaned dedupe keys", | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_33(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_34
+  - extra={"cleaned_count": cleaned_count}, | ) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + ) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_34(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_35
+  - extra={"cleaned_count": cleaned_count}, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + extra={"XXcleaned_countXX": cleaned_count}, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_35(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_36
+  - extra={"cleaned_count": cleaned_count}, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + extra={"CLEANED_COUNT": cleaned_count}, | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_36(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_37
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error(None, exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_37(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_38
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error("Error during orphan key cleanup", exc_info=None) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_38(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_40
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error("Error during orphan key cleanup", ) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_40(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_41
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error("XXError during orphan key cleanupXX", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_41(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_42
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error("error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_42(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_43
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error("ERROR DURING ORPHAN KEY CLEANUP", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_43(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_44
+  - logger.error("Error during orphan key cleanup", exc_info=True) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + logger.error("Error during orphan key cleanup", exc_info=False) | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_44(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_8
+  - pattern = f"{DEDUPE_KEY_PREFIX}*" | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + pattern = None | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_8(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_9
+  - async for key in client.scan_iter(match=pattern, count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_orig(self) -> int:
+  + async for key in client.scan_iter(match=None, count=100): | DEF: async def xǁDedupeServiceǁcleanup_orphaned_keys__mutmut_9(self) -> int:
+KEY backend.services.dedupe.xǁDedupeServiceǁclear_hash__mutmut_3
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_orig(self, file_hash: str) -> bool:
+  + key = None | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_3(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁclear_hash__mutmut_4
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_orig(self, file_hash: str) -> bool:
+  + key = self._get_redis_key(None) | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_4(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁclear_hash__mutmut_6
+  - result = await self._redis_client.delete(key) | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_orig(self, file_hash: str) -> bool:
+  + result = await self._redis_client.delete(None) | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_6(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁclear_hash__mutmut_9
+  - logger.warning(f"Failed to clear hash from Redis: {e}") | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_orig(self, file_hash: str) -> bool:
+  + logger.warning(None) | DEF: async def xǁDedupeServiceǁclear_hash__mutmut_9(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁensure_key_has_ttl__mutmut_13
+  - await client.expire(key, self._ttl_seconds) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_orig(self, file_hash: str) -> bool:
+  + await client.expire(None, self._ttl_seconds) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_13(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁensure_key_has_ttl__mutmut_17
+  - logger.debug(f"Set TTL on dedupe key missing TTL: {key}") | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_orig(self, file_hash: str) -> bool:
+  + logger.debug(None) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_17(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁensure_key_has_ttl__mutmut_19
+  - logger.warning(f"Failed to ensure TTL on key: {e}") | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_orig(self, file_hash: str) -> bool:
+  + logger.warning(None) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_19(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁensure_key_has_ttl__mutmut_5
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_orig(self, file_hash: str) -> bool:
+  + key = None | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_5(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁensure_key_has_ttl__mutmut_6
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_orig(self, file_hash: str) -> bool:
+  + key = self._get_redis_key(None) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_6(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁensure_key_has_ttl__mutmut_9
+  - ttl = await client.ttl(key) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_orig(self, file_hash: str) -> bool:
+  + ttl = await client.ttl(None) | DEF: async def xǁDedupeServiceǁensure_key_has_ttl__mutmut_9(self, file_hash: str) -> bool:
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_10
+  - "hash_status": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + "XXhash_statusXX": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_10(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_11
+  - "hash_status": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + "HASH_STATUS": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_11(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_12
+  - "error_message": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + "XXerror_messageXX": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_12(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_13
+  - "error_message": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + "ERROR_MESSAGE": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_13(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_20
+  - logger.debug(f"Redis unavailable for dedupe check, allowing file: {file_path}") | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + logger.debug(None) | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_20(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_4
+  - f"Could not compute hash for {file_path}, cannot dedupe: {hash_result.status}", | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + None, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_4(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_5
+  - extra={ | "file_path": file_path, | "hash_status": hash_result.status, | "error_message": hash_result.error_message, | }, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + extra=None, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_5(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_7
+  - extra={ | "file_path": file_path, | "hash_status": hash_result.status, | "error_message": hash_result.error_message, | }, | ) | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + ) | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_7(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_8
+  - "file_path": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + "XXfile_pathXX": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_8(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate__mutmut_9
+  - "file_path": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_orig(
+  + "FILE_PATH": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate__mutmut_9(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_10
+  - "hash_status": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + "HASH_STATUS": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_10(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_11
+  - "error_message": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + "XXerror_messageXX": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_11(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_12
+  - "error_message": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + "ERROR_MESSAGE": hash_result.error_message, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_12(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_17
+  - is_dup, _ = await self.is_duplicate(file_path, file_hash) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + is_dup, _ = await self.is_duplicate(None, file_hash) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_17(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_18
+  - is_dup, _ = await self.is_duplicate(file_path, file_hash) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + is_dup, _ = await self.is_duplicate(file_path, None) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_18(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_20
+  - is_dup, _ = await self.is_duplicate(file_path, file_hash) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + is_dup, _ = await self.is_duplicate(file_path, ) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_20(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_23
+  - await self.mark_processed(file_path, file_hash) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + await self.mark_processed(file_path, None) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_23(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_25
+  - await self.mark_processed(file_path, file_hash) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + await self.mark_processed(file_path, ) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_25(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_3
+  - f"Could not compute hash for {file_path}, skipping dedupe: {hash_result.status}", | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + None, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_3(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_4
+  - extra={ | "file_path": file_path, | "hash_status": hash_result.status, | "error_message": hash_result.error_message, | }, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + extra=None, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_4(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_6
+  - extra={ | "file_path": file_path, | "hash_status": hash_result.status, | "error_message": hash_result.error_message, | }, | ) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + ) | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_6(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_7
+  - "file_path": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + "XXfile_pathXX": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_7(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_8
+  - "file_path": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + "FILE_PATH": file_path, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_8(
+KEY backend.services.dedupe.xǁDedupeServiceǁis_duplicate_and_mark__mutmut_9
+  - "hash_status": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_orig(
+  + "XXhash_statusXX": hash_result.status, | DEF: async def xǁDedupeServiceǁis_duplicate_and_mark__mutmut_9(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_10
+  - "hash_status": hash_result.status, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + "XXhash_statusXX": hash_result.status, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_10(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_11
+  - "hash_status": hash_result.status, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + "HASH_STATUS": hash_result.status, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_11(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_12
+  - "error_message": hash_result.error_message, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + "XXerror_messageXX": hash_result.error_message, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_12(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_13
+  - "error_message": hash_result.error_message, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + "ERROR_MESSAGE": hash_result.error_message, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_13(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_17
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + key = None | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_17(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_18
+  - key = self._get_redis_key(file_hash) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + key = self._get_redis_key(None) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_18(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_19
+  - await self._redis_client.set(key, file_path, expire=self._ttl_seconds) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + await self._redis_client.set(None, file_path, expire=self._ttl_seconds) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_19(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_25
+  - f"Marked file as processed: {file_path} (hash={file_hash[:16]}..., " | f"TTL={self._ttl_seconds}s)" | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + None | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_25(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_26
+  - f"Marked file as processed: {file_path} (hash={file_hash[:16]}..., " | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + f"Marked file as processed: {file_path} (hash={file_hash[:17]}..., " | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_26(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_28
+  - logger.warning(f"Failed to mark file in Redis: {e}") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + logger.warning(None) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_28(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_30
+  - logger.debug("No Redis client, skipping dedupe mark") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + logger.debug(None) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_30(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_31
+  - logger.debug("No Redis client, skipping dedupe mark") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + logger.debug("XXNo Redis client, skipping dedupe markXX") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_31(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_32
+  - logger.debug("No Redis client, skipping dedupe mark") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + logger.debug("no redis client, skipping dedupe mark") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_32(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_33
+  - logger.debug("No Redis client, skipping dedupe mark") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + logger.debug("NO REDIS CLIENT, SKIPPING DEDUPE MARK") | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_33(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_4
+  - f"Could not compute hash to mark as processed: {file_path}: " | f"{hash_result.status}", | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + None, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_4(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_5
+  - extra={ | "file_path": file_path, | "hash_status": hash_result.status, | "error_message": hash_result.error_message, | }, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + extra=None, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_5(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_7
+  - extra={ | "file_path": file_path, | "hash_status": hash_result.status, | "error_message": hash_result.error_message, | }, | ) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + ) | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_7(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_8
+  - "file_path": file_path, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + "XXfile_pathXX": file_path, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_8(
+KEY backend.services.dedupe.xǁDedupeServiceǁmark_processed__mutmut_9
+  - "file_path": file_path, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_orig(
+  + "FILE_PATH": file_path, | DEF: async def xǁDedupeServiceǁmark_processed__mutmut_9(

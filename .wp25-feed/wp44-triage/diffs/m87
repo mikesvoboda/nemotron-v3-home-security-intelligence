@@ -3,7 +3,7 @@
 +++ backend/api/routes/detections.py
 @@ -47,7 +47,7 @@
          }
-
+ 
      # Extract face data
 -    faces = enrichment_data.get("faces", [])
 +    faces = enrichment_data.get("faces", )

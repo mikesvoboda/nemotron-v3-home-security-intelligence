@@ -3,10 +3,10 @@
 +++ backend/api/routes/detections.py
 @@ -29,7 +29,7 @@
              )
-
+ 
          # nosemgrep: path-traversal-open - frame_path from video processor
 -        with open(frame_path, "rb") as f:
 +        with open("rb") as f:
              image_data = f.read()
-
+ 
          return Response(

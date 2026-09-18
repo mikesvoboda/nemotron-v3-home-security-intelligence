@@ -9,21 +9,21 @@
 -        if hasattr(event, "camera") and event.camera is not None:
 +        if hasattr(event, "CAMERA") and event.camera is not None:
              camera_name = event.camera.name or camera_id
-
+ 
          if camera_id not in stats:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_16
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_16: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -17,7 +17,7 @@
-
+ 
          if camera_id not in stats:
              stats[camera_id] = _CameraStats(
 -                camera_id=camera_id,
 +                camera_id=None,
                  camera_name=camera_name,
              )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_20
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_20: survived
 --- backend/services/insight_generator.py
@@ -31,10 +31,10 @@
 @@ -21,7 +21,7 @@
                  camera_name=camera_name,
              )
-
+ 
 -        stats[camera_id].event_count += 1
 +        stats[camera_id].event_count = 1
-
+ 
          risk_level = getattr(event, "risk_level", None)
          if risk_level in ("high", "critical"):
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_22
@@ -44,10 +44,10 @@
 @@ -21,7 +21,7 @@
                  camera_name=camera_name,
              )
-
+ 
 -        stats[camera_id].event_count += 1
 +        stats[camera_id].event_count += 2
-
+ 
          risk_level = getattr(event, "risk_level", None)
          if risk_level in ("high", "critical"):
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_23
@@ -55,78 +55,78 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -23,7 +23,7 @@
-
+ 
          stats[camera_id].event_count += 1
-
+ 
 -        risk_level = getattr(event, "risk_level", None)
 +        risk_level = None
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_24
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_24: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -23,7 +23,7 @@
-
+ 
          stats[camera_id].event_count += 1
-
+ 
 -        risk_level = getattr(event, "risk_level", None)
 +        risk_level = getattr(None, "risk_level", None)
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_28
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_28: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -23,7 +23,7 @@
-
+ 
          stats[camera_id].event_count += 1
-
+ 
 -        risk_level = getattr(event, "risk_level", None)
 +        risk_level = getattr(event, "risk_level", )
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_29
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_29: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -23,7 +23,7 @@
-
+ 
          stats[camera_id].event_count += 1
-
+ 
 -        risk_level = getattr(event, "risk_level", None)
 +        risk_level = getattr(event, "XXrisk_levelXX", None)
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_30
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_30: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -23,7 +23,7 @@
-
+ 
          stats[camera_id].event_count += 1
-
+ 
 -        risk_level = getattr(event, "risk_level", None)
 +        risk_level = getattr(event, "RISK_LEVEL", None)
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_31
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_31: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -24,7 +24,7 @@
          stats[camera_id].event_count += 1
-
+ 
          risk_level = getattr(event, "risk_level", None)
 -        if risk_level in ("high", "critical"):
 +        if risk_level not in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_32
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_32: survived
@@ -134,12 +134,12 @@
 +++ backend/services/insight_generator.py
 @@ -24,7 +24,7 @@
          stats[camera_id].event_count += 1
-
+ 
          risk_level = getattr(event, "risk_level", None)
 -        if risk_level in ("high", "critical"):
 +        if risk_level in ("XXhighXX", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_33
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_33: survived
@@ -147,12 +147,12 @@
 +++ backend/services/insight_generator.py
 @@ -24,7 +24,7 @@
          stats[camera_id].event_count += 1
-
+ 
          risk_level = getattr(event, "risk_level", None)
 -        if risk_level in ("high", "critical"):
 +        if risk_level in ("HIGH", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_34
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_34: survived
@@ -160,12 +160,12 @@
 +++ backend/services/insight_generator.py
 @@ -24,7 +24,7 @@
          stats[camera_id].event_count += 1
-
+ 
          risk_level = getattr(event, "risk_level", None)
 -        if risk_level in ("high", "critical"):
 +        if risk_level in ("high", "XXcriticalXX"):
              stats[camera_id].high_critical_count += 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_35
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_35: survived
@@ -173,24 +173,24 @@
 +++ backend/services/insight_generator.py
 @@ -24,7 +24,7 @@
          stats[camera_id].event_count += 1
-
+ 
          risk_level = getattr(event, "risk_level", None)
 -        if risk_level in ("high", "critical"):
 +        if risk_level in ("high", "CRITICAL"):
              stats[camera_id].high_critical_count += 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_36
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_36: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -25,7 +25,7 @@
-
+ 
          risk_level = getattr(event, "risk_level", None)
          if risk_level in ("high", "critical"):
 -            stats[camera_id].high_critical_count += 1
 +            stats[camera_id].high_critical_count = 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_37
@@ -198,12 +198,12 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -25,7 +25,7 @@
-
+ 
          risk_level = getattr(event, "risk_level", None)
          if risk_level in ("high", "critical"):
 -            stats[camera_id].high_critical_count += 1
 +            stats[camera_id].high_critical_count -= 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_38
@@ -211,12 +211,12 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -25,7 +25,7 @@
-
+ 
          risk_level = getattr(event, "risk_level", None)
          if risk_level in ("high", "critical"):
 -            stats[camera_id].high_critical_count += 1
 +            stats[camera_id].high_critical_count += 2
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_40
@@ -226,11 +226,11 @@
 @@ -27,7 +27,7 @@
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 -        risk_score = getattr(event, "risk_score", None) or 0
 +        risk_score = getattr(event, "risk_score", None) and 0
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_41
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_41: survived
@@ -239,11 +239,11 @@
 @@ -27,7 +27,7 @@
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 -        risk_score = getattr(event, "risk_score", None) or 0
 +        risk_score = getattr(None, "risk_score", None) or 0
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_45
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_45: survived
@@ -252,11 +252,11 @@
 @@ -27,7 +27,7 @@
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 -        risk_score = getattr(event, "risk_score", None) or 0
 +        risk_score = getattr(event, "risk_score", ) or 0
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_48
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_48: survived
@@ -265,11 +265,11 @@
 @@ -27,7 +27,7 @@
          if risk_level in ("high", "critical"):
              stats[camera_id].high_critical_count += 1
-
+ 
 -        risk_score = getattr(event, "risk_score", None) or 0
 +        risk_score = getattr(event, "risk_score", None) or 1
          stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_49
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_49: survived
@@ -277,11 +277,11 @@
 +++ backend/services/insight_generator.py
 @@ -28,6 +28,6 @@
              stats[camera_id].high_critical_count += 1
-
+ 
          risk_score = getattr(event, "risk_score", None) or 0
 -        stats[camera_id].max_risk_score = max(stats[camera_id].max_risk_score, risk_score)
 +        stats[camera_id].max_risk_score = None
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_9
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_camera_stats__mutmut_9: survived
@@ -294,7 +294,7 @@
 -        if hasattr(event, "camera") and event.camera is not None:
 +        if hasattr(event, "XXcameraXX") and event.camera is not None:
              camera_name = event.camera.name or camera_id
-
+ 
          if camera_id not in stats:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_11
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_11: survived
@@ -306,7 +306,7 @@
          if not entities:
 -            continue
 +            break
-
+ 
          camera_name = event.camera_id
          if hasattr(event, "camera") and event.camera is not None:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_14
@@ -315,12 +315,12 @@
 +++ backend/services/insight_generator.py
 @@ -15,7 +15,7 @@
              continue
-
+ 
          camera_name = event.camera_id
 -        if hasattr(event, "camera") and event.camera is not None:
 +        if hasattr(None, "camera") and event.camera is not None:
              camera_name = event.camera.name or event.camera_id
-
+ 
          for entity in entities:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_18
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_18: survived
@@ -328,12 +328,12 @@
 +++ backend/services/insight_generator.py
 @@ -15,7 +15,7 @@
              continue
-
+ 
          camera_name = event.camera_id
 -        if hasattr(event, "camera") and event.camera is not None:
 +        if hasattr(event, "XXcameraXX") and event.camera is not None:
              camera_name = event.camera.name or event.camera_id
-
+ 
          for entity in entities:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_19
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_19: survived
@@ -341,24 +341,24 @@
 +++ backend/services/insight_generator.py
 @@ -15,7 +15,7 @@
              continue
-
+ 
          camera_name = event.camera_id
 -        if hasattr(event, "camera") and event.camera is not None:
 +        if hasattr(event, "CAMERA") and event.camera is not None:
              camera_name = event.camera.name or event.camera_id
-
+ 
          for entity in entities:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_22
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_22: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -16,7 +16,7 @@
-
+ 
          camera_name = event.camera_id
          if hasattr(event, "camera") and event.camera is not None:
 -            camera_name = event.camera.name or event.camera_id
 +            camera_name = event.camera.name and event.camera_id
-
+ 
          for entity in entities:
              if not isinstance(entity, dict):
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_27
@@ -368,10 +368,10 @@
 @@ -22,7 +22,7 @@
              if not isinstance(entity, dict):
                  continue
-
+ 
 -            entity_type = entity.get("type", "").lower()
 +            entity_type = entity.get("type", None).lower()
-
+ 
              if entity_type == "person":
                  is_recognized = entity.get("recognized", False)
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_29
@@ -381,10 +381,10 @@
 @@ -22,7 +22,7 @@
              if not isinstance(entity, dict):
                  continue
-
+ 
 -            entity_type = entity.get("type", "").lower()
 +            entity_type = entity.get("type", ).lower()
-
+ 
              if entity_type == "person":
                  is_recognized = entity.get("recognized", False)
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_32
@@ -394,10 +394,10 @@
 @@ -22,7 +22,7 @@
              if not isinstance(entity, dict):
                  continue
-
+ 
 -            entity_type = entity.get("type", "").lower()
 +            entity_type = entity.get("type", "XXXX").lower()
-
+ 
              if entity_type == "person":
                  is_recognized = entity.get("recognized", False)
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_38
@@ -406,7 +406,7 @@
 +++ backend/services/insight_generator.py
 @@ -25,7 +25,7 @@
              entity_type = entity.get("type", "").lower()
-
+ 
              if entity_type == "person":
 -                is_recognized = entity.get("recognized", False)
 +                is_recognized = entity.get("recognized", None)
@@ -419,7 +419,7 @@
 +++ backend/services/insight_generator.py
 @@ -25,7 +25,7 @@
              entity_type = entity.get("type", "").lower()
-
+ 
              if entity_type == "person":
 -                is_recognized = entity.get("recognized", False)
 +                is_recognized = entity.get("recognized", )
@@ -432,7 +432,7 @@
 +++ backend/services/insight_generator.py
 @@ -25,7 +25,7 @@
              entity_type = entity.get("type", "").lower()
-
+ 
              if entity_type == "person":
 -                is_recognized = entity.get("recognized", False)
 +                is_recognized = entity.get("recognized", True)
@@ -515,7 +515,7 @@
 -            elif entity_type == "vehicle":
 +            elif entity_type != "vehicle":
                  stats.vehicles += 1
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_53
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_53: survived
@@ -528,7 +528,7 @@
 -            elif entity_type == "vehicle":
 +            elif entity_type == "XXvehicleXX":
                  stats.vehicles += 1
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_54
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_54: survived
@@ -541,7 +541,7 @@
 -            elif entity_type == "vehicle":
 +            elif entity_type == "VEHICLE":
                  stats.vehicles += 1
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_55
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_55: survived
@@ -553,7 +553,7 @@
              elif entity_type == "vehicle":
 -                stats.vehicles += 1
 +                stats.vehicles = 1
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_56
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_56: survived
@@ -565,7 +565,7 @@
              elif entity_type == "vehicle":
 -                stats.vehicles += 1
 +                stats.vehicles -= 1
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_57
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_57: survived
@@ -577,7 +577,7 @@
              elif entity_type == "vehicle":
 -                stats.vehicles += 1
 +                stats.vehicles += 2
-
+ 
      return stats
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_7
 # backend.services.insight_generator.xǁInsightGeneratorǁ_gather_entity_stats__mutmut_7: survived
@@ -585,13 +585,13 @@
 +++ backend/services/insight_generator.py
 @@ -10,7 +10,7 @@
      stats = _EntityStats()
-
+ 
      for event in events:
 -        entities = getattr(event, "entities", None)
 +        entities = getattr(event, "entities", )
          if not entities:
              continue
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_10
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_10: survived
 --- backend/services/insight_generator.py
@@ -603,7 +603,7 @@
 -        reverse=True,
 +        reverse=False,
      )
-
+ 
      for stats in sorted_cameras[:3]:  # Top 3 cameras
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_11
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_11: survived
@@ -612,19 +612,19 @@
 @@ -16,7 +16,7 @@
          reverse=True,
      )
-
+ 
 -    for stats in sorted_cameras[:3]:  # Top 3 cameras
 +    for stats in sorted_cameras[:4]:  # Top 3 cameras
          if stats.event_count < self.MIN_EVENTS_FOR_CAMERA_INSIGHT:
              continue
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_13
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_13: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -21,7 +21,7 @@
              continue
-
+ 
          # Determine priority based on high/critical count
 -        if stats.high_critical_count > 0:
 +        if stats.high_critical_count >= 0:
@@ -637,7 +637,7 @@
 +++ backend/services/insight_generator.py
 @@ -21,7 +21,7 @@
              continue
-
+ 
          # Determine priority based on high/critical count
 -        if stats.high_critical_count > 0:
 +        if stats.high_critical_count > 1:
@@ -650,7 +650,7 @@
 +++ backend/services/insight_generator.py
 @@ -27,7 +27,7 @@
              priority = self.PRIORITY_CAMERA_MEDIUM
-
+ 
          # Build description
 -        if stats.event_count == 1:
 +        if stats.event_count != 1:
@@ -663,7 +663,7 @@
 +++ backend/services/insight_generator.py
 @@ -27,7 +27,7 @@
              priority = self.PRIORITY_CAMERA_MEDIUM
-
+ 
          # Build description
 -        if stats.event_count == 1:
 +        if stats.event_count == 2:
@@ -677,11 +677,11 @@
 @@ -32,7 +32,7 @@
          else:
              description = f"Review {stats.event_count} events from {stats.camera_name}"
-
+ 
 -        if stats.high_critical_count > 0:
 +        if stats.high_critical_count >= 0:
              description += f" ({stats.high_critical_count} high/critical)"
-
+ 
          insights.append(
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_22
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_22: survived
@@ -690,11 +690,11 @@
 @@ -32,7 +32,7 @@
          else:
              description = f"Review {stats.event_count} events from {stats.camera_name}"
-
+ 
 -        if stats.high_critical_count > 0:
 +        if stats.high_critical_count > 1:
              description += f" ({stats.high_critical_count} high/critical)"
-
+ 
          insights.append(
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_28
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_28: survived
@@ -759,7 +759,7 @@
 -        reverse=True,
 +        reverse=None,
      )
-
+ 
      for stats in sorted_cameras[:3]:  # Top 3 cameras
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_8
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_camera_insights__mutmut_8: survived
@@ -772,7 +772,7 @@
 -        reverse=True,
 -    )
 +        )
-
+ 
      for stats in sorted_cameras[:3]:  # Top 3 cameras
          if stats.event_count < self.MIN_EVENTS_FOR_CAMERA_INSIGHT:
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_10
@@ -781,7 +781,7 @@
 +++ backend/services/insight_generator.py
 @@ -17,7 +17,7 @@
              description = f"{stats.unknown_persons} unknown persons detected"
-
+ 
          if stats.unknown_person_cameras:
 -            cameras = ", ".join(stats.unknown_person_cameras[:3])
 +            cameras = None
@@ -794,7 +794,7 @@
 +++ backend/services/insight_generator.py
 @@ -17,7 +17,7 @@
              description = f"{stats.unknown_persons} unknown persons detected"
-
+ 
          if stats.unknown_person_cameras:
 -            cameras = ", ".join(stats.unknown_person_cameras[:3])
 +            cameras = "XX, XX".join(stats.unknown_person_cameras[:3])
@@ -807,7 +807,7 @@
 +++ backend/services/insight_generator.py
 @@ -17,7 +17,7 @@
              description = f"{stats.unknown_persons} unknown persons detected"
-
+ 
          if stats.unknown_person_cameras:
 -            cameras = ", ".join(stats.unknown_person_cameras[:3])
 +            cameras = ", ".join(stats.unknown_person_cameras[:4])
@@ -825,7 +825,7 @@
 -            if len(stats.unknown_person_cameras) > 3:
 +            if len(stats.unknown_person_cameras) >= 3:
                  description += f" and {len(stats.unknown_person_cameras) - 3} more"
-
+ 
          insights.append(
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_17
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_17: survived
@@ -838,7 +838,7 @@
 -            if len(stats.unknown_person_cameras) > 3:
 +            if len(stats.unknown_person_cameras) > 4:
                  description += f" and {len(stats.unknown_person_cameras) - 3} more"
-
+ 
          insights.append(
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_23
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_23: survived
@@ -852,7 +852,7 @@
 +                action_url=None,
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_28
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_28: survived
 --- backend/services/insight_generator.py
@@ -865,7 +865,7 @@
 -            )
 +                )
          )
-
+ 
      # Known persons - lower priority
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_29
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_29: survived
@@ -918,7 +918,7 @@
 +                action_url="XX/timeline?entity_type=person&recognized=falseXX",
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_33
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_33: survived
 --- backend/services/insight_generator.py
@@ -931,14 +931,14 @@
 +                action_url="/TIMELINE?ENTITY_TYPE=PERSON&RECOGNIZED=FALSE",
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_34
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_34: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -33,7 +33,7 @@
          )
-
+ 
      # Known persons - lower priority
 -    if stats.known_persons > 0:
 +    if stats.known_persons >= 0:
@@ -951,7 +951,7 @@
 +++ backend/services/insight_generator.py
 @@ -33,7 +33,7 @@
          )
-
+ 
      # Known persons - lower priority
 -    if stats.known_persons > 0:
 +    if stats.known_persons > 1:
@@ -963,7 +963,7 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -34,7 +34,7 @@
-
+ 
      # Known persons - lower priority
      if stats.known_persons > 0:
 -        if stats.known_persons == 1:
@@ -976,7 +976,7 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -34,7 +34,7 @@
-
+ 
      # Known persons - lower priority
      if stats.known_persons > 0:
 -        if stats.known_persons == 1:
@@ -996,7 +996,7 @@
 +            description = None
          else:
              description = f"{stats.known_persons} recognized persons detected"
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_39
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_39: survived
 --- backend/services/insight_generator.py
@@ -1009,7 +1009,7 @@
 +            description = "XX1 recognized person detectedXX"
          else:
              description = f"{stats.known_persons} recognized persons detected"
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_40
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_40: survived
 --- backend/services/insight_generator.py
@@ -1022,13 +1022,13 @@
 +            description = "1 RECOGNIZED PERSON DETECTED"
          else:
              description = f"{stats.known_persons} recognized persons detected"
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_42
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_42: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -41,7 +41,7 @@
-
+ 
          insights.append(
              Insight(
 -                type=InsightType.ENTITY,
@@ -1061,7 +1061,7 @@
 +                action_url=None,
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_51
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_51: survived
 --- backend/services/insight_generator.py
@@ -1074,7 +1074,7 @@
 -            )
 +                )
          )
-
+ 
      return insights
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_52
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_52: survived
@@ -1127,7 +1127,7 @@
 +                action_url="XX/timeline?entity_type=person&recognized=trueXX",
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_56
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_56: survived
 --- backend/services/insight_generator.py
@@ -1140,7 +1140,7 @@
 +                action_url="/TIMELINE?ENTITY_TYPE=PERSON&RECOGNIZED=TRUE",
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_7
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_7: survived
 --- backend/services/insight_generator.py
@@ -1153,7 +1153,7 @@
 +            description = "XX1 unknown person detectedXX"
          else:
              description = f"{stats.unknown_persons} unknown persons detected"
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_8
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_entity_insights__mutmut_8: survived
 --- backend/services/insight_generator.py
@@ -1166,7 +1166,7 @@
 +            description = "1 UNKNOWN PERSON DETECTED"
          else:
              description = f"{stats.unknown_persons} unknown persons detected"
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_no_activity_insight__mutmut_1
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_no_activity_insight__mutmut_1: survived
 --- backend/services/insight_generator.py
@@ -1348,7 +1348,7 @@
 +                    )
              )
          return insights
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_18
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_18: survived
 --- backend/services/insight_generator.py
@@ -1420,11 +1420,11 @@
 +++ backend/services/insight_generator.py
 @@ -32,7 +32,7 @@
          return insights
-
+ 
      # Calculate percentage change
 -    pct_change = ((current_count - baseline_count) / baseline_count) * 100
 +    pct_change = ((current_count - baseline_count) * baseline_count) * 100
-
+ 
      if pct_change >= self.TREND_SIGNIFICANT_INCREASE_PCT:
          insights.append(
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_27
@@ -1433,11 +1433,11 @@
 +++ backend/services/insight_generator.py
 @@ -32,7 +32,7 @@
          return insights
-
+ 
      # Calculate percentage change
 -    pct_change = ((current_count - baseline_count) / baseline_count) * 100
 +    pct_change = ((current_count - baseline_count) / baseline_count) * 101
-
+ 
      if pct_change >= self.TREND_SIGNIFICANT_INCREASE_PCT:
          insights.append(
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_28
@@ -1447,7 +1447,7 @@
 @@ -34,7 +34,7 @@
      # Calculate percentage change
      pct_change = ((current_count - baseline_count) / baseline_count) * 100
-
+ 
 -    if pct_change >= self.TREND_SIGNIFICANT_INCREASE_PCT:
 +    if pct_change > self.TREND_SIGNIFICANT_INCREASE_PCT:
          insights.append(
@@ -1602,7 +1602,7 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -19,7 +19,7 @@
-
+ 
      # Handle edge cases
      if baseline_count <= 0:
 -        if current_count > 0:
@@ -1635,7 +1635,7 @@
 +                action_url=None,
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_58
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_58: survived
 --- backend/services/insight_generator.py
@@ -1648,7 +1648,7 @@
 -            )
 +                )
          )
-
+ 
      return insights
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_59
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_59: survived
@@ -1668,7 +1668,7 @@
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
 @@ -19,7 +19,7 @@
-
+ 
      # Handle edge cases
      if baseline_count <= 0:
 -        if current_count > 0:
@@ -1714,7 +1714,7 @@
 +                action_url="XX/analyticsXX",
              )
          )
-
+ 
 ===KEY=== backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_65
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_65: survived
 --- backend/services/insight_generator.py
@@ -1727,7 +1727,7 @@
 +                action_url="/ANALYTICS",
              )
          )
-
+ 
 # backend.services.insight_generator.xǁInsightGeneratorǁ_generate_trend_insights__mutmut_8: survived
 --- backend/services/insight_generator.py
 +++ backend/services/insight_generator.py
@@ -1751,3 +1751,4 @@
 +    max_insights: int = 6,
  ) -> list[Insight]:
      """Generate actionable insights from events.
+ 

@@ -8,5 +8,5 @@
 -            error="Circuit breaker is open - service unreachable",
 +            error="XXCircuit breaker is open - service unreachableXX",
          )
-
+ 
      # Perform health check

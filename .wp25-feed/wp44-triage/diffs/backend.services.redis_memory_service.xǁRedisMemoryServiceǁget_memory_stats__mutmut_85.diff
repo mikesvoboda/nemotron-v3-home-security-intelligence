@@ -2,11 +2,11 @@
 --- backend/services/redis_memory_service.py
 +++ backend/services/redis_memory_service.py
 @@ -34,7 +34,7 @@
-
+ 
      # Calculate usage percentage
      memory_usage_percent = 0.0
 -    if maxmemory > 0:
 +    if maxmemory > 1:
          memory_usage_percent = (used_memory / maxmemory) * 100
-
+ 
      return MemoryStats(

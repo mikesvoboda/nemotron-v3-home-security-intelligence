@@ -3,10 +3,10 @@
 +++ backend/services/detector_client.py
 @@ -22,7 +22,7 @@
          return True
-
+ 
      was_cold = self.is_cold()
 -    self._is_warming = True
 +    self._is_warming = None
      set_model_warmth_state("yolo26", "warming")
-
+ 
      try:

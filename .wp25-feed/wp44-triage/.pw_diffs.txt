@@ -5,7 +5,7 @@
 -async def drain_queues(timeout: float = 30.0) -> int:
 +async def drain_queues(timeout: float = 31.0) -> int:
      """Drain background queues gracefully before shutdown.
-
+ 
      This is a convenience function that accesses the global pipeline manager
 ====END====
 # backend.services.pipeline_workers.x_drain_queues__mutmut_3: survived
@@ -18,7 +18,7 @@
 -        logger.debug("Pipeline manager not initialized, no queues to drain")
 +        logger.debug(None)
          return 0
-
+ 
      return await _pipeline_manager.drain_queues(timeout=timeout)
 ====END====
 # backend.services.pipeline_workers.x_drain_queues__mutmut_4: survived
@@ -31,7 +31,7 @@
 -        logger.debug("Pipeline manager not initialized, no queues to drain")
 +        logger.debug("XXPipeline manager not initialized, no queues to drainXX")
          return 0
-
+ 
      return await _pipeline_manager.drain_queues(timeout=timeout)
 ====END====
 # backend.services.pipeline_workers.x_drain_queues__mutmut_5: survived
@@ -44,7 +44,7 @@
 -        logger.debug("Pipeline manager not initialized, no queues to drain")
 +        logger.debug("pipeline manager not initialized, no queues to drain")
          return 0
-
+ 
      return await _pipeline_manager.drain_queues(timeout=timeout)
 ====END====
 # backend.services.pipeline_workers.x_drain_queues__mutmut_6: survived
@@ -57,7 +57,7 @@
 -        logger.debug("Pipeline manager not initialized, no queues to drain")
 +        logger.debug("PIPELINE MANAGER NOT INITIALIZED, NO QUEUES TO DRAIN")
          return 0
-
+ 
      return await _pipeline_manager.drain_queues(timeout=timeout)
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_get_broadcaster__mutmut_1: survived
@@ -71,7 +71,7 @@
 +    if self._broadcaster is not None:
          try:
              from backend.services.event_broadcaster import get_broadcaster
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_get_broadcaster__mutmut_2: survived
 --- backend/services/pipeline_workers.py
@@ -79,7 +79,7 @@
 @@ -10,7 +10,7 @@
          try:
              from backend.services.event_broadcaster import get_broadcaster
-
+ 
 -            self._broadcaster = await get_broadcaster(self._redis)
 +            self._broadcaster = None
          except Exception as e:
@@ -92,7 +92,7 @@
 @@ -10,7 +10,7 @@
          try:
              from backend.services.event_broadcaster import get_broadcaster
-
+ 
 -            self._broadcaster = await get_broadcaster(self._redis)
 +            self._broadcaster = await get_broadcaster(None)
          except Exception as e:
@@ -121,7 +121,7 @@
              # Record to Redis for /api/system/telemetry
 -            await record_stage_latency(self._redis, "analyze", duration_ms)
 +            await record_stage_latency(self._redis, "XXanalyzeXX", duration_ms)
-
+ 
              # Record total pipeline latency (from file detection to event creation)
              if pipeline_start_time:
 ====END====
@@ -134,7 +134,7 @@
              # Record to Redis for /api/system/telemetry
 -            await record_stage_latency(self._redis, "analyze", duration_ms)
 +            await record_stage_latency(self._redis, "ANALYZE", duration_ms)
-
+ 
              # Record total pipeline latency (from file detection to event creation)
              if pipeline_start_time:
 ====END====
@@ -363,7 +363,7 @@
 +                        None,
                          extra={"pipeline_start_time": pipeline_start_time},
                      )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_136: survived
 --- backend/services/pipeline_workers.py
@@ -375,7 +375,7 @@
 -                        extra={"pipeline_start_time": pipeline_start_time},
 +                        extra=None,
                      )
-
+ 
              logger.info(
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_138: survived
@@ -388,7 +388,7 @@
 -                        extra={"pipeline_start_time": pipeline_start_time},
 -                    )
 +                        )
-
+ 
              logger.info(
                  f"Created event {event.id}: risk_score={event.risk_score}",
 ====END====
@@ -402,7 +402,7 @@
 -                        extra={"pipeline_start_time": pipeline_start_time},
 +                        extra={"XXpipeline_start_timeXX": pipeline_start_time},
                      )
-
+ 
              logger.info(
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_14: survived
@@ -428,7 +428,7 @@
 -                        extra={"pipeline_start_time": pipeline_start_time},
 +                        extra={"PIPELINE_START_TIME": pipeline_start_time},
                      )
-
+ 
              logger.info(
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_141: survived
@@ -436,7 +436,7 @@
 +++ backend/services/pipeline_workers.py
 @@ -115,7 +115,7 @@
                      )
-
+ 
              logger.info(
 -                f"Created event {event.id}: risk_score={event.risk_score}",
 +                None,
@@ -448,7 +448,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -116,11 +116,7 @@
-
+ 
              logger.info(
                  f"Created event {event.id}: risk_score={event.risk_score}",
 -                extra={
@@ -458,14 +458,14 @@
 -                },
 +                extra=None,
              )
-
+ 
              # NEM-3607: Broadcast batch.analysis_completed event
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_144: survived
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -116,12 +116,7 @@
-
+ 
              logger.info(
                  f"Created event {event.id}: risk_score={event.risk_score}",
 -                extra={
@@ -475,7 +475,7 @@
 -                },
 -            )
 +                )
-
+ 
              # NEM-3607: Broadcast batch.analysis_completed event
              if broadcaster:
 ====END====
@@ -542,7 +542,7 @@
 +                    "XXitems_processedXX": self._stats.items_processed,
                  },
              )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_15: survived
 --- backend/services/pipeline_workers.py
@@ -558,7 +558,7 @@
 +            extra=None,
          )
          return
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_150: survived
 --- backend/services/pipeline_workers.py
@@ -571,7 +571,7 @@
 +                    "ITEMS_PROCESSED": self._stats.items_processed,
                  },
              )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_151: survived
 --- backend/services/pipeline_workers.py
@@ -854,7 +854,7 @@
 -        )
 +            )
          return
-
+ 
      # Use log_context to enrich all logs within this scope with batch context
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_170: survived
@@ -1017,7 +1017,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -153,7 +153,7 @@
-
+ 
          except ValueError as e:
              # Batch not found or no detections - log warning but don't count as error
 -            record_exception(e)
@@ -2213,7 +2213,7 @@
 +            span_attrs["camera_id"] = None
          add_span_attributes(**span_attrs)
          logger.info(f"Processing analysis for batch {batch_id}")
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_50: survived
 --- backend/services/pipeline_workers.py
@@ -2226,7 +2226,7 @@
 +            span_attrs["XXcamera_idXX"] = camera_id
          add_span_attributes(**span_attrs)
          logger.info(f"Processing analysis for batch {batch_id}")
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_51: survived
 --- backend/services/pipeline_workers.py
@@ -2239,7 +2239,7 @@
 +            span_attrs["CAMERA_ID"] = camera_id
          add_span_attributes(**span_attrs)
          logger.info(f"Processing analysis for batch {batch_id}")
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_52: survived
 --- backend/services/pipeline_workers.py
@@ -2250,7 +2250,7 @@
          add_span_attributes(**span_attrs)
 -        logger.info(f"Processing analysis for batch {batch_id}")
 +        logger.info(None)
-
+ 
          # NEM-3607: Broadcast batch.analysis_started event
          detection_count = len(detection_ids) if detection_ids else 0
 ====END====
@@ -2259,7 +2259,7 @@
 +++ backend/services/pipeline_workers.py
 @@ -49,7 +49,7 @@
          logger.info(f"Processing analysis for batch {batch_id}")
-
+ 
          # NEM-3607: Broadcast batch.analysis_started event
 -        detection_count = len(detection_ids) if detection_ids else 0
 +        detection_count = None
@@ -2272,7 +2272,7 @@
 +++ backend/services/pipeline_workers.py
 @@ -49,7 +49,7 @@
          logger.info(f"Processing analysis for batch {batch_id}")
-
+ 
          # NEM-3607: Broadcast batch.analysis_started event
 -        detection_count = len(detection_ids) if detection_ids else 0
 +        detection_count = len(detection_ids) if (detection_ids) and False else 0
@@ -2285,7 +2285,7 @@
 +++ backend/services/pipeline_workers.py
 @@ -49,7 +49,7 @@
          logger.info(f"Processing analysis for batch {batch_id}")
-
+ 
          # NEM-3607: Broadcast batch.analysis_started event
 -        detection_count = len(detection_ids) if detection_ids else 0
 +        detection_count = len(detection_ids) if detection_ids else 1
@@ -2297,7 +2297,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -50,7 +50,7 @@
-
+ 
          # NEM-3607: Broadcast batch.analysis_started event
          detection_count = len(detection_ids) if detection_ids else 0
 -        broadcaster = await self._get_broadcaster()
@@ -2526,11 +2526,11 @@
 @@ -78,7 +78,7 @@
                  detection_ids=detection_ids,
              )
-
+ 
 -            self._stats.items_processed += 1
 +            self._stats.items_processed = 1
              self._stats.last_processed_at = time.time()
-
+ 
              # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_83: survived
@@ -2538,11 +2538,11 @@
 +++ backend/services/pipeline_workers.py
 @@ -79,7 +79,7 @@
              )
-
+ 
              self._stats.items_processed += 1
 -            self._stats.last_processed_at = time.time()
 +            self._stats.last_processed_at = None
-
+ 
              # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
              duration = time.time() - start_time
 ====END====
@@ -2551,7 +2551,7 @@
 +++ backend/services/pipeline_workers.py
 @@ -82,7 +82,7 @@
              self._stats.last_processed_at = time.time()
-
+ 
              # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
 -            duration = time.time() - start_time
 +            duration = time.time() + start_time
@@ -2563,7 +2563,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -83,7 +83,7 @@
-
+ 
              # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
              duration = time.time() - start_time
 -            duration_ms = int(duration * 1000)
@@ -2576,7 +2576,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -83,7 +83,7 @@
-
+ 
              # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
              duration = time.time() - start_time
 -            duration_ms = int(duration * 1000)
@@ -2589,7 +2589,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -83,7 +83,7 @@
-
+ 
              # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
              duration = time.time() - start_time
 -            duration_ms = int(duration * 1000)
@@ -2622,7 +2622,7 @@
 +            record_pipeline_stage_latency(None, duration_ms)
              # Record to Redis for /api/system/telemetry
              await record_stage_latency(self._redis, "analyze", duration_ms)
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_91: survived
 --- backend/services/pipeline_workers.py
@@ -2635,7 +2635,7 @@
 +            record_pipeline_stage_latency("batch_to_analyze", None)
              # Record to Redis for /api/system/telemetry
              await record_stage_latency(self._redis, "analyze", duration_ms)
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_94: survived
 --- backend/services/pipeline_workers.py
@@ -2648,7 +2648,7 @@
 +            record_pipeline_stage_latency("XXbatch_to_analyzeXX", duration_ms)
              # Record to Redis for /api/system/telemetry
              await record_stage_latency(self._redis, "analyze", duration_ms)
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_95: survived
 --- backend/services/pipeline_workers.py
@@ -2661,7 +2661,7 @@
 +            record_pipeline_stage_latency("BATCH_TO_ANALYZE", duration_ms)
              # Record to Redis for /api/system/telemetry
              await record_stage_latency(self._redis, "analyze", duration_ms)
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁAnalysisQueueWorkerǁ_process_analysis_item__mutmut_97: survived
 --- backend/services/pipeline_workers.py
@@ -2672,7 +2672,7 @@
              # Record to Redis for /api/system/telemetry
 -            await record_stage_latency(self._redis, "analyze", duration_ms)
 +            await record_stage_latency(self._redis, None, duration_ms)
-
+ 
              # Record total pipeline latency (from file detection to event creation)
              if pipeline_start_time:
 ====END====
@@ -2685,7 +2685,7 @@
              # Record to Redis for /api/system/telemetry
 -            await record_stage_latency(self._redis, "analyze", duration_ms)
 +            await record_stage_latency(self._redis, "analyze", None)
-
+ 
              # Record total pipeline latency (from file detection to event creation)
              if pipeline_start_time:
 ====END====
@@ -2700,7 +2700,7 @@
 +        None,
          extra={"camera_id": camera_id, "video_path": video_path},
      )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_10: survived
 --- backend/services/pipeline_workers.py
@@ -2726,7 +2726,7 @@
 +        interval_seconds=None,
          max_frames=self._video_max_frames,
      )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_12: survived
 --- backend/services/pipeline_workers.py
@@ -2738,7 +2738,7 @@
 -        max_frames=self._video_max_frames,
 +        max_frames=None,
      )
-
+ 
      if not frame_paths:
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_13: survived
@@ -2763,7 +2763,7 @@
 -        interval_seconds=self._video_frame_interval,
          max_frames=self._video_max_frames,
      )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_15: survived
 --- backend/services/pipeline_workers.py
@@ -2775,7 +2775,7 @@
 -        max_frames=self._video_max_frames,
 -    )
 +        )
-
+ 
      if not frame_paths:
          logger.warning(
 ====END====
@@ -2783,7 +2783,7 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -35,7 +35,7 @@
-
+ 
      if not frame_paths:
          logger.warning(
 -            f"No frames extracted from video: {video_path}",
@@ -2803,7 +2803,7 @@
 +            extra=None,
          )
          return
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_2: survived
 --- backend/services/pipeline_workers.py
@@ -2815,7 +2815,7 @@
 -        extra={"camera_id": camera_id, "video_path": video_path},
 +        extra=None,
      )
-
+ 
      # Extract frames from video using optimized batch method (NEM-1329)
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_20: survived
@@ -2829,7 +2829,7 @@
 -        )
 +            )
          return
-
+ 
      total_detections = 0
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_21: survived
@@ -2843,7 +2843,7 @@
 +            extra={"XXcamera_idXX": camera_id, "video_path": video_path},
          )
          return
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_22: survived
 --- backend/services/pipeline_workers.py
@@ -2856,7 +2856,7 @@
 +            extra={"CAMERA_ID": camera_id, "video_path": video_path},
          )
          return
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_23: survived
 --- backend/services/pipeline_workers.py
@@ -2869,7 +2869,7 @@
 +            extra={"camera_id": camera_id, "XXvideo_pathXX": video_path},
          )
          return
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_24: survived
 --- backend/services/pipeline_workers.py
@@ -2882,7 +2882,7 @@
 +            extra={"camera_id": camera_id, "VIDEO_PATH": video_path},
          )
          return
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_25: survived
 --- backend/services/pipeline_workers.py
@@ -2890,11 +2890,11 @@
 @@ -40,7 +40,7 @@
          )
          return
-
+ 
 -    total_detections = 0
 +    total_detections = None
      detector_failed = False
-
+ 
      try:
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_26: survived
@@ -2903,11 +2903,11 @@
 @@ -40,7 +40,7 @@
          )
          return
-
+ 
 -    total_detections = 0
 +    total_detections = 1
      detector_failed = False
-
+ 
      try:
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_27: survived
@@ -2915,11 +2915,11 @@
 +++ backend/services/pipeline_workers.py
 @@ -41,7 +41,7 @@
          return
-
+ 
      total_detections = 0
 -    detector_failed = False
 +    detector_failed = None
-
+ 
      try:
          # Get video metadata for storing with detections
 ====END====
@@ -2927,12 +2927,12 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -45,7 +45,7 @@
-
+ 
      try:
          # Get video metadata for storing with detections
 -        video_metadata = await self._video_processor.get_video_metadata(video_path)
 +        video_metadata = None
-
+ 
          # Process each extracted frame
          async with get_session() as session:
 ====END====
@@ -2940,12 +2940,12 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -45,7 +45,7 @@
-
+ 
      try:
          # Get video metadata for storing with detections
 -        video_metadata = await self._video_processor.get_video_metadata(video_path)
 +        video_metadata = await self._video_processor.get_video_metadata(None)
-
+ 
          # Process each extracted frame
          async with get_session() as session:
 ====END====
@@ -2958,7 +2958,7 @@
                      # Capture frame_path in a closure to avoid loop variable binding issue
 -                    current_frame = frame_path
 +                    current_frame = None
-
+ 
                      async def _detect_frame(
                          fp: str = current_frame,
 ====END====
@@ -3012,7 +3012,7 @@
 +                            video_path=None,
                              video_metadata=video_metadata,
                          )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_36: survived
 --- backend/services/pipeline_workers.py
@@ -3024,7 +3024,7 @@
 -                            video_metadata=video_metadata,
 +                            video_metadata=None,
                          )
-
+ 
                      # Use retry handler for each frame
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_37: survived
@@ -3073,7 +3073,7 @@
 -        extra={"camera_id": camera_id, "video_path": video_path},
 -    )
 +        )
-
+ 
      # Extract frames from video using optimized batch method (NEM-1329)
      # Uses single FFmpeg invocation instead of multiple calls per frame
 ====END====
@@ -3087,7 +3087,7 @@
 -                            video_path=video_path,
                              video_metadata=video_metadata,
                          )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_41: survived
 --- backend/services/pipeline_workers.py
@@ -3099,7 +3099,7 @@
 -                            video_metadata=video_metadata,
 -                        )
 +                            )
-
+ 
                      # Use retry handler for each frame
                      result = await self._retry_handler.with_retry(
 ====END====
@@ -3114,7 +3114,7 @@
 +                        job_data=None,  # Use video job data for DLQ
                          queue_name=self._queue_name,
                      )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_45: survived
 --- backend/services/pipeline_workers.py
@@ -3126,7 +3126,7 @@
 -                        queue_name=self._queue_name,
 +                        queue_name=None,
                      )
-
+ 
                      if not result.success:
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_5: survived
@@ -3139,7 +3139,7 @@
 -        extra={"camera_id": camera_id, "video_path": video_path},
 +        extra={"XXcamera_idXX": camera_id, "video_path": video_path},
      )
-
+ 
      # Extract frames from video using optimized batch method (NEM-1329)
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_50: survived
@@ -3192,7 +3192,7 @@
 +                            )
                          detector_failed = True
                          break
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_54: survived
 --- backend/services/pipeline_workers.py
@@ -3282,7 +3282,7 @@
 -        extra={"camera_id": camera_id, "video_path": video_path},
 +        extra={"CAMERA_ID": camera_id, "video_path": video_path},
      )
-
+ 
      # Extract frames from video using optimized batch method (NEM-1329)
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_60: survived
@@ -3343,10 +3343,10 @@
 @@ -88,7 +88,7 @@
                          detector_failed = True
                          break
-
+ 
 -                    detections = result.result or []
 +                    detections = None
-
+ 
                      # Add detections to batch
                      for detection in detections:
 ====END====
@@ -3356,10 +3356,10 @@
 @@ -88,7 +88,7 @@
                          detector_failed = True
                          break
-
+ 
 -                    detections = result.result or []
 +                    detections = result.result and []
-
+ 
                      # Add detections to batch
                      for detection in detections:
 ====END====
@@ -3386,7 +3386,7 @@
 -        extra={"camera_id": camera_id, "video_path": video_path},
 +        extra={"camera_id": camera_id, "XXvideo_pathXX": video_path},
      )
-
+ 
      # Extract frames from video using optimized batch method (NEM-1329)
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_70: survived
@@ -3439,7 +3439,7 @@
 +                            object_type=None,
                              pipeline_start_time=pipeline_start_time,
                          )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_74: survived
 --- backend/services/pipeline_workers.py
@@ -3451,7 +3451,7 @@
 -                            pipeline_start_time=pipeline_start_time,
 +                            pipeline_start_time=None,
                          )
-
+ 
                      total_detections += len(detections)
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_75: survived
@@ -3512,7 +3512,7 @@
 -                            object_type=detection.object_type,
                              pipeline_start_time=pipeline_start_time,
                          )
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_8: survived
 --- backend/services/pipeline_workers.py
@@ -3524,7 +3524,7 @@
 -        extra={"camera_id": camera_id, "video_path": video_path},
 +        extra={"camera_id": camera_id, "VIDEO_PATH": video_path},
      )
-
+ 
      # Extract frames from video using optimized batch method (NEM-1329)
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_80: survived
@@ -3537,9 +3537,9 @@
 -                            pipeline_start_time=pipeline_start_time,
 -                        )
 +                            )
-
+ 
                      total_detections += len(detections)
-
+ 
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_81: survived
 --- backend/services/pipeline_workers.py
@@ -3547,10 +3547,10 @@
 @@ -101,7 +101,7 @@
                              pipeline_start_time=pipeline_start_time,
                          )
-
+ 
 -                    total_detections += len(detections)
 +                    total_detections = len(detections)
-
+ 
                  except DetectorUnavailableError:
                      # Retry handler already moved to DLQ
 ====END====
@@ -3560,10 +3560,10 @@
 @@ -101,7 +101,7 @@
                              pipeline_start_time=pipeline_start_time,
                          )
-
+ 
 -                    total_detections += len(detections)
 +                    total_detections -= len(detections)
-
+ 
                  except DetectorUnavailableError:
                      # Retry handler already moved to DLQ
 ====END====
@@ -3571,13 +3571,13 @@
 --- backend/services/pipeline_workers.py
 +++ backend/services/pipeline_workers.py
 @@ -120,7 +120,7 @@
-
+ 
      if detector_failed:
          raise DetectorUnavailableError(
 -            f"Detector unavailable during video processing: {video_path}"
 +            None
          )
-
+ 
      logger.info(
 ====END====
 # backend.services.pipeline_workers.xǁDetectionQueueWorkerǁ_process_video_detection__mutmut_88: survived
@@ -3585,7 +3585,7 @@
 +++ backend/services/pipeline_workers.py
 @@ -124,8 +124,7 @@
          )
-
+ 
      logger.info(
 -        f"Processed video {video_path}: {total_detections} detections "
 -        f"from {len(frame_paths)} frames",

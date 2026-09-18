@@ -3,10 +3,10 @@
 +++ backend/services/scene_ocr_service.py
 @@ -76,7 +76,7 @@
          result.processing_time_ms = (time.perf_counter() - start_time) * 1000
-
+ 
          # Record total processing time metric (combined full_frame + crop)
 -        observe_scene_ocr_processing("total", result.processing_time_ms / 1000.0)
 +        observe_scene_ocr_processing("total", result.processing_time_ms / 1001.0)
-
+ 
          # Record detected text counts
          total_texts = len(result.scene_texts)

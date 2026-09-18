@@ -171,7 +171,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__m
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
 +    shared_correlation_id = None
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
      for event_type, payload in events:
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
@@ -196,7 +196,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__m
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
 +    shared_correlation_id = correlation_id and str(uuid.uuid4())
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
      for event_type, payload in events:
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
@@ -221,7 +221,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__m
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
 +    shared_correlation_id = correlation_id or str(None)
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
      for event_type, payload in events:
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
@@ -236,7 +236,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__m
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
 @@ -18,7 +18,7 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
      for event_type, payload in events:
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
@@ -261,7 +261,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__m
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
 @@ -18,7 +18,7 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
      for event_type, payload in events:
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
@@ -298,7 +298,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__m
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
              continue
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
      return success_count
 =====
@@ -323,7 +323,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
      payload = message.get("payload", {})
 =====
@@ -348,7 +348,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
      payload = message.get("payload", {})
 =====
@@ -373,7 +373,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
      payload = message.get("payload", {})
 =====
@@ -398,7 +398,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
      payload = message.get("payload", {})
 =====
@@ -415,13 +415,13 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
 -    payload = message.get("payload", {})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
 +    payload = message.get("payload", None)
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
      # Map event types to broadcaster methods
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
@@ -440,13 +440,13 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
 -    payload = message.get("payload", {})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
 +    payload = message.get("payload", )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
      # Map event types to broadcaster methods
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
@@ -471,7 +471,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
 +        await self._event_broadcaster.broadcast_alert(None, alert_type_map[event_type])
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
      # Camera events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
@@ -496,7 +496,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
 +        await self._event_broadcaster.broadcast_alert(payload, None)
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
      # Camera events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
@@ -521,7 +521,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
 +        await self._event_broadcaster.broadcast_alert(alert_type_map[event_type])
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
      # Camera events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
@@ -546,7 +546,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
 +        await self._event_broadcaster.broadcast_alert(payload, )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
      # Camera events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
@@ -654,7 +654,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
      # Scene change events
 =====
@@ -679,7 +679,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
      # Scene change events
 =====
@@ -704,7 +704,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
      # Scene change events
 =====
@@ -729,7 +729,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
      # Scene change events
 =====
@@ -754,7 +754,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
      # Scene change events
 =====
@@ -779,7 +779,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
      # Scene change events
 =====
@@ -804,7 +804,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
      # Scene change events
 =====
@@ -827,7 +827,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
 +        await self._event_broadcaster.broadcast_event(None)
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
@@ -852,7 +852,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
 +        await self._event_broadcaster.broadcast_event({"XXtypeXX": "event", "data": payload})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
@@ -877,7 +877,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
 +        await self._event_broadcaster.broadcast_event({"TYPE": "event", "data": payload})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
@@ -902,7 +902,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
 +        await self._event_broadcaster.broadcast_event({"type": "XXeventXX", "data": payload})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
@@ -927,7 +927,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
 +        await self._event_broadcaster.broadcast_event({"type": "EVENT", "data": payload})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
@@ -952,7 +952,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
 +        await self._event_broadcaster.broadcast_event({"type": "event", "XXdataXX": payload})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
@@ -977,7 +977,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
 +        await self._event_broadcaster.broadcast_event({"type": "event", "DATA": payload})
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
      # Service status events
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
@@ -1006,7 +1006,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55: survived
@@ -1031,7 +1031,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56: survived
@@ -1056,7 +1056,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57: survived
@@ -1081,7 +1081,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58: survived
@@ -1106,7 +1106,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60: survived
@@ -1218,7 +1218,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
      # Default: publish via Redis
 =====
@@ -1395,7 +1395,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71: survived
@@ -1420,7 +1420,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72: survived
@@ -1445,7 +1445,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73: survived
@@ -1470,7 +1470,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74: survived
@@ -1495,7 +1495,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
          )
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
-
+ 
 =====
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
 # backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76: survived
@@ -1506,7 +1506,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
 @@ -101,5 +101,5 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
      # Default: publish via Redis
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
@@ -1527,7 +1527,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
 @@ -101,5 +101,5 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
      # Default: publish via Redis
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
@@ -1548,7 +1548,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
 @@ -101,5 +101,5 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
      # Default: publish via Redis
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
@@ -1569,7 +1569,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
 @@ -101,5 +101,5 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
      # Default: publish via Redis
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
@@ -1590,7 +1590,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
 @@ -101,5 +101,5 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
      # Default: publish via Redis
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
@@ -1661,7 +1661,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
      # System status events use broadcast_status
 =====
@@ -1686,7 +1686,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
      # System status events use broadcast_status
 =====
@@ -1711,7 +1711,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
      # System status events use broadcast_status
 =====
@@ -1736,7 +1736,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
      # System status events use broadcast_status
 =====
@@ -1751,7 +1751,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
      # System status events use broadcast_status
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
@@ -1778,7 +1778,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
 @@ -15,7 +15,7 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
      # System status events use broadcast_status
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
@@ -1803,7 +1803,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
 @@ -15,7 +15,7 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
      # System status events use broadcast_status
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
@@ -2149,7 +2149,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_r
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
      try:
 =====
@@ -2174,7 +2174,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_r
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
      try:
 =====
@@ -2199,7 +2199,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_r
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
      try:
 =====
@@ -2224,7 +2224,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_r
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
          return
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
      try:
 =====
@@ -2237,7 +2237,7 @@ KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_r
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
 @@ -17,6 +17,6 @@
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
-
+ 
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
      try:
 KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10

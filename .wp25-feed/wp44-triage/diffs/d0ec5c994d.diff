@@ -3,7 +3,7 @@
 +++ backend/services/enrichment_pipeline.py
 @@ -97,7 +97,7 @@
          confidence = self.weather_classification.confidence
-
+ 
          # Low visibility weather flag
 -        if condition in ("foggy", "snowy"):
 +        if condition in ("foggy", "XXsnowyXX"):

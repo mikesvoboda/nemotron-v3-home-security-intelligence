@@ -7,5 +7,6 @@
      if not range_header.startswith("bytes="):
 -        raise ValueError("Invalid range header format")
 +        raise ValueError("XXInvalid range header formatXX")
-
+ 
      range_spec = range_header[6:]  # Remove "bytes=" prefix
+ 

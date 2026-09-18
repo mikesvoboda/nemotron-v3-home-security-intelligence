@@ -8,6 +8,6 @@
 -            batch_size=1,
 -        )
 +            )
-
+ 
          for attempt in range(self._max_retries):
              span.set_attribute("retry_attempt", attempt)

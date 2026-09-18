@@ -8,5 +8,5 @@
 -        test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
 +        test_image = Image.new("RGB", (32, 32), color=None)
          import io
-
+ 
          buffer = io.BytesIO()

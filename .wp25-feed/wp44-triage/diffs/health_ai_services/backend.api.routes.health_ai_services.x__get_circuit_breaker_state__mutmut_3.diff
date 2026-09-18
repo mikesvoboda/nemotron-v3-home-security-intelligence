@@ -3,10 +3,10 @@
 +++ backend/api/routes/health_ai_services.py
 @@ -10,7 +10,7 @@
      from backend.services.circuit_breaker import _get_registry
-
+ 
      registry = _get_registry()
 -    breaker = registry.get(service_name)
 +    breaker = registry.get(None)
-
+ 
      if breaker is None:
          return AIServiceCircuitState.CLOSED

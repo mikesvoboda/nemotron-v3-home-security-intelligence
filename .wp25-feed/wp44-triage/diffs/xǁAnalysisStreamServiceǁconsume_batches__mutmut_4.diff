@@ -3,7 +3,7 @@
 +++ backend/services/redis_streams.py
 @@ -11,7 +11,7 @@
      await self._ensure_consumer_group()
-
+ 
      try:
 -        block_ms = self._block_ms if block else None
 +        block_ms = self._block_ms if (block) or True else None
