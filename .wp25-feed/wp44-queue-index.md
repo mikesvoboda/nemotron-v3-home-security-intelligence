@@ -7,8 +7,8 @@ UNVERIFIED. Verification lane (serial, after run5 exits): for each draft —
 red on the mutant diff → green on original → commit into that WP's tests.
 EQUIVALENT/LOW-VALUE cluster notes are the no-deletion-without-record receipts.
 
-Aggregate at 112 modules / 16365 survivors: TEST-GAP 10396 survivors (64%),
-EQUIVALENT 3553 (22%), LOW-VALUE 2361 (14%); 736 drafted tests.
+Aggregate at 113 modules / 16483 survivors: TEST-GAP 10454 survivors (63%),
+EQUIVALENT 3558 (22%), LOW-VALUE 2416 (15%); 741 drafted tests.
 landed back at 64/22/14 — the same triple as the earliest waves; the
 aggregate oscillates inside classifier noise 64-66 and only PER-MODULE
 shape carries signal.) (orphan_cleanup folded at its 170-snapshot; live meta already 174 with checked count
@@ -131,6 +131,7 @@ owner, pattern-8 sweep material, not a test gap).
 |       60 |  157 |    38% | `detections`                     |      6 |
 |       58 |  100 |    58% | `reid_matcher`                   |      7 |
 |       58 |  109 |    53% | `reid_service`                   |      7 |
+|       58 |  118 |    49% | `circuit_breaker`                |      5 |
 |       57 |  116 |    49% | `package_tracking_service`       |      9 |
 |       57 |  179 |    31% | `managed_service`                |      6 |
 |       55 |  100 |    55% | `file_service`                   |      6 |
@@ -159,7 +160,7 @@ owner, pattern-8 sweep material, not a test gap).
 Wave-23 tail — system.py folded separately (the giant-module fix): 5,624
 lines / 1,899 mutants is why the first-slot agent died twice WITHOUT a dossier
 — one agent, one file, too much. Resume re-ran it solo -> 166/187 TEST-GAP
-(89%, row 7 of 112, top routes/ module, behind four services): the /system/health
+(89%, row 7 of 113, top routes/ module, behind four services): the /system/health
 exporter-status builder matches Prometheus targets by `job/instance in`
 (56 mutants) under a test that asserts only status.value=='up'; degradation
 payload keys/defaults 52 mutants (`mode` default -> response becomes None via
@@ -168,7 +169,7 @@ only. Health-endpoint contract = pattern 6 on the dashboard's OWN status page.
 Lane note: dispatch >1,200-mutant files as single-module waves.
 
 Wave-40 anchor (04:02-04:15 UTC, 1 module): exports (54 gap/100, 54%,
-row 92) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
+row 93) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
 identity family (start/complete/fail — job_id is the WS broadcast routing
 key) survives on assert_called_once() arity-only; the not-found path can
 SPURIOUSLY broadcast fail_job for a job that never existed (logger.error
@@ -221,8 +222,8 @@ snapshot reconciliation. Universe 240 = 101k+138s+1 (dossier TOTAL row).
 Wave-44 anchor (05:42-05:54 UTC, 3 modules): health_ai_services (91 gap/111, 82%,
 row 47) — the endpoint-with-status-only-assertion shape at gpu_config scale but
 smaller: payload/degradation fields flow unobserved. retry_handler (54 gap/151,
-36%, row 93) — 62% LOW-VALUE (94): the module's own retry-log prose; the real
-work is the backoff/budget arithmetic. cameras (44 gap/130, 34%, row 98) —
+36%, row 94) — 62% LOW-VALUE (94): the module's own retry-log prose; the real
+work is the backoff/budget arithmetic. cameras (44 gap/130, 34%, row 99) —
 SECURITY finding: _resolve_camera_dir's traversal gate '..' or '/' '\' tokens
 or->and + token clobbers let '..'-only and backslash folder names SLIP PAST
 into fallback resolution (tests only assert endpoint 404, never isolate the
@@ -287,6 +288,24 @@ last 64 checked: 39 survived) — re-tally from the FINAL score JSON. 12 drafts.
 Clusters sum = journal = meta for both. (Repair note folded in: the wave-45
 fold's table rewrite dropped the header/sep rows — restored here; the fold
 validator now asserts their presence, not just row lines.)
+
+Wave-47 anchor (07:02-07:58 UTC, 1 module): circuit_breaker (58 gap/
+118, 49%, row 89) — the most telemetry-saturated module triaged yet: 47%
+LOW-VALUE (55) — Prometheus label CASING (10), otel record_state_change args
+(19), log-extra casing (26). The dossier RECOMMENDS SUPPRESSION-WITH-RECORD
+for these rather than text-equality tests (asserting label casing is the
+brittle-text trap) — 60 survivors flagged as baseline suppression candidates,
+the program's clearest instance of the no-deletion-without-record receipt.
+The real 58: ctx-manager __aenter__ accounting never read (half-open trial
+calls, rejected_calls counter, error name/state args — 11); get_status/
+get_state_info payload keys renameable while /api/debug/circuit-breakers
+asserts 2-4 of 9 keys (14); tz-naive now(None) stamps serialize WITHOUT tz
+offset into API payloads (3); Prometheus gauge VALUES wrong on recovery/reset
+(4) and label values ->None mislabel every series they touch (15) — real
+observability breaks, not noise. Snapshot flag: dispatched at 118 survivors/
+213 unchecked (07:02 gate read); dossier froze at 118; live meta AT FOLD 129
+survivors / 190 unchecked — re-tally from the FINAL score JSON. 5 drafts.
+Clusters sum = journal = frozen dossier set.
 
 
 
@@ -371,7 +390,7 @@ so formula mutations hide; dossier banks the kill recipe
 (str(stmt.compile()) + bind-param asserts + exact-value parametrizes) and
 flags 4 mutants boundary-unobservable. Snapshot was mid-run (82 keys still
 unchecked at dossier time — the count can grow by final score). ai_audit
-(43 gap/111, 39%, row 99) is log-noise-dominant (42 LOW-VALUE — extra=
+(43 gap/111, 39%, row 100) is log-noise-dominant (42 LOW-VALUE — extra=
 payloads + message renames) with real gaps under it: the progress message
 and processed/failed counters ride GET /batch/{job_id} while tests assert
 only the percentage, an == -> != query flip survives on a call-order mock
@@ -384,7 +403,7 @@ Wave-33 anchors (02:23-03:00 UTC, 2 modules): osnet_loader (88 gap/136,
 embedding model's loader (blanket except -> degraded/empty result turns
 mutation breakage into silent model degradation); dossier Totals line again
 contradicted its own table (86/13 vs table+journal 88/11 — table folded).
-mqtt_publisher (37 gap/100, 37%, row 103) is the MQTT WIRE-CONTRACT gap: the
+mqtt_publisher (37 gap/100, 37%, row 104) is the MQTT WIRE-CONTRACT gap: the
 18-param topic table never puts fields under the nested data dict, never
 routes service./worker./zone.approach, and the timestamp test checks key
 presence only — so datetime.now(None) NAIVE timestamps and clobbered
@@ -501,7 +520,7 @@ final score JSON before WP4.4 lane work on them.
 
 Wave-23/24 anchors (folded together; 10 modules, 23:05-23:22 UTC —
 queue shakeup + first aggregate drop): threat_monitor_service (182 gap/244,
-75%, row 5 of 112, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
+75%, row 5 of 113, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
 `session.execute` returns AsyncMock whatever statement it's handed, so the
 cooldown cutoff arithmetic / dedup `==` / `>=` / LIMIT all ride; the
 alert.created WEBSOCKET payload (36 mutants, 24 key renames) and the webhook

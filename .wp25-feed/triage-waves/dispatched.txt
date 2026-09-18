@@ -111,3 +111,4 @@ backend/services/weather_loader.py
 backend/services/scene_ocr_service.py
 backend/services/stream_manager.py
 backend/services/circuit_breaker.py
+backend/services/file_watcher.py
