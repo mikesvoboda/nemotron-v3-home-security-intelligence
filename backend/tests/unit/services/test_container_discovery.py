@@ -6,6 +6,7 @@ pattern and creates ManagedService objects with proper configuration.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -19,6 +20,8 @@ from backend.services.container_discovery import (
     ContainerDiscoveryService,
     ManagedService,
     ServiceConfig,
+    build_configs_from_compose,
+    build_service_configs,
 )
 
 # Fixtures
@@ -731,3 +734,295 @@ class TestCategoryPriorityOrdering:
         assert prometheus.restart_backoff_base == 10.0
         assert prometheus.restart_backoff_max == 120.0
         assert prometheus.max_failures == 5
+
+
+# =============================================================================
+# Config Builder Kill Tests (WP4.4 — gen-2 dossier container_discovery G1-G13)
+# =============================================================================
+
+
+# Golden table for build_service_configs(settings=None): the .env.example default
+# ports plus the hardcoded probe/grace/backoff policy. Values verified against
+# shipped source on 2026-09-18 (wave-57 dossier's independently derived table
+# agrees, 25/25 services).
+# (display_name, category, port, health_endpoint, health_cmd,
+#  startup_grace_period, max_failures, restart_backoff_base, restart_backoff_max)
+EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
+    "postgres": (
+        "PostgreSQL",
+        "INFRASTRUCTURE",
+        5432,
+        None,
+        "pg_isready -U security",
+        10,
+        10,
+        2.0,
+        60.0,
+    ),
+    "redis": ("Redis", "INFRASTRUCTURE", 6379, None, "redis-cli ping", 10, 10, 2.0, 60.0),
+    "backend": (
+        "Backend API",
+        "INFRASTRUCTURE",
+        8000,
+        "/api/system/health/ready",
+        None,
+        30,
+        10,
+        2.0,
+        60.0,
+    ),
+    "go2rtc": ("go2rtc", "INFRASTRUCTURE", 1984, "/api", None, 15, 10, 2.0, 60.0),
+    "frontend": ("Frontend", "INFRASTRUCTURE", 8080, "/health", None, 30, 10, 2.0, 60.0),
+    "ai-yolo26": ("YOLO26", "AI", 8095, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-llm": ("Nemotron", "AI", 8091, "/health", None, 120, 5, 5.0, 300.0),
+    "ai-florence": ("Florence-2", "AI", 8092, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-clip": ("CLIP", "AI", 8093, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-enrichment": ("Enrichment", "AI", 8094, "/health", None, 180, 5, 5.0, 300.0),
+    "ai-enrichment-light": ("Enrichment Light", "AI", 8096, "/health", None, 120, 5, 5.0, 300.0),
+    "prometheus": ("Prometheus", "MONITORING", 9090, "/-/healthy", None, 30, 5, 10.0, 120.0),
+    "grafana": ("Grafana", "MONITORING", 3002, "/api/health", None, 30, 5, 10.0, 120.0),
+    "alertmanager": ("Alertmanager", "MONITORING", 9093, "/-/healthy", None, 15, 5, 10.0, 120.0),
+    "loki": ("Loki", "MONITORING", 3100, "/ready", None, 30, 5, 10.0, 120.0),
+    "pyroscope": ("Pyroscope", "MONITORING", 4040, "/ready", None, 30, 5, 10.0, 120.0),
+    "alloy": ("Grafana Alloy", "MONITORING", 12345, "/-/ready", None, 30, 5, 10.0, 120.0),
+    "elasticsearch": (
+        "Elasticsearch",
+        "MONITORING",
+        9200,
+        "/_cluster/health",
+        None,
+        60,
+        5,
+        10.0,
+        120.0,
+    ),
+    "jaeger": ("Jaeger", "MONITORING", 16686, "/", None, 15, 5, 10.0, 120.0),
+    "redis-exporter": ("Redis Exporter", "MONITORING", 9121, "/metrics", None, 15, 5, 10.0, 120.0),
+    "json-exporter": ("JSON Exporter", "MONITORING", 7979, "/metrics", None, 15, 5, 10.0, 120.0),
+    "blackbox-exporter": (
+        "Blackbox Exporter",
+        "MONITORING",
+        9115,
+        "/metrics",
+        None,
+        15,
+        5,
+        10.0,
+        120.0,
+    ),
+    "node-exporter": ("Node Exporter", "MONITORING", 9100, "/metrics", None, 15, 5, 10.0, 120.0),
+    "cadvisor": ("cAdvisor", "MONITORING", 8082, "/healthz", None, 15, 5, 10.0, 120.0),
+    "dcgm-exporter": ("DCGM Exporter", "MONITORING", 9400, "/metrics", None, 30, 5, 10.0, 120.0),
+}
+
+# Every settings port distinct from every .env default, so a swallowed or
+# bypassed settings object always shows up as a port mismatch.
+ALL_PORTS = {
+    "postgres_port": 15432,
+    "redis_port": 16379,
+    "backend_port": 18000,
+    "go2rtc_port": 19841,
+    "yolo26_port": 18095,
+    "nemotron_port": 18091,
+    "florence_port": 18092,
+    "clip_port": 18093,
+    "enrichment_port": 18094,
+    "enrichment_light_port": 18096,
+    "prometheus_port": 19090,
+    "grafana_port": 13002,
+    "redis_exporter_port": 19121,
+    "json_exporter_port": 17979,
+    "alertmanager_port": 19093,
+    "blackbox_exporter_port": 19115,
+    "jaeger_port": 16687,
+    "loki_port": 13100,
+    "pyroscope_port": 14040,
+    "alloy_port": 12346,
+    "node_exporter_port": 19100,
+    "cadvisor_port": 18082,
+    "dcgm_exporter_port": 19400,
+    "elasticsearch_port": 19200,
+    "frontend_port": 18080,
+}
+_KEY_TO_PORT_ATTR = {  # config key -> settings attribute feeding its port
+    "postgres": "postgres_port",
+    "redis": "redis_port",
+    "backend": "backend_port",
+    "go2rtc": "go2rtc_port",
+    "frontend": "frontend_port",
+    "ai-yolo26": "yolo26_port",
+    "ai-llm": "nemotron_port",
+    "ai-florence": "florence_port",
+    "ai-clip": "clip_port",
+    "ai-enrichment": "enrichment_port",
+    "ai-enrichment-light": "enrichment_light_port",
+    "prometheus": "prometheus_port",
+    "grafana": "grafana_port",
+    "alertmanager": "alertmanager_port",
+    "loki": "loki_port",
+    "pyroscope": "pyroscope_port",
+    "alloy": "alloy_port",
+    "elasticsearch": "elasticsearch_port",
+    "jaeger": "jaeger_port",
+    "redis-exporter": "redis_exporter_port",
+    "json-exporter": "json_exporter_port",
+    "blackbox-exporter": "blackbox_exporter_port",
+    "node-exporter": "node_exporter_port",
+    "cadvisor": "cadvisor_port",
+    "dcgm-exporter": "dcgm_exporter_port",
+}
+
+
+class TestBuildServiceConfigs:
+    """Kill tests for the settings-driven config builder (WP4.4 T1/T2/T3)."""
+
+    def test_build_service_configs_full_table_without_settings(self) -> None:
+        """Every service built with settings=None must match the .env-default table."""
+        configs = build_service_configs(None)
+        assert set(configs) == set(EXPECTED_BUILDER_TABLE)
+        for name, exp in EXPECTED_BUILDER_TABLE.items():
+            cfg = configs[name]
+            display, cat, port, endpoint, cmd, grace, maxf, base, mx = exp
+            assert cfg.display_name == display, name
+            assert cfg.category.value.upper() == cat, name
+            assert cfg.port == port, name
+            assert cfg.health_endpoint == endpoint, name
+            assert cfg.health_cmd == cmd, name
+            assert cfg.startup_grace_period == grace, name
+            assert cfg.max_failures == maxf, name
+            assert cfg.restart_backoff_base == base, name
+            assert cfg.restart_backoff_max == mx, name
+
+    def test_build_service_configs_uses_ports_from_settings(self) -> None:
+        """With settings supplied, every port must come from settings, not .env defaults."""
+        settings = SimpleNamespace(monitoring_enabled=True, **ALL_PORTS)
+        configs = build_service_configs(settings)
+        for key, attr in _KEY_TO_PORT_ATTR.items():
+            assert configs[key].port == ALL_PORTS[attr], f"{key} must use settings.{attr}"
+
+    def test_build_service_configs_include_monitoring_flag(self) -> None:
+        """include_monitoring=False must exclude exactly the MONITORING entries."""
+        with_mon = build_service_configs(None, include_monitoring=True)
+        without_mon = build_service_configs(None, include_monitoring=False)
+        monitoring_keys = {k for k, v in EXPECTED_BUILDER_TABLE.items() if v[1] == "MONITORING"}
+        assert monitoring_keys <= set(with_mon)
+        assert not (monitoring_keys & set(without_mon))
+        assert set(with_mon) - monitoring_keys == set(without_mon)
+
+
+class TestDiscoverySettingsWiring:
+    """__init__ branches no test had ever executed (WP4.4 T3/T4)."""
+
+    def test_init_with_settings_uses_configured_ports_and_monitoring_flag(self) -> None:
+        """Settings branch: ports flow from settings; monitoring_enabled drives inclusion."""
+        client = MagicMock()
+        client.list_containers = AsyncMock(return_value=[])
+        settings = SimpleNamespace(monitoring_enabled=True, **ALL_PORTS)
+        discovery = ContainerDiscoveryService(client, settings)
+        assert discovery.get_config("postgres").port == 15432
+        assert discovery.get_config("prometheus") is not None
+
+        settings_off = SimpleNamespace(monitoring_enabled=False, **ALL_PORTS)
+        discovery_off = ContainerDiscoveryService(client, settings_off)
+        assert discovery_off.get_config("prometheus") is None
+        assert discovery_off.get_config("postgres").port == 15432
+
+    def test_init_with_compose_file_uses_parsed_configs(self, tmp_path, monkeypatch) -> None:
+        """compose_file branch: parsed configs win; the parser must receive the compose path."""
+        from backend.services.compose_parser import ComposeParser
+
+        compose_path = tmp_path / "docker-compose.yml"
+        sentinel = ServiceConfig(
+            display_name="Custom Compose Service",
+            category=ServiceCategory.AI,
+            port=45999,
+            health_endpoint="/health",
+        )
+        seen_paths: list = []
+
+        def spy_parse(self, path):
+            seen_paths.append(path)
+            return {"custom-svc": sentinel}
+
+        monkeypatch.setattr(ComposeParser, "parse_file", spy_parse)
+        client = MagicMock()
+        client.list_containers = AsyncMock(return_value=[])
+        discovery = ContainerDiscoveryService(client, None, compose_file=compose_path)
+        # __init__ must forward the compose FILE PATH as the parser's first arg —
+        # a dropped/shifted argument (settings or flag in its place) must fail here.
+        assert seen_paths == [compose_path]
+        assert discovery.get_config("custom-svc") is sentinel
+        assert discovery.get_config("postgres") is None  # parsed set replaces hardcoded table
+
+    def test_init_compose_branch_honors_monitoring_disabled(self, tmp_path, monkeypatch) -> None:
+        """compose_file branch + monitoring_enabled=False: parsed MONITORING configs are filtered."""
+        from backend.services.compose_parser import ComposeParser
+
+        app_cfg = ServiceConfig(display_name="App", category=ServiceCategory.AI, port=45999)
+        mon_cfg = ServiceConfig(display_name="Mon", category=ServiceCategory.MONITORING, port=45998)
+        monkeypatch.setattr(
+            ComposeParser, "parse_file", lambda _self, _path: {"app": app_cfg, "mon": mon_cfg}
+        )
+        client = MagicMock()
+        client.list_containers = AsyncMock(return_value=[])
+        settings = SimpleNamespace(monitoring_enabled=False, **ALL_PORTS)
+        discovery = ContainerDiscoveryService(
+            client, settings, compose_file=tmp_path / "compose.yml"
+        )
+        assert discovery.get_config("app") is app_cfg
+        assert discovery.get_config("mon") is None  # monitoring flag must reach the compose builder
+
+
+class TestBuildConfigsFromCompose:
+    """Pass-through and fallback semantics of the compose builder (WP4.4 T4)."""
+
+    def test_missing_compose_file_falls_back_to_settings_ports(self, tmp_path) -> None:
+        """FileNotFoundError must fall back to build_service_configs WITH settings forwarded."""
+        missing = tmp_path / "nope-compose.yml"
+        settings = SimpleNamespace(monitoring_enabled=True, **ALL_PORTS)
+        configs = build_configs_from_compose(missing, settings)
+        assert configs["postgres"].port == 15432  # fallback must keep settings, not default ports
+
+    def test_parse_success_passes_configs_through(self, tmp_path, monkeypatch) -> None:
+        """A successful parse result must be returned verbatim, not swapped for fallback."""
+        from backend.services.compose_parser import ComposeParser
+
+        sentinel = ServiceConfig(display_name="S", category=ServiceCategory.AI, port=1)
+        monkeypatch.setattr(
+            ComposeParser, "parse_file", lambda _self, _path: {"only-svc": sentinel}
+        )
+        configs = build_configs_from_compose(tmp_path / "any.yml")
+        assert configs == {"only-svc": sentinel}
+
+    def test_parse_error_falls_back(self, tmp_path, monkeypatch) -> None:
+        """Any parse exception must fall back to hardcoded configs (postgres present, default port)."""
+        from backend.services.compose_parser import ComposeParser
+
+        def boom(self, path):
+            raise ValueError("bad yaml")
+
+        monkeypatch.setattr(ComposeParser, "parse_file", boom)
+        configs = build_configs_from_compose(tmp_path / "broken.yml")
+        assert "postgres" in configs and configs["postgres"].port == 5432
+
+
+class TestDiscoveryImageStringEdgeCases:
+    """Exact untagged-image string + health_cmd passthrough (WP4.4 T5)."""
+
+    @pytest.mark.asyncio
+    async def test_untagged_container_image_string_uses_first_12_id_chars(
+        self, mock_docker_client: MagicMock
+    ) -> None:
+        """Untagged containers must get '<untagged:{id[:12]}>' with the REAL id and health_cmd."""
+        long_id = "0123456789abcdef0123456789abcdef"  # 32 hex chars, like a real docker id
+        container = create_mock_container("security-postgres-1", container_id=long_id)
+        container.image.tags = []
+        mock_docker_client.list_containers = AsyncMock(return_value=[container])
+
+        discovery = ContainerDiscoveryService(mock_docker_client)
+        discovered = await discovery.discover_all()
+
+        assert len(discovered) == 1
+        assert discovered[0].image == f"<untagged:{long_id[:12]}>"
+        # postgres uses an exec health command — it must survive the ManagedService mapping
+        assert discovered[0].health_cmd == "pg_isready -U security"
