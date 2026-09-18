@@ -72,10 +72,23 @@ with out_path.open("a") as out:
             text=True,
             check=False,  # verdict IS the return code
         )
-        killed = proc.returncode != 0
-        out.write(
-            json.dumps({"num": num, "key": key, "killed": killed, "rc": proc.returncode}) + "\n"
-        )
+        rc = proc.returncode
+        if rc == 2:  # pytest INTERRUPTED (lost/crashed xdist worker, usage
+            # error): a NO-VERDICT, not a kill. One immediate retry on a
+            # quieter box usually lands on a real verdict.
+            proc = subprocess.run(
+                argv,  # nosemgrep
+                cwd=REPO / "mutants",
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            rc = proc.returncode
+        # scorer-consistent kills only (mutation-score.py CODE_MAP: 1,3);
+        # rc==2 after retry stays recorded as no_verdict -> re-probed later.
+        killed = rc in (1, 3)
+        out.write(json.dumps({"num": num, "key": key, "killed": killed, "rc": rc}) + "\n")
         out.flush()
         if (num % 50) == 0:
             print(

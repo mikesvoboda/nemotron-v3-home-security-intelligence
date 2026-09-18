@@ -80,6 +80,13 @@ def main() -> None:
             # a pause and contended validate.sh). Workers start their own
             # session (start_new_session below) -> killpg reaches the whole tree.
 
+            # in-flight modules must go BACK to the queue: procs.clear() with
+            # no requeue silently DROPPED every mid-flight remainder on the
+            # first pause exercises (system.py lost 242 keys this way).
+            # JSONLs are resumable, so requeue is cheap and lossless.
+            for spec in procs:
+                queue.append(spec)  # spec == "mod" or "mod#i"; keys resume
+                # from the per-shard JSONL
             for _, (p, _) in procs.items():
                 try:
                     os.killpg(os.getpgid(p.pid), signal.SIGTERM)
