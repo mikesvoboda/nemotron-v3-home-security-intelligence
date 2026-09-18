@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -42,7 +42,7 @@
+         extra={
+             "old_detector": old_active,
+             "new_detector": detector_type,
+-            "forced": force,
++            "FORCED": force,
+         },
+     )
+ 

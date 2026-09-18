@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -14,7 +14,6 @@
+                 enabled=config.enabled,
+                 is_active=(detector_type == self._active_detector),
+                 model_version=config.model_version,
+-                description=config.description,
+-            )
++                )
+         )
+     return result

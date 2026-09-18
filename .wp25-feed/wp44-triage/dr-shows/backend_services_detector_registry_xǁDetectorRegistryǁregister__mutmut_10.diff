@@ -1,0 +1,10 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -14,6 +14,6 @@
+         extra={
+             "detector_type": config.detector_type,
+             "display_name": config.display_name,
+-            "enabled": config.enabled,
++            "XXenabledXX": config.enabled,
+         },
+     )

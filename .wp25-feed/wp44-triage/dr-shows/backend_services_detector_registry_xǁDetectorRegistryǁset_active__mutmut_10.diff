@@ -1,0 +1,9 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -20,5 +20,4 @@
+     self._active_detector = detector_type
+     logger.info(
+         f"Set active detector: {detector_type}",
+-        extra={"detector_type": detector_type},
+-    )
++        )

@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -34,7 +34,7 @@
+     registry.set_active("yolo26")
+ 
+     logger.info(
+-        "Detector registry initialized",
++        "detector registry initialized",
+         extra={
+             "registered_detectors": registry.available_detectors,
+             "active_detector": registry.active_detector,

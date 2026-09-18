@@ -1,0 +1,10 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -37,6 +37,6 @@
+         "Detector registry initialized",
+         extra={
+             "registered_detectors": registry.available_detectors,
+-            "active_detector": registry.active_detector,
++            "XXactive_detectorXX": registry.active_detector,
+         },
+     )

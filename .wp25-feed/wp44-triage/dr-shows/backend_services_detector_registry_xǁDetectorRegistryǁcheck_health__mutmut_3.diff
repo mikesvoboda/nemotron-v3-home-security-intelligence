@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -14,7 +14,7 @@
+         raise ValueError(f"Unknown detector type: {detector_type}")
+ 
+     config = self._detectors[detector_type]
+-    health_url = f"{config.url}/health"
++    health_url = None
+ 
+     import time
+ 

@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -41,7 +41,7 @@
+         f"Switched detector from {old_active} to {detector_type}",
+         extra={
+             "old_detector": old_active,
+-            "new_detector": detector_type,
++            "XXnew_detectorXX": detector_type,
+             "forced": force,
+         },
+     )

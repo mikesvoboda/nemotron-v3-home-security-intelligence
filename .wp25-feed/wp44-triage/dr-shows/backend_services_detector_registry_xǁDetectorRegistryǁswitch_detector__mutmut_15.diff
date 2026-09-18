@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -30,7 +30,7 @@
+         status = DetectorStatus(
+             detector_type=detector_type,
+             healthy=True,  # Assumed healthy when force=True
+-            model_loaded=True,
++            model_loaded=None,
+         )
+ 
+     # Update the active detector

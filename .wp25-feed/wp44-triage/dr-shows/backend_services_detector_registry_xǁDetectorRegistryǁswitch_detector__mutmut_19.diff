@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -29,7 +29,7 @@
+         # Create a placeholder status when skipping health check
+         status = DetectorStatus(
+             detector_type=detector_type,
+-            healthy=True,  # Assumed healthy when force=True
++            healthy=False,  # Assumed healthy when force=True
+             model_loaded=True,
+         )
+ 

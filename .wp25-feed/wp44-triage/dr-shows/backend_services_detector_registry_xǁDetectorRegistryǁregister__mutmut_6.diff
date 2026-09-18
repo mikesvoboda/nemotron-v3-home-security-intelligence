@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -12,7 +12,7 @@
+     logger.info(
+         f"Registered detector: {config.detector_type}",
+         extra={
+-            "detector_type": config.detector_type,
++            "XXdetector_typeXX": config.detector_type,
+             "display_name": config.display_name,
+             "enabled": config.enabled,
+         },

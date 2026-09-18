@@ -1052,3 +1052,38 @@ CENSUS running (scripts/.wp44-killcount.py, JSONL /tmp/wp25/wp44-kills/) —
 first end-to-end "drafted → shipped → measured kills" number in the program.
 Dossiers .wp25-feed/wp44-triage/*.md — UNVERIFIED drafting until the serial
 lane lands.
+
+## WAVE 59 (GEN-2 NEW TIER, MODULES 9-16) — FOLD 2026-09-18
+
+Next eight NEW modules (686 est. survivors, 83-91 each); workflow
+wf_89a30df9-5ae, 8/8 agents; arbiter sum-checks survivors 8/8 OK
+(journal survivors_total == FINAL arbiter per module).
+
+| module | surv | G | E | L | drafts |
+|---|---|---|---|---|---|
+| fashion_clip_loader | 91 | 61 | 4 | 26 | 6 |
+| detector_registry | 89 | 45 | 43 | 1 | 6 |
+| health_service_registry | 88 | 75 | 13 | 0 | 6 |
+| ocr_service | 88 | 47 | 17 | 24 | 7 |
+| calibration_monitor | 87 | 39 | 7 | 41 | 6 |
+| health_event_emitter | 86 | 33 | 24 | 29 | 6 |
+| trend_service | 86 | 42 | 3 | 41 | 6 |
+| gpu_detection_service | 83 | 51 | 23 | 9 | 10 |
+| **W59 TOTAL** | **698** | **393** | **134** | **171** | **51** |
+
+Reconciliation: detector_registry journal cluster SUBTOTALS summed 93 vs
+arbiter 89 (journal G49); the dossier's own Totals line reconciles 45/43/1
+= 89 with a per-key exactly-once coverage row — fold takes the dossier
+(machine recount of its cluster table agrees; the journal's StructuredOutput
+re-typed four switch_detector-cluster rows into two buckets). All other 7
+modules: journal cluster sums == arbiter, no split.
+
+MEASURE — gen-2 cumulative through wave 59: 19,539 + 698 = **20,237
+survivors** across 40 modules; G 11,335 (56.0%) / E 5,022 (24.8%) / L 3,864
+(19.1%); **296 drafted kill-tests** (245 + 51). NEW-tier shape holds: 56.3% G
+in-wave; health_service_registry 75/88 G and fashion_clip_loader 61/91 G
+(model-loader twins follow the gender/image-quality pattern — happy path
+never runs); detector_registry INVERTS to E-heavy (43/89) — registry glue
+behind mocks. Serial lane: container_discovery census ~17% probed (83 killed
+of 116) at 10.2 s/probe, ETA ~98 min from 14:4x; orchestrator batch (9 tests)
+authored, red-proof queued behind it.

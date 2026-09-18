@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -34,7 +34,7 @@
+         )
+ 
+     # Update the active detector
+-    old_active = self._active_detector
++    old_active = None
+     self._active_detector = detector_type
+ 
+     logger.info(

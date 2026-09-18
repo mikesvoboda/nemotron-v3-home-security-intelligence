@@ -1,0 +1,11 @@
+--- backend/services/detector_registry.py
++++ backend/services/detector_registry.py
+@@ -8,7 +8,7 @@
+     # Register YOLO26 (primary detector)
+     yolo26_config = DetectorConfig(
+         detector_type="yolo26",
+-        display_name="YOLO26",
++        display_name=None,
+         url=settings.yolo26_url,
+         enabled=True,
+         model_version="yolo26m",
