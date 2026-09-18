@@ -157,6 +157,14 @@ jobs:
       - name: CI job-graph invariant (WP0.6)
         run: uv run python scripts/test_ci_job_graph.py
 
+      # WP0.5 follow-through (2026-09-18): pins the slow-runner retry wiring —
+      # the cancelled-only gate (never 'failure': retry-masking real failures),
+      # the UNRAISED 30-min cap, artifact-suffix uniqueness, and the summary's
+      # cancelled-is-not-a-verdict rule. Script-style like the two above; a
+      # wiring drift here re-creates the attempt-4 invisibility bug.
+      - name: Shard-retry wiring invariant
+        run: uv run python scripts/test_shard_retry_wiring.py
+
       # WP0.5's gate test — also script-style, also never invoked until now.
       # Proves audit-test-durations.py is an honest GATE at the owner-ruled
       # thresholds: an empty results dir FAILS rather than passing vacuously,
@@ -493,10 +501,18 @@ jobs:
 
   # Integration tests split into 4 domain-based parallel jobs for faster execution
   # Each job runs tests for a specific domain with within-shard parallelization
+  #
+  # The API tier DELEGATES to .github/workflows/integration-shard.yml (reusable
+  # workflow) so the primary and the slow-runner RETRY below cannot drift apart
+  # -- WP4.3's mutmut 2.x flag rot was exactly what N independent copies of one
+  # procedure fester into. The reusable file's header carries the 2026-09-18
+  # shard-1/2 evidence and the two owner rulings it encodes: the retry fires on
+  # `cancelled` ONLY, and the 30-min cap stays UNRAISED (raising it to pass is
+  # gate-widening). scripts/test_shard_retry_wiring.py pins both.
   integration-tests-api:
-    name: Integration Tests (API shard ${{ matrix.shard }}/2) - Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Integration Tests (API shard ${{ matrix.shard }}/2)
+    uses: ./.github/workflows/integration-shard.yml
+    secrets: inherit # pragma: allowlist secret (detect-secrets: `secrets:` kwarg, no value)
     strategy:
       fail-fast: false
       matrix:
@@ -515,111 +531,40 @@ jobs:
       always() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
-      needs.build-backend-deps.result != 'failure'
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
-          POSTGRES_DB: security_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
-      REDIS_URL: redis://localhost:6379
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-      LOG_DB_ENABLED: 'false'
-      ENVIRONMENT: development # Avoid production password validation in CI
-      CI: 'true'
-      # WP3.7: shard in the filename (the unit tier's convention) so the two
-      # shards' tracking files can't clobber each other under merge-multiple.
-      FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api-shard-${{ matrix.shard }}.jsonl
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+       needs.build-backend-deps.result != 'failure'
+    with:
+      shard: ${{ matrix.shard }}
+      python-version: ${{ matrix.python-version }}
+      artifact-suffix: ''
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: uv sync --extra dev --frozen
-
-      - name: Run API integration tests
-        # API tests: test_*_api.py files
-        # -n auto enables parallel execution with database-per-worker isolation
-        # Each pytest-xdist worker gets its own database copy via template_database fixture
-        run: |
-          set -euo pipefail
-          START_TIME=$(date +%s)
-          RERUNS=""
-          if [ -f .github/flake-allowlist.yml ]; then
-            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
-          fi
-          if [ -n "$RERUNS" ]; then
-            echo "Rerunning registered flakes: $RERUNS"
-            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
-              --reruns 2 --reruns-delay 5 || true
-          fi
-          if uv run pytest backend/tests/integration/ \
-            -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
-            -n auto \
-            --timeout=30 \
-            --splits 2 --group ${{ matrix.shard }} \
-            --cov=backend \
-            --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-api-${{ matrix.shard }}.xml \
-            --cov-report=term-missing \
-            --junit-xml=test-results-integration-api-${{ matrix.shard }}.xml \
-            --durations=20 \
-            -v 2>&1 | tee test-output.log; then
-            END_TIME=$(date +%s)
-            DURATION=$((END_TIME - START_TIME))
-            WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
-            echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
-            exit 0
-          fi
-          exit 1
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: test-results-integration-api-${{ matrix.shard }}-py${{ matrix.python-version }}
-          path: |
-            test-results-integration-api-${{ matrix.shard }}.xml
-            flaky-test-tracking-integration-api-shard-${{ matrix.shard }}.jsonl
-          retention-days: 7
-
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: coverage-integration-api-${{ matrix.shard }}-py${{ matrix.python-version }}
-          path: coverage-integration-api-${{ matrix.shard }}.xml
-          retention-days: 7
+  # Slow-runner recovery (WP0.5 follow-through, owner ruling 2026-09-18):
+  # shard 1/2 degraded across three full attempts of the SAME commit --
+  # 23m54s pass -> per-test 30s timeouts -> cancelled at the 30m job cap
+  # (run 35353201418, 2026-09-18). Runner degradation, not code -- and a
+  # retry INSIDE a job cannot recover that terminal mode (the cap the first
+  # attempt exhausted is the constraint), so recovery is a FRESH JOB with a
+  # fresh budget, gated on result == 'cancelled' ONLY. Never 'failure': a
+  # slow-runner failure is indistinguishable from a regression and stays red
+  # for the owner (retry-masking real failures is the class WP0.5 ruled
+  # against). integration-tests-summary folds this job's green into the
+  # roll-up, so CI Gate still sees ONE integration verdict.
+  integration-tests-api-retry:
+    name: Integration Tests (API shard ${{ matrix.shard }}/2) RETRY
+    uses: ./.github/workflows/integration-shard.yml
+    secrets: inherit # pragma: allowlist secret (detect-secrets: `secrets:` kwarg, no value)
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
+        shard: [1, 2]
+    needs: [integration-tests-api]
+    if: |
+      always() &&
+      needs.integration-tests-api.result == 'cancelled'
+    with:
+      shard: ${{ matrix.shard }}
+      python-version: ${{ matrix.python-version }}
+      artifact-suffix: '-retry'
 
   integration-tests-websocket:
     name: Integration Tests (WebSocket) - Python ${{ matrix.python-version }}
@@ -961,6 +906,7 @@ jobs:
       [
         detect-changes,
         integration-tests-api,
+        integration-tests-api-retry,
         integration-tests-websocket,
         integration-tests-services,
         integration-tests-models,
@@ -1001,6 +947,7 @@ jobs:
         lint,
         collection-sanity,
         integration-tests-api,
+        integration-tests-api-retry,
         integration-tests-websocket,
         integration-tests-services,
         integration-tests-models,
@@ -1018,7 +965,21 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.integration-tests-api.result }}" == "failure" ] || \
+          # CANCELLED IS NOT A VERDICT — it's the slow-runner class (WP0.5
+          # ruling, 2026-09-18). The bug this replaces: this gate only turned
+          # red on the literal "failure", so a shard cancelled at GitHub's
+          # 30m job cap fell through to "All integration tests passed" and CI
+          # Gate — the repo's only branch-protection context — went green on
+          # run 35353201418 attempt 4 with the tier dead. A cancelled API
+          # shard now stays red UNLESS the slow-runner retry ran and passed.
+          API_RESULT="${{ needs.integration-tests-api.result }}"
+          API_RETRY="${{ needs.integration-tests-api-retry.result }}"
+          if [ "$API_RESULT" == "cancelled" ] && [ "$API_RETRY" != "success" ]; then
+            echo "API integration shard cancelled; slow-runner retry did not pass (retry result: $API_RETRY)"
+            exit 1
+          fi
+
+          if [ "$API_RESULT" == "failure" ] || \
              [ "${{ needs.integration-tests-websocket.result }}" == "failure" ] || \
              [ "${{ needs.integration-tests-services.result }}" == "failure" ] || \
              [ "${{ needs.integration-tests-models.result }}" == "failure" ]; then
@@ -2095,6 +2056,7 @@ jobs:
       - build-backend-deps
       - unit-tests
       - integration-tests-api
+      - integration-tests-api-retry
       - integration-tests-websocket
       - integration-tests-services
       - integration-tests-models
