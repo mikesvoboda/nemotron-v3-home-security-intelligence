@@ -7,14 +7,12 @@ UNVERIFIED. Verification lane (serial, after run5 exits): for each draft —
 red on the mutant diff → green on original → commit into that WP's tests.
 EQUIVALENT/LOW-VALUE cluster notes are the no-deletion-without-record receipts.
 
-Aggregate at 101 modules / 14597 survivors: TEST-GAP 9406 survivors (64%),
-EQUIVALENT 3149 (22%), LOW-VALUE 1987 (14%); 650 drafted tests. (Shares
+Aggregate at 102 modules / 14706 survivors: TEST-GAP 9464 survivors (64%),
+EQUIVALENT 3161 (21%), LOW-VALUE 2026 (14%); 657 drafted tests. (Shares
 landed back at 64/22/14 — the same triple as the earliest waves; the
 aggregate oscillates inside classifier noise 64-66 and only PER-MODULE
-shape carries signal.) (orphan*
-cleanup folded at its 170-snapshot; live meta already 174 with checked count
-frozen at 371 — re-tallied from the FINAL score JSON, per the context*
-enricher precedent.) (Bucket
+shape carries signal.) (orphan_cleanup folded at its 170-snapshot; live meta already 174 with checked count
+frozen at 371 — re-tallied from the FINAL score JSON, per the context_enricher precedent.) (Bucket
 correction folded in: the wave-34 line had undercounted EQUIVALENT by 26 and
 LOW-VALUE by 12 — ai_audit's 26 EQ / context_enricher's 12 LOW dropped in
 the fold addition; buckets now sum 13592 vs 13597 = the standing +5.) (Bucket sums
@@ -124,6 +122,7 @@ owner, pattern-8 sweep material, not a test gap).
 |       60 |  122 |       49% | `zone_household_service`         |       7 |
 |       60 |  157 |       38% | `detections`                     |       6 |
 |       58 |  100 |       58% | `reid_matcher`                   |       7 |
+|       58 |  109 |       53% | `reid_service`                 |       7 |
 |       57 |  116 |       49% | `package_tracking_service`       |       9 |
 |       57 |  179 |       31% | `managed_service`                |       6 |
 |       55 |  100 |       55% | `file_service`                   |       6 |
@@ -150,7 +149,7 @@ owner, pattern-8 sweep material, not a test gap).
 Wave-23 tail — system.py folded separately (the giant-module fix): 5,624
 lines / 1,899 mutants is why the first-slot agent died twice WITHOUT a dossier
 — one agent, one file, too much. Resume re-ran it solo -> 166/187 TEST-GAP
-(89%, row 6 of 101, top routes/ module, behind four services): the /system/health
+(89%, row 6 of 102, top routes/ module, behind four services): the /system/health
 exporter-status builder matches Prometheus targets by `job/instance in`
 (56 mutants) under a test that asserts only status.value=='up'; degradation
 payload keys/defaults 52 mutants (`mode` default -> response becomes None via
@@ -159,7 +158,7 @@ only. Health-endpoint contract = pattern 6 on the dashboard's OWN status page.
 Lane note: dispatch >1,200-mutant files as single-module waves.
 
 Wave-40 anchor (04:02-04:15 UTC, 1 module): exports (54 gap/100, 54%,
-row 83) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
+row 84) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
 identity family (start/complete/fail — job_id is the WS broadcast routing
 key) survives on assert_called_once() arity-only; the not-found path can
 SPURIOUSLY broadcast fail_job for a job that never existed (logger.error
@@ -172,6 +171,17 @@ error_message fields back live UI components and are never read. No
 R-T9-EXPORTDEFER collision — drafts are call-arg contracts, not defer
 scheduling. Dossier verified pydantic/stdlib behaviors rather than assume
 (3 kill recipes cite the verification).
+
+Wave-41 anchor (04:20-04:36 UTC, 1 module): reid_service (58 gap/109, 53%,
+row 80) — the NEM-4474 atomic-Lua store path is ENTIRELY unexercised (all
+tests pass a bare AsyncMock so use_atomic is always False — mock-absorption again,
+7 mutants) and get_entity_history's today/yesterday Redis date-keys are built
+under call-count side_effects that ignore the key (13 mutants; wrong keys
+silently return [] in prod). reset_reid_service's None->"" mutant slips past an
+identity test; format_full_reid_context's "No "-section suppression is never
+fed an empty-match dict (14 header-leak mutants). 7 drafts (T1-T7). Cluster-
+sum check regenerated mechanically: 109 = 58+12+39, matches live meta exactly.
+
 
 Wave-39 anchor (03:42-03:50 UTC, 1 module): background_evaluator (100
 gap/161, 62%, row 31) is the JOB-TRACKER WIRE contract end-to-end: every
@@ -254,7 +264,7 @@ so formula mutations hide; dossier banks the kill recipe
 (str(stmt.compile()) + bind-param asserts + exact-value parametrizes) and
 flags 4 mutants boundary-unobservable. Snapshot was mid-run (82 keys still
 unchecked at dossier time — the count can grow by final score). ai_audit
-(43 gap/111, 39%, row 88) is log-noise-dominant (42 LOW-VALUE — extra=
+(43 gap/111, 39%, row 89) is log-noise-dominant (42 LOW-VALUE — extra=
 payloads + message renames) with real gaps under it: the progress message
 and processed/failed counters ride GET /batch/{job_id} while tests assert
 only the percentage, an == -> != query flip survives on a call-order mock
@@ -267,7 +277,7 @@ Wave-33 anchors (02:23-03:00 UTC, 2 modules): osnet_loader (88 gap/136,
 embedding model's loader (blanket except -> degraded/empty result turns
 mutation breakage into silent model degradation); dossier Totals line again
 contradicted its own table (86/13 vs table+journal 88/11 — table folded).
-mqtt_publisher (37 gap/100, 37%, row 92) is the MQTT WIRE-CONTRACT gap: the
+mqtt_publisher (37 gap/100, 37%, row 93) is the MQTT WIRE-CONTRACT gap: the
 18-param topic table never puts fields under the nested data dict, never
 routes service./worker./zone.approach, and the timestamp test checks key
 presence only — so datetime.now(None) NAIVE timestamps and clobbered
@@ -299,7 +309,7 @@ shape on emit_to_user/broadcast/emit_batch. Dossier note: its Totals LINE
 (57/41/3) contradicts its own cluster table + printed count-check (=101);
 table + journal agree 73/25/3 — folded as such.
 
-Wave-30 anchor (01:22 UTC, 1 module): read*through_cache (97 gap/122,
+Wave-30 anchor (01:22 UTC, 1 module): read_through_cache (97 gap/122,
 79%, row 36) is cache_service's sibling and the ARG-BLIND MOCK shape end to
 end: get/invalidate/refresh tests assert call_count or bare assert_called(),
 never args — so cache-key derivation damage, the stampede lock's SET NX
@@ -384,7 +394,7 @@ final score JSON before WP4.4 lane work on them.
 
 Wave-23/24 anchors (folded together; 10 modules, 23:05-23:22 UTC —
 queue shakeup + first aggregate drop): threat_monitor_service (182 gap/244,
-75%, row 4 of 101, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
+75%, row 4 of 102, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
 `session.execute` returns AsyncMock whatever statement it's handed, so the
 cooldown cutoff arithmetic / dedup `==` / `>=` / LIMIT all ride; the
 alert.created WEBSOCKET payload (36 mutants, 24 key renames) and the webhook
@@ -562,7 +572,7 @@ cover ~50.
 5. **Precedence/`or`-vs-`and` guard flips in boolean guards** — shipped-behavior
    class findings, highest review priority (prompt_version has_changes case).
 6. **to_dict/metadata partial-key assertions** (wave 14 sharpens this to a
-   shipped-behavior finding: scenario*classifier's tailgating payload —
+   shipped-behavior finding: scenario_classifier's tailgating payload —
    detected/confidence/description/persons_involved/time_gap_seconds — is
    WHOLLY unasserted; the covering test's assert is a disjunction satisfied by
    the risk score alone, so all 5 keys + the dict itself ride, 13 survivors.

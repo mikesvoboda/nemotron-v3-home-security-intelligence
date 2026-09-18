@@ -3,12 +3,12 @@
 **Run context:** WP4.3 finding feed → WP4.4. Mutant keys from
 `mutants/backend/services/pg_notify_listener.py.meta` (`exit_code_by_key`, `exit_code == 0` = survived).
 
-| Metric                      | Value                        |
-| --------------------------- | ---------------------------- |
-| Total mutant keys           | 473                          |
-| Survived (`exit_code == 0`) | **127**                      |
-| Killed                      | 98                           |
-| Not yet checked (`null`)    | 248 — excluded per task spec |
+| Metric | Value |
+| --- | --- |
+| Total mutant keys | 473 |
+| Survived (`exit_code == 0`) | **127** |
+| Killed | 98 |
+| Not yet checked (`null`) | 248 — excluded per task spec |
 
 **Cluster counts sum to 127** (verified twice: once by mutant-index ranges, once by diff-text content —
 see "Verification" at the bottom). Classification totals: **TEST-GAP 81, LOW-VALUE 27, EQUIVALENT 19**.
@@ -18,17 +18,17 @@ see "Verification" at the bottom). Classification totals: **TEST-GAP 81, LOW-VAL
 `backend/tests/unit/services/test_pg_notify_listener.py` (980 lines) is the **only** covering test file.
 Test-group → line map (from `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`):
 
-| Function                 | Tests (file:line)                                                                                                                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_handle_event_new`      | `TestPgNotifyListenerHandlers::test_handle_event_new` (:332), `test_full_notification_flow` (:943), `test_handle_notification_no_redis` (:539), `test_handle_notification_redis_error` (:554) |
-| `_handle_event_update`   | `test_handle_event_update` (:371), `test_handle_event_update_redis_error` (:404)                                                                                                              |
-| `_handle_detection_new`  | `test_handle_detection_new` (:426), `test_handle_detection_new_redis_error` (:461)                                                                                                            |
-| `_handle_alert_new`      | `test_handle_alert_new` (:483), `test_handle_alert_new_redis_error` (:517)                                                                                                                    |
-| `_notification_callback` | `TestPgNotifyListenerCallback::test_notification_callback_creates_task` (:673)                                                                                                                |
-| `get_status`             | `TestPgNotifyListenerHealth::test_get_status` (:716), `test_get_status_no_connection` (:735)                                                                                                  |
-| `start`                  | `TestPgNotifyListenerStartStop::test_start_success` (:272), `test_start_already_running` (:287)                                                                                               |
-| `stop`                   | `test_stop_cleanup` (:298), `test_start_success` (:272)                                                                                                                                       |
-| `get_pg_notify_listener` | `TestGlobalInstance::test_get_pg_notify_listener_creates_instance` (:890), `test_get_pg_notify_listener_returns_same_instance` (:906)                                                         |
+| Function | Tests (file:line) |
+| --- | --- |
+| `_handle_event_new` | `TestPgNotifyListenerHandlers::test_handle_event_new` (:332), `test_full_notification_flow` (:943), `test_handle_notification_no_redis` (:539), `test_handle_notification_redis_error` (:554) |
+| `_handle_event_update` | `test_handle_event_update` (:371), `test_handle_event_update_redis_error` (:404) |
+| `_handle_detection_new` | `test_handle_detection_new` (:426), `test_handle_detection_new_redis_error` (:461) |
+| `_handle_alert_new` | `test_handle_alert_new` (:483), `test_handle_alert_new_redis_error` (:517) |
+| `_notification_callback` | `TestPgNotifyListenerCallback::test_notification_callback_creates_task` (:673) |
+| `get_status` | `TestPgNotifyListenerHealth::test_get_status` (:716), `test_get_status_no_connection` (:735) |
+| `start` | `TestPgNotifyListenerStartStop::test_start_success` (:272), `test_start_already_running` (:287) |
+| `stop` | `test_stop_cleanup` (:298), `test_start_success` (:272) |
+| `get_pg_notify_listener` | `TestGlobalInstance::test_get_pg_notify_listener_creates_instance` (:890), `test_get_pg_notify_listener_returns_same_instance` (:906) |
 
 **The dominant shape of this module's survivors:** every handler test asserts
 `assert_called_once()` + `type` + 2-3 selected `data` fields, but never the `source` envelope field, never
@@ -37,28 +37,28 @@ string mutations (case flips, `XX..XX` wrappers, `None`) land almost entirely in
 
 ## Per-cluster table
 
-| #   | Function                 | Diff pattern                                                                                             | Count | Class      | Example keys (`backend.services.pg_notify_listener.` prefix omitted)                                             |
-| --- | ------------------------ | -------------------------------------------------------------------------------------------------------- | ----- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| C1  | 3 handlers               | envelope `source` key **or** value changed (`"XXsourceXX"`, `"SOURCE"`, `"XXpg_notifyXX"`, `"PG_NOTIFY`) | 12    | TEST-GAP   | `…_handle_alert_new__mutmut_7`, `…_handle_detection_new__mutmut_9`, `…_handle_event_update__mutmut_10`           |
-| C2  | `_handle_alert_new`      | published `data` field keys (`event_id`, `rule_id`, `status`) or their source lookups mutated            | 15    | TEST-GAP   | `…_handle_alert_new__mutmut_18`, `…_handle_alert_new__mutmut_25`, `…_handle_alert_new__mutmut_37`                |
-| C3  | `_handle_detection_new`  | same for `camera_id`, `timestamp`/`detected_at`                                                          | 10    | TEST-GAP   | `…_handle_detection_new__mutmut_18`, `…_handle_detection_new__mutmut_35`, `…_handle_detection_new__mutmut_37`    |
-| C4  | `_handle_event_update`   | same for `id`, `event_id`, `risk_score`, `risk_level`, `summary`                                         | 25    | TEST-GAP   | `…_handle_event_update__mutmut_13`, `…_handle_event_update__mutmut_25`, `…_handle_event_update__mutmut_37`       |
-| C5  | 3 handlers               | `redis.publish(settings.redis_event_channel, …)` → `redis.publish(None, …)`                              | 5     | TEST-GAP   | `…_handle_alert_new__mutmut_39`, `…_handle_detection_new__mutmut_44`, `…_handle_event_update__mutmut_44`         |
-| C6  | `_notification_callback` | `create_task` arg mutated: `None`, `channel→None`, `payload→None`, dropped args                          | 5     | TEST-GAP   | `…_notification_callback__mutmut_1`, `…_notification_callback__mutmut_4`, `…_notification_callback__mutmut_5`    |
-| C7  | `get_status`             | `… and not conn.is_closed() if conn else False` → `or True` guard / `and`→`or`                           | 2     | TEST-GAP   | `…get_status__mutmut_8`, `…get_status__mutmut_9`                                                                 |
-| C8  | `get_pg_notify_listener` | `PgNotifyListener(redis_client=…, broadcaster=…)` kwargs → `None` / dropped                              | 4     | TEST-GAP   | `x_get_pg_notify_listener__mutmut_3`, `x_get_pg_notify_listener__mutmut_4`, `x_get_pg_notify_listener__mutmut_6` |
-| C9  | `start`                  | `self._reconnect_attempts = 0` → `None` / `1`                                                            | 2     | TEST-GAP   | `…start__mutmut_7`, `…start__mutmut_8`                                                                           |
-| C14 | `stop`                   | `contextlib.suppress(Exception)` → `suppress(None)` (close error now propagates)                         | 1     | TEST-GAP   | `…stop__mutmut_7`                                                                                                |
-| C10 | 3 handlers               | `logger.debug(msg, extra={…})` second arg → `None` / removed / its keys mutated                          | 22    | LOW-VALUE  | `…_handle_alert_new__mutmut_45`, `…_handle_event_update__mutmut_50`, `…_handle_detection_new__mutmut_55`         |
-| C11 | 3 handlers               | `logger.error(f"Failed to publish …")` → `logger.error(None)` (inside Redis-failure handler)             | 5     | LOW-VALUE  | `…_handle_alert_new__mutmut_43`, `…_handle_detection_new__mutmut_43`, `…_handle_event_update__mutmut_48`         |
-| C12 | 3 handlers               | debug log message **text** only (`"XXPublished…XX"`, case variants)                                      | 7     | EQUIVALENT | `…_handle_alert_new__mutmut_49`, `…_handle_event_update__mutmut_55`, `…_handle_detection_new__mutmut_50`         |
-| C13 | `start`, `stop`          | lifecycle log text/None only (`"PgNotifyListener started/stopped/already running"`)                      | 12    | EQUIVALENT | `…start__mutmut_1`, `…start__mutmut_14`, `…stop__mutmut_9`                                                       |
+| # | Function | Diff pattern | Count | Class | Example keys (`backend.services.pg_notify_listener.` prefix omitted) |
+| --- | --- | --- | --- | --- | --- |
+| C1 | 3 handlers | envelope `source` key **or** value changed (`"XXsourceXX"`, `"SOURCE"`, `"XXpg_notifyXX"`, `"PG_NOTIFY`) | 12 | TEST-GAP | `…_handle_alert_new__mutmut_7`, `…_handle_detection_new__mutmut_9`, `…_handle_event_update__mutmut_10` |
+| C2 | `_handle_alert_new` | published `data` field keys (`event_id`, `rule_id`, `status`) or their source lookups mutated | 15 | TEST-GAP | `…_handle_alert_new__mutmut_18`, `…_handle_alert_new__mutmut_25`, `…_handle_alert_new__mutmut_37` |
+| C3 | `_handle_detection_new` | same for `camera_id`, `timestamp`/`detected_at` | 10 | TEST-GAP | `…_handle_detection_new__mutmut_18`, `…_handle_detection_new__mutmut_35`, `…_handle_detection_new__mutmut_37` |
+| C4 | `_handle_event_update` | same for `id`, `event_id`, `risk_score`, `risk_level`, `summary` | 25 | TEST-GAP | `…_handle_event_update__mutmut_13`, `…_handle_event_update__mutmut_25`, `…_handle_event_update__mutmut_37` |
+| C5 | 3 handlers | `redis.publish(settings.redis_event_channel, …)` → `redis.publish(None, …)` | 5 | TEST-GAP | `…_handle_alert_new__mutmut_39`, `…_handle_detection_new__mutmut_44`, `…_handle_event_update__mutmut_44` |
+| C6 | `_notification_callback` | `create_task` arg mutated: `None`, `channel→None`, `payload→None`, dropped args | 5 | TEST-GAP | `…_notification_callback__mutmut_1`, `…_notification_callback__mutmut_4`, `…_notification_callback__mutmut_5` |
+| C7 | `get_status` | `… and not conn.is_closed() if conn else False` → `or True` guard / `and`→`or` | 2 | TEST-GAP | `…get_status__mutmut_8`, `…get_status__mutmut_9` |
+| C8 | `get_pg_notify_listener` | `PgNotifyListener(redis_client=…, broadcaster=…)` kwargs → `None` / dropped | 4 | TEST-GAP | `x_get_pg_notify_listener__mutmut_3`, `x_get_pg_notify_listener__mutmut_4`, `x_get_pg_notify_listener__mutmut_6` |
+| C9 | `start` | `self._reconnect_attempts = 0` → `None` / `1` | 2 | TEST-GAP | `…start__mutmut_7`, `…start__mutmut_8` |
+| C14 | `stop` | `contextlib.suppress(Exception)` → `suppress(None)` (close error now propagates) | 1 | TEST-GAP | `…stop__mutmut_7` |
+| C10 | 3 handlers | `logger.debug(msg, extra={…})` second arg → `None` / removed / its keys mutated | 22 | LOW-VALUE | `…_handle_alert_new__mutmut_45`, `…_handle_event_update__mutmut_50`, `…_handle_detection_new__mutmut_55` |
+| C11 | 3 handlers | `logger.error(f"Failed to publish …")` → `logger.error(None)` (inside Redis-failure handler) | 5 | LOW-VALUE | `…_handle_alert_new__mutmut_43`, `…_handle_detection_new__mutmut_43`, `…_handle_event_update__mutmut_48` |
+| C12 | 3 handlers | debug log message **text** only (`"XXPublished…XX"`, case variants) | 7 | EQUIVALENT | `…_handle_alert_new__mutmut_49`, `…_handle_event_update__mutmut_55`, `…_handle_detection_new__mutmut_50` |
+| C13 | `start`, `stop` | lifecycle log text/None only (`"PgNotifyListener started/stopped/already running"`) | 12 | EQUIVALENT | `…start__mutmut_1`, `…start__mutmut_14`, `…stop__mutmut_9` |
 
 ### Classification rationale
 
 - **TEST-GAP (81):** the mutation changes observable behavior (the JSON envelope a WebSocket/Redis
   consumer receives, or lifecycle state/exception propagation), and the existing tests **do execute the
-  mutated line** — they call the handler/lifecycle method and assert _some_ of it — but they never assert
+  mutated line** — they call the handler/lifecycle method and assert *some* of it — but they never assert
   the specific element the mutant corrupts. E.g. `test_handle_event_update` (:371) reads the full
   `message` dict from `publish.call_args` yet asserts only `message["type"]` and
   `message["data"]["reviewed"]`, leaving the other five data fields un-asserted (C4, 25 survivors — the

@@ -12,38 +12,38 @@
 
 All in **`backend/tests/unit/services/test_gpu_monitor.py`**:
 
-| Test                                               | Line              | Exercises                                                                                |
-| -------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------- |
-| `test_nvidia_smi_stats_parsing`                    | 381               | happy-path parse of `"39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"` (all 6 fields valid) |
-| `test_nvidia_smi_handles_na_values`                | 404               | `"​[N/A], [N/A], 35, 175, 24576, GPU"` (leading N/As only)                               |
-| `test_nvidia_smi_timeout_handling`                 | 425               | TimeoutExpired side-effect                                                               |
-| `test_nvidia_smi_async_stats_parsing`              | 444               | async happy path                                                                         |
-| `test_nvidia_smi_async_handles_errors`             | 473               | returncode 1, matches prefix only                                                        |
-| `test_nvidia_smi_not_available_raises_error`       | 2293              | guard with available=False **and** path=None                                             |
-| `test_nvidia_smi_async_not_available_raises_error` | 2309              | same, async                                                                              |
-| `test_nvidia_smi_subprocess_error`                 | 2324              | returncode 1, matches prefix only                                                        |
-| `test_nvidia_smi_unexpected_output_format`         | 2349 / async 2373 | only 2 fields                                                                            |
-| `test_nvidia_smi_async_timeout`                    | 2402              | async timeout                                                                            |
-| `test_nvidia_smi_generic_exception`                | 2427 / async 2447 | generic exception wrap                                                                   |
-| `test_nvidia_smi_parsing_all_na_values`            | 2493 / async 2521 | all fields `[N/A]` + name                                                                |
+| Test | Line | Exercises |
+|---|---|---|
+| `test_nvidia_smi_stats_parsing` | 381 | happy-path parse of `"39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"` (all 6 fields valid) |
+| `test_nvidia_smi_handles_na_values` | 404 | `"​[N/A], [N/A], 35, 175, 24576, GPU"` (leading N/As only) |
+| `test_nvidia_smi_timeout_handling` | 425 | TimeoutExpired side-effect |
+| `test_nvidia_smi_async_stats_parsing` | 444 | async happy path |
+| `test_nvidia_smi_async_handles_errors` | 473 | returncode 1, matches prefix only |
+| `test_nvidia_smi_not_available_raises_error` | 2293 | guard with available=False **and** path=None |
+| `test_nvidia_smi_async_not_available_raises_error` | 2309 | same, async |
+| `test_nvidia_smi_subprocess_error` | 2324 | returncode 1, matches prefix only |
+| `test_nvidia_smi_unexpected_output_format` | 2349 / async 2373 | only 2 fields |
+| `test_nvidia_smi_async_timeout` | 2402 | async timeout |
+| `test_nvidia_smi_generic_exception` | 2427 / async 2447 | generic exception wrap |
+| `test_nvidia_smi_parsing_all_na_values` | 2493 / async 2521 | all fields `[N/A]` + name |
 
 Key blind spots shared by all these tests: they mock `subprocess.run` / `async_subprocess_run` and **never inspect the call arguments**; they always feed a **fully-valid 6-field line** (or all-`[N/A]`); they **never assert the stats dict's key set**; they never assert `recorded_at`; and every error assertion is a regex-prefix `match=` that still matches XX-clobbered messages.
 
 ## Cluster table (counts sum = 194)
 
-| #   | Pattern                                                                                                                                                                                 | n   | Class      | Example keys                 |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- | ---------------------------- |
-| K1  | Return-dict key renamed (typed contract keys `recorded_at` + 38 constant-`None` keys → `"XXkeyXX"`/`"KEY"`)                                                                             | 80  | TEST-GAP   | SMI#117, SMI#114, ASYNC#121  |
-| K2  | `"recorded_at": datetime.now(UTC)` → `datetime.now(None)` (naive timestamp)                                                                                                             | 2   | TEST-GAP   | SMI#116, ASYNC#120           |
-| K3  | nvidia-smi argv mutated (query/format strings XX-clobbered or UPPERCASED; whole argv list → `None`/removed)                                                                             | 11  | TEST-GAP   | SMI#18, SMI#19, SMI#8        |
-| K4  | `subprocess.run` kwargs mutated (`capture_output`/`text`/`timeout`/`check` → None/removed/False/6)                                                                                      | 21  | TEST-GAP   | SMI#10, SMI#25, ASYNC#22     |
-| K5  | Field-parse condition **index shift** (truthiness or `!= "[N/A]"` guard reads the _sibling_ field)                                                                                      | 20  | TEST-GAP   | SMI#45, SMI#46, ASYNC#49     |
-| K6  | `len(parts)` boundary mutated (`< 5`→`<= 5`/`< 6`; `gpu_name = parts[5] if len > 5` → `or True`/`>=`)                                                                                   | 8   | TEST-GAP   | SMI#36, SMI#98, SMI#100      |
-| K7  | Async `stderr_str` conversion mutated (`and False`, `or True`, `str(None)`, `else "XXXX"`)                                                                                              | 4   | TEST-GAP   | ASYNC#26, ASYNC#28, ASYNC#29 |
-| K8  | `split("\n")` → `split("XX\nXX")` (multi-GPU first-line selection broken)                                                                                                               | 2   | TEST-GAP   | SMI#31, ASYNC#35             |
-| K9  | Availability guard `or` → `and` (mismatched available/path state no longer rejected)                                                                                                    | 2   | TEST-GAP   | SMI#1, ASYNC#1               |
-| K10 | Field-parse condition rewrites **absorbed by `except ValueError`** (`... or True`, `and`→`or`, sentinel `"XX[N/A]XX"`, `"[n/a]"`) — output identical for every input                    | 40  | EQUIVALENT | SMI#41, SMI#44, SMI#48       |
-| K11 | Exception **message text** only (`"nvidia-smi not available"`, `"nvidia-smi timed out"` → `"XX...XX"`) — existing `pytest.raises(match=)` still matches (re.search finds the substring) | 4   | EQUIVALENT | SMI#5, SMI#156, ASYNC#160    |
+| # | Pattern | n | Class | Example keys |
+|---|---|---|---|---|
+| K1 | Return-dict key renamed (typed contract keys `recorded_at` + 38 constant-`None` keys → `"XXkeyXX"`/`"KEY"`) | 80 | TEST-GAP | SMI#117, SMI#114, ASYNC#121 |
+| K2 | `"recorded_at": datetime.now(UTC)` → `datetime.now(None)` (naive timestamp) | 2 | TEST-GAP | SMI#116, ASYNC#120 |
+| K3 | nvidia-smi argv mutated (query/format strings XX-clobbered or UPPERCASED; whole argv list → `None`/removed) | 11 | TEST-GAP | SMI#18, SMI#19, SMI#8 |
+| K4 | `subprocess.run` kwargs mutated (`capture_output`/`text`/`timeout`/`check` → None/removed/False/6) | 21 | TEST-GAP | SMI#10, SMI#25, ASYNC#22 |
+| K5 | Field-parse condition **index shift** (truthiness or `!= "[N/A]"` guard reads the *sibling* field) | 20 | TEST-GAP | SMI#45, SMI#46, ASYNC#49 |
+| K6 | `len(parts)` boundary mutated (`< 5`→`<= 5`/`< 6`; `gpu_name = parts[5] if len > 5` → `or True`/`>=`) | 8 | TEST-GAP | SMI#36, SMI#98, SMI#100 |
+| K7 | Async `stderr_str` conversion mutated (`and False`, `or True`, `str(None)`, `else "XXXX"`) | 4 | TEST-GAP | ASYNC#26, ASYNC#28, ASYNC#29 |
+| K8 | `split("\n")` → `split("XX\nXX")` (multi-GPU first-line selection broken) | 2 | TEST-GAP | SMI#31, ASYNC#35 |
+| K9 | Availability guard `or` → `and` (mismatched available/path state no longer rejected) | 2 | TEST-GAP | SMI#1, ASYNC#1 |
+| K10 | Field-parse condition rewrites **absorbed by `except ValueError`** (`... or True`, `and`→`or`, sentinel `"XX[N/A]XX"`, `"[n/a]"`) — output identical for every input | 40 | EQUIVALENT | SMI#41, SMI#44, SMI#48 |
+| K11 | Exception **message text** only (`"nvidia-smi not available"`, `"nvidia-smi timed out"` → `"XX...XX"`) — existing `pytest.raises(match=)` still matches (re.search finds the substring) | 4 | EQUIVALENT | SMI#5, SMI#156, ASYNC#160 |
 
 **TEST-GAP total 150, EQUIVALENT 44, LOW-VALUE 0.**
 
@@ -53,11 +53,11 @@ Key blind spots shared by all these tests: they mock `subprocess.run` / `async_s
 - **K2 (2)** — `now(None)` yields a naive datetime; `get_stats_history`'s `stats["recorded_at"] >= cutoff_time` (aware) would raise `TypeError`. No nvidia-smi test asserts `recorded_at` at all.
 - **K3 (11)** — argv is only observable through the mocked call; a real nvidia-smi would fail or return garbage on a clobbered/UPPERCASED `--query-gpu=`/`--format=`. Tests patch `subprocess.run` with `return_value=mock_result` and never touch `call_args` (confirmed: only the httpx timeout test at test file line 1591 uses `call_args` anywhere).
 - **K4 (21)** — same mechanism; `check=False→True`, `text=True→False`, `timeout=5→6`, kwarg removals all change real-subprocess semantics (unexpected CalledProcessError, bytes not str, unbounded/longer wait). Members: SMI#9–12,14–17 (incl. removals), ASYNC#9,10,11,13–15, SMI#22–25, ASYNC#20–22. `timeout 5→6` is the weakest member (arguably LOW-VALUE) but the same `call_args` assertion that kills the rest kills it for free.
-- **K5 (20)** — real misparse: e.g. SMI#46 `float(parts[0]) if parts[0] and parts[1] != "[N/A]"` returns `temperature=None` whenever the _power_ field is `[N/A]` (orig: `39.0`); SMI#45 gates temperature on the _power_ field's emptiness. Every existing input feeds either all-valid or all-`[N/A]` fields, where sibling==self behavior. Killed by a malformed-layout parametrization (draft below).
+- **K5 (20)** — real misparse: e.g. SMI#46 `float(parts[0]) if parts[0] and parts[1] != "[N/A]"` returns `temperature=None` whenever the *power* field is `[N/A]` (orig: `39.0`); SMI#45 gates temperature on the *power* field's emptiness. Every existing input feeds either all-valid or all-`[N/A]` fields, where sibling==self behavior. Killed by a malformed-layout parametrization (draft below).
 - **K6 (8)** — for a **5-field** line (no trailing name — legitimate nvidia-smi output shape), orig parses and falls back to `self._gpu_name`; mutants raise `RuntimeError` (`<6`/`<=5` guard, or `parts[5]` `IndexError` under `or True`/`>=`). The unexpected-format test uses 2 fields, which all variants treat identically.
 - **K7 (4)** — async `stderr_str: str = str(result.stderr) if result.stderr else ""` (gpu_monitor.py:405): ASYNC#26/#28 drop the driver error text from the raised message, #29 injects `"XXXX"`, #27 stringifies `None`→`"None"`. `test_nvidia_smi_async_handles_errors` (line 473) only matches the `"nvidia-smi returned error"` prefix — loss of the diagnostic is unasserted. (27/29 are message-content-only; 26/28 lose real stderr data.)
-- **K8 (2)** — `split("XX\nXX")` returns the whole stdout as one "line" → the comma-split then bleeds the _second_ GPU's line into `gpu_name` (`"GPU0\n44"`) and later fields. All tests feed single-line stdout.
-- **K9 (2)** — `if not available or not path: raise` → `and`: with `available=True, path=None` the orig raises `"nvidia-smi not available"`; the mutant proceeds and `subprocess.run([None, ...])` becomes the generic wrapped `"Failed to get GPU stats via nvidia-smi: ..."`. Existing test sets _both_ to falsey, which both variants reject.
+- **K8 (2)** — `split("XX\nXX")` returns the whole stdout as one "line" → the comma-split then bleeds the *second* GPU's line into `gpu_name` (`"GPU0\n44"`) and later fields. All tests feed single-line stdout.
+- **K9 (2)** — `if not available or not path: raise` → `and`: with `available=True, path=None` the orig raises `"nvidia-smi not available"`; the mutant proceeds and `subprocess.run([None, ...])` becomes the generic wrapped `"Failed to get GPU stats via nvidia-smi: ..."`. Existing test sets *both* to falsey, which both variants reject.
 - **K10 (40) EQUIVALENT** — verified semantically for all four rewrite families: any path where the mutated condition now attempts `float(...)` on `""`/`"[N/A]"`/`"[n/a]"` raises `ValueError`, is caught by the inner `except ValueError`, and yields `None` — identical to the orig short-circuit; valid numbers parse identically either way. Purely defensive-condition mutants; mark as equivalent-noise in WP4.4.
 - **K11 (4) EQUIVALENT** — message text only; `pytest.raises(match=...)` uses `re.search`, so `"XXnvidia-smi timed outXX"` still matches. No consumer parses these strings.
 
@@ -424,4 +424,4 @@ async def test_nvidia_smi_async_guard_requires_both_available_and_path():
 - Highest yield per effort: **T1 (82 kills, 2 tests)**, then **T3 (28 kills)** and **T2 (32 kills)**. The six drafts above kill 148/150 TEST-GAP survivors.
 - K10/K11 (44 survivors) should ship as an **equivalent-mutant suppression list**, not tests — every member was shown semantically identical (ValueError path yields the same `None`) or message-text-only under `re.search` matching.
 - Both draft suites are symmetric per function because the twins' survivor sets mirror 1:1 (SMI#N ↔ ASYNC#N±offset); a shared helper/fixture could dedupe T3's parametrize table if the duplication trips review.
-- Async mock path note: the async function imports `async_subprocess_run` _inside_ the body at call time (gpu_monitor.py:387), so patching `backend.core.async_utils.async_subprocess_run` (as existing tests do) is correct and hermetic.
+- Async mock path note: the async function imports `async_subprocess_run` *inside* the body at call time (gpu_monitor.py:387), so patching `backend.core.async_utils.async_subprocess_run` (as existing tests do) is correct and hermetic.

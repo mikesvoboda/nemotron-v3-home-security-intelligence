@@ -3,7 +3,7 @@
 **Run basis:** `mutants/backend/services/cost_tracker.py.meta` → 572 keys, **205 SURVIVED** (exit_code 0), 169 killed, 198 null (not yet checked; excluded).
 **Covering test file (every function, per `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`):** `backend/tests/unit/services/test_cost_tracker.py` (811 lines). Anchors: enrichment :275 · estimation :295-338 · budget status :375/:396 · monthly :476-502 · summary :505-539 · Redis :665-717 (`test_persist_usage` :669, `test_load_usage` :685) · edge cases :774-808.
 
-**Diff method:** `uv run mutmut show <key>` verified (spot-checks); bulk diffs from slicing each `def x…__mutmut_N` variant of `mutants/backend/services/cost_tracker.py` against its embedded `__mutmut_orig` twin (raw: `/tmp/wp25/wp44-triage/survivor_diffs.txt`, 205/205 explained; `@_mutmut_mutated` lines at region ends are the _next_ function's trampoline decorator, not mutations).
+**Diff method:** `uv run mutmut show <key>` verified (spot-checks); bulk diffs from slicing each `def x…__mutmut_N` variant of `mutants/backend/services/cost_tracker.py` against its embedded `__mutmut_orig` twin (raw: `/tmp/wp25/wp44-triage/survivor_diffs.txt`, 205/205 explained; `@_mutmut_mutated` lines at region ends are the *next* function's trampoline decorator, not mutations).
 **Partition check:** machine-built, disjoint, exhaustive (`/tmp/wp25/wp44-triage/final_clusters.json`): 34 clusters, TEST-GAP 137 + EQUIVALENT 68 = **205**.
 
 Keys below abbreviate `backend.services.cost_tracker.xǁCostTrackerǁ<fn>__mutmut_<n>`.
@@ -12,42 +12,42 @@ Keys below abbreviate `backend.services.cost_tracker.xǁCostTrackerǁ<fn>__mutmu
 
 ## Cluster table (authoritative — 34 clusters, n sums to 205)
 
-| #   | Pattern @ concern                                                          | n       | Class          | Ex. keys                       | Why / what test_cost_tracker.py misses                                                                                                                                                      | Kill              |
-| --- | -------------------------------------------------------------------------- | ------- | -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| 1   | persist_usage hash **field-name constants** (Xx/UPPERCASE renames)         | 16      | EQUIVALENT     | persist 4, 6, 7                | Mocked Redis never sees the mapping; no round-trip. Contract risk flagged: killed for free by exact-mapping assert.                                                                         | T01               |
-| 2   | load_usage `decoded.get` **key-constant** renames                          | 18      | EQUIVALENT     | load 51, 55, 63                | Symmetric reader side; `test_load_usage` (:685) feeds only all-keys-present records.                                                                                                        | T04               |
-| 3   | `logger.debug/info` message → `None` (enrichment/persist/load)             | 3       | EQUIVALENT     | persist 35, load 99, enrich 28 | Pure log text; logger patch asserts only `warning`.                                                                                                                                         | —                 |
-| 4   | estimate_cost component gates `> 0` → `>= 0`                               | 5       | EQUIVALENT     | estimate 3, 10, 17             | Adds exactly `0 × price` = 0.0 (IEEE-754: finite×0.0==0.0) — output identical on every input. No test can kill.                                                                             | —                 |
-| 5   | budget ternary guards `> 0` → `>= 0` (4 sites)                             | 2       | EQUIVALENT (2) | budget 48, 56                  | At budget=0 the ratio/exceeded fallbacks are pinned by existing 0-budget tests; guards only decide 0.0-vs-0.0 there.                                                                        | T02 (free)        |
-| 6   | get_budget_status ternary guards `>= 0` / `> 1`                            | 4       | TEST-GAP       | budget 33, 40, 41, 57          | `>= 0` at budget=0 raises ZeroDivisionError (method aborts; no test calls get_budget_status on the unlimited tracker); `> 1` distorts ratios for sub-$1 budgets.                            | T02               |
-| 7   | `daily/monthly_exceeded` boundary `>= 1.0` → `> 1.0`                       | 2       | TEST-GAP       | budget 46, 54                  | Exactly-100% spend flips True→False; no boundary test.                                                                                                                                      | T02               |
-| 8   | exceeded misc (`>= 2.0`, `else True`, guard bool swaps)                    | 4       | TEST-GAP       | budget 47, 50, 55, 58          | `else True` = "no budget set ⇒ exceeded"; unasserted combo.                                                                                                                                 | T02               |
-| 9   | warning_reached expression (`or`→`and`, boundary `>`, →None)               | 4       | TEST-GAP       | budget 59, 60, 61              | `warning_threshold_reached` never asserted anywhere.                                                                                                                                        | T02               |
-| 10  | month filter `d.year== and d.month==` → `or`/`!=`                          | 3       | TEST-GAP       | budget 12, 13, 14              | All budget tests use fresh same-month trackers.                                                                                                                                             | T02/T08           |
-| 11  | get_monthly_usage filter `and` → `or`                                      | 1       | TEST-GAP       | monthly 8                      | Single same-month record; adjacent month never seeded.                                                                                                                                      | T08               |
-| 12  | remaining floors `max(0.0, …)` → `max(1.0, …)`                             | 2       | TEST-GAP       | budget 20, 27                  | Overspend reports $1 remaining, not 0.0; exceeded tests assert only the flag.                                                                                                               | T02               |
-| 13  | ternary fallback constants 0.0→1.0 (daily_used, ratios)                    | 3       | TEST-GAP       | budget 9, 35, 42               | Phantom $1 on empty day; unlimited ⇒ ratio 1.0 ⇒ false warning.                                                                                                                             | T02               |
-| 14  | BudgetStatus field values → None (monthly\_\*, warning)                    | 7       | TEST-GAP       | budget 22, 51, 66              | `test_get_budget_status` (:375) asserts 7 of 11 fields; every monthly field unasserted.                                                                                                     | T02               |
-| 15  | arithmetic flips (`-` in max, `*` for ratio)                               | 2       | TEST-GAP       | budget 28, 39                  | Floor masks the + variant until over-budget; product ratio needs mid-range assert.                                                                                                          | T02               |
-| 16  | `(cond) or True` / `and False` in budget+summary ternaries                 | 9       | TEST-GAP       | budget 8, 31, 37               | `or True` crashes on empty tracker (`None.total_estimated_cost_usd`); `and False` forces 0.0 fallbacks / skips guards.                                                                      | T02               |
-| 17  | usage-summary dict **key constants** (Xx/UPPER)                            | 24      | EQUIVALENT     | summary 42, 56, 80             | API consumers read these keys; unit tests touch 9 of ~21 leaves; T03/T08 pin the tested ones.                                                                                               | T03/T08           |
-| 18  | summary aggregate math (`in-out`, `cost*events`, `>1` avg guard, else 1.0) | 4       | TEST-GAP       | summary 11, 21, 23             | `this_month.total_tokens`/`avg_cost_per_event_usd` never asserted; existing test has exactly 1 event.                                                                                       | T03               |
-| 19  | summary empty-day fallbacks 0→1                                            | 4       | TEST-GAP       | summary 36, 41, 51             | `test_get_usage_summary_empty` (:508) asserts 3 of 13 leaf values.                                                                                                                          | T03               |
-| 20  | summary values → None (tokens, gpu, avg)                                   | 3       | TEST-GAP       | summary 9, 12, 18              | Unasserted keys.                                                                                                                                                                            | T03               |
-| 21  | persist hset/expire args → None or dropped                                 | 10      | TEST-GAP       | persist 20, 21, 24             | `assert_called()` is arg-blind.                                                                                                                                                             | T01               |
-| 22  | persist TTL constants (90d→91d/25h/61m, `/60`) + dropped `match=`          | 7       | TEST-GAP       | persist 28, 31, load 4         | `expire.assert_called()` without args.                                                                                                                                                      | T01               |
-| 23  | persist key/data sub-expressions → None                                    | (in 21) | TEST-GAP       | persist 2, 3                   | `hset(None, mapping=data)` still "called".                                                                                                                                                  | T01               |
-| 24  | load_usage redis args / key-str sub-expressions → None                     | 6       | TEST-GAP       | load 2, 5, 6                   | Mocked scan_iter ignores `match`; `hgetall(None)` still returns fixture; key decode unasserted.                                                                                             | T04               |
-| 25  | load_usage byte-decode predicates flipped `or True`                        | 4       | TEST-GAP       | load 7, 8, 16, 19              | Production Redis uses decode*responses=True (core/redis.py:59) ⇒ \_str*-payload path IS the production path; flipping it crashes str.decode — the all-`b"…"` fixture in :685 never hits it. | T04 (str fixture) |
-| 26  | load_usage restored-field values → None                                    | 7       | TEST-GAP       | load 26, 28, 29                | `test_load_usage` asserts only `total_input_tokens`.                                                                                                                                        | T04               |
-| 27  | load_usage restored **kwargs dropped** (default masks)                     | 6       | TEST-GAP       | load 36, 37, 41                | Verified raw: kwarg deleted from `DailyUsage(...)`; dataclass default silently zeroes it.                                                                                                   | T04               |
-| 28  | load_usage `decoded.get` fallback constants 0→1 / dropped                  | 21      | TEST-GAP       | load 44, 49, 57                | Partial-record path (missing Redis field) never exercised.                                                                                                                                  | T04               |
-| 29  | `datetime.now(UTC)` → `now(None)`                                          | 4       | TEST-GAP       | enrich 18, budget 2            | Day-keying goes local-time; tests run UTC-aligned ⇒ invisible.                                                                                                                              | T06               |
-| 30  | enrichment cost arithmetic (`*`→`/`, `+`→`-`)                              | 3       | TEST-GAP       | enrich 2, 4, 6                 | Only assert is `cost > 0`; `/` gives 7.2e6, `-` gives 6.9e-5 — both > 0.                                                                                                                    | T05               |
-| 31  | enrichment metrics args → None / dropped args                              | 8       | TEST-GAP       | enrich 19, 21, 22              | LLM twin (:199) proves the _pattern_ of arg-asserts; enrichment tests have zero metrics asserts.                                                                                            | T05               |
-| 32  | estimate_cost gates `> 0` → `> 1` (5 components)                           | 5       | TEST-GAP       | estimate 4, 11, 18             | `estimate_cost(gpu_seconds=0.5)` ⇒ 0.0; every test passes units ≥ 1.                                                                                                                        | T07               |
-| 33  | `cost +=` → `cost =` (input overwrites prior components)                   | 1       | TEST-GAP       | estimate 5                     | Combined test orders input_tokens first.                                                                                                                                                    | T07               |
-| 34  | token divisor 1000.0→1001.0; `+=`→`-=` (enrichment)                        | 3       | TEST-GAP       | estimate 9, 16, 30             | Tolerance 1e-4 swallows 8e-7 and 2e-5 deltas; tests use loose `abs(…) < 0.0001`.                                                                                                            | T07               |
+| # | Pattern @ concern | n | Class | Ex. keys | Why / what test_cost_tracker.py misses | Kill |
+|---|---|---|---|---|---|---|
+| 1 | persist_usage hash **field-name constants** (Xx/UPPERCASE renames) | 16 | EQUIVALENT | persist 4, 6, 7 | Mocked Redis never sees the mapping; no round-trip. Contract risk flagged: killed for free by exact-mapping assert. | T01 |
+| 2 | load_usage `decoded.get` **key-constant** renames | 18 | EQUIVALENT | load 51, 55, 63 | Symmetric reader side; `test_load_usage` (:685) feeds only all-keys-present records. | T04 |
+| 3 | `logger.debug/info` message → `None` (enrichment/persist/load) | 3 | EQUIVALENT | persist 35, load 99, enrich 28 | Pure log text; logger patch asserts only `warning`. | — |
+| 4 | estimate_cost component gates `> 0` → `>= 0` | 5 | EQUIVALENT | estimate 3, 10, 17 | Adds exactly `0 × price` = 0.0 (IEEE-754: finite×0.0==0.0) — output identical on every input. No test can kill. | — |
+| 5 | budget ternary guards `> 0` → `>= 0` (4 sites) | 2 | EQUIVALENT (2) | budget 48, 56 | At budget=0 the ratio/exceeded fallbacks are pinned by existing 0-budget tests; guards only decide 0.0-vs-0.0 there. | T02 (free) |
+| 6 | get_budget_status ternary guards `>= 0` / `> 1` | 4 | TEST-GAP | budget 33, 40, 41, 57 | `>= 0` at budget=0 raises ZeroDivisionError (method aborts; no test calls get_budget_status on the unlimited tracker); `> 1` distorts ratios for sub-$1 budgets. | T02 |
+| 7 | `daily/monthly_exceeded` boundary `>= 1.0` → `> 1.0` | 2 | TEST-GAP | budget 46, 54 | Exactly-100% spend flips True→False; no boundary test. | T02 |
+| 8 | exceeded misc (`>= 2.0`, `else True`, guard bool swaps) | 4 | TEST-GAP | budget 47, 50, 55, 58 | `else True` = "no budget set ⇒ exceeded"; unasserted combo. | T02 |
+| 9 | warning_reached expression (`or`→`and`, boundary `>`, →None) | 4 | TEST-GAP | budget 59, 60, 61 | `warning_threshold_reached` never asserted anywhere. | T02 |
+| 10 | month filter `d.year== and d.month==` → `or`/`!=` | 3 | TEST-GAP | budget 12, 13, 14 | All budget tests use fresh same-month trackers. | T02/T08 |
+| 11 | get_monthly_usage filter `and` → `or` | 1 | TEST-GAP | monthly 8 | Single same-month record; adjacent month never seeded. | T08 |
+| 12 | remaining floors `max(0.0, …)` → `max(1.0, …)` | 2 | TEST-GAP | budget 20, 27 | Overspend reports $1 remaining, not 0.0; exceeded tests assert only the flag. | T02 |
+| 13 | ternary fallback constants 0.0→1.0 (daily_used, ratios) | 3 | TEST-GAP | budget 9, 35, 42 | Phantom $1 on empty day; unlimited ⇒ ratio 1.0 ⇒ false warning. | T02 |
+| 14 | BudgetStatus field values → None (monthly_*, warning) | 7 | TEST-GAP | budget 22, 51, 66 | `test_get_budget_status` (:375) asserts 7 of 11 fields; every monthly field unasserted. | T02 |
+| 15 | arithmetic flips (`-` in max, `*` for ratio) | 2 | TEST-GAP | budget 28, 39 | Floor masks the + variant until over-budget; product ratio needs mid-range assert. | T02 |
+| 16 | `(cond) or True` / `and False` in budget+summary ternaries | 9 | TEST-GAP | budget 8, 31, 37 | `or True` crashes on empty tracker (`None.total_estimated_cost_usd`); `and False` forces 0.0 fallbacks / skips guards. | T02 |
+| 17 | usage-summary dict **key constants** (Xx/UPPER) | 24 | EQUIVALENT | summary 42, 56, 80 | API consumers read these keys; unit tests touch 9 of ~21 leaves; T03/T08 pin the tested ones. | T03/T08 |
+| 18 | summary aggregate math (`in-out`, `cost*events`, `>1` avg guard, else 1.0) | 4 | TEST-GAP | summary 11, 21, 23 | `this_month.total_tokens`/`avg_cost_per_event_usd` never asserted; existing test has exactly 1 event. | T03 |
+| 19 | summary empty-day fallbacks 0→1 | 4 | TEST-GAP | summary 36, 41, 51 | `test_get_usage_summary_empty` (:508) asserts 3 of 13 leaf values. | T03 |
+| 20 | summary values → None (tokens, gpu, avg) | 3 | TEST-GAP | summary 9, 12, 18 | Unasserted keys. | T03 |
+| 21 | persist hset/expire args → None or dropped | 10 | TEST-GAP | persist 20, 21, 24 | `assert_called()` is arg-blind. | T01 |
+| 22 | persist TTL constants (90d→91d/25h/61m, `/60`) + dropped `match=` | 7 | TEST-GAP | persist 28, 31, load 4 | `expire.assert_called()` without args. | T01 |
+| 23 | persist key/data sub-expressions → None | (in 21) | TEST-GAP | persist 2, 3 | `hset(None, mapping=data)` still "called". | T01 |
+| 24 | load_usage redis args / key-str sub-expressions → None | 6 | TEST-GAP | load 2, 5, 6 | Mocked scan_iter ignores `match`; `hgetall(None)` still returns fixture; key decode unasserted. | T04 |
+| 25 | load_usage byte-decode predicates flipped `or True` | 4 | TEST-GAP | load 7, 8, 16, 19 | Production Redis uses decode_responses=True (core/redis.py:59) ⇒ *str*-payload path IS the production path; flipping it crashes str.decode — the all-`b"…"` fixture in :685 never hits it. | T04 (str fixture) |
+| 26 | load_usage restored-field values → None | 7 | TEST-GAP | load 26, 28, 29 | `test_load_usage` asserts only `total_input_tokens`. | T04 |
+| 27 | load_usage restored **kwargs dropped** (default masks) | 6 | TEST-GAP | load 36, 37, 41 | Verified raw: kwarg deleted from `DailyUsage(...)`; dataclass default silently zeroes it. | T04 |
+| 28 | load_usage `decoded.get` fallback constants 0→1 / dropped | 21 | TEST-GAP | load 44, 49, 57 | Partial-record path (missing Redis field) never exercised. | T04 |
+| 29 | `datetime.now(UTC)` → `now(None)` | 4 | TEST-GAP | enrich 18, budget 2 | Day-keying goes local-time; tests run UTC-aligned ⇒ invisible. | T06 |
+| 30 | enrichment cost arithmetic (`*`→`/`, `+`→`-`) | 3 | TEST-GAP | enrich 2, 4, 6 | Only assert is `cost > 0`; `/` gives 7.2e6, `-` gives 6.9e-5 — both > 0. | T05 |
+| 31 | enrichment metrics args → None / dropped args | 8 | TEST-GAP | enrich 19, 21, 22 | LLM twin (:199) proves the *pattern* of arg-asserts; enrichment tests have zero metrics asserts. | T05 |
+| 32 | estimate_cost gates `> 0` → `> 1` (5 components) | 5 | TEST-GAP | estimate 4, 11, 18 | `estimate_cost(gpu_seconds=0.5)` ⇒ 0.0; every test passes units ≥ 1. | T07 |
+| 33 | `cost +=` → `cost =` (input overwrites prior components) | 1 | TEST-GAP | estimate 5 | Combined test orders input_tokens first. | T07 |
+| 34 | token divisor 1000.0→1001.0; `+=`→`-=` (enrichment) | 3 | TEST-GAP | estimate 9, 16, 30 | Tolerance 1e-4 swallows 8e-7 and 2e-5 deltas; tests use loose `abs(…) < 0.0001`. | T07 |
 
 Class totals: **TEST-GAP 137, EQUIVALENT 68** (clusters 1-5 = 68; rest = 137). LOW-VALUE 0 — no debug hooks/cosmetic-only behaviors present.
 
@@ -60,7 +60,6 @@ TDD procedure (each): add test → run against the mutant build, expect FAIL on 
 Style: file has `from __future__ import annotations`; fixtures `cost_tracker` (budgets $10/$100, warn 0.8), `mock_metrics_service`, `mock_redis_client` (AsyncMock); `@pytest.mark.asyncio`; autouse `reset_singleton`.
 
 ### T01 — persist_usage wire contract → clusters 1, 21, 22, 23
-
 Add to `TestRedisPersistence` after `test_persist_usage` (~:683):
 
 ```python
@@ -102,7 +101,6 @@ Add to `TestRedisPersistence` after `test_persist_usage` (~:683):
 ```
 
 ### T02 — budget status field-by-field at boundaries + unlimited leg → clusters 6-16
-
 Add to `TestBudgetTracking` after `test_budget_exceeded_detection` (~:421):
 
 ```python
@@ -150,7 +148,6 @@ Add to `TestBudgetTracking` after `test_budget_exceeded_detection` (~:421):
 ```
 
 ### T03 — usage summary full schema, empty day, one-event average → clusters 17(partial), 18, 19, 20
-
 Add to `TestUsageSummary` after `test_get_usage_summary_with_data` (~:539):
 
 ```python
@@ -197,7 +194,6 @@ Add to `TestUsageSummary` after `test_get_usage_summary_with_data` (~:539):
 ```
 
 ### T04 — load_usage round trip + partial record → clusters 2, 24, 25, 26, 27, 28 (+1 for free)
-
 Add to `TestRedisPersistence` after `test_load_usage` (~:717):
 
 ```python
@@ -305,7 +301,6 @@ Add to `TestRedisPersistence` after `test_load_usage` (~:717):
 ```
 
 ### T05 — enrichment record + metrics parity → clusters 30, 31 (+29 log side-effects N/A)
-
 Add to `TestEnrichmentUsageTracking` (~:293):
 
 ```python
@@ -326,7 +321,6 @@ Add to `TestEnrichmentUsageTracking` (~:293):
 ```
 
 ### T06 — UTC day-keying → cluster 29
-
 Add to `TestEdgeCases` (end of file ~:808):
 
 ```python
@@ -353,7 +347,6 @@ Add to `TestEdgeCases` (end of file ~:808):
 **Honesty note:** with `datetime` patched, `now(UTC)` and `now(None)` return the same object, so the behavioral half of T06 is weak on its own; the source-regex guard is the real killer for the `now(None)` variants. If white-box source inspection is barred for this repo, flag cluster 29 as needing an integration-level TZ test instead (accepting the survivors for now). Needs `import sys` (file does not currently import it).
 
 ### T07 — estimate_cost exactness → clusters 32, 33, 34
-
 Add to `TestCostEstimation` (~:338); requires adding `DEFAULT_PRICING` to the module's import list from `backend.services.cost_tracker`:
 
 ```python
@@ -392,7 +385,6 @@ Add to `TestCostEstimation` (~:338); requires adding `DEFAULT_PRICING` to the mo
 Exact-ish asserts also kill the 1001.0-divisor (cluster 34; tolerance in existing tests is 1e-4 > the 8e-7 delta) and the `+=`→`-=` enrichment flip (cluster 34; 2e-5 delta).
 
 ### T08 — monthly usage month isolation → cluster 11 (+month-window double-check)
-
 Add to `TestMonthlyUsage` (~:502):
 
 ```python
@@ -419,16 +411,16 @@ Add to `TestMonthlyUsage` (~:502):
 
 ## Kill-matrix summary (drafted tests → clusters)
 
-| Test | Clusters killed (n)                  | Direct | Free (EQUIVALENT-but-contract)        |
-| ---- | ------------------------------------ | ------ | ------------------------------------- |
-| T01  | 21,22,23 (17)                        | —      | 1 (16, via exact mapping)             |
-| T02  | 6,7,8,9,12,13,14,15,16 (28) + 10 (3) | 31     | 5 (2)                                 |
-| T03  | 18,19,20 (11)                        | —      | 17 partial (24)                       |
-| T04  | 24,25,26,27,28 (46) + 2 partially    | 46     | 2 (18), 1 (16)                        |
-| T05  | 30,31 (11)                           |        |                                       |
-| T06  | 29 (4)                               |        |                                       |
-| T07  | 32,33,34 (9)                         |        | 4 (5) stays green — proven-equivalent |
-| T08  | 11 (1)                               |        | 10 overlap                            |
+| Test | Clusters killed (n) | Direct | Free (EQUIVALENT-but-contract) |
+|---|---|---|---|
+| T01 | 21,22,23 (17) | — | 1 (16, via exact mapping) |
+| T02 | 6,7,8,9,12,13,14,15,16 (28) + 10 (3) | 31 | 5 (2) |
+| T03 | 18,19,20 (11) | — | 17 partial (24) |
+| T04 | 24,25,26,27,28 (46) + 2 partially | 46 | 2 (18), 1 (16) |
+| T05 | 30,31 (11) | | |
+| T06 | 29 (4) | | |
+| T07 | 32,33,34 (9) | | 4 (5) stays green — proven-equivalent |
+| T08 | 11 (1) | | 10 overlap |
 
 Residual after all eight: the EQUIVALENT clusters (4: n=5; plus 1/2/17 key-rename survivors not covered by a field assert — recommend the WP4.4 owner add one `assert set(summary) == {...}` / mapping-keys assert if the roadmap wants those pinned) and cluster 5's two guards. No LOW-VALUE residue.
 

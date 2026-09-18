@@ -1,6 +1,6 @@
 ---
 name: parallel-triage-serial-verify
-description: 'While a long pytest/mutmut tier owns the box, dispatch read-only triage+drafting agent waves; fixes enter the tree only via one serial red→green lane'
+description: "While a long pytest/mutmut tier owns the box, dispatch read-only triage+drafting agent waves; fixes enter the tree only via one serial red→green lane"
 metadata:
   node_type: memory
   type: feedback

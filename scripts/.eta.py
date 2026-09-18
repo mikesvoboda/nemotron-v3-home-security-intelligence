@@ -23,8 +23,17 @@ unchecked = []
 checked_est = 0.0
 n_checked = 0
 unmatched = 0
+torn = []
 for meta_path in root.joinpath("mutants").glob("backend/**/*.py.meta"):
-    meta = json.loads(meta_path.read_text())
+    try:
+        meta = json.loads(meta_path.read_text())
+    except json.JSONDecodeError:
+        # torn meta: budget-kill mid-json.dump (json.dump is not atomic). The
+        # estimator only READS -- deleting/repairing is the scorer --repair
+        # job (close-out step 1), which also removes the mutant copy so the
+        # mtime gate cannot skip regeneration. Skip + count; never crash.
+        torn.append(str(meta_path.relative_to(root)))
+        continue
     for key, code in meta["exit_code_by_key"].items():
         e = est(key)
         if not tests_by_fn.get(mangled_name_from_mutant_name(key)):
@@ -35,6 +44,10 @@ for meta_path in root.joinpath("mutants").glob("backend/**/*.py.meta"):
             checked_est += e
             n_checked += 1
 
+if torn:
+    print(f"torn metas (skipped, --repair will handle): {len(torn)}")
+    for t in torn:
+        print(f"  {t}")
 unchecked.sort()
 total_unchecked = sum(unchecked)
 print(f"checked={n_checked} (est test-time {checked_est / 3600:.2f}h)")

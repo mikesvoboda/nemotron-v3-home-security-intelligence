@@ -15,19 +15,19 @@ Generated: 2026-09-17 (WP4.3 finding feed → WP4.4). **UNVERIFIED — no tests 
 
 ### Anchor lines in the covering test file
 
-| Test                                      | lines   | Why it matters                                                                                                                                                        |
-| ----------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test_bulk_insert_single_detection`       | 184-206 | asserts success/count/ids + `commit` only                                                                                                                             |
-| `test_bulk_insert_multiple_detections`    | 208-226 | `duration_ms >= 0` (line 226) — no scale check                                                                                                                        |
-| `test_bulk_insert_empty_list`             | 228-238 | never asserts `duration_ms` (empty path)                                                                                                                              |
-| `test_bulk_insert_with_all_fields`        | 240-271 | captures `mock_session.execute.call_args` (line 270) then asserts only `is not None` (271) — **the one place statement content could have been asserted, and wasn't** |
-| `test_bulk_insert_handles_database_error` | 273-289 | asserts `success is False`, `error_message`, `rollback` — nothing about returned fields or stats                                                                      |
-| `test_bulk_insert_chunked`                | 313-337 | asserts `success` + `execute.call_count >= 2` only                                                                                                                    |
-| `test_bulk_insert_with_conflict_handling` | 355-376 | passes `on_conflict="skip"` then asserts only `success is True` — ON CONFLICT SQL never inspected                                                                     |
-| `test_validate_detection_input`           | 378-395 | two cases only: fully-valid + `confidence=1.5`. No boundaries, no bbox, no media_type, no missing-field cases                                                         |
-| `test_bulk_insert_filters_invalid`        | 397-425 | asserts `len(failed_inputs) == 1` but never _which_ input                                                                                                             |
-| `test_get_insert_performance_stats`       | 427-448 | `>= 6`, `>= 2`, `>= 0`, `>= 0` — every arithmetic mutant slips through                                                                                                |
-| `test_reset_stats`                        | 493-504 | asserts only `total_inserts`/`total_batches`; `total_duration_ms` and `failed_inserts` never checked                                                                  |
+| Test | lines | Why it matters |
+|---|---|---|
+| `test_bulk_insert_single_detection` | 184-206 | asserts success/count/ids + `commit` only |
+| `test_bulk_insert_multiple_detections` | 208-226 | `duration_ms >= 0` (line 226) — no scale check |
+| `test_bulk_insert_empty_list` | 228-238 | never asserts `duration_ms` (empty path) |
+| `test_bulk_insert_with_all_fields` | 240-271 | captures `mock_session.execute.call_args` (line 270) then asserts only `is not None` (271) — **the one place statement content could have been asserted, and wasn't** |
+| `test_bulk_insert_handles_database_error` | 273-289 | asserts `success is False`, `error_message`, `rollback` — nothing about returned fields or stats |
+| `test_bulk_insert_chunked` | 313-337 | asserts `success` + `execute.call_count >= 2` only |
+| `test_bulk_insert_with_conflict_handling` | 355-376 | passes `on_conflict="skip"` then asserts only `success is True` — ON CONFLICT SQL never inspected |
+| `test_validate_detection_input` | 378-395 | two cases only: fully-valid + `confidence=1.5`. No boundaries, no bbox, no media_type, no missing-field cases |
+| `test_bulk_insert_filters_invalid` | 397-425 | asserts `len(failed_inputs) == 1` but never *which* input |
+| `test_get_insert_performance_stats` | 427-448 | `>= 6`, `>= 2`, `>= 0`, `>= 0` — every arithmetic mutant slips through |
+| `test_reset_stats` | 493-504 | asserts only `total_inserts`/`total_batches`; `total_duration_ms` and `failed_inserts` never checked |
 
 `grep -n "on_conflict\|_detection_to_dict\|index_elements"` over the whole test file returns
 exactly **one** hit (line 373). No test in the repo compiles a statement from this service,
@@ -37,35 +37,35 @@ and no test calls `_detection_to_dict` directly.
 
 ## Cluster table (counts sum to 147)
 
-| #   | Cluster                                                                                                                                                                                     | N   | Class          | Example keys (suffix after `…BulkDetectionServiceǁ`)              |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------- | ----------------------------------------------------------------- |
-| A   | `_detection_to_dict`: INSERT column-key names clobbered (`XXcamera_idXX` / `CAMERA_ID`) for all 18 payload columns                                                                          | 36  | **TEST-GAP**   | `_detection_to_dict__mutmut_1`, `_2`, `_33`                       |
-| B   | `bulk_insert`: ON CONFLICT clause — `== "skip"` → `!=` / `"XXskipXX"` / `"SKIP"`, and `index_elements=["camera_id","file_path"]` clobbers/`None`                                            | 8   | **TEST-GAP**   | `bulk_insert__mutmut_26`, `_28`, `_30`                            |
-| C   | `bulk_insert`: statement handed to `execute` / `RETURNING` target destroyed (`execute(None)`, `returning(None)`)                                                                            | 2   | **TEST-GAP**   | `bulk_insert__mutmut_36`, `_37`                                   |
-| D   | `_stats` zero-initialisation invariant (`__init__` `0→1`, `0.0→1.0`; same in `reset_stats`)                                                                                                 | 6   | **TEST-GAP**   | `__init____mutmut_5`, `_11`, `reset_stats__mutmut_13`             |
-| E   | `validate_detection`: boundary operator flips (required-field `or→and`; `< 0.0→<=`; `> 1.0→>=`; bbox `< 0 →<= 0 / < 1`; media `is not None → is None`)                                      | 6   | **TEST-GAP**   | `validate_detection__mutmut_1`, `_8`, `_17`                       |
-| F   | `validate_detection`: `valid_media_types` tuple clobbered (`"video"`→`"XXvideoXX"`/`"VIDEO"`)                                                                                               | 2   | **TEST-GAP**   | `validate_detection__mutmut_22`, `_23`                            |
-| G   | `bulk_insert` empty/early-return path: `duration_ms=0.0`→`None`/`1.0`, kwargs dropped                                                                                                       | 4   | **TEST-GAP**   | `bulk_insert__mutmut_5`, `_12`, `_9`                              |
-| H   | `bulk_insert`: `failed_inputs.append(d)` → `append(None)` (identity of rejected input lost)                                                                                                 | 1   | **TEST-GAP**   | `bulk_insert__mutmut_18`                                          |
-| I   | duration measurement arithmetic `… * 1000` → `/ 1000`, `+ start_time`, `* 1001` (success path, failure path, chunked)                                                                       | 9   | **TEST-GAP**   | `bulk_insert__mutmut_42`, `_85`, `bulk_insert_chunked__mutmut_28` |
-| J   | `bulk_insert` success-path stat accumulation (`total_batches += 1 → += 2`, `total_duration_ms += → =`)                                                                                      | 2   | **TEST-GAP**   | `bulk_insert__mutmut_53`, `_54`                                   |
-| K   | `bulk_insert` failure-path `BulkInsertResult` field values (`inserted_count=0→None/1`, `inserted_ids=[]→None/dropped`, `duration_ms→None/dropped`, `failed_inputs=detections→None/dropped`) | 9   | **TEST-GAP**   | `bulk_insert__mutmut_113`, `_119`, `_121`                         |
-| L   | `bulk_insert` failure-path stat accumulation (`failed_inserts += → = / -=`)                                                                                                                 | 2   | **TEST-GAP**   | `bulk_insert__mutmut_88`, `_89`                                   |
-| M   | `bulk_insert_chunked`: chunk-loop bounds (`range(0,len,chunk_size)` → `range(0,chunk_size)`, `range(1,…)``, `range(0,len,)`) + `validate`default`False→True`+`validate=` kwarg dropped      | 5   | **TEST-GAP**   | `bulk_insert_chunked__mutmut_1`, `_12`, `_21`                     |
-| N   | `bulk_insert_chunked`: `total_inserted` accumulation (`=0→1`, `+= → = / -=`)                                                                                                                | 3   | **TEST-GAP**   | `bulk_insert_chunked__mutmut_7`, `_24`, `_25`                     |
-| O   | `bulk_insert_chunked`: aggregated `BulkInsertResult` field values (`inserted_count/ids/duration_ms/failed_inputs` → `None`/dropped)                                                         | 8   | **TEST-GAP**   | `bulk_insert_chunked__mutmut_32`, `_35`, `_40`                    |
-| P   | `bulk_insert_chunked`: `validate=validate` → `validate=None` (falsy → identical control flow)                                                                                               | 1   | **EQUIVALENT** | `bulk_insert_chunked__mutmut_19`                                  |
-| Q   | `get_performance_stats`: output key names clobbered (`failed_inserts`, `total_duration_ms`)                                                                                                 | 4   | **TEST-GAP**   | `get_performance_stats__mutmut_14`, `_19`                         |
-| R   | `get_performance_stats`: `round(total_duration, 2)` precision/arity mutants (`round(x,3)`, `round(x)`, `round(x,None)`, `round(2)`)                                                         | 4   | **TEST-GAP**   | `get_performance_stats__mutmut_21`, `_24`                         |
-| S   | `get_performance_stats`: `avg_batch_size` / `avg_insert_time_ms` — div→mul, guard `> 0 → > 1`, `and False` short-circuit, `else 0 → 1`                                                      | 8   | **TEST-GAP**   | `get_performance_stats__mutmut_27`, `_29`, `_40`                  |
-| T   | `bulk_insert` success-path **log call** + `extra` payload (message→`None`, `extra=None`/dropped, extra key clobbers, `round` in log)                                                        | 13  | **LOW-VALUE**  | `bulk_insert__mutmut_58`, `_62`, `_70`                            |
-| U   | `bulk_insert` failure-path **log call** + `extra` payload (same shape as T, incl. `str(None)`)                                                                                              | 14  | **LOW-VALUE**  | `bulk_insert__mutmut_92`, `_100`, `_107`                          |
+| # | Cluster | N | Class | Example keys (suffix after `…BulkDetectionServiceǁ`) |
+|---|---|---|---|---|
+| A | `_detection_to_dict`: INSERT column-key names clobbered (`XXcamera_idXX` / `CAMERA_ID`) for all 18 payload columns | 36 | **TEST-GAP** | `_detection_to_dict__mutmut_1`, `_2`, `_33` |
+| B | `bulk_insert`: ON CONFLICT clause — `== "skip"` → `!=` / `"XXskipXX"` / `"SKIP"`, and `index_elements=["camera_id","file_path"]` clobbers/`None` | 8 | **TEST-GAP** | `bulk_insert__mutmut_26`, `_28`, `_30` |
+| C | `bulk_insert`: statement handed to `execute` / `RETURNING` target destroyed (`execute(None)`, `returning(None)`) | 2 | **TEST-GAP** | `bulk_insert__mutmut_36`, `_37` |
+| D | `_stats` zero-initialisation invariant (`__init__` `0→1`, `0.0→1.0`; same in `reset_stats`) | 6 | **TEST-GAP** | `__init____mutmut_5`, `_11`, `reset_stats__mutmut_13` |
+| E | `validate_detection`: boundary operator flips (required-field `or→and`; `< 0.0→<=`; `> 1.0→>=`; bbox `< 0 →<= 0 / < 1`; media `is not None → is None`) | 6 | **TEST-GAP** | `validate_detection__mutmut_1`, `_8`, `_17` |
+| F | `validate_detection`: `valid_media_types` tuple clobbered (`"video"`→`"XXvideoXX"`/`"VIDEO"`) | 2 | **TEST-GAP** | `validate_detection__mutmut_22`, `_23` |
+| G | `bulk_insert` empty/early-return path: `duration_ms=0.0`→`None`/`1.0`, kwargs dropped | 4 | **TEST-GAP** | `bulk_insert__mutmut_5`, `_12`, `_9` |
+| H | `bulk_insert`: `failed_inputs.append(d)` → `append(None)` (identity of rejected input lost) | 1 | **TEST-GAP** | `bulk_insert__mutmut_18` |
+| I | duration measurement arithmetic `… * 1000` → `/ 1000`, `+ start_time`, `* 1001` (success path, failure path, chunked) | 9 | **TEST-GAP** | `bulk_insert__mutmut_42`, `_85`, `bulk_insert_chunked__mutmut_28` |
+| J | `bulk_insert` success-path stat accumulation (`total_batches += 1 → += 2`, `total_duration_ms += → =`) | 2 | **TEST-GAP** | `bulk_insert__mutmut_53`, `_54` |
+| K | `bulk_insert` failure-path `BulkInsertResult` field values (`inserted_count=0→None/1`, `inserted_ids=[]→None/dropped`, `duration_ms→None/dropped`, `failed_inputs=detections→None/dropped`) | 9 | **TEST-GAP** | `bulk_insert__mutmut_113`, `_119`, `_121` |
+| L | `bulk_insert` failure-path stat accumulation (`failed_inserts += → = / -=`) | 2 | **TEST-GAP** | `bulk_insert__mutmut_88`, `_89` |
+| M | `bulk_insert_chunked`: chunk-loop bounds (`range(0,len,chunk_size)` → `range(0,chunk_size)`, `range(1,…)``, `range(0,len,)`) + `validate` default `False→True` + `validate=` kwarg dropped | 5 | **TEST-GAP** | `bulk_insert_chunked__mutmut_1`, `_12`, `_21` |
+| N | `bulk_insert_chunked`: `total_inserted` accumulation (`=0→1`, `+= → = / -=`) | 3 | **TEST-GAP** | `bulk_insert_chunked__mutmut_7`, `_24`, `_25` |
+| O | `bulk_insert_chunked`: aggregated `BulkInsertResult` field values (`inserted_count/ids/duration_ms/failed_inputs` → `None`/dropped) | 8 | **TEST-GAP** | `bulk_insert_chunked__mutmut_32`, `_35`, `_40` |
+| P | `bulk_insert_chunked`: `validate=validate` → `validate=None` (falsy → identical control flow) | 1 | **EQUIVALENT** | `bulk_insert_chunked__mutmut_19` |
+| Q | `get_performance_stats`: output key names clobbered (`failed_inserts`, `total_duration_ms`) | 4 | **TEST-GAP** | `get_performance_stats__mutmut_14`, `_19` |
+| R | `get_performance_stats`: `round(total_duration, 2)` precision/arity mutants (`round(x,3)`, `round(x)`, `round(x,None)`, `round(2)`) | 4 | **TEST-GAP** | `get_performance_stats__mutmut_21`, `_24` |
+| S | `get_performance_stats`: `avg_batch_size` / `avg_insert_time_ms` — div→mul, guard `> 0 → > 1`, `and False` short-circuit, `else 0 → 1` | 8 | **TEST-GAP** | `get_performance_stats__mutmut_27`, `_29`, `_40` |
+| T | `bulk_insert` success-path **log call** + `extra` payload (message→`None`, `extra=None`/dropped, extra key clobbers, `round` in log) | 13 | **LOW-VALUE** | `bulk_insert__mutmut_58`, `_62`, `_70` |
+| U | `bulk_insert` failure-path **log call** + `extra` payload (same shape as T, incl. `str(None)`) | 14 | **LOW-VALUE** | `bulk_insert__mutmut_92`, `_100`, `_107` |
 
 **Totals: 147** — TEST-GAP 119, LOW-VALUE 27, EQUIVALENT 1.
 
 ### Cluster notes
 
-- **A (36)** is the single biggest lever. `_detection_to_dict` is _executed_ by 12 tests, yet no
+- **A (36)** is the single biggest lever. `_detection_to_dict` is *executed* by 12 tests, yet no
   test asserts a single column name or the compiled INSERT text; `mock_session` swallows
   whatever dict is built. `test_bulk_insert_with_all_fields` (line 240) even names the
   statement it means to check and then asserts only `call_args is not None`. Every clobbered
@@ -76,8 +76,8 @@ and no test calls `_detection_to_dict` directly.
   `index_elements=["CAMERA_ID","file_path"]` would target a nonexistent index.
   `bulk_insert_with_conflict_handling` runs the branch and asserts only `success is True`.
 - **D (6)** + Q: `test_reset_stats` asserts 2 of 4 counters; `test_get_insert_performance_stats`
-  uses `>=`, so a service that _starts_ with `total_inserts=1, total_duration_ms=1.0,
-failed_inserts=1` never trips anything. `failed_inserts` is asserted nowhere in the repo.
+  uses `>=`, so a service that *starts* with `total_inserts=1, total_duration_ms=1.0,
+  failed_inserts=1` never trips anything. `failed_inserts` is asserted nowhere in the repo.
 - **E+F (8)**: `validate_detection` is the ingestion gate. Mutant 1 (`or`→`and`) means a
   detection with an empty `camera_id` **but** a `file_path` is accepted (and vice-versa) —
   rows with NULL camera would reach Postgres. Mutants 8/10 reject legitimate `confidence`

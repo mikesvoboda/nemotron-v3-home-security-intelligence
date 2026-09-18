@@ -8,10 +8,10 @@ no tests were run; a live `mutmut run` owns the machine.
   advances; clusters are pattern-based and hold for later verdicts on the same
   shapes.
 - Survivor functions/indices (exact, from eb_diffs.json):
-  to_dict {9,10,17,19}; \_resubscribe_for_supervisor {2,4}; record_ack {6,7};
+  to_dict {9,10,17,19}; _resubscribe_for_supervisor {2,4}; record_ack {6,7};
   broadcast_alert {17,18,19,25,26,27,28,29,31}; broadcast_summary_update
   {2,3,4,5,12,13,14,15,23,24,25,26,33,34,35,41..57}; broadcast_zone_dwell_started
-  /\_dwell_alert /\_zone_approach /broadcast_entity_track_updated
+  /_dwell_alert /_zone_approach /broadcast_entity_track_updated
   /broadcast_ai_action_recognized {10,11,12,14,18..24 each}.
 - Source: `backend/services/event_broadcaster.py` (2445 lines)
 - Full machine-readable diffs: `/tmp/wp25/wp44-triage/eb_diffs.json`
@@ -47,19 +47,19 @@ Workaround (read-only, no cache touched):
 
 ## Cluster table (104 = 91 EQUIVALENT + 13 TEST-GAP + 0 LOW-VALUE)
 
-| #    | Pattern (kind × function/concern)                                                                                                                                                                                                                                                                                         | Count | Class                                                      | Kill   | Example keys (≤3)                                                                                                                        |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----: | ---------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| C1   | log-text mutants (`None` whole f-string; `payload.get('k')` → `None`/`'XXkXX'`/`'K'`) in the 5 new-event fns (dwell_started/dwell_alert/zone_approach/entity_track_updated/ai_action_recognized), indices 18–24                                                                                                           |    35 | EQUIVALENT                                                 | —      | `...ǁbroadcast_zone_dwell_started__mutmut_18`, `..._20`, `...ǁbroadcast_ai_action_recognized__mutmut_23`                                 |
-| C2   | `model_dump(mode="json")` → `None`/`"JSON"`/`"XXjsonXX"`: 5 new-event fns `_10-12` (15) + alert `_17-19` (3) + summary hourly `_12-14`, daily `_23-25`, envelope `_33-35` (9)                                                                                                                                             |    27 | EQUIVALENT                                                 | —      | `...ǁbroadcast_alert__mutmut_17`, `...ǁbroadcast_summary_update__mutmut_33`, `...ǁbroadcast_entity_track_updated__mutmut_10`             |
-| C6   | alert/summary Redis-publish debug-log text: `broadcast_data.get('type')` key mutants, whole message → `None`, and the yes/no ternary text (incl. `and False`/`or True` arms) — all inside the log f-string                                                                                                                |    20 | EQUIVALENT                                                 | —      | `...ǁbroadcast_alert__mutmut_25`, `...ǁbroadcast_summary_update__mutmut_42`, `..._45`                                                    |
-| C4   | `logger.error(f"...")` → `logger.error(None)` in except-hands of alert/summary (message text only; re-raise untouched)                                                                                                                                                                                                    |     5 | EQUIVALENT                                                 | —      | `...ǁbroadcast_alert__mutmut_29`, `..._31`, `...ǁbroadcast_summary_update__mutmut_15`                                                    |
-| C3   | `broadcast_summary_update` init `data_dict = {"hourly": None, "daily": None}` key strings mutated — dead write, overwritten/validated before use                                                                                                                                                                          |     4 | EQUIVALENT                                                 | —      | `...ǁbroadcast_summary_update__mutmut_2`, `..._3`, `..._4`                                                                               |
-| C5   | `to_dict` success_rate arithmetic: guard `(successful + failed) > 0` → `-` (`_17`) / `> 1` (`_19`) — changes when the rate is computed vs `0.0` fallback                                                                                                                                                                  |     2 | **TEST-GAP**                                               | D1, D2 | `...ǁBroadcastRetryMetricsǁto_dict__mutmut_17`, `..._19`                                                                                 |
-| C7   | `to_dict` `"retry_counts"` key → `"XXretry_countsXX"`/`"RETRY_COUNTS"` — drops `retry_counts` from the `get_broadcast_metrics()` monitoring payload                                                                                                                                                                       |     2 | **TEST-GAP** (contract drop; no in-repo reader of the key) | D3     | `...ǁBroadcastRetryMetricsǁto_dict__mutmut_9`, `..._10`                                                                                  |
-| C8   | new-event fns `publish(self._channel_name, ...)` → `publish(None, ...)` (index `_14` × 5 fns) — wrong Redis channel                                                                                                                                                                                                       |     5 | **TEST-GAP**                                               | D6     | `...ǁbroadcast_zone_dwell_started__mutmut_14`, `...ǁbroadcast_zone_approach__mutmut_14`, `...ǁbroadcast_ai_action_recognized__mutmut_14` |
-| C9   | `_resubscribe_for_supervisor`: `subscribe(self._channel_name)` → `subscribe(None)` (`_2`) and failure-arm `return False` → `True` (`_4`) — success path never exercised; return value only consumed by `_handle_dead_listener` and never asserted (covering test asserts the error log text, which both mutants preserve) |     2 | **TEST-GAP**                                               | D7     | `...ǁ_resubscribe_for_supervisor__mutmut_2`, `..._4`                                                                                     |
-| C10a | `record_ack` default `_client_acks.get(websocket, 0)` → `1` — a fresh client's ack of sequence **1** silently no-ops (first buffered message dropped)                                                                                                                                                                     |     1 | **TEST-GAP**                                               | D4     | `...ǁrecord_ack__mutmut_6`                                                                                                               |
-| C10b | `record_ack` `if sequence > current` → `>=` — re-records equal acks, violating the documented monotonic "only updates if higher" contract (observable when current is the implicit 0)                                                                                                                                     |     1 | **TEST-GAP**                                               | D5     | `...ǁrecord_ack__mutmut_7`                                                                                                               |
+| # | Pattern (kind × function/concern) | Count | Class | Kill | Example keys (≤3) |
+|---|-----------------------------------|------:|-------|------|-------------------|
+| C1 | log-text mutants (`None` whole f-string; `payload.get('k')` → `None`/`'XXkXX'`/`'K'`) in the 5 new-event fns (dwell_started/dwell_alert/zone_approach/entity_track_updated/ai_action_recognized), indices 18–24 | 35 | EQUIVALENT | — | `...ǁbroadcast_zone_dwell_started__mutmut_18`, `..._20`, `...ǁbroadcast_ai_action_recognized__mutmut_23` |
+| C2 | `model_dump(mode="json")` → `None`/`"JSON"`/`"XXjsonXX"`: 5 new-event fns `_10-12` (15) + alert `_17-19` (3) + summary hourly `_12-14`, daily `_23-25`, envelope `_33-35` (9) | 27 | EQUIVALENT | — | `...ǁbroadcast_alert__mutmut_17`, `...ǁbroadcast_summary_update__mutmut_33`, `...ǁbroadcast_entity_track_updated__mutmut_10` |
+| C6 | alert/summary Redis-publish debug-log text: `broadcast_data.get('type')` key mutants, whole message → `None`, and the yes/no ternary text (incl. `and False`/`or True` arms) — all inside the log f-string | 20 | EQUIVALENT | — | `...ǁbroadcast_alert__mutmut_25`, `...ǁbroadcast_summary_update__mutmut_42`, `..._45` |
+| C4 | `logger.error(f"...")` → `logger.error(None)` in except-hands of alert/summary (message text only; re-raise untouched) | 5 | EQUIVALENT | — | `...ǁbroadcast_alert__mutmut_29`, `..._31`, `...ǁbroadcast_summary_update__mutmut_15` |
+| C3 | `broadcast_summary_update` init `data_dict = {"hourly": None, "daily": None}` key strings mutated — dead write, overwritten/validated before use | 4 | EQUIVALENT | — | `...ǁbroadcast_summary_update__mutmut_2`, `..._3`, `..._4` |
+| C5 | `to_dict` success_rate arithmetic: guard `(successful + failed) > 0` → `-` (`_17`) / `> 1` (`_19`) — changes when the rate is computed vs `0.0` fallback | 2 | **TEST-GAP** | D1, D2 | `...ǁBroadcastRetryMetricsǁto_dict__mutmut_17`, `..._19` |
+| C7 | `to_dict` `"retry_counts"` key → `"XXretry_countsXX"`/`"RETRY_COUNTS"` — drops `retry_counts` from the `get_broadcast_metrics()` monitoring payload | 2 | **TEST-GAP** (contract drop; no in-repo reader of the key) | D3 | `...ǁBroadcastRetryMetricsǁto_dict__mutmut_9`, `..._10` |
+| C8 | new-event fns `publish(self._channel_name, ...)` → `publish(None, ...)` (index `_14` × 5 fns) — wrong Redis channel | 5 | **TEST-GAP** | D6 | `...ǁbroadcast_zone_dwell_started__mutmut_14`, `...ǁbroadcast_zone_approach__mutmut_14`, `...ǁbroadcast_ai_action_recognized__mutmut_14` |
+| C9 | `_resubscribe_for_supervisor`: `subscribe(self._channel_name)` → `subscribe(None)` (`_2`) and failure-arm `return False` → `True` (`_4`) — success path never exercised; return value only consumed by `_handle_dead_listener` and never asserted (covering test asserts the error log text, which both mutants preserve) | 2 | **TEST-GAP** | D7 | `...ǁ_resubscribe_for_supervisor__mutmut_2`, `..._4` |
+| C10a | `record_ack` default `_client_acks.get(websocket, 0)` → `1` — a fresh client's ack of sequence **1** silently no-ops (first buffered message dropped) | 1 | **TEST-GAP** | D4 | `...ǁrecord_ack__mutmut_6` |
+| C10b | `record_ack` `if sequence > current` → `>=` — re-records equal acks, violating the documented monotonic "only updates if higher" contract (observable when current is the implicit 0) | 1 | **TEST-GAP** | D5 | `...ǁrecord_ack__mutmut_7` |
 
 **Coverage sanity:** the 4 surviving-index functions with no unit tests at all
 (`broadcast_detection_batch/_new`, `broadcast_worker_status`,
@@ -74,7 +74,7 @@ log text (equiv).
 
 - **C2 — every `mode` variant is a no-op for these schemas.** Verified
   empirically on the repo's pydantic 2.13.5: `model_dump(mode=None)`,
-  `mode="JSON"`, `mode="XXjsonXX"` all behave as _non-json_ mode (only the exact
+  `mode="JSON"`, `mode="XXjsonXX"` all behave as *non-json* mode (only the exact
   string `"json"` selects json mode; pydantic warns but does not raise). Every
   schema broadcast here holds only JSON-stable fields or `str`-valued enums:
   `WebSocketAlertData`/`WebSocketAlertDeletedData` (created_at/updated_at are
@@ -82,11 +82,11 @@ log text (equiv).
   `WebSocketSummaryData` (window_start/end/generated_at are `str`), the zone/
   entity/AI `BasePayload` schemas (`timestamp: str`, plain int/float/dict
   fields, `use_enum_values`). Direct check:
-  `json.dumps(m.model_dump(mode=X))` is \*\*byte-identical for X ∈ {"json", None,
-  "JSON", "XXjsonXX"}`(asserted True on`WebSocketAlertCreatedMessage`); the
-remaining schemas are str/int/float-only where both modes are the identity
-map. The payload tests observe on `redis.publish`is unchanged. Real-world
-divergence would need a`datetime`/UUID field or a non-str enum in a broadcast
+  `json.dumps(m.model_dump(mode=X))` is **byte-identical for X ∈ {"json", None,
+  "JSON", "XXjsonXX"}` (asserted True on `WebSocketAlertCreatedMessage`); the
+  remaining schemas are str/int/float-only where both modes are the identity
+  map. The payload tests observe on `redis.publish` is unchanged. Real-world
+  divergence would need a `datetime`/UUID field or a non-str enum in a broadcast
   schema — none exists today (that would be a schema-change tripwire worth a
   comment, not a test).
 - **C1/C4/C6 — log text.** Mutants only change the f-string argument to
@@ -119,7 +119,7 @@ divergence would need a`datetime`/UUID field or a non-str enum in a broadcast
   D3 pins the full key set + `retry_counts` value.
 - **C8** — `backend/tests/unit/services/test_event_broadcaster_new_events.py`:
   only `test_broadcast_zone_crossing_event` asserts the channel (`assert channel
-== broadcaster.CHANNEL_NAME` at :85); the dwell_started/dwell_alert/approach/
+  == broadcaster.CHANNEL_NAME` at :85); the dwell_started/dwell_alert/approach/
   entity/ai tests (`:87`, `:110`, `:140`, `:202`, `:262`) never assert it — that
   is precisely why 5× `_14` survived. D6 adds the channel assert for all five.
   Note `broadcaster._channel_name` and `CHANNEL_NAME` both derive from
@@ -377,11 +377,11 @@ async def test_resubscribe_for_supervisor_failure_returns_false() -> None:
 
 ## Covering test files (file:line anchors)
 
-| Function                                       | Covering test file                                                 | Anchor                                                                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `BroadcastRetryMetrics.to_dict`                | `backend/tests/unit/services/test_broadcast_retry.py`              | `test_to_dict` :72, `test_success_rate_zero_broadcasts` :89, integration `test_get_broadcast_metrics` ~:360        |
-| `EventBroadcaster.record_ack`                  | `backend/tests/unit/services/test_message_buffer.py`               | `TestEventBroadcasterAckTracking` :249 (`test_record_ack_stores_sequence` :277, `..._ignores_equal_sequence` :300) |
-| `EventBroadcaster._resubscribe_for_supervisor` | `backend/tests/unit/services/test_event_broadcaster.py`            | `test_handle_dead_listener_resubscribe_failure` :2205 (log-text only; success path + return value unasserted)      |
-| `broadcast_alert`                              | `backend/tests/unit/services/test_event_broadcaster_alert.py`      | `TestBroadcastAlert` :79+ (18 tests)                                                                               |
-| `broadcast_summary_update`                     | `backend/tests/unit/services/test_event_broadcaster_summary.py`    | `TestBroadcastSummaryUpdate` (11 tests) + `TestBroadcastSummaryUpdateMessageFormat`                                |
-| 5 new-event fns                                | `backend/tests/unit/services/test_event_broadcaster_new_events.py` | crossing :60 (channel assert :85), dwell_started :87, dwell_alert :110, approach :140, entity :202, ai :262        |
+| Function | Covering test file | Anchor |
+|---|---|---|
+| `BroadcastRetryMetrics.to_dict` | `backend/tests/unit/services/test_broadcast_retry.py` | `test_to_dict` :72, `test_success_rate_zero_broadcasts` :89, integration `test_get_broadcast_metrics` ~:360 |
+| `EventBroadcaster.record_ack` | `backend/tests/unit/services/test_message_buffer.py` | `TestEventBroadcasterAckTracking` :249 (`test_record_ack_stores_sequence` :277, `..._ignores_equal_sequence` :300) |
+| `EventBroadcaster._resubscribe_for_supervisor` | `backend/tests/unit/services/test_event_broadcaster.py` | `test_handle_dead_listener_resubscribe_failure` :2205 (log-text only; success path + return value unasserted) |
+| `broadcast_alert` | `backend/tests/unit/services/test_event_broadcaster_alert.py` | `TestBroadcastAlert` :79+ (18 tests) |
+| `broadcast_summary_update` | `backend/tests/unit/services/test_event_broadcaster_summary.py` | `TestBroadcastSummaryUpdate` (11 tests) + `TestBroadcastSummaryUpdateMessageFormat` |
+| 5 new-event fns | `backend/tests/unit/services/test_event_broadcaster_new_events.py` | crossing :60 (channel assert :85), dwell_started :87, dwell_alert :110, approach :140, entity :202, ai :262 |

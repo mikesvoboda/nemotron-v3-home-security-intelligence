@@ -13,16 +13,16 @@ Covering test files:
 
 ## Cluster table (counts sum to 100)
 
-| #   | Pattern                                                                                                                                                                                                                                         | Count | Classification | Example keys (≤3)                                                                               |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------- | ----------------------------------------------------------------------------------------------- |
-| 1   | Logger message text clobbered (`logger.X(str)` → `None` / `"XX…XX"` / case flips) in schedule_deletion, cancel_deletion, cancel_deletion_by_event_id, process_deletion_queue, delete_file, delete_files_immediately, start, stop                | 32    | EQUIVALENT     | schedule_deletion\_\_4, cancel_deletion\_\_20, stop\_\_6                                        |
-| 2   | Comparison operator mutated on **log-guard** `if` clauses (`cancelled_count > 0`→`>=0`/`>1`, `jobs_processed > 0`→`>=0`/`>1`, `files_deleted > 0 or files_failed > 0`→`and`/`>=0`/`>1`) — only gate a logger.info line, return values untouched | 9     | EQUIVALENT     | cancel_deletion_by_event_id\_\_31, process_deletion_queue\_\_36, delete_files_immediately\_\_15 |
-| 3   | **`redis.zrange(FILE_DELETION_QUEUE, 0, -1)` argument mutation** (key→None, offsets→None/1/+1/-2, args dropped) in cancel_deletion, cancel_deletion_by_event_id, get_pending_jobs_for_event                                                     | 27    | TEST-GAP       | cancel_deletion\_\_4, cancel_deletion_by_event_id\_\_15, get_pending_jobs_for_event\_\_12       |
-| 4   | **`redis.zrem(FILE_DELETION_QUEUE, job_json)` argument mutation** (key→None, member→None, arg dropped) in cancel_deletion, cancel_deletion_by_event_id, process_deletion_queue                                                                  | 12    | TEST-GAP       | cancel_deletion\_\_17, cancel_deletion_by_event_id\_\_23, process_deletion_queue\_\_29          |
-| 5   | **`redis.zrangebyscore(...)` argument mutation + `current_time = time.time()`→None** in process_deletion_queue (key/min/max/start/num clobbered, `"-inf"`→`"-INF"`/`"XX-infXX"`, `start=1`)                                                     | 14    | TEST-GAP       | process_deletion_queue\_\_3, process_deletion_queue\_\_9, process_deletion_queue\_\_17          |
-| 6   | `cancel_deletion_by_event_id`: redis-unavailable path `return 0` → `return 1` — caller sees "1 job cancelled" when nothing was                                                                                                                  | 1     | TEST-GAP       | cancel_deletion_by_event_id\_\_7                                                                |
-| 7   | `process_deletion_queue`: `jobs_processed += 1` → `jobs_processed = 1` — batch count collapses to 1 with ≥2 due jobs (return value is consumed by background worker/callers)                                                                    | 1     | TEST-GAP       | process_deletion_queue\_\_32                                                                    |
-| 8   | `start`: `asyncio.create_task(…, name="file-service-worker")` name clobbered/dropped (NEM-5057 diagnostic name; behaviorally inert)                                                                                                             | 4     | LOW-VALUE      | start\_\_9, start\_\_11, start\_\_12                                                            |
+| # | Pattern | Count | Classification | Example keys (≤3) |
+|---|---------|-------|----------------|-------------------|
+| 1 | Logger message text clobbered (`logger.X(str)` → `None` / `"XX…XX"` / case flips) in schedule_deletion, cancel_deletion, cancel_deletion_by_event_id, process_deletion_queue, delete_file, delete_files_immediately, start, stop | 32 | EQUIVALENT | schedule_deletion\_\_4, cancel_deletion\_\_20, stop\_\_6 |
+| 2 | Comparison operator mutated on **log-guard** `if` clauses (`cancelled_count > 0`→`>=0`/`>1`, `jobs_processed > 0`→`>=0`/`>1`, `files_deleted > 0 or files_failed > 0`→`and`/`>=0`/`>1`) — only gate a logger.info line, return values untouched | 9 | EQUIVALENT | cancel_deletion_by_event_id\_\_31, process_deletion_queue\_\_36, delete_files_immediately\_\_15 |
+| 3 | **`redis.zrange(FILE_DELETION_QUEUE, 0, -1)` argument mutation** (key→None, offsets→None/1/+1/-2, args dropped) in cancel_deletion, cancel_deletion_by_event_id, get_pending_jobs_for_event | 27 | TEST-GAP | cancel_deletion\_\_4, cancel_deletion_by_event_id\_\_15, get_pending_jobs_for_event\_\_12 |
+| 4 | **`redis.zrem(FILE_DELETION_QUEUE, job_json)` argument mutation** (key→None, member→None, arg dropped) in cancel_deletion, cancel_deletion_by_event_id, process_deletion_queue | 12 | TEST-GAP | cancel_deletion\_\_17, cancel_deletion_by_event_id\_\_23, process_deletion_queue\_\_29 |
+| 5 | **`redis.zrangebyscore(...)` argument mutation + `current_time = time.time()`→None** in process_deletion_queue (key/min/max/start/num clobbered, `"-inf"`→`"-INF"`/`"XX-infXX"`, `start=1`) | 14 | TEST-GAP | process_deletion_queue\_\_3, process_deletion_queue\_\_9, process_deletion_queue\_\_17 |
+| 6 | `cancel_deletion_by_event_id`: redis-unavailable path `return 0` → `return 1` — caller sees "1 job cancelled" when nothing was | 1 | TEST-GAP | cancel_deletion_by_event_id\_\_7 |
+| 7 | `process_deletion_queue`: `jobs_processed += 1` → `jobs_processed = 1` — batch count collapses to 1 with ≥2 due jobs (return value is consumed by background worker/callers) | 1 | TEST-GAP | process_deletion_queue\_\_32 |
+| 8 | `start`: `asyncio.create_task(…, name="file-service-worker")` name clobbered/dropped (NEM-5057 diagnostic name; behaviorally inert) | 4 | LOW-VALUE | start\_\_9, start\_\_11, start\_\_12 |
 
 **Totals: EQUIVALENT 41, TEST-GAP 55, LOW-VALUE 4 = 100.**
 
@@ -199,14 +199,14 @@ TDD procedure for each: add test → run it against the mutant copy (`mutants/ba
 
 ### Kill accounting for drafted tests
 
-| Draft   | Cluster killed      | Mutant keys                                           | Count |
-| ------- | ------------------- | ----------------------------------------------------- | ----- |
-| D1      | 3 (cancel_deletion) | cancel_deletion\_\_4–12                               | 9     |
-| D2      | 3 (cbei) + 6        | cancel_deletion_by_event_id\_\_9–17, \_\_7            | 10    |
-| D3      | 3 (gpjfe)           | get_pending_jobs_for_event\_\_4–12                    | 9     |
-| D4a/b/c | 4                   | cancel_deletion\_\_16–19, cbei\_\_23–26, pdq\_\_28–31 | 12    |
-| D5      | 5                   | process_deletion_queue\_\_3, \_\_5–17                 | 14    |
-| D6      | 7                   | process_deletion_queue\_\_32                          | 1     |
+| Draft | Cluster killed | Mutant keys | Count |
+|-------|----------------|-------------|-------|
+| D1 | 3 (cancel_deletion) | cancel_deletion\_\_4–12 | 9 |
+| D2 | 3 (cbei) + 6 | cancel_deletion_by_event_id\_\_9–17, \_\_7 | 10 |
+| D3 | 3 (gpjfe) | get_pending_jobs_for_event\_\_4–12 | 9 |
+| D4a/b/c | 4 | cancel_deletion\_\_16–19, cbei\_\_23–26, pdq\_\_28–31 | 12 |
+| D5 | 5 | process_deletion_queue\_\_3, \_\_5–17 | 14 |
+| D6 | 7 | process_deletion_queue\_\_32 | 1 |
 
 Potential kills: 55 (all TEST-GAP survivors). Clusters 1–2 (EQUIVALENT) and 8 (LOW-VALUE, optional one-liner) intentionally left surviving.
 

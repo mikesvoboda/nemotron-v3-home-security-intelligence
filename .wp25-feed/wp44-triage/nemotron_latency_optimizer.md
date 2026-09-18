@@ -5,7 +5,6 @@ survivor count may grow as the live run progresses; this dossier covers the 131 
 
 **Covering test file (the module's only one):**
 `backend/tests/unit/services/test_nemotron_latency_optimizer.py`
-
 - `TestLatencyStats` L57–105 (`test_to_dict` L89–105)
 - `TestNemotronLatencyOptimizer` L108–229 (`should_process_request` L118–128, `record_latency` L130–165,
   `get_adaptive_timeout` L167–203, `reset_circuit` L205–216, `get_status` L218–229)
@@ -41,36 +40,36 @@ All diffs were extracted with `uv run mutmut show <key>` (read-only; full dump a
 
 ## Cluster table (counts sum to 131)
 
-| #   | Cluster (function — mutation pattern)                                                                                                                                                           | n   | Class        | Example keys (suffix)                                                                                                                  |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `get_nemotron_optimizer` — config kwarg dropped / set to None (falls back to identical dataclass default)                                                                                       | 20  | EQUIVALENT   | `_mutmut_10, _12, _20`                                                                                                                 |
-| 2   | `get_nemotron_optimizer` — whole `config=LatencyOptimizerConfig(...)` → `config=None` (`config or LatencyOptimizerConfig()` → same values)                                                      | 1   | EQUIVALENT   | `_2`                                                                                                                                   |
-| 3   | `get_nemotron_optimizer` — **singleton config numeric bump** (`10.0→11.0`, `30.0→31.0`, `20→21`, `50→51`, `5→6`, `60.0→61.0`, `2.0→3.0`, and ctor `config=config→None`)                         | 9   | **TEST-GAP** | `_21, _22, _24`                                                                                                                        |
-| 4   | `get_nemotron_optimizer` — `redis_client` arg dropped/None'd (field never read)                                                                                                                 | 2   | EQUIVALENT   | `_32, _34`                                                                                                                             |
-| 5   | `get_nemotron_optimizer` — `logger.info` message text mutations                                                                                                                                 | 4   | EQUIVALENT   | `_35, _36, _37`                                                                                                                        |
-| 6   | `LatencyStats.to_dict` — **`p95_latency_seconds` value mutations** (round-arg None/empty/4, and `round(3)` constant)                                                                            | 5   | **TEST-GAP** | `to_dict__4-equiv,_11,_12,_14` (full set: 4,6,11,12,13,14 of which 4/6 equiv-flavored; cluster kept whole — killed together by test B) |
-| 7   | `LatencyStats.to_dict` — **`p95_latency_seconds` key rename** (consumed by API schema + frontend, unasserted)                                                                                   | 1   | **TEST-GAP** | `to_dict__8`                                                                                                                           |
-| 8   | `LatencyStats.to_dict` — `rolling_average_seconds` round-arg mutation (`None`/empty = identity on tested int-valued floats; `3→4` unobservable at asserted precision)                           | 3   | EQUIVALENT   | `to_dict__4, _6, _7`                                                                                                                   |
-| 9   | `LatencyStats.to_dict` — `last_latency_seconds` round-arg mutation (same reasoning)                                                                                                             | 3   | EQUIVALENT   | `to_dict__18, _20, _21`                                                                                                                |
-| 10  | `record_latency` — log text/extra mutations across all 3 call sites (warning/error/debug; msg→None, case flips, XX-clobber, extra key renames, extra→None)                                      | 34  | EQUIVALENT   | `rl__13, _17, _36`                                                                                                                     |
-| 11  | `record_latency` — **`total_requests += 1` → `= 1`** (counter reset each call; test only ever asserts after 1 call)                                                                             | 1   | **TEST-GAP** | `rl__1`                                                                                                                                |
-| 12  | `record_latency` — **`circuit_trips += 1` → `= 1`** (second trip never counted)                                                                                                                 | 1   | **TEST-GAP** | `rl__31`                                                                                                                               |
-| 13  | `record_latency` — **`was_open = self._circuit.state == OPEN` → `was_open = None`** (double-trip would double-count `circuit_trips`)                                                            | 1   | **TEST-GAP** | `rl__26`                                                                                                                               |
-| 14  | `record_latency` — **`NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)`→`set(2)` on trip and `set(0)`→`set(1)` on closed** (gauge never asserted)                                                            | 2   | **TEST-GAP** | `rl__35, _51`                                                                                                                          |
-| 15  | `record_latency` — **success-branch gauge condition `== CLOSED` → `!= CLOSED`**                                                                                                                 | 1   | **TEST-GAP** | `rl__49`                                                                                                                               |
-| 16  | `record_latency` — **threshold `>` → `>=`** at exactly 15.0 (= config boundary; no test runs the boundary)                                                                                      | 1   | **TEST-GAP** | `rl__9`                                                                                                                                |
-| 17  | `record_latency` — `last_sample_time = None` (field has no readers)                                                                                                                             | 1   | EQUIVALENT   | `rl__6`                                                                                                                                |
-| 18  | `reset_circuit` — **`NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)` → `set(1)`**                                                                                                                          | 1   | **TEST-GAP** | `rc__4`                                                                                                                                |
-| 19  | `reset_circuit` — `logger.info` text mutations                                                                                                                                                  | 4   | EQUIVALENT   | `rc__5, _6, _7`                                                                                                                        |
-| 20  | `should_process_request` — log text/extra mutations on both shed paths + caution path                                                                                                           | 20  | EQUIVALENT   | `spr__7, _11, _21`                                                                                                                     |
-| 21  | `should_process_request` — **queue bound `>=` → `>` (off-by-one: request at exactly `max_queue_depth` stops being shed)**                                                                       | 1   | **TEST-GAP** | `spr__2`                                                                                                                               |
-| 22  | `should_process_request` — **shed-metric label `reason=LoadSheddingReason.QUEUE_TOO_DEEP.value` → `reason=None`** (wrong Prometheus label → dashboards/alerts silently miscount)                | 1   | **TEST-GAP** | `spr__3`                                                                                                                               |
-| 23  | `should_process_request` — **`shed_requests += 1` → `= 1`** (test only asserts after a single shed)                                                                                             | 1   | **TEST-GAP** | `spr__4`                                                                                                                               |
-| 24  | `should_process_request` — caution-path warn threshold `>` → `>=` (warning-only branch, then `return True`; observable only via logs)                                                           | 1   | LOW-VALUE    | `spr__19`                                                                                                                              |
-| 25  | `get_status` — **`config` subdict key renames** (all 4 keys × XX/UPPER variants; `test_get_status` only checks `"config" in status`)                                                            | 8   | **TEST-GAP** | `gs__11, _12, _13`                                                                                                                     |
-| 26  | `get_status` — **`consecutive_high_latency` key rename** (consumed by `backend/api/routes/system.py`; test never checks it)                                                                     | 2   | **TEST-GAP** | `gs__5, _6`                                                                                                                            |
-| 27  | `get_adaptive_timeout` — **`>` → `>=`** at `rolling_average == target` (boundary never run: tests use avg 0 or 10 vs target 5)                                                                  | 1   | **TEST-GAP** | `gat__10`                                                                                                                              |
-| 28  | `get_adaptive_timeout` — **`latency_factor = avg / target` → `avg * target`** (timeout INFLATES under high latency: 60/2=30 becomes 60/50→clamped 5; integration test only asserts `< initial`) | 1   | **TEST-GAP** | `gat__12`                                                                                                                              |
+| # | Cluster (function — mutation pattern) | n | Class | Example keys (suffix) |
+|---|----------------------------------------|---|-------|------------------------|
+| 1 | `get_nemotron_optimizer` — config kwarg dropped / set to None (falls back to identical dataclass default) | 20 | EQUIVALENT | `_mutmut_10, _12, _20` |
+| 2 | `get_nemotron_optimizer` — whole `config=LatencyOptimizerConfig(...)` → `config=None` (`config or LatencyOptimizerConfig()` → same values) | 1 | EQUIVALENT | `_2` |
+| 3 | `get_nemotron_optimizer` — **singleton config numeric bump** (`10.0→11.0`, `30.0→31.0`, `20→21`, `50→51`, `5→6`, `60.0→61.0`, `2.0→3.0`, and ctor `config=config→None`) | 9 | **TEST-GAP** | `_21, _22, _24` |
+| 4 | `get_nemotron_optimizer` — `redis_client` arg dropped/None'd (field never read) | 2 | EQUIVALENT | `_32, _34` |
+| 5 | `get_nemotron_optimizer` — `logger.info` message text mutations | 4 | EQUIVALENT | `_35, _36, _37` |
+| 6 | `LatencyStats.to_dict` — **`p95_latency_seconds` value mutations** (round-arg None/empty/4, and `round(3)` constant) | 5 | **TEST-GAP** | `to_dict__4-equiv,_11,_12,_14` (full set: 4,6,11,12,13,14 of which 4/6 equiv-flavored; cluster kept whole — killed together by test B) |
+| 7 | `LatencyStats.to_dict` — **`p95_latency_seconds` key rename** (consumed by API schema + frontend, unasserted) | 1 | **TEST-GAP** | `to_dict__8` |
+| 8 | `LatencyStats.to_dict` — `rolling_average_seconds` round-arg mutation (`None`/empty = identity on tested int-valued floats; `3→4` unobservable at asserted precision) | 3 | EQUIVALENT | `to_dict__4, _6, _7` |
+| 9 | `LatencyStats.to_dict` — `last_latency_seconds` round-arg mutation (same reasoning) | 3 | EQUIVALENT | `to_dict__18, _20, _21` |
+| 10 | `record_latency` — log text/extra mutations across all 3 call sites (warning/error/debug; msg→None, case flips, XX-clobber, extra key renames, extra→None) | 34 | EQUIVALENT | `rl__13, _17, _36` |
+| 11 | `record_latency` — **`total_requests += 1` → `= 1`** (counter reset each call; test only ever asserts after 1 call) | 1 | **TEST-GAP** | `rl__1` |
+| 12 | `record_latency` — **`circuit_trips += 1` → `= 1`** (second trip never counted) | 1 | **TEST-GAP** | `rl__31` |
+| 13 | `record_latency` — **`was_open = self._circuit.state == OPEN` → `was_open = None`** (double-trip would double-count `circuit_trips`) | 1 | **TEST-GAP** | `rl__26` |
+| 14 | `record_latency` — **`NEMOTRON_CIRCUIT_STATE_GAUGE.set(1)`→`set(2)` on trip and `set(0)`→`set(1)` on closed** (gauge never asserted) | 2 | **TEST-GAP** | `rl__35, _51` |
+| 15 | `record_latency` — **success-branch gauge condition `== CLOSED` → `!= CLOSED`** | 1 | **TEST-GAP** | `rl__49` |
+| 16 | `record_latency` — **threshold `>` → `>=`** at exactly 15.0 (= config boundary; no test runs the boundary) | 1 | **TEST-GAP** | `rl__9` |
+| 17 | `record_latency` — `last_sample_time = None` (field has no readers) | 1 | EQUIVALENT | `rl__6` |
+| 18 | `reset_circuit` — **`NEMOTRON_CIRCUIT_STATE_GAUGE.set(0)` → `set(1)`** | 1 | **TEST-GAP** | `rc__4` |
+| 19 | `reset_circuit` — `logger.info` text mutations | 4 | EQUIVALENT | `rc__5, _6, _7` |
+| 20 | `should_process_request` — log text/extra mutations on both shed paths + caution path | 20 | EQUIVALENT | `spr__7, _11, _21` |
+| 21 | `should_process_request` — **queue bound `>=` → `>` (off-by-one: request at exactly `max_queue_depth` stops being shed)** | 1 | **TEST-GAP** | `spr__2` |
+| 22 | `should_process_request` — **shed-metric label `reason=LoadSheddingReason.QUEUE_TOO_DEEP.value` → `reason=None`** (wrong Prometheus label → dashboards/alerts silently miscount) | 1 | **TEST-GAP** | `spr__3` |
+| 23 | `should_process_request` — **`shed_requests += 1` → `= 1`** (test only asserts after a single shed) | 1 | **TEST-GAP** | `spr__4` |
+| 24 | `should_process_request` — caution-path warn threshold `>` → `>=` (warning-only branch, then `return True`; observable only via logs) | 1 | LOW-VALUE | `spr__19` |
+| 25 | `get_status` — **`config` subdict key renames** (all 4 keys × XX/UPPER variants; `test_get_status` only checks `"config" in status`) | 8 | **TEST-GAP** | `gs__11, _12, _13` |
+| 26 | `get_status` — **`consecutive_high_latency` key rename** (consumed by `backend/api/routes/system.py`; test never checks it) | 2 | **TEST-GAP** | `gs__5, _6` |
+| 27 | `get_adaptive_timeout` — **`>` → `>=`** at `rolling_average == target` (boundary never run: tests use avg 0 or 10 vs target 5) | 1 | **TEST-GAP** | `gat__10` |
+| 28 | `get_adaptive_timeout` — **`latency_factor = avg / target` → `avg * target`** (timeout INFLATES under high latency: 60/2=30 becomes 60/50→clamped 5; integration test only asserts `< initial`) | 1 | **TEST-GAP** | `gat__12` |
 
 Keys are suffixed from `backend.services.nemotron_latency_optimizer.<mangled>__mutmut_N`;
 `rl`=record_latency, `spr`=should_process_request, `gs`=get_status, `rc`=reset_circuit, `gat`=get_adaptive_timeout.
@@ -79,7 +78,7 @@ Keys are suffixed from `backend.services.nemotron_latency_optimizer.<mangled>__m
 
 Why 92 are EQUIVALENT rather than gaps: 63 mutants are pure log message/`extra`-dict text (no test in this
 repo asserts module log text); 21 are `get_nemotron_optimizer` config-kwarg/redis removals whose mutant
-semantics are _bit-identical_ to the original (dataclass defaults equal the literals, `config or default`
+semantics are *bit-identical* to the original (dataclass defaults equal the literals, `config or default`
 fallback, `_redis` unread); 6 are round-arg tweaks on already-3-decimal values; 1 writes a field with zero
 readers.
 
@@ -101,7 +100,6 @@ from backend.services.nemotron_latency_optimizer import (
 ```
 
 ### Test A — singleton config pins the operating envelope
-
 **Kills:** cluster 3 (9) + cluster 2 (1, as a bonus guard). **Target:** `backend/tests/unit/services/test_nemotron_latency_optimizer.py`, class `TestGlobalOptimizer`.
 A single mutant of the documented operating envelope (NEM-4522: circuit opens at 30s avg, max 50 queued,
 5-strike threshold) is exactly what the mutation run flagged as drifting silently.
@@ -127,13 +125,11 @@ A single mutant of the documented operating envelope (NEM-4522: circuit opens at
         assert cfg.min_adaptive_timeout == 30.0
         assert cfg.adaptive_timeout_queue_factor == 2.0
 ```
-
 Red on: any `_21`…`_29` +1 bump (e.g. `max_queue_depth=51`), and `config=None` mutants
-(they keep defaults equal to the _dataclass_, equal to expectations — those stay EQUIVALENT by design).
+(they keep defaults equal to the *dataclass*, equal to expectations — those stay EQUIVALENT by design).
 Green on original.
 
 ### Test B — to_dict exposes p95 under its contract key
-
 **Kills:** clusters 6, 7 (6). **Target:** class `TestLatencyStats`. The API schema
 (`backend/api/schemas/system.py`) and generated frontend types both consume `p95_latency_seconds`,
 but no test ever reads it — a mutant can return the constant `3` there.
@@ -158,12 +154,10 @@ but no test ever reads it — a mutant can return the constant `3` there.
         assert result["rolling_average_seconds"] == round(stats.rolling_average, 3)
         assert result["last_latency_seconds"] == round(19.123456, 3)
 ```
-
 Red on: key renames (`"XXp95_latency_secondsXX"`, `"P95_LATENCY_SECONDS"`), `round(3)` constant,
 `round(x)`→int coercion (19.0 vs 19 — passes `==` but `round(19.123456)` = 19 ≠ 19.123). Green on original.
 
 ### Test C — record_latency counters + circuit-state gauge track the state machine
-
 **Kills:** clusters 11, 12, 13, 14, 15, 16 (7). **Target:** class `TestNemotronLatencyOptimizer`.
 
 ```python
@@ -200,7 +194,6 @@ Red on: key renames (`"XXp95_latency_secondsXX"`, `"P95_LATENCY_SECONDS"`), `rou
         # A manual reset must not double-count a trip and pins gauge 0
         assert optimizer.stats.circuit_trips == 1
 ```
-
 Note: `record_failure` opens at exactly `failure_threshold` (circuit_breaker.py L802–819) and
 `reset()` → CLOSED; `record_success` twice closes the half-open... — if HALF_OPEN→CLOSED needs
 `success_threshold=2` it is satisfied by the two 1.0s records. Red on: `total_requests = 1` (expects 3), `circuit_trips` counting, `was_open=None` (re-trip would
@@ -209,7 +202,6 @@ kept as guard), gauge 2-on-open / 1-on-closed mutants, the `!= CLOSED` gauge con
 boundary record (`15.0 > 15.0` is False on original → 0; `>=` mutant → 1).
 
 ### Test D — should_process_request sheds at exactly max_queue_depth and labels the metric correctly
-
 **Kills:** clusters 21, 22, 23 (3). **Target:** class `TestNemotronLatencyOptimizer`.
 
 ```python
@@ -237,13 +229,11 @@ boundary record (`15.0 > 15.0` is False on original → 0; `>=` mutant → 1).
             == before + 2
         )
 ```
-
 `LoadSheddingReason.QUEUE_TOO_DEEP.value == "queue_too_deep"` (StrEnum auto, verified). Red on `reason=None`
 (the "queue_too_deep" child never increments — `None` child is created instead), on `>` (first boundary
 call returns True), and on `shed_requests = 1`.
 
 ### Test E — get_status reports the full API contract
-
 **Kills:** clusters 25, 26 (10). **Target:** class `TestNemotronLatencyOptimizer` (extends existing `test_get_status` spirit; consume-only keys renamed by the API schema — `backend/api/routes/system.py`).
 
 ```python
@@ -287,7 +277,6 @@ call returns True), and on `shed_requests = 1`.
 ```
 
 ### Test F — reset_circuit pins the gauge to CLOSED + adaptive timeout exact math
-
 **Kills:** cluster 18 (1) and clusters 27, 28 (2). **Target:** class `TestNemotronLatencyOptimizer`.
 (Folded: two small tests, one per behavior.)
 
@@ -314,10 +303,9 @@ call returns True), and on `shed_requests = 1`.
         opt2.record_latency(10.0)
         assert opt2.get_adaptive_timeout(base_timeout=60.0) == 60.0
 ```
-
 `gat__12` (`/`→`*`): factor = 10*5=50 → 60/50=1.2 → clamped to 5.0 ≠ 30.0 → red.
 `gat__10` (`>`→`>=`): second block returns 60/1.0=60 on mutant → 60.0 == 60.0 — hmm: on mutant the
-factor branch engages, `60 / (10/10=1.0)` = 60.0 → SAME. This mutant instead flips the *equal-average\*
+factor branch engages, `60 / (10/10=1.0)` = 60.0 → SAME. This mutant instead flips the *equal-average*
 path only when factor≠1; it is only killable via a record whose avg equals target while timeout math
 differs — i.e. avg==target always gives factor 1.0, so `>` vs `>=` at equality is genuinely
 **equivalent on this code** (division by 1.0 is the identity). Demote cluster 27 to EQUIVALENT —

@@ -1,6 +1,6 @@
 ---
 name: py-version-skew-annotation-hazard
-description: 'CI resolves Python 3.14 -> 3.14.2 while the sandbox runs 3.14.4; mock only passes FORWARDREF on 3.14.4, so unquoted TYPE_CHECKING annotations pass locally but NameError at create_autospec on CI'
+description: "CI resolves Python 3.14 -> 3.14.2 while the sandbox runs 3.14.4; mock only passes FORWARDREF on 3.14.4, so unquoted TYPE_CHECKING annotations pass locally but NameError at create_autospec on CI"
 metadata:
   node_type: memory
   type: project

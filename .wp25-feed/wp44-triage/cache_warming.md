@@ -10,45 +10,45 @@ Every test in `test_cache_warming.py` asserts **counts and order only** (`succes
 
 ## Test-file anchors (backend/tests/unit/services/test_cache_warming.py)
 
-| Test                            | Line        |
-| ------------------------------- | ----------- |
-| test_warm_all_disabled          | :148        |
-| test_warm_parallel_success      | :162        |
-| test_warm_sequential_success    | :188        |
-| test_warm_handles_failure       | :217        |
-| test_warm_timeout               | :241        |
+| Test | Line |
+| --- | --- |
+| test_warm_all_disabled | :148 |
+| test_warm_parallel_success | :162 |
+| test_warm_sequential_success | :188 |
+| test_warm_handles_failure | :217 |
+| test_warm_timeout | :241 |
 | test_singleton_creation / reset | :265 / :279 |
-| test_warm_caches_on_startup     | :298        |
-| test_register_default_warmers   | :316        |
-| test_warm_cameras_returns_count | :331        |
-| test_warm_system_status         | :373        |
+| test_warm_caches_on_startup | :298 |
+| test_register_default_warmers | :316 |
+| test_warm_cameras_returns_count | :331 |
+| test_warm_system_status | :373 |
 
 ## Cluster table (14 clusters, counts sum to 100)
 
-Key shorthand: `wa`=CacheWarmer.warm*all, `wp`=CacheWarmer.\_warm_parallel, `ws`=CacheWarmer.\_warm_sequential, `wc`=CacheWarmer.\_warm_cameras, `wss`=CacheWarmer.\_warm_system_status, `rdw`=CacheWarmer.\_register_default_warmers, `gcw`=get_cache_warmer. Full key = `backend.services.cache_warming.x[ǁCacheWarmerǁ]<fn>\_\_mutmut*<n>`.
+Key shorthand: `wa`=CacheWarmer.warm_all, `wp`=CacheWarmer._warm_parallel, `ws`=CacheWarmer._warm_sequential, `wc`=CacheWarmer._warm_cameras, `wss`=CacheWarmer._warm_system_status, `rdw`=CacheWarmer._register_default_warmers, `gcw`=get_cache_warmer. Full key = `backend.services.cache_warming.x[ǁCacheWarmerǁ]<fn>__mutmut_<n>`.
 
-| #   | Pattern                                                                                                                                                                                                                                                                    | n   | Class      | Example keys               | Kills                                                                                                                                                                                |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Log **message text** mutated (`logger.info/debug/warning` msg → `None`, `"XX…XX"`, lower/UPPER case): wa 3,4,5,6,15,40; wp 37; wc 24; wss 23,24,25,26                                                                                                                      | 12  | EQUIVALENT | wa**3, wp**37, wss\_\_24   | nobody captures logger msg text; pure display strings                                                                                                                                |
-| 2   | Log `extra=` structured payload mutated (dict key rename/case, `extra=None`, `extra=` kwarg deleted): wa 16,18,19,20,21,22,41,43,44,45,46,47,48,49,50,51,52,53                                                                                                             | 18  | LOW-VALUE  | wa**16, wa**44, wa\_\_53   | structured fields feed log pipelines, not return values; no caplog-based contract in this suite                                                                                      |
-| 3   | wa\_\_12: `results=[]` kwarg removed from disabled-branch `WarmingReport` — `field(default_factory=list)` re-supplies `[]`                                                                                                                                                 | 1   | EQUIVALENT | wa\_\_12                   | structurally identical output                                                                                                                                                        |
-| 4   | **Duration arithmetic / None assignments never asserted**: `(perf_counter()-start)*1000` → `/1000`, `+start`, `*1001`, or `duration=None`; and `duration_ms=`/`total_duration_ms=` → `None`. wa 30,31,32,35; wp 7,8,9,10,13,20,21,22,23,26,33,34,35,36,40; ws 8,9,10,11,15 | 24  | TEST-GAP   | wa**30, wp**8, ws\_\_9     | test asserts `total_duration_ms == 0` only on the disabled path (:159); durations otherwise unobserved → **D1**                                                                      |
-| 5   | **WarmingResult identity fields clobbered**: `cache_name=name`→`None` at result construction (wp 11,24,38; call-site `run_warmer(None, fn)` wp**49; ws**13) and `items_cached=items` dropped (ws\_\_20, defaults to 0)                                                     | 6   | TEST-GAP   | wp**11, wp**49, ws\_\_20   | tests index results by position or filter on `success`, never check `cache_name`; sequential test skips `total_items_cached` (:213) → **D4**                                         |
-| 6   | `success=False` → `success=None` in timeout/exception results (wp 25,39) — falsy, so report tallies unchanged                                                                                                                                                              | 2   | TEST-GAP   | wp**25, wp**39             | existing `assert not failed_result.success` (:258) passes on None; needs `is False` → **D4**                                                                                         |
-| 7   | `strategy=self._strategy` → `None` in both returned reports (wa 7,34)                                                                                                                                                                                                      | 2   | TEST-GAP   | wa**7, wa**34              | no test reads `report.strategy` → **D1**                                                                                                                                             |
-| 8   | wa\_\_24: `results: list[WarmingResult] = []` → `None` — if `warm_all` catches an internal error, report build/`successful_count` raises TypeError instead of returning a graceful empty report (violates the documented fail-soft contract)                               | 1   | TEST-GAP   | wa\_\_24                   | no test forces the outer except-branch → **D1**                                                                                                                                      |
-| 9   | ws\_\_5: sequential `asyncio.wait_for(fn(), timeout=self._timeout)` → `timeout=None` — sequential path loses all timeout enforcement                                                                                                                                       | 1   | TEST-GAP   | ws\_\_5                    | timeout test is PARALLEL-only (:241-259); a hung sequential warmer would wedge startup → **D6**                                                                                      |
-| 10  | **\_warm_cameras cache.set contract unasserted**: cache key `None`/rename/dropped (16,19,22,23), payload `None`/dropped (17,20), payload dict keys `id/name/folder_path/status` renamed XX/UPPER (7,8,9,10,11,12,13,14,15), `ttl=None`/dropped (18,21)                     | 17  | TEST-GAP   | wc**16, wc**8, wc\_\_18    | test asserts only `count == 1` and `set.assert_called_once()` (:370-371) → **D2**                                                                                                    |
-| 11  | wc 4,5: DB query clobbered — `session.execute(None)`, `select(None)` — statement never inspected                                                                                                                                                                           | 2   | TEST-GAP   | wc**4, wc**5               | `AsyncMock` accepts any statement → **D2**                                                                                                                                           |
-| 12  | **\_warm_system_status payload/ttl unasserted**: dict keys `environment`, `warmed_at` renamed XX/UPPER (8,9,10,11), `ttl=None`/`ttl=` dropped (17,20)                                                                                                                      | 6   | TEST-GAP   | wss**8, wss**10, wss\_\_17 | existing test checks key + `app_name` + `app_version` only (:397-400) → **D5**                                                                                                       |
-| 13  | rdw 2,8,14: default warmer registered as `register_warmer("cameras", None)` etc. — warming that cache would crash                                                                                                                                                          | 3   | TEST-GAP   | rdw**2, rdw**14            | test asserts names present only (:326-329), not the callables → **bonus edit B1**                                                                                                    |
-| 14  | **get_cache_warmer singleton ignores settings**: `strategy` local → None (3), `strategy=` → None / kwarg removed (6,8), `timeout_seconds=` → None / removed (7,9)                                                                                                          | 5   | TEST-GAP   | gcw**3, gcw**7, gcw\_\_9   | singleton tests assert identity only (:276,:291); invisible under mock settings (`"parallel"`, `30.0`) because those equal the defaults — diverge on any non-default config → **D3** |
+| # | Pattern | n | Class | Example keys | Kills |
+|---|---|---|---|---|---|
+| 1 | Log **message text** mutated (`logger.info/debug/warning` msg → `None`, `"XX…XX"`, lower/UPPER case): wa 3,4,5,6,15,40; wp 37; wc 24; wss 23,24,25,26 | 12 | EQUIVALENT | wa__3, wp__37, wss__24 | nobody captures logger msg text; pure display strings |
+| 2 | Log `extra=` structured payload mutated (dict key rename/case, `extra=None`, `extra=` kwarg deleted): wa 16,18,19,20,21,22,41,43,44,45,46,47,48,49,50,51,52,53 | 18 | LOW-VALUE | wa__16, wa__44, wa__53 | structured fields feed log pipelines, not return values; no caplog-based contract in this suite |
+| 3 | wa__12: `results=[]` kwarg removed from disabled-branch `WarmingReport` — `field(default_factory=list)` re-supplies `[]` | 1 | EQUIVALENT | wa__12 | structurally identical output |
+| 4 | **Duration arithmetic / None assignments never asserted**: `(perf_counter()-start)*1000` → `/1000`, `+start`, `*1001`, or `duration=None`; and `duration_ms=`/`total_duration_ms=` → `None`. wa 30,31,32,35; wp 7,8,9,10,13,20,21,22,23,26,33,34,35,36,40; ws 8,9,10,11,15 | 24 | TEST-GAP | wa__30, wp__8, ws__9 | test asserts `total_duration_ms == 0` only on the disabled path (:159); durations otherwise unobserved → **D1** |
+| 5 | **WarmingResult identity fields clobbered**: `cache_name=name`→`None` at result construction (wp 11,24,38; call-site `run_warmer(None, fn)` wp__49; ws__13) and `items_cached=items` dropped (ws__20, defaults to 0) | 6 | TEST-GAP | wp__11, wp__49, ws__20 | tests index results by position or filter on `success`, never check `cache_name`; sequential test skips `total_items_cached` (:213) → **D4** |
+| 6 | `success=False` → `success=None` in timeout/exception results (wp 25,39) — falsy, so report tallies unchanged | 2 | TEST-GAP | wp__25, wp__39 | existing `assert not failed_result.success` (:258) passes on None; needs `is False` → **D4** |
+| 7 | `strategy=self._strategy` → `None` in both returned reports (wa 7,34) | 2 | TEST-GAP | wa__7, wa__34 | no test reads `report.strategy` → **D1** |
+| 8 | wa__24: `results: list[WarmingResult] = []` → `None` — if `warm_all` catches an internal error, report build/`successful_count` raises TypeError instead of returning a graceful empty report (violates the documented fail-soft contract) | 1 | TEST-GAP | wa__24 | no test forces the outer except-branch → **D1** |
+| 9 | ws__5: sequential `asyncio.wait_for(fn(), timeout=self._timeout)` → `timeout=None` — sequential path loses all timeout enforcement | 1 | TEST-GAP | ws__5 | timeout test is PARALLEL-only (:241-259); a hung sequential warmer would wedge startup → **D6** |
+| 10 | **_warm_cameras cache.set contract unasserted**: cache key `None`/rename/dropped (16,19,22,23), payload `None`/dropped (17,20), payload dict keys `id/name/folder_path/status` renamed XX/UPPER (7,8,9,10,11,12,13,14,15), `ttl=None`/dropped (18,21) | 17 | TEST-GAP | wc__16, wc__8, wc__18 | test asserts only `count == 1` and `set.assert_called_once()` (:370-371) → **D2** |
+| 11 | wc 4,5: DB query clobbered — `session.execute(None)`, `select(None)` — statement never inspected | 2 | TEST-GAP | wc__4, wc__5 | `AsyncMock` accepts any statement → **D2** |
+| 12 | **_warm_system_status payload/ttl unasserted**: dict keys `environment`, `warmed_at` renamed XX/UPPER (8,9,10,11), `ttl=None`/`ttl=` dropped (17,20) | 6 | TEST-GAP | wss__8, wss__10, wss__17 | existing test checks key + `app_name` + `app_version` only (:397-400) → **D5** |
+| 13 | rdw 2,8,14: default warmer registered as `register_warmer("cameras", None)` etc. — warming that cache would crash | 3 | TEST-GAP | rdw__2, rdw__14 | test asserts names present only (:326-329), not the callables → **bonus edit B1** |
+| 14 | **get_cache_warmer singleton ignores settings**: `strategy` local → None (3), `strategy=` → None / kwarg removed (6,8), `timeout_seconds=` → None / removed (7,9) | 5 | TEST-GAP | gcw__3, gcw__7, gcw__9 | singleton tests assert identity only (:276,:291); invisible under mock settings (`"parallel"`, `30.0`) because those equal the defaults — diverge on any non-default config → **D3** |
 
 Totals (folded from the table, key-set verified against the meta: 100 assigned, 0 overlap, 0 missing): EQUIVALENT 13 (clusters 1,3), LOW-VALUE 18 (cluster 2), TEST-GAP 69 (clusters 4-14). 12+18+1+24+6+2+2+1+1+17+2+6+3+5 = **100**.
 
 Highest-value gaps: cluster 4 (24 mutants, duration metric is the report's headline number), 10+11 (19 mutants — `_warm_cameras` effectively has no cache-write contract), 14 (config plumbing entirely untested), 9 (safety behavior missing on one of two strategies), 5+6+7+8 (report/result contract).
 
-## Drafted tests // UNVERIFIED — not yet run red/green
+## Drafted tests  // UNVERIFIED — not yet run red/green
 
 All additions go in `backend/tests/unit/services/test_cache_warming.py`, reusing the existing `mock_settings` fixture (:19) and AsyncMock/patch style. TDD procedure for each: run against the mutant copy → the named assertion fails (or the call errors), run against original → passes.
 
@@ -314,7 +314,7 @@ class TestWarmingResultFields:
         assert all(isinstance(r.duration_ms, float) for r in report.results)
 ```
 
-Note on wp\_\_21/\_23 and ws timeout/exception-branch `/1000`,`+`,`*1001` tweaks: `isinstance` catches only the `None` variants. They are already inside cluster 4's count; to fold them into green coverage, mirror D1's fake-clock setup with a sleeping warmer (UNVERIFIED complexity — acceptable to leave; a single exact-duration-per-branch test each, same clock trick, kills them).
+Note on wp__21/_23 and ws timeout/exception-branch `/1000`,`+`,`*1001` tweaks: `isinstance` catches only the `None` variants. They are already inside cluster 4's count; to fold them into green coverage, mirror D1's fake-clock setup with a sleeping warmer (UNVERIFIED complexity — acceptable to leave; a single exact-duration-per-branch test each, same clock trick, kills them).
 
 ### D5 — test_warm_system_status_payload_and_ttl (kills cluster 12)
 
@@ -385,10 +385,10 @@ class TestSequentialTimeout:
 
 ## Coverage math for the drafted set
 
-D1 kills 29 (cl.4×24 + cl.7×2 + cl.8×1, minus wp\_\_21/\_23 arithmetic deferred: +2 deferred → 27 solid, 2 foldable). D2 kills 19. D3 kills 5. D4 kills 8. D5 kills 6. D6 kills 1. B1 kills 3. Drafted coverage ≈ **69-71 of 100**; remaining 29-31 are clusters 1-3 (EQUIVALENT/LOW-VALUE, 31 keys — not worth asserting).
+D1 kills 29 (cl.4×24 + cl.7×2 + cl.8×1, minus wp__21/_23 arithmetic deferred: +2 deferred → 27 solid, 2 foldable). D2 kills 19. D3 kills 5. D4 kills 8. D5 kills 6. D6 kills 1. B1 kills 3. Drafted coverage ≈ **69-71 of 100**; remaining 29-31 are clusters 1-3 (EQUIVALENT/LOW-VALUE, 31 keys — not worth asserting).
 
 ## Caveats
 
-- All drafts UNVERIFIED (no pytest run per run-lock constraint). D1's exact-ms asserts depend on the fake clock's tick budget matching the four instrumented `perf_counter` calls; if `backend.core.logging` internals call `perf_counter` during the patched window, switch to per-call-pair capture or `>= 0` plus a `< 1000` upper bound (still kills /1000, +start, None; \*1001 would then need the exact form).
-- `str(select(None))` (wc\_\_5) may raise ArgumentError instead of returning a string — either way the test fails on the mutant, which is the kill.
+- All drafts UNVERIFIED (no pytest run per run-lock constraint). D1's exact-ms asserts depend on the fake clock's tick budget matching the four instrumented `perf_counter` calls; if `backend.core.logging` internals call `perf_counter` during the patched window, switch to per-call-pair capture or `>= 0` plus a `< 1000` upper bound (still kills /1000, +start, None; *1001 would then need the exact form).
+- `str(select(None))` (wc__5) may raise ArgumentError instead of returning a string — either way the test fails on the mutant, which is the kill.
 - 4 keys in the meta are still `null` (not yet checked) and are outside this triage.

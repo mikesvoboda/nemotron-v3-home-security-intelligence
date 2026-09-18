@@ -28,26 +28,26 @@ zero assertion on the built query.
 
 ## Cluster table
 
-| ID  | Function : lines                                                                 | Pattern (count)                                                                                                                                                                                                                                                                                                                                                           | Class                 | Kill plan                                                                                                                                                                                |
-| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | `_format_discord_payload` :985,986,993; `_format_teams_payload` :1020,1027 (13)  | Formatter data/timestamp lookup broken or whole field-dict literal → `None`: `payload.get("data",{})`→`get(None,…)`, key-clobber, `get("data",None)`, `timestamp`→`None`, `fields.append({...})`→`append(None)` (Teams: `data`, facts dict)                                                                                                                               | TEST-GAP              | `test_format_embed_shapes_and_timestamp` (Draft D1) — existing test builds the `data` dict but never reads `embeds[0]["fields"]` / `sections[0]["facts"]`                                |
-| C2  | `_format_slack_payload` :966-969 (12)                                            | Slack BlockKit structure keys/values (`"type":"section"`, outer `"text"` key, `"type":"mrkdwn"`, inner `"text":text`) clobbered                                                                                                                                                                                                                                           | TEST-GAP              | `test_format_slack_blockkit_structure` (Draft D2) — existing test asserts only `"blocks" in result`                                                                                      |
-| C3  | `_format_discord_payload` :994-996,1004; `_format_teams_payload` :1028,1029 (19) | Field/fact entry rendering: key→value swaps, `"XX_XX"`/`"XX XX"` replace-args (titles come out snake_case/uppercase), `str(None)` value, `"inline":True`→`False`, `"timestamp"` key clobber                                                                                                                                                                               | TEST-GAP              | shared by Draft D1 (assert exact `fields`/`facts` dicts + `embeds[0]["timestamp"]`)                                                                                                      |
-| C4  | `_format_teams_payload` :1035-1037 (11)                                          | Teams MessageCard protocol constants: `"@context"` value (`https://schema.org/extensions`) swapped, `"summary": event_type` key clobbered, `"themeColor":"0076D7"` key-case/value-case clobbered                                                                                                                                                                          | TEST-GAP              | `test_format_teams_messagecard_protocol` (Draft D3) — existing test never reads these three keys                                                                                         |
-| C5  | `_format_discord_payload` :1005; `_format_teams_payload` :1041 (2)               | Truncation caps off-by-one: `fields[:25]`→`[:26]`, `facts[:10]`→`[:11]` (documented Discord limit)                                                                                                                                                                                                                                                                        | TEST-GAP              | `test_format_field_and_fact_caps` (Draft D4)                                                                                                                                             |
-| C6  | `_format_{slack,discord,teams}_payload` :953-954,984-986,1019-1020 (20)          | Fallback defaults + redundant-key mutants: `get("event_type","event")` tweaks (×12), `get(…, None)`/bare-get (×7), `get("timestamp", default)`→`get(default)` (1). `_build_payload` (:~864-869) **always** emits `event_type`/`data`/`timestamp`, and the only reachable caller path passes it that payload → defaults unreachable; bare-get returns the same present key | EQUIVALENT            | none — dead defensive tweaks under the real call contract                                                                                                                                |
-| H1  | `get_health_summary` :716,720,730,737,749,762,773 (14)                           | Whole `db.execute(…)` statement arg → `None` / `select(None)` / `func.count()`→`func.avg(None)` (aggregate args); mock `execute` ignores the arg, `MagicMock.scalar()` returns the canned value                                                                                                                                                                           | TEST-GAP (mock-blind) | `test_get_health_summary_builds_expected_queries` (Draft D5) — capture-and-compile; integration tests would also kill most (attribute access on `None` raises) but are outside selection |
-| H2  | `get_health_summary` :722 (3)                                                    | Enabled-filter predicate weakened: `.where(None)`, `enabled.is_(None)`, `enabled.is_(False)`                                                                                                                                                                                                                                                                              | TEST-GAP              | Draft D5                                                                                                                                                                                 |
-| H3  | `get_health_summary` :727 (2)                                                    | 24h window sign/width: `utc_now() - timedelta(hours=24)` → `+ 24h` (future cutoff!) / `25h`                                                                                                                                                                                                                                                                               | TEST-GAP              | Draft D5 + integration Draft D9 (out-of-window delivery must be excluded)                                                                                                                |
-| H4  | `get_health_summary` :732,740-742,752-754,763-765 (22)                           | `and_(...)` clauses / whole `.where()` → `None`, clause removed, `created_at >= cutoff`→`> cutoff` (23/24 boundary), `status == SUCCESS/FAILED`→`!=` (flips success vs failed counts)                                                                                                                                                                                     | TEST-GAP              | Draft D5 + Draft D9                                                                                                                                                                      |
-| H5  | `get_health_summary` :717,724,734,746,758; `get_deliveries` :822 (6)             | `scalar() or 0` → `scalar() or 1` — fires whenever a count query returns 0/NULL, i.e. every empty-table first-run deployment: summary reports 1 webhook/delivery that does not exist                                                                                                                                                                                      | TEST-GAP              | `test_get_health_summary_empty_database_reports_zeros` (Draft D7) + `test_get_deliveries_empty_history_returns_zero_total` (Draft D8)                                                    |
-| H6  | `get_health_summary` :778,780,781,782,783 (5)                                    | Health classification: `total_deliveries > 0`→`> 1` (1-delivery webhook unclassified), `>= 0.9`→`> 0.9` (exactly-90% lost), `< 0.5`→`<= 0.5` (exactly-50% wrongly unhealthy), `+= 1`→`= 1` (multi-webhook counts collapse)                                                                                                                                                | TEST-GAP              | `test_get_health_summary_classifies_success_rate_boundaries` (Draft D6)                                                                                                                  |
-| H7  | `get_health_summary` :793 (1)                                                    | Truthiness guard `if avg_response_time else None` → `if avg_response_time or True else None` — always-truthy branch; with `avg = 0` the original yields `None`, mutant yields `0.0`                                                                                                                                                                                       | TEST-GAP              | Draft D6 (patched `list_webhooks` + avg scalar 0 → assert `average_response_time_ms is None`)                                                                                            |
-| D1  | `get_deliveries` :818,820,826-830 (11)                                           | Per-webhook isolation + paging: `webhook_id == → !=` (and whole clause/`.where()`/statement → `None` — leak every webhook's history), `.limit(None)` (cap lost), `.offset(None)`, `.order_by(None)` (recency sort lost)                                                                                                                                                   | TEST-GAP              | `test_get_deliveries_filters_sorts_and_pages` (Draft D8) + integration Draft D9                                                                                                          |
-| D2  | `get_delivery` :852 (4)                                                          | ID lookup predicate `id == delivery_id` → `!=` (returns the wrong delivery when several exist), clause/statement → `None`                                                                                                                                                                                                                                                 | TEST-GAP              | `test_get_delivery_selects_by_id` (Draft D11)                                                                                                                                            |
-| W1  | `list_webhooks` :199,201,203,204 (7)                                             | `enabled_only` filter dropped/inverted (`.where(None)`, `is_(None)`, `is_(False)`), order → `None`, statement → `None`/`select(None)`                                                                                                                                                                                                                                     | TEST-GAP              | `test_list_webhooks_query_construction` (Draft D10) + integration `test_list_enabled_webhooks_only` (outside selection)                                                                  |
-| W2  | `delete_webhook` :309 (1)                                                        | `await self.get_webhook(db, webhook_id)` → `get_webhook(db, None)` — the lookup key is lost: on a real DB the delete targets nothing → returns False while the webhook survives; mock hides it                                                                                                                                                                            | TEST-GAP              | `test_delete_webhook_looks_up_by_given_id` (Draft D12) — assert `webhook_id == …` (not `IS NULL`) in the executed SQL                                                                    |
-| W3  | `delete_webhook` :317-318 (5)                                                    | Audit-log only: log message f-string → `None`, `extra={"webhook_id": …}` removed/clobbered                                                                                                                                                                                                                                                                                | LOW-VALUE             | optional Draft D13 (caplog) — deletion behaviour unchanged; log identity matters for audit trail only                                                                                    |
+| ID | Function : lines | Pattern (count) | Class | Kill plan |
+|----|------------------|-----------------|-------|-----------|
+| C1 | `_format_discord_payload` :985,986,993; `_format_teams_payload` :1020,1027 (13) | Formatter data/timestamp lookup broken or whole field-dict literal → `None`: `payload.get("data",{})`→`get(None,…)`, key-clobber, `get("data",None)`, `timestamp`→`None`, `fields.append({...})`→`append(None)` (Teams: `data`, facts dict) | TEST-GAP | `test_format_embed_shapes_and_timestamp` (Draft D1) — existing test builds the `data` dict but never reads `embeds[0]["fields"]` / `sections[0]["facts"]` |
+| C2 | `_format_slack_payload` :966-969 (12) | Slack BlockKit structure keys/values (`"type":"section"`, outer `"text"` key, `"type":"mrkdwn"`, inner `"text":text`) clobbered | TEST-GAP | `test_format_slack_blockkit_structure` (Draft D2) — existing test asserts only `"blocks" in result` |
+| C3 | `_format_discord_payload` :994-996,1004; `_format_teams_payload` :1028,1029 (19) | Field/fact entry rendering: key→value swaps, `"XX_XX"`/`"XX XX"` replace-args (titles come out snake_case/uppercase), `str(None)` value, `"inline":True`→`False`, `"timestamp"` key clobber | TEST-GAP | shared by Draft D1 (assert exact `fields`/`facts` dicts + `embeds[0]["timestamp"]`) |
+| C4 | `_format_teams_payload` :1035-1037 (11) | Teams MessageCard protocol constants: `"@context"` value (`https://schema.org/extensions`) swapped, `"summary": event_type` key clobbered, `"themeColor":"0076D7"` key-case/value-case clobbered | TEST-GAP | `test_format_teams_messagecard_protocol` (Draft D3) — existing test never reads these three keys |
+| C5 | `_format_discord_payload` :1005; `_format_teams_payload` :1041 (2) | Truncation caps off-by-one: `fields[:25]`→`[:26]`, `facts[:10]`→`[:11]` (documented Discord limit) | TEST-GAP | `test_format_field_and_fact_caps` (Draft D4) |
+| C6 | `_format_{slack,discord,teams}_payload` :953-954,984-986,1019-1020 (20) | Fallback defaults + redundant-key mutants: `get("event_type","event")` tweaks (×12), `get(…, None)`/bare-get (×7), `get("timestamp", default)`→`get(default)` (1). `_build_payload` (:~864-869) **always** emits `event_type`/`data`/`timestamp`, and the only reachable caller path passes it that payload → defaults unreachable; bare-get returns the same present key | EQUIVALENT | none — dead defensive tweaks under the real call contract |
+| H1 | `get_health_summary` :716,720,730,737,749,762,773 (14) | Whole `db.execute(…)` statement arg → `None` / `select(None)` / `func.count()`→`func.avg(None)` (aggregate args); mock `execute` ignores the arg, `MagicMock.scalar()` returns the canned value | TEST-GAP (mock-blind) | `test_get_health_summary_builds_expected_queries` (Draft D5) — capture-and-compile; integration tests would also kill most (attribute access on `None` raises) but are outside selection |
+| H2 | `get_health_summary` :722 (3) | Enabled-filter predicate weakened: `.where(None)`, `enabled.is_(None)`, `enabled.is_(False)` | TEST-GAP | Draft D5 |
+| H3 | `get_health_summary` :727 (2) | 24h window sign/width: `utc_now() - timedelta(hours=24)` → `+ 24h` (future cutoff!) / `25h` | TEST-GAP | Draft D5 + integration Draft D9 (out-of-window delivery must be excluded) |
+| H4 | `get_health_summary` :732,740-742,752-754,763-765 (22) | `and_(...)` clauses / whole `.where()` → `None`, clause removed, `created_at >= cutoff`→`> cutoff` (23/24 boundary), `status == SUCCESS/FAILED`→`!=` (flips success vs failed counts) | TEST-GAP | Draft D5 + Draft D9 |
+| H5 | `get_health_summary` :717,724,734,746,758; `get_deliveries` :822 (6) | `scalar() or 0` → `scalar() or 1` — fires whenever a count query returns 0/NULL, i.e. every empty-table first-run deployment: summary reports 1 webhook/delivery that does not exist | TEST-GAP | `test_get_health_summary_empty_database_reports_zeros` (Draft D7) + `test_get_deliveries_empty_history_returns_zero_total` (Draft D8) |
+| H6 | `get_health_summary` :778,780,781,782,783 (5) | Health classification: `total_deliveries > 0`→`> 1` (1-delivery webhook unclassified), `>= 0.9`→`> 0.9` (exactly-90% lost), `< 0.5`→`<= 0.5` (exactly-50% wrongly unhealthy), `+= 1`→`= 1` (multi-webhook counts collapse) | TEST-GAP | `test_get_health_summary_classifies_success_rate_boundaries` (Draft D6) |
+| H7 | `get_health_summary` :793 (1) | Truthiness guard `if avg_response_time else None` → `if avg_response_time or True else None` — always-truthy branch; with `avg = 0` the original yields `None`, mutant yields `0.0` | TEST-GAP | Draft D6 (patched `list_webhooks` + avg scalar 0 → assert `average_response_time_ms is None`) |
+| D1 | `get_deliveries` :818,820,826-830 (11) | Per-webhook isolation + paging: `webhook_id == → !=` (and whole clause/`.where()`/statement → `None` — leak every webhook's history), `.limit(None)` (cap lost), `.offset(None)`, `.order_by(None)` (recency sort lost) | TEST-GAP | `test_get_deliveries_filters_sorts_and_pages` (Draft D8) + integration Draft D9 |
+| D2 | `get_delivery` :852 (4) | ID lookup predicate `id == delivery_id` → `!=` (returns the wrong delivery when several exist), clause/statement → `None` | TEST-GAP | `test_get_delivery_selects_by_id` (Draft D11) |
+| W1 | `list_webhooks` :199,201,203,204 (7) | `enabled_only` filter dropped/inverted (`.where(None)`, `is_(None)`, `is_(False)`), order → `None`, statement → `None`/`select(None)` | TEST-GAP | `test_list_webhooks_query_construction` (Draft D10) + integration `test_list_enabled_webhooks_only` (outside selection) |
+| W2 | `delete_webhook` :309 (1) | `await self.get_webhook(db, webhook_id)` → `get_webhook(db, None)` — the lookup key is lost: on a real DB the delete targets nothing → returns False while the webhook survives; mock hides it | TEST-GAP | `test_delete_webhook_looks_up_by_given_id` (Draft D12) — assert `webhook_id == …` (not `IS NULL`) in the executed SQL |
+| W3 | `delete_webhook` :317-318 (5) | Audit-log only: log message f-string → `None`, `extra={"webhook_id": …}` removed/clobbered | LOW-VALUE | optional Draft D13 (caplog) — deletion behaviour unchanged; log identity matters for audit trail only |
 
 **Totals: TEST-GAP 133 / EQUIVALENT 20 / LOW-VALUE 5 = 158.**
 
@@ -60,7 +60,6 @@ then against each cluster mutant copy (assertion must go RED on every key in the
 `uv run pytest <target>::<test> -p no:randomly` both ways.
 
 ### D1 — kills C1 + C3 (13 + 19 mutants): assert full embed/fact rendering
-
 ```python
 def test_format_embed_shapes_and_timestamp(webhook_service):
     """Discord fields / Teams facts must carry humanized titles, stringified values and the payload timestamp."""
@@ -93,14 +92,12 @@ def test_format_embed_shapes_and_timestamp(webhook_service):
         {"title": "Count", "value": "3"},
     ]
 ```
-
 Kills: C1 `data`→None/None-default/`get(None)`/key-clobber and `append(None)` (fields/facts become
 `[]` or `[None]`), C1 timestamp mutants (`embed["timestamp"]` None / key swap → KeyError), C3
 `XX_XX`/`XX XX` replace-args (names stay `Alert_Id`/`ALERT ID`), key/value swaps, `str(None)`,
 `inline: False`, `"XXtimestampXX"` KeyError.
 
 ### D2 — kills C2 (12 mutants): Slack BlockKit exact structure
-
 ```python
 def test_format_slack_blockkit_structure(webhook_service):
     """Slack payload must expose blocks[0] as an exact section/mrkdwn block mirroring the text."""
@@ -123,12 +120,10 @@ def test_format_slack_blockkit_structure(webhook_service):
     assert result["text"].startswith("*alert_fired*")
     assert "- alert_id: test-123" in result["text"]
 ```
-
 Kills every C2 key-clobber (`"XXtypeXX"`, `"TYPE"`, `"XXtextXX"`, `"TEXT"`) and value mutation
 (`"XXsectionXX"`, `"SECTION"`, `"XXmrkdwnXX"`, `"MRKDWN"`) via exact dict equality.
 
 ### D3 — kills C4 (11 mutants): Teams MessageCard protocol constants
-
 ```python
 def test_format_teams_messagecard_protocol(webhook_service):
     """Teams payload must be a valid MessageCard: schema.org context, event summary, blue theme color."""
@@ -143,12 +138,10 @@ def test_format_teams_messagecard_protocol(webhook_service):
     assert result["summary"] == "anomaly_detected"
     assert result["themeColor"] == "0076D7"
 ```
-
 Kills `"XX@contextXX"`/`"@CONTEXT"` KeyErrors, value swaps, summary key-clobbers, and all five
 `themeColor` variants (`themecolor`, `THEMECOLOR`, `XX0076D7XX`, `0076d7`).
 
 ### D5 — kills H1 + H2 + H3 + H4 (41 mutants): assert the compiled SQL, not just the return
-
 ```python
 @pytest.mark.asyncio
 async def test_get_health_summary_builds_expected_queries(webhook_service, mock_db_session):
@@ -210,7 +203,6 @@ async def test_get_health_summary_builds_expected_queries(webhook_service, mock_
     # the three windowed count queries share the same >= : cutoff predicate shape
     assert sqls[2].count("created_at >= :") == 1
 ```
-
 Kills: all 14 H1 (statement → `None` renders `"None"`; `select(None)` lacks `FROM …` — or raises at
 construction, which also kills), all 3 H2 (no `enabled IS true`), both H3 (`+24h` param is future;
 `25h` param misses the ±5s window), and H4 predicate mutants (`==`→`!=` renders `status != :`,
@@ -220,7 +212,6 @@ dropped clauses / whole `.where()` / `and_(…)` → `None` remove the predicate
 enabled filter renders `enabled IS true`, `compile().params` carries the cutoff datetime.
 
 ### D6 — kills H6 + H7 (6 mutants): success-rate boundary classification + avg guard
-
 ```python
 @pytest.mark.asyncio
 async def test_get_health_summary_classifies_success_rate_boundaries(webhook_service, mock_db_session):
@@ -257,14 +248,12 @@ async def test_get_health_summary_classifies_success_rate_boundaries(webhook_ser
     # avg scalar 0 is falsy -> original yields None; `or True` mutant yields 0.0
     assert summary.average_response_time_ms is None
 ```
-
 Kills `> 0.9` (healthy 2≠3), `<= 0.5` (unhealthy 3≠2), `total_deliveries > 1` (2≠3 / 1≠2),
 `healthy_count = 1`, `unhealthy_count = 1`, and the H7 `or True` guard (`0.0` ≠ `None`).
 (The `placeholder overwritten below` line should be cleaned to build the list in one literal — keep
 or fix before committing; behaviour unchanged.)
 
 ### D7 + D8 — kill H5 (6 mutants): empty-table `or 0` fallback
-
 ```python
 @pytest.mark.asyncio
 async def test_get_health_summary_empty_database_reports_zeros(webhook_service, mock_db_session):
@@ -304,12 +293,10 @@ async def test_get_deliveries_empty_history_returns_zero_total(webhook_service, 
     assert deliveries == []
     assert total == 0
 ```
-
 (`scalar_result` helper defined in D5/D6 is local to each test — duplicate it per test or hoist a
 module-level helper at commit time.)
 
 ### D4 — kills C5 (2 mutants): Discord 25 / Teams 10 truncation caps
-
 ```python
 def test_format_field_and_fact_caps(webhook_service):
     """Discord embeds cap at 25 fields, Teams cards at 10 facts (documented limits)."""
@@ -329,12 +316,10 @@ def test_format_field_and_fact_caps(webhook_service):
 ```
 
 ### D9 — (integration companion) real-DB kills for H3/H4/D1 boundary clauses
-
 `backend/tests/integration/test_webhook_service.py` currently asserts only `total >= 1` /
 `health.total_deliveries_24h >= 0`. Extending it (or a WP4.5 mutmut scope that adds
 `backend/tests/integration`) kills the window/status/paging predicate mutants at the SQL level —
 sketched here, needs `test_db` fixtures from that file:
-
 ```python
 @pytest.mark.asyncio
 async def test_get_deliveries_and_health_filter_by_window_status_and_page(
@@ -370,12 +355,10 @@ async def test_get_deliveries_and_health_filter_by_window_status_and_page(
         assert health.successful_deliveries_24h == 3
         assert health.failed_deliveries_24h == 1           # kills status ==/!= flips
 ```
-
 Not in mutmut's unit-only selection today — schedule when integration enters the scope; it
 otherwise permanently protects H3/H4/D1 boundary mutants.
 
 ### D10 — kills W1 (7 mutants): list_webhooks query construction
-
 ```python
 @pytest.mark.asyncio
 async def test_list_webhooks_query_construction(webhook_service, mock_db_session, sample_webhook):
@@ -400,13 +383,11 @@ async def test_list_webhooks_query_construction(webhook_service, mock_db_session
     assert "outbound_webhooks.enabled IS true" in enabled_sql       # kills is_(None)/is_(False)/.where(None)
     assert " WHERE " not in all_sql  # enabled_only=False must not filter (clobbered predicate would add one)
 ```
-
 Kills `select(None)`/whole-query `None` (render `"None"`), `.where(None)`/`is_(None)`/`is_(False)`
 (no `enabled IS true`), `.order_by(None)`/`query = None` (no ORDER BY / FROM), and
 `db.execute(None)` (captured arg renders `"None"`).
 
 ### D11 — kills D2 (4 mutants): get_delivery selects the right row
-
 ```python
 @pytest.mark.asyncio
 async def test_get_delivery_selects_by_id(webhook_service, mock_db_session):
@@ -431,7 +412,6 @@ async def test_get_delivery_selects_by_id(webhook_service, mock_db_session):
 ```
 
 ### D12 — kills W2 (1 mutant): delete looks up the id it was given
-
 ```python
 @pytest.mark.asyncio
 async def test_delete_webhook_looks_up_by_given_id(webhook_service, mock_db_session, sample_webhook):
@@ -455,7 +435,6 @@ async def test_delete_webhook_looks_up_by_given_id(webhook_service, mock_db_sess
 ```
 
 ### D13 — kills W3 (5 mutants, optional — LOW-VALUE cluster): deletion audit log
-
 ```python
 @pytest.mark.asyncio
 async def test_delete_webhook_logs_webhook_id(webhook_service, mock_db_session, sample_webhook, caplog):
@@ -476,50 +455,47 @@ async def test_delete_webhook_logs_webhook_id(webhook_service, mock_db_session, 
     assert len(records) == 1
     assert records[0].webhook_id == sample_webhook.id
 ```
-
 (caplog relies on the app logger propagating to root — check at red/green time; if the app's
 handlers swallow propagation, assert on the record via a `logging.Handler` attached with
 `caplog.handler` semantics instead.)
 
 ## Covering-test references
-
 - Unit (mutmut selection): `backend/tests/unit/services/test_webhook_service.py` — `test_get_health_summary` :870, `test_get_deliveries` :934, `test_get_delivery` :963, `test_list_webhooks_*` :254/:272, `test_delete_webhook_*` :408/:427, `test_format_slack/discord/teams_payload` :1050/:1068/:1087. Shared mock: `backend/tests/conftest.py:1930`.
 - Integration (executes same funcs but OUTSIDE `pytest_add_cli_args_test_selection`): `backend/tests/integration/test_webhook_service.py` — `test_list_enabled_webhooks_only` :130, `test_delete_webhook` :207, `test_health_summary_returns_stats` :385 (only `>=` bounds), `test_get_deliveries_returns_history` :465 (only `total >= 1`).
 
 ## Appendix A — full survivor key lists (short keys; full form `backend.services.webhook_service.xǁWebhookServiceǁ<key>`)
+**C1-fmt-dropcontent** (13): _format_discord_payload__mutmut_11, _format_discord_payload__mutmut_15, _format_discord_payload__mutmut_16, _format_discord_payload__mutmut_17, _format_discord_payload__mutmut_18, _format_discord_payload__mutmut_20, _format_discord_payload__mutmut_22, _format_discord_payload__mutmut_23, _format_discord_payload__mutmut_25, _format_teams_payload__mutmut_11, _format_teams_payload__mutmut_15, _format_teams_payload__mutmut_16, _format_teams_payload__mutmut_18
 
-**C1-fmt-dropcontent** (13): \_format_discord_payload**mutmut_11, \_format_discord_payload**mutmut_15, \_format_discord_payload**mutmut_16, \_format_discord_payload**mutmut_17, \_format_discord_payload**mutmut_18, \_format_discord_payload**mutmut_20, \_format_discord_payload**mutmut_22, \_format_discord_payload**mutmut_23, \_format_discord_payload**mutmut_25, \_format_teams_payload**mutmut_11, \_format_teams_payload**mutmut_15, \_format_teams_payload**mutmut_16, \_format_teams_payload\_\_mutmut_18
+**C2-slack-blockkit** (12): _format_slack_payload__mutmut_24, _format_slack_payload__mutmut_25, _format_slack_payload__mutmut_26, _format_slack_payload__mutmut_27, _format_slack_payload__mutmut_28, _format_slack_payload__mutmut_29, _format_slack_payload__mutmut_30, _format_slack_payload__mutmut_31, _format_slack_payload__mutmut_32, _format_slack_payload__mutmut_33, _format_slack_payload__mutmut_34, _format_slack_payload__mutmut_35
 
-**C2-slack-blockkit** (12): \_format_slack_payload**mutmut_24, \_format_slack_payload**mutmut_25, \_format_slack_payload**mutmut_26, \_format_slack_payload**mutmut_27, \_format_slack_payload**mutmut_28, \_format_slack_payload**mutmut_29, \_format_slack_payload**mutmut_30, \_format_slack_payload**mutmut_31, \_format_slack_payload**mutmut_32, \_format_slack_payload**mutmut_33, \_format_slack_payload**mutmut_34, \_format_slack_payload**mutmut_35
+**C3-fmt-rendering** (19): _format_discord_payload__mutmut_26, _format_discord_payload__mutmut_27, _format_discord_payload__mutmut_32, _format_discord_payload__mutmut_33, _format_discord_payload__mutmut_34, _format_discord_payload__mutmut_35, _format_discord_payload__mutmut_36, _format_discord_payload__mutmut_37, _format_discord_payload__mutmut_38, _format_discord_payload__mutmut_39, _format_discord_payload__mutmut_50, _format_discord_payload__mutmut_51, _format_teams_payload__mutmut_19, _format_teams_payload__mutmut_20, _format_teams_payload__mutmut_25, _format_teams_payload__mutmut_26, _format_teams_payload__mutmut_27, _format_teams_payload__mutmut_28, _format_teams_payload__mutmut_29
 
-**C3-fmt-rendering** (19): \_format_discord_payload**mutmut_26, \_format_discord_payload**mutmut_27, \_format_discord_payload**mutmut_32, \_format_discord_payload**mutmut_33, \_format_discord_payload**mutmut_34, \_format_discord_payload**mutmut_35, \_format_discord_payload**mutmut_36, \_format_discord_payload**mutmut_37, \_format_discord_payload**mutmut_38, \_format_discord_payload**mutmut_39, \_format_discord_payload**mutmut_50, \_format_discord_payload**mutmut_51, \_format_teams_payload**mutmut_19, \_format_teams_payload**mutmut_20, \_format_teams_payload**mutmut_25, \_format_teams_payload**mutmut_26, \_format_teams_payload**mutmut_27, \_format_teams_payload**mutmut_28, \_format_teams_payload\_\_mutmut_29
+**C4-teams-protocol** (11): _format_teams_payload__mutmut_35, _format_teams_payload__mutmut_36, _format_teams_payload__mutmut_37, _format_teams_payload__mutmut_38, _format_teams_payload__mutmut_39, _format_teams_payload__mutmut_40, _format_teams_payload__mutmut_41, _format_teams_payload__mutmut_42, _format_teams_payload__mutmut_43, _format_teams_payload__mutmut_44, _format_teams_payload__mutmut_45
 
-**C4-teams-protocol** (11): \_format_teams_payload**mutmut_35, \_format_teams_payload**mutmut_36, \_format_teams_payload**mutmut_37, \_format_teams_payload**mutmut_38, \_format_teams_payload**mutmut_39, \_format_teams_payload**mutmut_40, \_format_teams_payload**mutmut_41, \_format_teams_payload**mutmut_42, \_format_teams_payload**mutmut_43, \_format_teams_payload**mutmut_44, \_format_teams_payload\_\_mutmut_45
+**C5-fmt-caps** (2): _format_discord_payload__mutmut_54, _format_teams_payload__mutmut_58
 
-**C5-fmt-caps** (2): \_format_discord_payload**mutmut_54, \_format_teams_payload**mutmut_58
+**C6-fmt-deaddefaults** (20): _format_discord_payload__mutmut_3, _format_discord_payload__mutmut_5, _format_discord_payload__mutmut_8, _format_discord_payload__mutmut_9, _format_discord_payload__mutmut_12, _format_discord_payload__mutmut_14, _format_discord_payload__mutmut_19, _format_discord_payload__mutmut_21, _format_slack_payload__mutmut_3, _format_slack_payload__mutmut_5, _format_slack_payload__mutmut_8, _format_slack_payload__mutmut_9, _format_slack_payload__mutmut_12, _format_slack_payload__mutmut_14, _format_teams_payload__mutmut_3, _format_teams_payload__mutmut_5, _format_teams_payload__mutmut_8, _format_teams_payload__mutmut_9, _format_teams_payload__mutmut_12, _format_teams_payload__mutmut_14
 
-**C6-fmt-deaddefaults** (20): \_format_discord_payload**mutmut_3, \_format_discord_payload**mutmut_5, \_format_discord_payload**mutmut_8, \_format_discord_payload**mutmut_9, \_format_discord_payload**mutmut_12, \_format_discord_payload**mutmut_14, \_format_discord_payload**mutmut_19, \_format_discord_payload**mutmut_21, \_format_slack_payload**mutmut_3, \_format_slack_payload**mutmut_5, \_format_slack_payload**mutmut_8, \_format_slack_payload**mutmut_9, \_format_slack_payload**mutmut_12, \_format_slack_payload**mutmut_14, \_format_teams_payload**mutmut_3, \_format_teams_payload**mutmut_5, \_format_teams_payload**mutmut_8, \_format_teams_payload**mutmut_9, \_format_teams_payload**mutmut_12, \_format_teams_payload**mutmut_14
+**H1-health-stmt-none** (14): get_health_summary__mutmut_2, get_health_summary__mutmut_4, get_health_summary__mutmut_9, get_health_summary__mutmut_12, get_health_summary__mutmut_23, get_health_summary__mutmut_26, get_health_summary__mutmut_32, get_health_summary__mutmut_35, get_health_summary__mutmut_46, get_health_summary__mutmut_49, get_health_summary__mutmut_60, get_health_summary__mutmut_62, get_health_summary__mutmut_63, get_health_summary__mutmut_71
 
-**H1-health-stmt-none** (14): get_health_summary**mutmut_2, get_health_summary**mutmut_4, get_health_summary**mutmut_9, get_health_summary**mutmut_12, get_health_summary**mutmut_23, get_health_summary**mutmut_26, get_health_summary**mutmut_32, get_health_summary**mutmut_35, get_health_summary**mutmut_46, get_health_summary**mutmut_49, get_health_summary**mutmut_60, get_health_summary**mutmut_62, get_health_summary**mutmut_63, get_health_summary**mutmut_71
+**H2-health-enabled** (3): get_health_summary__mutmut_10, get_health_summary__mutmut_13, get_health_summary__mutmut_14
 
-**H2-health-enabled** (3): get_health_summary**mutmut_10, get_health_summary**mutmut_13, get_health_summary\_\_mutmut_14
+**H3-health-cutoff** (2): get_health_summary__mutmut_19, get_health_summary__mutmut_21
 
-**H3-health-cutoff** (2): get_health_summary**mutmut_19, get_health_summary**mutmut_21
+**H4-health-preds** (22): get_health_summary__mutmut_24, get_health_summary__mutmut_27, get_health_summary__mutmut_33, get_health_summary__mutmut_36, get_health_summary__mutmut_37, get_health_summary__mutmut_38, get_health_summary__mutmut_39, get_health_summary__mutmut_40, get_health_summary__mutmut_41, get_health_summary__mutmut_47, get_health_summary__mutmut_50, get_health_summary__mutmut_51, get_health_summary__mutmut_52, get_health_summary__mutmut_53, get_health_summary__mutmut_54, get_health_summary__mutmut_55, get_health_summary__mutmut_61, get_health_summary__mutmut_64, get_health_summary__mutmut_65, get_health_summary__mutmut_66, get_health_summary__mutmut_67, get_health_summary__mutmut_68
 
-**H4-health-preds** (22): get_health_summary**mutmut_24, get_health_summary**mutmut_27, get_health_summary**mutmut_33, get_health_summary**mutmut_36, get_health_summary**mutmut_37, get_health_summary**mutmut_38, get_health_summary**mutmut_39, get_health_summary**mutmut_40, get_health_summary**mutmut_41, get_health_summary**mutmut_47, get_health_summary**mutmut_50, get_health_summary**mutmut_51, get_health_summary**mutmut_52, get_health_summary**mutmut_53, get_health_summary**mutmut_54, get_health_summary**mutmut_55, get_health_summary**mutmut_61, get_health_summary**mutmut_64, get_health_summary**mutmut_65, get_health_summary**mutmut_66, get_health_summary**mutmut_67, get_health_summary**mutmut_68
+**H5-or-zero-to-one** (6): get_deliveries__mutmut_9, get_health_summary__mutmut_7, get_health_summary__mutmut_17, get_health_summary__mutmut_30, get_health_summary__mutmut_44, get_health_summary__mutmut_58
 
-**H5-or-zero-to-one** (6): get_deliveries**mutmut_9, get_health_summary**mutmut_7, get_health_summary**mutmut_17, get_health_summary**mutmut_30, get_health_summary**mutmut_44, get_health_summary**mutmut_58
+**H6-health-thresholds** (5): get_health_summary__mutmut_77, get_health_summary__mutmut_80, get_health_summary__mutmut_82, get_health_summary__mutmut_85, get_health_summary__mutmut_87
 
-**H6-health-thresholds** (5): get_health_summary**mutmut_77, get_health_summary**mutmut_80, get_health_summary**mutmut_82, get_health_summary**mutmut_85, get_health_summary\_\_mutmut_87
+**H7-health-avgguard** (1): get_health_summary__mutmut_107
 
-**H7-health-avgguard** (1): get_health_summary\_\_mutmut_107
+**D1-deliveries-query** (11): get_deliveries__mutmut_2, get_deliveries__mutmut_3, get_deliveries__mutmut_5, get_deliveries__mutmut_6, get_deliveries__mutmut_11, get_deliveries__mutmut_12, get_deliveries__mutmut_13, get_deliveries__mutmut_14, get_deliveries__mutmut_15, get_deliveries__mutmut_16, get_deliveries__mutmut_17
 
-**D1-deliveries-query** (11): get_deliveries**mutmut_2, get_deliveries**mutmut_3, get_deliveries**mutmut_5, get_deliveries**mutmut_6, get_deliveries**mutmut_11, get_deliveries**mutmut_12, get_deliveries**mutmut_13, get_deliveries**mutmut_14, get_deliveries**mutmut_15, get_deliveries**mutmut_16, get_deliveries\_\_mutmut_17
+**D2-getdelivery-query** (4): get_delivery__mutmut_2, get_delivery__mutmut_3, get_delivery__mutmut_4, get_delivery__mutmut_5
 
-**D2-getdelivery-query** (4): get_delivery**mutmut_2, get_delivery**mutmut_3, get_delivery**mutmut_4, get_delivery**mutmut_5
+**W1-list-query** (7): list_webhooks__mutmut_2, list_webhooks__mutmut_4, list_webhooks__mutmut_5, list_webhooks__mutmut_6, list_webhooks__mutmut_7, list_webhooks__mutmut_8, list_webhooks__mutmut_10
 
-**W1-list-query** (7): list_webhooks**mutmut_2, list_webhooks**mutmut_4, list_webhooks**mutmut_5, list_webhooks**mutmut_6, list_webhooks**mutmut_7, list_webhooks**mutmut_8, list_webhooks\_\_mutmut_10
+**W2-delete-lookup** (1): delete_webhook__mutmut_3
 
-**W2-delete-lookup** (1): delete_webhook\_\_mutmut_3
-
-**W3-delete-log** (5): delete_webhook**mutmut_9, delete_webhook**mutmut_10, delete_webhook**mutmut_12, delete_webhook**mutmut_13, delete_webhook\_\_mutmut_14
+**W3-delete-log** (5): delete_webhook__mutmut_9, delete_webhook__mutmut_10, delete_webhook__mutmut_12, delete_webhook__mutmut_13, delete_webhook__mutmut_14

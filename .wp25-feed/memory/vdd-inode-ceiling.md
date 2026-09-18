@@ -15,7 +15,7 @@ container) held 409k of them — 62% of the whole filesystem — before a run ev
 
 **Symptom class (gate-20 attempt 4, 2026-09-15):** `psycopg2.errors.DiskFull: could not create
 directory "base/..."` / `asyncpg DiskFullError` on ~10 scattered setup/teardowns while block usage
-sat at 19–21% with 7.5GB free. Inode exhaustion is transient _during_ the run (create/drop of 8
+sat at 19–21% with 7.5GB free. Inode exhaustion is transient *during* the run (create/drop of 8
 worker DBs), so a blocks-only sampler never sees it. Downstream: DiskFull-interrupted tests abort
 cleanup, leaving rows (e.g. live 'Test Camera' vs `idx_cameras_name_unique`) that poison the next
 same-worker insert — UniqueViolations are SECONDARY, not test bugs. Classify against inodes before
@@ -25,4 +25,4 @@ touching tests.
 and sweep orphans: `docker volume ls` + per-volume `find <mnt> | wc -l`; `docker volume rm` the
 anonymous postgres ones. Gate samplers must log `df -i` alongside `df -h`. Fix that day: removed
 orphan volume → inodes 65%→3%. Related: [[sandbox-recreate-vs-reboot]] (same box, other rig
-casualties: libGL, TEST\_\* env).
+casualties: libGL, TEST_* env).

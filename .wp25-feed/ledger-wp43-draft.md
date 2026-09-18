@@ -7,8 +7,7 @@ waves 1-40 triaged 14,597 survivors across 101 modules read-only (detector gate
 > .wp25-feed/triage-waves/dispatched.txt) -> 65% TEST-GAP / 21% EQUIVALENT /
 > 14% LOW-VALUE, 650 drafted UNVERIFIED kill-tests + 8 cross-module fix
 > patterns (.wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~22% EQUIVALENT
-> share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container*
-> discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
+> share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container_discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
 > 93%-gap module can shift the survivor-weighted share, and wave 33's
 > mqtt_publisher (43 of 100 LOW-VALUE) settled it at 65/21/13 and wave 36's
 > pipeline_workers (96 LOW-VALUE log/otel noise of 282) moved LOW to 14%;
@@ -62,8 +61,7 @@ return ClothingSegmentationResult()` converts any mutation breakage into an
 > mutants proved (tz-guard inversion -> jobs never time out; retry-budget
 > off-by-one; circuit-gauge lying after reset; gpu_monitor recorded_at tz-strip
 > -> history-read TypeError; auto-enroll is_household_member default flipped ->
-> auto-enrolled strangers would read as trusted household members; scenario*
-> classifier tailgating alert payload — all 5 keys + the dict — wholly
+> auto-enrolled strangers would read as trusted household members; scenario_classifier tailgating alert payload — all 5 keys + the dict — wholly
 > unasserted, the covering test's disjunction passes on score alone;
 > vehicle_classifier_loader NEM-4519 `torch.load(weights_only=True)` droppable
 > to arbitrary-pickle loading under a MagicMock load; file_service Redis zrem

@@ -1,5 +1,5 @@
 - [Goal-prompt workflow](goal-prompt-workflow.md) — the user drives M1/M2/M3 via a sub-4000-char /goal prompt; format + where copies live
-- [Sandbox recreate vs reboot](sandbox-recreate-vs-reboot.md) — recreation wipes docker store + TEST\_\* env, so handoff boot-recovery steps silently fail
+- [Sandbox recreate vs reboot](sandbox-recreate-vs-reboot.md) — recreation wipes docker store + TEST_* env, so handoff boot-recovery steps silently fail
 - [vdd inode ceiling](vdd-inode-ceiling.md) — /var/lib/docker has only 655k inodes; ENOSPC at 21% blocks = inode exhaustion, sweep orphan volumes + sample df -i
 - [GitHub push one-shot helper](github-push-one-shot-helper.md) — proxy injection can stay inert with a valid token; check API 200 then push via GH_TOKEN one-shot credential helper
 - [GitHub free-tier boundaries 2026](github-free-tier-boundaries-2026.md) — Models retired 2026-07-30, Copilot bills credits, public-repo Actions free; `secrets` invalid in step-level `if` kills whole workflow
@@ -16,4 +16,4 @@
 - [pkill -f self-match trap](pkill-self-match-trap.md) — pkill -f hits its own wrapper cmdline (rc=144, shell dies mid-call); enumerate via bracketed ps pattern, kill by PID
 - [Proxy fail-fast masks network tests](proxy-failfast-masks-network-tests.md) — sandbox proxy answers fake-IP connects instantly (~3s) while CI black-holes (~135s); red-prove hermeticity with a BaseException connect-guard + NO_PROXY
 - [Parallel triage, serial verify](parallel-triage-serial-verify.md) — during a long tier, dispatch read-only triage/drafting waves (dossiers to /tmp, UNVERIFIED); fixes verify only in the one serial pytest lane
-- [Structured-output key typo trap](structured-output-key-typo-trap.md) — agent schema output carried `draftedd_tests: "[]"`; aggregates silently zeroed — dossier sections are canonical, reconcile never re-type
+- [Structured-output key typo trap](structured-output-key-typo-trap.md) — derived channels lie, primaries don't: typo'd schema keys zeroed aggregates; table vs Totals line vs live meta — fold the artifact matching the physical count, reconcile never re-type

@@ -1,6 +1,6 @@
 ---
 name: uv-sync-prunes-manual-venv-packages
-description: 'uv sync removes manually-installed packages from .venv (pre-commit among them), silently breaking git hooks'
+description: "uv sync removes manually-installed packages from .venv (pre-commit among them), silently breaking git hooks"
 metadata:
   node_type: memory
   type: project

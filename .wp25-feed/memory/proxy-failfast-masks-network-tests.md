@@ -1,6 +1,6 @@
 ---
 name: proxy-failfast-masks-network-tests
-description: 'Sandbox HTTP proxy answers fake-IP connects instantly, so non-hermetic tests look fast locally but stall ~130s on CI runners; connect-guard harness + NO_PROXY red-proves hermeticity'
+description: "Sandbox HTTP proxy answers fake-IP connects instantly, so non-hermetic tests look fast locally but stall ~130s on CI runners; connect-guard harness + NO_PROXY red-proves hermeticity"
 metadata:
   node_type: memory
   type: feedback

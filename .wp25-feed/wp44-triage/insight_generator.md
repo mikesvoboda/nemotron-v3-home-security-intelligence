@@ -15,9 +15,9 @@
 ## Key shorthand
 
 Full keys are `backend.services.insight_generator.xǁInsightGeneratorǁ<fn>__mutmut_<N>`.
-Tables use `gcs`=\_gather_camera_stats, `ges`=\_gather_entity_stats, `gei`=\_generate_entity_insights,
-`gti`=\_generate_trend_insights, `gca`=\_generate_camera_insights, `gnai`=\_generate_no_activity_insight,
-`gi`=\_generate_insights (public).
+Tables use `gcs`=_gather_camera_stats, `ges`=_gather_entity_stats, `gei`=_generate_entity_insights,
+`gti`=_generate_trend_insights, `gca`=_generate_camera_insights, `gnai`=_generate_no_activity_insight,
+`gi`=_generate_insights (public).
 
 ## Why 135 survive (root causes)
 
@@ -43,42 +43,42 @@ Tables use `gcs`=\_gather_camera_stats, `ges`=\_gather_entity_stats, `gei`=\_gen
 
 TEST-GAP: 24 clusters / 79 keys. LOW-VALUE: 6 clusters / 49 keys. EQUIVALENT: 4 clusters / 7 keys.
 
-| #   | Pattern                                                                                                                                                                                                                                                                                                               | N   | Class      | Example keys                   |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- | ------------------------------ |
-| T1  | risk_level fetched from wrong/mangled attr (`=None`, `getattr(None,…)`, `"XXrisk_levelXX"`, `"RISK_LEVEL"`) in gcs — invisible under MagicMock, silently zeroes high_critical_count for real Events                                                                                                                   | 4   | TEST-GAP   | gcs_23, gcs_24, gcs_29         |
-| T2  | high/critical membership flipped/sentinelled (`not in`, `"XXhighXX"`, `"XXcriticalXX"`) in gcs                                                                                                                                                                                                                        | 3   | TEST-GAP   | gcs_31, gcs_32, gcs_34         |
-| T3  | membership literal casing (`"HIGH"`, `"CRITICAL"`) — real Events persist lowercase (models/event.py:238 CHECK constraint), so this silently stops counting                                                                                                                                                            | 2   | TEST-GAP   | gcs_33, gcs_35                 |
-| T4  | `risk_score or 0` → `and 0` makes max(0, None) raise TypeError for Events with NULL risk_score                                                                                                                                                                                                                        | 1   | TEST-GAP   | gcs_40                         |
-| T5  | high_critical_count arithmetic (`+=1`→`=1`/`-=1`/`+=2`) — feeds camera priority 6-vs-5 + " (N high/critical)" suffix, never asserted                                                                                                                                                                                  | 3   | TEST-GAP   | gcs_36, gcs_37, gcs_38         |
-| T6a | camera-name resolution in gcs (`hasattr "XXcameraXX"/"CAMERA"`, `camera_id=None` → action_url "/timeline?camera_id=None")                                                                                                                                                                                             | 3   | TEST-GAP   | gcs_9, gcs_10, gcs_16          |
-| T6b | camera-name resolution duplicated in ges + `name or` → `name and` (silently swaps name→id)                                                                                                                                                                                                                            | 4   | TEST-GAP   | ges_14, ges_18, ges_22         |
-| T7  | event_count arithmetic + singular/plural branch (`==1`→`!=1`/`==2`) — "Review 1 event" vs "1 events" never pinned                                                                                                                                                                                                     | 4   | TEST-GAP   | gcs_20, gcs_22, gca_17, gca_18 |
-| T8  | person counters (`known +=1`→`=1`/`-=1`/`+=2`, `unknown +=1`→`+=2`) flow into asserted-but-too-loose descriptions                                                                                                                                                                                                     | 4   | TEST-GAP   | ges_44, ges_45, ges_49         |
-| T9  | unknown_person_cameras dedupe `not in`→`in` (list stops filling)                                                                                                                                                                                                                                                      | 1   | TEST-GAP   | ges_50                         |
-| T10 | recognized safety-default `False`→`True` — missing `recognized` key flips unknown→known classification                                                                                                                                                                                                                | 1   | TEST-GAP   | ges_43                         |
-| T11 | `continue`→`break` on entity-less event — truncates stats for mixed event lists (testable with SimpleNamespace events)                                                                                                                                                                                                | 1   | TEST-GAP   | ges_11                         |
-| T12 | known-persons gate + plural branches (`>0`→`>=0` phantom "0 recognized persons detected" insight; `>0`→`>1`; `==1`→`!=1`/`==2`) — surviving only because :259 test is `if`-guarded                                                                                                                                    | 4   | TEST-GAP   | gei_34, gei_35, gei_36         |
-| T13 | camera-list join in unknown-persons description: `", ".join`→None(crash)/`"XX, XX".join`, slice `[:3]`→`[:4]`, `>3`→`>=3` (" and 0 more")/`>4`                                                                                                                                                                        | 5   | TEST-GAP   | gei_10, gei_13, gei_16         |
-| T14 | action_url kwarg removed → None across gei(4: 23,28,46,51)/gti(6: 12,17,34,39,53,58) builds — the click-through URL IS the feature contract; existing url asserts too weak/`if`-guarded. (The one removal whose value equalled the dataclass default, gnai_9, is instead E1.)                                         | 10  | TEST-GAP   | gei_23, gei_46, gti_12         |
-| T15 | `type=InsightType.X` → `type=None` — str(Enum), so `type.value`/`to_dict()` raises AttributeError → 500s the summaries API (routes/summaries.py:99)                                                                                                                                                                   | 4   | TEST-GAP   | gnai_1, gti_8, gti_49          |
-| T16 | `title=` → None (gca/gti builds) — AttributeError in to_dict                                                                                                                                                                                                                                                          | 4   | TEST-GAP   | gca_28, gti_10, gti_32         |
-| T17 | `description=` → None (gei/gti/gnai) — AttributeError in to_dict                                                                                                                                                                                                                                                      | 4   | TEST-GAP   | gei_38, gti_11, gnai_4         |
-| T18 | gnai `priority=None` — breaks sort key + to_dict                                                                                                                                                                                                                                                                      | 1   | TEST-GAP   | gnai_2                         |
-| T19 | trend boundary gates: `current_count>0`→`>=0` (phantom at baseline 0,count 0) and `>1`; `>=50`→`>50`; `<=-30`→`<-30` (exact -30 loses insight); `<=-30`→`<=+30` (30 % dip mislabeled "below baseline")                                                                                                                | 5   | TEST-GAP   | gti_5, gti_28, gti_46          |
-| T20 | pct_change formula (`/`→`*` kills all trend insights; `*100`→`*101`) — description percent is user-visible                                                                                                                                                                                                            | 2   | TEST-GAP   | gti_25, gti_27                 |
-| T21 | camera sort `reverse=True`→False/None/removed (insights move to the LEAST active cameras) + top-3 cap → 4                                                                                                                                                                                                             | 4   | TEST-GAP   | gca_5, gca_8, gca_10           |
-| T22 | camera HIGH-priority threshold `>0`→`>=0` (everything HIGH) / `>1` (single high event demoted) + same flip on suffix append                                                                                                                                                                                           | 4   | TEST-GAP   | gca_13, gca_14, gca_21         |
-| G1  | public `generate_insights(max_insights=5)` default → 6 (only reachable via default-arg callers; sole prod caller summaries.py:95 passes 5 explicitly — still public contract, docstring promises 5)                                                                                                                   | 1   | TEST-GAP   | gi_1                           |
-| L1  | title cosmetic casing/sentinel text across all 6 builders (`"XXQuiet PeriodXX"`, `"camera activity"`, `"CAMERA ACTIVITY"`, …) — content is product copy, no consumer pins it (frontend renders the string as a prop; API passes through). Only the 4 `title=None` crashers are T16; cosmetic casing = cosmetic change | 21  | LOW-VALUE  | gca_36, gei_29, gti_18         |
-| L2  | description cosmetic casing/sentinel (fixed strings in gei singular branches + gnai)                                                                                                                                                                                                                                  | 7   | LOW-VALUE  | gei_7, gei_39, gnai_13         |
-| L3  | action_url cosmetic casing/sentinel (`"/TIMELINE"`, `"XX/analyticsXX"`, `"/TIMELINE?ENTITY_TYPE=…"`) — real behavior change, but no test should pin marketing-grade URL casing; a typo here would also make D3/D4 exact-URL asserts red                                                                               | 10  | LOW-VALUE  | gei_32, gti_21, gti_44         |
-| L4  | gcs `risk_score` fetch degraded (`getattr(None,…)`, `or 1`, `max(...)→None`) — field `max_risk_score` is **write-only**: grep shows no reader of `_CameraStats.max_risk_score` anywhere in backend/                                                                                                                   | 3   | LOW-VALUE  | gcs_41, gcs_48, gcs_49         |
-| L5  | vehicle counting all mutations (`==`→`!=`, casing, arithmetic) — field `_EntityStats.vehicles` is **write-only**: no reader anywhere in backend/ (all other `.vehicles` hits are the unrelated entity_recognition_service class)                                                                                      | 6   | LOW-VALUE  | ges_52, ges_55, ges_57         |
-| L6  | `entity.get("type","").lower()` default removed → AttributeError, but only for entity dicts lacking `"type"`; `isinstance(entity, dict)` guard already covers the documented shape                                                                                                                                    | 2   | LOW-VALUE  | ges_27, ges_29                 |
-| E1  | `action_url=None` kwarg removed in gnai — dataclass default is None; semantically identical                                                                                                                                                                                                                           | 1   | EQUIVALENT | gnai_9                         |
-| E2  | `entity.get("recognized", False)` default dropped/None'd — falsy → falsy, same branch                                                                                                                                                                                                                                 | 2   | EQUIVALENT | ges_38, ges_40                 |
-| E3  | entity-type default `""`→`"XXXX"` — `"xxxx"` never equals `"person"`/`"vehicle"`; unclassified dicts stay unclassified                                                                                                                                                                                                | 1   | EQUIVALENT | ges_32                         |
-| E4  | getattr **default-arg** dropped where the attribute always exists (`getattr(event, "risk_level", )` / `"risk_score", )` — risk_level/risk_score/camera/entities are always-present attributes on Event per models/event.py; Event.camera is a non-nullable FK relationship) → same value                              | 3   | EQUIVALENT | gcs_28, gcs_45, ges_7          |
+| # | Pattern | N | Class | Example keys |
+|---|---------|---|-------|--------------|
+| T1 | risk_level fetched from wrong/mangled attr (`=None`, `getattr(None,…)`, `"XXrisk_levelXX"`, `"RISK_LEVEL"`) in gcs — invisible under MagicMock, silently zeroes high_critical_count for real Events | 4 | TEST-GAP | gcs_23, gcs_24, gcs_29 |
+| T2 | high/critical membership flipped/sentinelled (`not in`, `"XXhighXX"`, `"XXcriticalXX"`) in gcs | 3 | TEST-GAP | gcs_31, gcs_32, gcs_34 |
+| T3 | membership literal casing (`"HIGH"`, `"CRITICAL"`) — real Events persist lowercase (models/event.py:238 CHECK constraint), so this silently stops counting | 2 | TEST-GAP | gcs_33, gcs_35 |
+| T4 | `risk_score or 0` → `and 0` makes max(0, None) raise TypeError for Events with NULL risk_score | 1 | TEST-GAP | gcs_40 |
+| T5 | high_critical_count arithmetic (`+=1`→`=1`/`-=1`/`+=2`) — feeds camera priority 6-vs-5 + " (N high/critical)" suffix, never asserted | 3 | TEST-GAP | gcs_36, gcs_37, gcs_38 |
+| T6a | camera-name resolution in gcs (`hasattr "XXcameraXX"/"CAMERA"`, `camera_id=None` → action_url "/timeline?camera_id=None") | 3 | TEST-GAP | gcs_9, gcs_10, gcs_16 |
+| T6b | camera-name resolution duplicated in ges + `name or` → `name and` (silently swaps name→id) | 4 | TEST-GAP | ges_14, ges_18, ges_22 |
+| T7 | event_count arithmetic + singular/plural branch (`==1`→`!=1`/`==2`) — "Review 1 event" vs "1 events" never pinned | 4 | TEST-GAP | gcs_20, gcs_22, gca_17, gca_18 |
+| T8 | person counters (`known +=1`→`=1`/`-=1`/`+=2`, `unknown +=1`→`+=2`) flow into asserted-but-too-loose descriptions | 4 | TEST-GAP | ges_44, ges_45, ges_49 |
+| T9 | unknown_person_cameras dedupe `not in`→`in` (list stops filling) | 1 | TEST-GAP | ges_50 |
+| T10 | recognized safety-default `False`→`True` — missing `recognized` key flips unknown→known classification | 1 | TEST-GAP | ges_43 |
+| T11 | `continue`→`break` on entity-less event — truncates stats for mixed event lists (testable with SimpleNamespace events) | 1 | TEST-GAP | ges_11 |
+| T12 | known-persons gate + plural branches (`>0`→`>=0` phantom "0 recognized persons detected" insight; `>0`→`>1`; `==1`→`!=1`/`==2`) — surviving only because :259 test is `if`-guarded | 4 | TEST-GAP | gei_34, gei_35, gei_36 |
+| T13 | camera-list join in unknown-persons description: `", ".join`→None(crash)/`"XX, XX".join`, slice `[:3]`→`[:4]`, `>3`→`>=3` (" and 0 more")/`>4` | 5 | TEST-GAP | gei_10, gei_13, gei_16 |
+| T14 | action_url kwarg removed → None across gei(4: 23,28,46,51)/gti(6: 12,17,34,39,53,58) builds — the click-through URL IS the feature contract; existing url asserts too weak/`if`-guarded. (The one removal whose value equalled the dataclass default, gnai_9, is instead E1.) | 10 | TEST-GAP | gei_23, gei_46, gti_12 |
+| T15 | `type=InsightType.X` → `type=None` — str(Enum), so `type.value`/`to_dict()` raises AttributeError → 500s the summaries API (routes/summaries.py:99) | 4 | TEST-GAP | gnai_1, gti_8, gti_49 |
+| T16 | `title=` → None (gca/gti builds) — AttributeError in to_dict | 4 | TEST-GAP | gca_28, gti_10, gti_32 |
+| T17 | `description=` → None (gei/gti/gnai) — AttributeError in to_dict | 4 | TEST-GAP | gei_38, gti_11, gnai_4 |
+| T18 | gnai `priority=None` — breaks sort key + to_dict | 1 | TEST-GAP | gnai_2 |
+| T19 | trend boundary gates: `current_count>0`→`>=0` (phantom at baseline 0,count 0) and `>1`; `>=50`→`>50`; `<=-30`→`<-30` (exact -30 loses insight); `<=-30`→`<=+30` (30 % dip mislabeled "below baseline") | 5 | TEST-GAP | gti_5, gti_28, gti_46 |
+| T20 | pct_change formula (`/`→`*` kills all trend insights; `*100`→`*101`) — description percent is user-visible | 2 | TEST-GAP | gti_25, gti_27 |
+| T21 | camera sort `reverse=True`→False/None/removed (insights move to the LEAST active cameras) + top-3 cap → 4 | 4 | TEST-GAP | gca_5, gca_8, gca_10 |
+| T22 | camera HIGH-priority threshold `>0`→`>=0` (everything HIGH) / `>1` (single high event demoted) + same flip on suffix append | 4 | TEST-GAP | gca_13, gca_14, gca_21 |
+| G1 | public `generate_insights(max_insights=5)` default → 6 (only reachable via default-arg callers; sole prod caller summaries.py:95 passes 5 explicitly — still public contract, docstring promises 5) | 1 | TEST-GAP | gi_1 |
+| L1 | title cosmetic casing/sentinel text across all 6 builders (`"XXQuiet PeriodXX"`, `"camera activity"`, `"CAMERA ACTIVITY"`, …) — content is product copy, no consumer pins it (frontend renders the string as a prop; API passes through). Only the 4 `title=None` crashers are T16; cosmetic casing = cosmetic change | 21 | LOW-VALUE | gca_36, gei_29, gti_18 |
+| L2 | description cosmetic casing/sentinel (fixed strings in gei singular branches + gnai) | 7 | LOW-VALUE | gei_7, gei_39, gnai_13 |
+| L3 | action_url cosmetic casing/sentinel (`"/TIMELINE"`, `"XX/analyticsXX"`, `"/TIMELINE?ENTITY_TYPE=…"`) — real behavior change, but no test should pin marketing-grade URL casing; a typo here would also make D3/D4 exact-URL asserts red | 10 | LOW-VALUE | gei_32, gti_21, gti_44 |
+| L4 | gcs `risk_score` fetch degraded (`getattr(None,…)`, `or 1`, `max(...)→None`) — field `max_risk_score` is **write-only**: grep shows no reader of `_CameraStats.max_risk_score` anywhere in backend/ | 3 | LOW-VALUE | gcs_41, gcs_48, gcs_49 |
+| L5 | vehicle counting all mutations (`==`→`!=`, casing, arithmetic) — field `_EntityStats.vehicles` is **write-only**: no reader anywhere in backend/ (all other `.vehicles` hits are the unrelated entity_recognition_service class) | 6 | LOW-VALUE | ges_52, ges_55, ges_57 |
+| L6 | `entity.get("type","").lower()` default removed → AttributeError, but only for entity dicts lacking `"type"`; `isinstance(entity, dict)` guard already covers the documented shape | 2 | LOW-VALUE | ges_27, ges_29 |
+| E1 | `action_url=None` kwarg removed in gnai — dataclass default is None; semantically identical | 1 | EQUIVALENT | gnai_9 |
+| E2 | `entity.get("recognized", False)` default dropped/None'd — falsy → falsy, same branch | 2 | EQUIVALENT | ges_38, ges_40 |
+| E3 | entity-type default `""`→`"XXXX"` — `"xxxx"` never equals `"person"`/`"vehicle"`; unclassified dicts stay unclassified | 1 | EQUIVALENT | ges_32 |
+| E4 | getattr **default-arg** dropped where the attribute always exists (`getattr(event, "risk_level", )` / `"risk_score", )` — risk_level/risk_score/camera/entities are always-present attributes on Event per models/event.py; Event.camera is a non-nullable FK relationship) → same value | 3 | EQUIVALENT | gcs_28, gcs_45, ges_7 |
 
 Coverage sanity: 79 + 49 + 7 = 135 = survivors_total. Partition validated programmatically
 (135 unique keys, zero overlap, zero unassigned).
@@ -87,7 +87,7 @@ Coverage sanity: 79 + 49 + 7 = 135 = survivors_total. Partition validated progra
 
 - T1/T2/T3/T5/T22: every camera test (:136–211, :457, :499) calls generate_insights over events
   with `risk_level` set, but no test asserts camera priority or the " (N high/critical)" suffix.
-- T6a/T6b/T7: `test_event_without_camera_relationship` (:499–525) is _designed_ for the fallback
+- T6a/T6b/T7: `test_event_without_camera_relationship` (:499–525) is *designed* for the fallback
   but only asserts `isinstance(insights, list)` + a disjunction (:522) that the id-swap mutant also
   satisfies; `test_camera_insight_includes_event_count` (:165) accepts `"2" in desc or "events" in …`.
 - T8/T12/T13: `test_multiple_unknown_persons_count` (:280) accepts "2"/"multiple"/"persons"
@@ -96,14 +96,14 @@ Coverage sanity: 79 + 49 + 7 = 135 = survivors_total. Partition validated progra
 - T14/T16/T17/T19/T20: `test_activity_below_baseline` (:348) / `test_trend_insight_percentage` (:366)
   skip their assert when the mutant suppresses the insight; `test_baseline_zero` (:527) asserts only
   `isinstance(list)`; no test calls the privates directly.
-- T1: all fixtures are MagicMock (:33–87) — the mutated attribute _strings_ can never diverge under
+- T1: all fixtures are MagicMock (:33–87) — the mutated attribute *strings* can never diverge under
   mocks; no test uses a plain object.
 
 ## Drafted tests (WP4.4 candidates) — UNVERIFIED, not yet run red/green
 
 All follow the existing file's style: `pytestmark = pytest.mark.unit` at module level, classes,
 `MagicMock` fixtures where possible (new `types.SimpleNamespace` objects where the mutant is a
-_string attribute name_ — MagicMock cannot expose those). TDD procedure for each: add the test, run
+*string attribute name* — MagicMock cannot expose those). TDD procedure for each: add the test, run
 `uv run pytest backend/tests/unit/services/test_insight_generator.py -k <name>` — assert must fail
 (red) on the mutant source, pass (green) on original; the red proof is the mutation diff above.
 
@@ -175,7 +175,7 @@ TDD: e.g. `gcs_37` (`+=1`→`-=1`) makes front description "…(-2 high/critical
 
 ### D2 — known-persons insight is unconditionally exact (kills T12, T8-known, T14-gei, T17-gei, L1-gei known, L2-gei known)
 
-Replaces the if-guarded `test_known_person_lower_priority` (:259) _in intent_ (keep the old one;
+Replaces the if-guarded `test_known_person_lower_priority` (:259) *in intent* (keep the old one;
 this adds teeth):
 
 ```python
@@ -441,15 +441,15 @@ AttributeError); original green.
 
 ## Drafted-test kill map (for WP4.4 planning)
 
-| Draft | Kills clusters                                            | Approx keys killed |
-| ----- | --------------------------------------------------------- | ------------------ |
-| D1    | T2, T3, T5, T7, T22, T16(gca), T6a(partial)               | ~20                |
-| D2    | T12, T8(known), T14(gei), T17(gei), L1/L2(gei-known)      | ~14                |
-| D3    | T8(unknown), T9, T13, T6b                                 | ~11                |
-| D4    | T19, T20, T15(gti), T16(gti), T17(gti), T14(gti), L3(gti) | ~20                |
-| D5    | T21, G1, L1(gca partial via exact desc)                   | ~6                 |
-| D6    | T1, T2(mock-blind), T3, T4, T6a/b, T10, T11, E3           | ~15                |
-| D7    | T15(gnai), T17(gnai), T18, L2(gnai)                       | ~8                 |
+| Draft | Kills clusters | Approx keys killed |
+|-------|----------------|--------------------|
+| D1 | T2, T3, T5, T7, T22, T16(gca), T6a(partial) | ~20 |
+| D2 | T12, T8(known), T14(gei), T17(gei), L1/L2(gei-known) | ~14 |
+| D3 | T8(unknown), T9, T13, T6b | ~11 |
+| D4 | T19, T20, T15(gti), T16(gti), T17(gti), T14(gti), L3(gti) | ~20 |
+| D5 | T21, G1, L1(gca partial via exact desc) | ~6 |
+| D6 | T1, T2(mock-blind), T3, T4, T6a/b, T10, T11, E3 | ~15 |
+| D7 | T15(gnai), T17(gnai), T18, L2(gnai) | ~8 |
 
 Residual after all drafts: L1/L2/L3 (cosmetic copy — deliberately not asserted; teams that want
 marketing-copy regression locks can add one golden-string test per insight type instead),
@@ -464,7 +464,7 @@ L6 + E-class (intentionally uncovered).
   keys against the final baseline before implementing.
 - `mutmut show` succeeded for all 135 keys (no manual diffing fallback needed); raw diffs at
   `/tmp/wp25/wp44-triage/ig-diffs.txt`.
-- D1's `mock_event` fixture path also exercises the _camera_ insight for a mock event with
+- D1's `mock_event` fixture path also exercises the *camera* insight for a mock event with
   entities; entity insights ride along harmlessly.
 - Existing weak tests worth hardening in-place instead of duplicating (same file):
   :259 if-guard removal, :190 disjunction, :208 url disjunction, :522 disjunction,

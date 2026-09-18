@@ -15,7 +15,7 @@ Date: 2026-09-17 · Generated from `mutants/backend/services/prompt_version_serv
 - **Covering test file (all functions):** `backend/tests/unit/services/test_prompt_version_service.py`
   (from `mutants/mutmut-stats.json` → `tests_by_mangled_function_name`). Region map:
   | class | lines |
-  | ---------------------------------------------------------------------------------------------------------- | ------- |
+  |---|---|
   | TestGetActiveVersion | 80–109 |
   | TestGetVersionById | 112–139 |
   | TestGetVersionHistory | 142–200 |
@@ -26,9 +26,9 @@ Date: 2026-09-17 · Generated from `mutants/backend/services/prompt_version_serv
   | TestCalculateDiff | 397–441 |
   | TestCleanupOldVersions | 444–485 |
   | TestDeactivateCurrentVersion | 488–517 |
-  | Secondary (endpoint smoke only, POSTGRES-gated): `backend/tests/integration/test_prompt_management_api.py` |
-  | (GET /api/prompts/history ~L7, restore ~L11) — asserts response fields but not the exact |
-  | `version`/`model`/`created_at` keys of the diff payload. |
+  Secondary (endpoint smoke only, POSTGRES-gated): `backend/tests/integration/test_prompt_management_api.py`
+  (GET /api/prompts/history ~L7, restore ~L11) — asserts response fields but not the exact
+  `version`/`model`/`created_at` keys of the diff payload.
 
 ## Root cause behind nearly every TEST-GAP cluster
 
@@ -52,26 +52,26 @@ The unit tests use `AsyncMock(spec=AsyncSession)` and patch out internal collabo
 
 ## Cluster table (128 survivors, 18 clusters, counts sum exactly)
 
-| #   | Cluster (function · mutation pattern)                                                                                                                                                                                                                                                                                                                                                                             | Count | Class      | Example keys (≤3)                                                                                          |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------- | ---------------------------------------------------------------------------------------------------------- |
-| C1  | `_calculate_diff`: `has_changes: bool(added or removed or changed)` → `bool(added or removed and changed)`                                                                                                                                                                                                                                                                                                        | 1     | TEST-GAP   | `_calculate_diff__mutmut_33`                                                                               |
-| C2  | `_cleanup_old_versions`: retention SQL unchecked — count/keep/delete query `where` clauses dropped or `==`→`!=`, keep-set `.limit(None)`/`.order_by(None)/desc(None)`, `~id.in_(keep_ids)` → `id.in_(keep_ids)`, whole query / `execute()` arg → `None`                                                                                                                                                           | 21    | TEST-GAP   | `_cleanup_old_versions__mutmut_29`, `_cleanup_old_versions__mutmut_10`†, `_cleanup_old_versions__mutmut_6` |
-| C3  | `_cleanup_old_versions`: `total = scalar() or 0` → `or 1`                                                                                                                                                                                                                                                                                                                                                         | 1     | EQUIVALENT | `_cleanup_old_versions__mutmut_9`                                                                          |
-| C4  | `_cleanup_old_versions`: early-exit `if total <= MAX` → `if total < MAX`                                                                                                                                                                                                                                                                                                                                          | 1     | LOW-VALUE  | `_cleanup_old_versions__mutmut_10`                                                                         |
-| C5  | `_cleanup_old_versions`: `logger.info(f"Cleaned up {len…}")` → `logger.info(None)`                                                                                                                                                                                                                                                                                                                                | 1     | LOW-VALUE  | `_cleanup_old_versions__mutmut_36`                                                                         |
-| C6  | Cross-function: collaborator-call-site wiring mutated inside `_deactivate_current_version` (→`get_active_version`), `create_version` (→`get_next_version_number`/`_deactivate_current_version`/`_cleanup_old_versions`), `get_version_diff` (→`get_version_by_id` ×2), `restore_version` (→`create_version`); `session`/`model` args → `None`, first positional dropped; tests assert `assert_called_once()` only | 23    | TEST-GAP   | `_deactivate_current_version__mutmut_4`, `create_version__mutmut_32`, `get_version_diff__mutmut_8`         |
-| C7  | `get_active_version`: WHERE-clause SQL unchecked — `is_active == True` → `!= True` / `== False`, `model ==` → `!=`, clause/`select()`/whole-statement → `None`                                                                                                                                                                                                                                                    | 9     | TEST-GAP   | `get_active_version__mutmut_9`, `get_active_version__mutmut_10`, `get_active_version__mutmut_8`            |
-| C8  | `get_version_by_id`: `WHERE id == :id` unchecked — `==`→`!=`, clause/`select()`/`execute()` arg → `None`                                                                                                                                                                                                                                                                                                          | 4     | TEST-GAP   | `get_version_by_id__mutmut_5`                                                                              |
-| C9  | `get_version_history`: filter/order/pagination SQL + total-count fallback unchecked — `if model is not None` → `is None`, filter `==`→`!=`/dropped, `ORDER BY created_at DESC` dropped, `limit/offset` → `None`, `scalar() or 0` → `or 1`, query/`execute()` → `None`                                                                                                                                             | 16    | TEST-GAP   | `get_version_history__mutmut_6`, `get_version_history__mutmut_22`, `get_version_history__mutmut_17`        |
-| C10 | `create_version`: constructed `PromptVersion` row never examined — field kwargs (`model`,`version`,`config_json`,`created_at`,`created_by`,`change_description`,`is_active`) → `None` or dropped, `version=None`/`add(None)`, `refresh(None)`, `next_version=None`, `config_json=json.dumps(None,…)`                                                                                                              | 19    | TEST-GAP   | `create_version__mutmut_17`, `create_version__mutmut_25`, `create_version__mutmut_19`                      |
-| C11 | `create_version`: `json.dumps(config, indent=2)` → `indent=None` / `indent` dropped / `indent=3` (whitespace-only)                                                                                                                                                                                                                                                                                                | 3     | EQUIVALENT | `create_version__mutmut_26`, `create_version__mutmut_28`, `create_version__mutmut_29`                      |
-| C12 | `create_version`: `logger.info(f"Created version …")` → `logger.info(None)`                                                                                                                                                                                                                                                                                                                                       | 1     | LOW-VALUE  | `create_version__mutmut_36`                                                                                |
-| C13 | `get_version_diff`: response contract unchecked — `"version"`/`"model"`/`"created_at"` keys → `"XX…XX"`/`"UPPER"` for both `version_a` and `version_b` blocks; `model_a`/`model_b` → `None`                                                                                                                                                                                                                       | 14    | TEST-GAP   | `get_version_diff__mutmut_31`, `get_version_diff__mutmut_43`, `get_version_diff__mutmut_21`                |
-| C14 | `get_version_diff`: `isinstance(…, AIModel)` guards → `and False` / `or True`                                                                                                                                                                                                                                                                                                                                     | 4     | EQUIVALENT | `get_version_diff__mutmut_22`, `get_version_diff__mutmut_23`                                               |
-| C15 | `restore_version`: hard-coded `make_active=True` → `None` / `False` (restore must activate the restored version)                                                                                                                                                                                                                                                                                                  | 2     | TEST-GAP   | `restore_version__mutmut_27`, `restore_version__mutmut_20`                                                 |
-| C16 | `restore_version`: `isinstance(old_version.model, AIModel)` → `and False` / `or True`                                                                                                                                                                                                                                                                                                                             | 2     | EQUIVALENT | `restore_version__mutmut_12`, `restore_version__mutmut_13`                                                 |
-| C17 | `restore_version`: `model_value` / log fiddling — `model_value=None`, `and False`/`or True` branch, `str(None)`, whole `logger.info(...)` → `logger.info(None)` (log-only consumer)                                                                                                                                                                                                                               | 5     | LOW-VALUE  | `restore_version__mutmut_32`, `restore_version__mutmut_28`, `restore_version__mutmut_29`                   |
-| C18 | `restore_version`: `make_active=True` kwarg dropped → hits `create_version` default `True`                                                                                                                                                                                                                                                                                                                        | 1     | EQUIVALENT | `restore_version__mutmut_26`                                                                               |
+| # | Cluster (function · mutation pattern) | Count | Class | Example keys (≤3) |
+|---|---|---|---|---|
+| C1 | `_calculate_diff`: `has_changes: bool(added or removed or changed)` → `bool(added or removed and changed)` | 1 | TEST-GAP | `_calculate_diff__mutmut_33` |
+| C2 | `_cleanup_old_versions`: retention SQL unchecked — count/keep/delete query `where` clauses dropped or `==`→`!=`, keep-set `.limit(None)`/`.order_by(None)/desc(None)`, `~id.in_(keep_ids)` → `id.in_(keep_ids)`, whole query / `execute()` arg → `None` | 21 | TEST-GAP | `_cleanup_old_versions__mutmut_29`, `_cleanup_old_versions__mutmut_10`†, `_cleanup_old_versions__mutmut_6` |
+| C3 | `_cleanup_old_versions`: `total = scalar() or 0` → `or 1` | 1 | EQUIVALENT | `_cleanup_old_versions__mutmut_9` |
+| C4 | `_cleanup_old_versions`: early-exit `if total <= MAX` → `if total < MAX` | 1 | LOW-VALUE | `_cleanup_old_versions__mutmut_10` |
+| C5 | `_cleanup_old_versions`: `logger.info(f"Cleaned up {len…}")` → `logger.info(None)` | 1 | LOW-VALUE | `_cleanup_old_versions__mutmut_36` |
+| C6 | Cross-function: collaborator-call-site wiring mutated inside `_deactivate_current_version` (→`get_active_version`), `create_version` (→`get_next_version_number`/`_deactivate_current_version`/`_cleanup_old_versions`), `get_version_diff` (→`get_version_by_id` ×2), `restore_version` (→`create_version`); `session`/`model` args → `None`, first positional dropped; tests assert `assert_called_once()` only | 23 | TEST-GAP | `_deactivate_current_version__mutmut_4`, `create_version__mutmut_32`, `get_version_diff__mutmut_8` |
+| C7 | `get_active_version`: WHERE-clause SQL unchecked — `is_active == True` → `!= True` / `== False`, `model ==` → `!=`, clause/`select()`/whole-statement → `None` | 9 | TEST-GAP | `get_active_version__mutmut_9`, `get_active_version__mutmut_10`, `get_active_version__mutmut_8` |
+| C8 | `get_version_by_id`: `WHERE id == :id` unchecked — `==`→`!=`, clause/`select()`/`execute()` arg → `None` | 4 | TEST-GAP | `get_version_by_id__mutmut_5` |
+| C9 | `get_version_history`: filter/order/pagination SQL + total-count fallback unchecked — `if model is not None` → `is None`, filter `==`→`!=`/dropped, `ORDER BY created_at DESC` dropped, `limit/offset` → `None`, `scalar() or 0` → `or 1`, query/`execute()` → `None` | 16 | TEST-GAP | `get_version_history__mutmut_6`, `get_version_history__mutmut_22`, `get_version_history__mutmut_17` |
+| C10 | `create_version`: constructed `PromptVersion` row never examined — field kwargs (`model`,`version`,`config_json`,`created_at`,`created_by`,`change_description`,`is_active`) → `None` or dropped, `version=None`/`add(None)`, `refresh(None)`, `next_version=None`, `config_json=json.dumps(None,…)` | 19 | TEST-GAP | `create_version__mutmut_17`, `create_version__mutmut_25`, `create_version__mutmut_19` |
+| C11 | `create_version`: `json.dumps(config, indent=2)` → `indent=None` / `indent` dropped / `indent=3` (whitespace-only) | 3 | EQUIVALENT | `create_version__mutmut_26`, `create_version__mutmut_28`, `create_version__mutmut_29` |
+| C12 | `create_version`: `logger.info(f"Created version …")` → `logger.info(None)` | 1 | LOW-VALUE | `create_version__mutmut_36` |
+| C13 | `get_version_diff`: response contract unchecked — `"version"`/`"model"`/`"created_at"` keys → `"XX…XX"`/`"UPPER"` for both `version_a` and `version_b` blocks; `model_a`/`model_b` → `None` | 14 | TEST-GAP | `get_version_diff__mutmut_31`, `get_version_diff__mutmut_43`, `get_version_diff__mutmut_21` |
+| C14 | `get_version_diff`: `isinstance(…, AIModel)` guards → `and False` / `or True` | 4 | EQUIVALENT | `get_version_diff__mutmut_22`, `get_version_diff__mutmut_23` |
+| C15 | `restore_version`: hard-coded `make_active=True` → `None` / `False` (restore must activate the restored version) | 2 | TEST-GAP | `restore_version__mutmut_27`, `restore_version__mutmut_20` |
+| C16 | `restore_version`: `isinstance(old_version.model, AIModel)` → `and False` / `or True` | 2 | EQUIVALENT | `restore_version__mutmut_12`, `restore_version__mutmut_13` |
+| C17 | `restore_version`: `model_value` / log fiddling — `model_value=None`, `and False`/`or True` branch, `str(None)`, whole `logger.info(...)` → `logger.info(None)` (log-only consumer) | 5 | LOW-VALUE | `restore_version__mutmut_32`, `restore_version__mutmut_28`, `restore_version__mutmut_29` |
+| C18 | `restore_version`: `make_active=True` kwarg dropped → hits `create_version` default `True` | 1 | EQUIVALENT | `restore_version__mutmut_26` |
 
 † Cluster membership is a verified exact partition of the 128 survivor keys (no key in two
 clusters, none missing; C10 = create_version {1,10–25,30,35}, C13 = get_version_diff
@@ -82,8 +82,8 @@ EQUIVALENT = 11, LOW-VALUE = 8, TEST-GAP = 109; sum = 128.
 
 ## Cluster notes
 
-- **C1 (1, TEST-GAP).** `bool(added or removed and changed)` differs exactly when _only removed
-  keys exist_ (`added={}`, `changed={}`, `removed` non-empty): original `has_changes=True`,
+- **C1 (1, TEST-GAP).** `bool(added or removed and changed)` differs exactly when *only removed
+  keys exist* (`added={}`, `changed={}`, `removed` non-empty): original `has_changes=True`,
   mutant `False`. `TestCalculateDiff.test_identifies_removed_keys` (test file L411–419) exercises
   that exact config pair but asserts only the `removed` dict, never `has_changes`. One added
   assert kills it.
@@ -91,7 +91,7 @@ EQUIVALENT = 11, LOW-VALUE = 8, TEST-GAP = 109; sum = 128.
   `side_effect` list and assert only `execute.call_count == 1` / `delete.assert_called_once_with`.
   The most dangerous member is `__mutmut_29`: `~PromptVersion.id.in_(keep_ids)` →
   `id.in_(keep_ids)` — production retention would **delete the 50 newest and keep every old
-  version**. `__mutmut_6/16/28` (`==`→`!=`) scope cleanup to _other models' rows_. All 21 killable
+  version**. `__mutmut_6/16/28` (`==`→`!=`) scope cleanup to *other models' rows*. All 21 killable
   by asserting the compiled SQL of the three `execute` args (see Draft 2).
 - **C3 (1, EQUIVALENT).** `scalar()` comes from `SELECT count(*)` → `0` or `n>0` (or `None` only
   on a broken driver). `0→1` and `None→1` both satisfy `total <= 50` → same early return; no path
@@ -113,14 +113,14 @@ EQUIVALENT = 11, LOW-VALUE = 8, TEST-GAP = 109; sum = 128.
   lookup (restore/cleanup then deactivate the wrong rows or none). Tests only stub the result.
   One SQL-shape assert (Draft 5a) kills all 9.
 - **C8 (4, TEST-GAP).** Same for the primary-key lookup: `id == :id` → `id != :id` makes
-  `get_version_by_id(7)` return an arbitrary _other_ row — silently feeding the wrong config into
+  `get_version_by_id(7)` return an arbitrary *other* row — silently feeding the wrong config into
   restore/diff. `id == None` renders `IS NULL` (verified). Draft 5b.
 - **C9 (16, TEST-GAP).** Includes the model-filter polarity flip `__mutmut_6` (filter applied to
   the unfiltered query and vice-versa — cross-model leakage), missing `DESC` ordering (oldest
   page returned first), dropped `LIMIT/OFFSET` (whole table returned / wrong page), and
   `total_count = scalar() or 1` (empty history reports total=1 to the API).
-  `test_respects_limit_and_offset` (L185–200) even comments "_The actual query would have limit
-  and offset applied_" — i.e., the test author knew nobody verified it. Draft 3.
+  `test_respects_limit_and_offset` (L185–200) even comments "*The actual query would have limit
+  and offset applied*" — i.e., the test author knew nobody verified it. Draft 3.
 - **C10 (19, TEST-GAP).** `session.add` is a `MagicMock` (fixture L37); nobody ever reads the row.
   Asserting `add.call_args.args[0]`'s fields (and that `refresh` got that same object) kills all
   19, including `is_active=None` (falsy — an "inactive" new active version), `created_at=None`
@@ -130,13 +130,13 @@ EQUIVALENT = 11, LOW-VALUE = 8, TEST-GAP = 109; sum = 128.
 - **C11 (3, EQUIVALENT).** `indent=2` vs `indent=None`/dropped/`3`: `json.loads` round-trips to the
   identical dict (verified against this repo's SQLAlchemy/py versions); the read side is
   `PromptVersion.config` → `safe_json_loads`. No consumer byte-compares `config_json`. Skip.
-- **C13 (14, TEST-GAP, highest count).** The response _is_ built at the asserted path; the test
+- **C13 (14, TEST-GAP, highest count).** The response *is* built at the asserted path; the test
   only reads `["version_a"]["id"]`, `["version_b"]["id"]` and `["diff"]…`. Renamed/uppercased
   `version`/`model`/`created_at` keys break the API contract for the frontend diff view with no
   test redness. `model_a=None` (`__mutmut_21/24`) is included — killed by the same `== "nemotron"`
   assert. Draft 1 (biggest single-test kill per line of code).
 - **C14 (4, EQUIVALENT).** `AIModel` is a **str-Enum** (`backend/models/prompt_version.py` L18):
-  the member _is_ the string (`AIModel.NEMOTRON == "nemotron"` → True, verified), so `.value` vs
+  the member *is* the string (`AIModel.NEMOTRON == "nemotron"` → True, verified), so `.value` vs
   the member JSON-serializes identically; `or True` (always-take `.value`) equals the original on
   real ORM rows (the column always loads an enum member — `values_callable` config); `and False`
   only downgrades str-purity of an already-str-compatible value. Only `type(x) is str` asserts
@@ -429,7 +429,7 @@ class TestCreateVersionRowAndWiring:
 ```
 
 Notes: `test_get_version_diff_looks_up_both_ids_with_session` relies on both lookups running
-_before_ the None-check raises — `ValueError("stop")` as the `side_effect` makes the SECOND
+*before* the None-check raises — `ValueError("stop")` as the `side_effect` makes the SECOND
 lookup raise, after both `call`s are recorded. If a mutant drops the second lookup, `assert_has_calls`
 fails. (The C6 member `get_version_diff__mutmut_4/9` — dropped first positional — makes the first
 call `call(1)` instead of `call(mock_session, 1)` → `assert_has_calls` fails. ✓)
@@ -483,14 +483,14 @@ class TestSelectorQueries:
 
 ## Kill-coverage math
 
-| Draft             | Clusters killed | Survivors                         |
-| ----------------- | --------------- | --------------------------------- |
-| D1                | C13             | 14                                |
-| D2                | C2              | 21                                |
-| D3                | C9              | 16                                |
-| D4                | C10 + C15 + C6  | 44                                |
-| D5                | C7 + C8 + C1    | 14                                |
-| **Total drafted** |                 | **109 = every TEST-GAP survivor** |
+| Draft | Clusters killed | Survivors |
+|---|---|---|
+| D1 | C13 | 14 |
+| D2 | C2 | 21 |
+| D3 | C9 | 16 |
+| D4 | C10 + C15 + C6 | 44 |
+| D5 | C7 + C8 + C1 | 14 |
+| **Total drafted** | | **109 = every TEST-GAP survivor** |
 
 Remaining 19: EQUIVALENT (11: C3, C11, C14, C16, C18) — recommend `mutmut` triage/skip markers,
 not tests; LOW-VALUE (8: C4, C5, C12, C17) — log/boundary cosmetics, recommend skip.

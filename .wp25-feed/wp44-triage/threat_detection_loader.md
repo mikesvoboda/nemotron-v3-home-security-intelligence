@@ -14,7 +14,7 @@
 
 1. **Substring asserts instead of exact-string contract.** Every `to_context_string` /
    `format_threat_context` test checks `assert "CRITICAL" in context` — an `XX...XX`-wrapped or
-   case-flipped line still contains the substring. Kills XX-wrap/case mutants of _rendered output_
+   case-flipped line still contains the substring. Kills XX-wrap/case mutants of *rendered output*
    (TEST-GAP: fix the assertion strength). NOTE: this is the opposite of log-message mutants —
    these strings are the product (LLM prompt text), so mutation there is a real behavior change.
 2. **Detections never field-checked.** Batch tests assert `has_threats` / `len(threats)` but never
@@ -37,45 +37,45 @@
 
 Counts sum to 128. (K) = covered by a drafted test below.
 
-| #   | Cluster (function — pattern)                                                                                          | n   | Class      | Example keys                     | Kill note                                                                                                                                                  |
-| --- | --------------------------------------------------------------------------------------------------------------------- | --- | ---------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | detect_threats — `predict(source=…)` arg removed/None                                                                 | 2   | TEST-GAP   | …x_detect_threats**mutmut_3, **6 | T3 (K) assert `call_args[1]["source"] is image`                                                                                                            |
-| 2   | detect_threats — `verbose` kwarg mutated/removed                                                                      | 3   | LOW-VALUE  | **5, **8, \_\_9                  | stdout verbosity only; nobody should assert it                                                                                                             |
-| 3   | detect_threats — `not results or len==0` → `and`                                                                      | 1   | EQUIVALENT | \_\_10                           | for lists `not X` ⇔ `len(X)==0`; `A or A` = `A and A`                                                                                                      |
-| 4   | detect_threats — boxes `len(boxes) > 0` → `>= 0`                                                                      | 1   | EQUIVALENT | \_\_19                           | entering loop with `range(0)` yields same empty threats list                                                                                               |
-| 5   | detect_threats — bbox tuple coords swapped / bbox None                                                                | 5   | TEST-GAP   | **39, **41, \_\_53               | T3 (K) assert `t.bbox == (10.,20.,30.,40.)`                                                                                                                |
-| 6   | detect_threats — `logger.error` message text variants                                                                 | 4   | EQUIVALENT | **63, **67, \_\_68               | log-only text                                                                                                                                              |
-| 7   | detect_threats — `logger.error` `exc_info` mutated/removed                                                            | 3   | LOW-VALUE  | **64, **66, \_\_70               | traceback in logs only                                                                                                                                     |
-| 8   | detect_threats_batch — `predict(source=images)` removed/None                                                          | 2   | TEST-GAP   | **4, **7                         | T2 (K)                                                                                                                                                     |
-| 9   | detect_threats_batch — `predict(conf=…)` removed/None                                                                 | 2   | TEST-GAP   | **5, **8                         | T2 (K) — batch has NO threshold test at all                                                                                                                |
-| 10  | detect_threats_batch — `verbose` kwarg                                                                                | 3   | LOW-VALUE  | **6, **9, \_\_10                 | same as #2                                                                                                                                                 |
-| 11  | detect_threats_batch — boxes `>0`→`>=0`                                                                               | 1   | EQUIVALENT | \_\_15                           | same as #4                                                                                                                                                 |
-| 12  | detect_threats_batch — class-name resolution (hasattr/`in`/`.lower()`/fallback)                                       | 8   | TEST-GAP   | **21, **28, \_\_30               | T1 (K) — batch never asserts `class_name`; unknown-class & no-names paths untested                                                                         |
-| 13  | detect_threats_batch — `conf=None`, `is_high_priority` None/flipped                                                   | 3   | TEST-GAP   | **31, **43, \_\_44               | T2 (K)                                                                                                                                                     |
-| 14  | detect_threats_batch — bbox tuple swapped/None                                                                        | 5   | TEST-GAP   | **34, **36, \_\_48               | T2 (K)                                                                                                                                                     |
-| 15  | detect_threats_batch — `ThreatDetection(...)` kwargs None/omitted                                                     | 4   | TEST-GAP   | **46, **47, \_\_53               | T2 (K)                                                                                                                                                     |
-| 16  | detect_threats_batch — `logger.error` message text                                                                    | 4   | EQUIVALENT | **59, **63, \_\_64               | log-only                                                                                                                                                   |
-| 17  | detect_threats_batch — `logger.error` `exc_info`                                                                      | 3   | LOW-VALUE  | **60, **62, \_\_66               | log-only                                                                                                                                                   |
-| 18  | format_threat_context — early-return strings (None / no-threats)                                                      | 2   | TEST-GAP   | **2, **6                         | T5 (K) assert full string equality                                                                                                                         |
-| 19  | format_threat_context — header line XX-wrapped                                                                        | 1   | TEST-GAP   | \_\_10                           | T5 (K) `splitlines()[0] ==`                                                                                                                                |
-| 20  | format_threat_context — CRITICAL / "Immediate review" lines wrapped/cased                                             | 4   | TEST-GAP   | **13, **17, \_\_18               | T5 (K) exact lines; "Immediate review" line has ZERO coverage                                                                                              |
-| 21  | format_threat_context — detail sort `reverse=True`→None/removed/False                                                 | 3   | TEST-GAP   | **24, **27, \_\_29               | T5 (K) detail-line order; wrong order also picks wrong 5 when >5 threats                                                                                   |
-| 22  | format_threat_context — `" **HIGH PRIORITY**"` marker mutants                                                         | 6   | TEST-GAP   | **31, **33, \_\_35               | T5 (K) marker present on high-prio line, absent on normal line                                                                                             |
-| 23  | format_threat_context — time tuple members `late_night`/`early_morning` clobbered                                     | 4   | TEST-GAP   | **43, **44, \_\_45               | T4 (K) parametrize over late_night/early_morning/uppercase                                                                                                 |
-| 24  | format_threat_context — escalation line XX-wrapped                                                                    | 1   | TEST-GAP   | \_\_49                           | T5 (K) exact line                                                                                                                                          |
-| 25  | format_threat_context — `"\n".join` → `"XX\nXX".join`                                                                 | 1   | TEST-GAP   | \_\_53                           | T5 (K) exact output                                                                                                                                        |
-| 26  | load_threat_detection_model — `logger.info/warning/error` message text                                                | 11  | EQUIVALENT | **1, **59, \_\_72                | log-only text                                                                                                                                              |
-| 27  | load_threat_detection_model — `Path(model_path)` → `Path(None)`                                                       | 1   | TEST-GAP   | \_\_4                            | Path stubbed by every test; T6 (K) with real fs                                                                                                            |
-| 28  | load_threat_detection_model — weights-name chain (`model.pt`/`best.pt`/`threat-detection-yolov8n.pt`) clobbered/cased | 6   | TEST-GAP   | **7, **8, \_\_12                 | T6 (K) preference test on real `tmp_path`                                                                                                                  |
-| 29  | load_threat_detection_model — rglob fallback / FileNotFoundError msg / `YOLO(str(w))` arg                             | 8   | TEST-GAP   | **20, **25, \_\_27               | T6 (K) rglob step + `match="No model weights"` + YOLO call-path assert                                                                                     |
-| 30  | load_threat_detection_model — fuse-guard string names & `and`→`or` & getattr default                                  | 6   | TEST-GAP   | **33, **40, \_\_43               | T6 (K) plain objects (no MagicMock auto-viv)                                                                                                               |
-| 31  | load_threat_detection_model — raised `ImportError` message XX-wrapped                                                 | 1   | TEST-GAP   | \_\_63                           | weak `match=` substring in test L228; tighten to `excinfo.value.args[0] == "Threat detection requires ultralytics. Install with: pip install ultralytics"` |
-| 32  | load_threat_detection_model — `logger.error` `exc_info`/`extra` dict mutants                                          | 7   | LOW-VALUE  | **67, **68, \_\_76               | log structure only                                                                                                                                         |
-| 33  | ThreatDetectionResult.to_context_string — no-threats return XX-wrapped                                                | 1   | TEST-GAP   | …ǁto_context_string\_\_mutmut_2  | T5 (K) exact equality                                                                                                                                      |
-| 34  | to_context_string — header / CRITICAL lines XX-wrapped                                                                | 2   | TEST-GAP   | **6, **9                         | T5 (K) exact lines incl. leading spaces                                                                                                                    |
-| 35  | to_context_string — `" [HIGH PRIORITY]"` marker mutants (None/`and False`/`or True`/wrap/case/else-text)              | 6   | TEST-GAP   | **20, **22, \_\_24               | T5 (K) — marker never asserted anywhere                                                                                                                    |
-| 36  | to_context_string — `"\n".join` → `"XX\nXX".join`                                                                     | 1   | TEST-GAP   | \_\_28                           | T5 (K) exact output                                                                                                                                        |
-| 37  | ThreatDetectionResult.to_dict — `"threat_summary"` key name clobbered/cased                                           | 2   | TEST-GAP   | …ǁto_dict**mutmut_9, **10        | T5 (K) assert `d["threat_summary"]` (test L136 checks other keys only)                                                                                     |
+| # | Cluster (function — pattern) | n | Class | Example keys | Kill note |
+|---|---|---|---|---|---|
+| 1 | detect_threats — `predict(source=…)` arg removed/None | 2 | TEST-GAP | …x_detect_threats__mutmut_3, __6 | T3 (K) assert `call_args[1]["source"] is image` |
+| 2 | detect_threats — `verbose` kwarg mutated/removed | 3 | LOW-VALUE | __5, __8, __9 | stdout verbosity only; nobody should assert it |
+| 3 | detect_threats — `not results or len==0` → `and` | 1 | EQUIVALENT | __10 | for lists `not X` ⇔ `len(X)==0`; `A or A` = `A and A` |
+| 4 | detect_threats — boxes `len(boxes) > 0` → `>= 0` | 1 | EQUIVALENT | __19 | entering loop with `range(0)` yields same empty threats list |
+| 5 | detect_threats — bbox tuple coords swapped / bbox None | 5 | TEST-GAP | __39, __41, __53 | T3 (K) assert `t.bbox == (10.,20.,30.,40.)` |
+| 6 | detect_threats — `logger.error` message text variants | 4 | EQUIVALENT | __63, __67, __68 | log-only text |
+| 7 | detect_threats — `logger.error` `exc_info` mutated/removed | 3 | LOW-VALUE | __64, __66, __70 | traceback in logs only |
+| 8 | detect_threats_batch — `predict(source=images)` removed/None | 2 | TEST-GAP | __4, __7 | T2 (K) |
+| 9 | detect_threats_batch — `predict(conf=…)` removed/None | 2 | TEST-GAP | __5, __8 | T2 (K) — batch has NO threshold test at all |
+| 10 | detect_threats_batch — `verbose` kwarg | 3 | LOW-VALUE | __6, __9, __10 | same as #2 |
+| 11 | detect_threats_batch — boxes `>0`→`>=0` | 1 | EQUIVALENT | __15 | same as #4 |
+| 12 | detect_threats_batch — class-name resolution (hasattr/`in`/`.lower()`/fallback) | 8 | TEST-GAP | __21, __28, __30 | T1 (K) — batch never asserts `class_name`; unknown-class & no-names paths untested |
+| 13 | detect_threats_batch — `conf=None`, `is_high_priority` None/flipped | 3 | TEST-GAP | __31, __43, __44 | T2 (K) |
+| 14 | detect_threats_batch — bbox tuple swapped/None | 5 | TEST-GAP | __34, __36, __48 | T2 (K) |
+| 15 | detect_threats_batch — `ThreatDetection(...)` kwargs None/omitted | 4 | TEST-GAP | __46, __47, __53 | T2 (K) |
+| 16 | detect_threats_batch — `logger.error` message text | 4 | EQUIVALENT | __59, __63, __64 | log-only |
+| 17 | detect_threats_batch — `logger.error` `exc_info` | 3 | LOW-VALUE | __60, __62, __66 | log-only |
+| 18 | format_threat_context — early-return strings (None / no-threats) | 2 | TEST-GAP | __2, __6 | T5 (K) assert full string equality |
+| 19 | format_threat_context — header line XX-wrapped | 1 | TEST-GAP | __10 | T5 (K) `splitlines()[0] ==` |
+| 20 | format_threat_context — CRITICAL / "Immediate review" lines wrapped/cased | 4 | TEST-GAP | __13, __17, __18 | T5 (K) exact lines; "Immediate review" line has ZERO coverage |
+| 21 | format_threat_context — detail sort `reverse=True`→None/removed/False | 3 | TEST-GAP | __24, __27, __29 | T5 (K) detail-line order; wrong order also picks wrong 5 when >5 threats |
+| 22 | format_threat_context — `" **HIGH PRIORITY**"` marker mutants | 6 | TEST-GAP | __31, __33, __35 | T5 (K) marker present on high-prio line, absent on normal line |
+| 23 | format_threat_context — time tuple members `late_night`/`early_morning` clobbered | 4 | TEST-GAP | __43, __44, __45 | T4 (K) parametrize over late_night/early_morning/uppercase |
+| 24 | format_threat_context — escalation line XX-wrapped | 1 | TEST-GAP | __49 | T5 (K) exact line |
+| 25 | format_threat_context — `"\n".join` → `"XX\nXX".join` | 1 | TEST-GAP | __53 | T5 (K) exact output |
+| 26 | load_threat_detection_model — `logger.info/warning/error` message text | 11 | EQUIVALENT | __1, __59, __72 | log-only text |
+| 27 | load_threat_detection_model — `Path(model_path)` → `Path(None)` | 1 | TEST-GAP | __4 | Path stubbed by every test; T6 (K) with real fs |
+| 28 | load_threat_detection_model — weights-name chain (`model.pt`/`best.pt`/`threat-detection-yolov8n.pt`) clobbered/cased | 6 | TEST-GAP | __7, __8, __12 | T6 (K) preference test on real `tmp_path` |
+| 29 | load_threat_detection_model — rglob fallback / FileNotFoundError msg / `YOLO(str(w))` arg | 8 | TEST-GAP | __20, __25, __27 | T6 (K) rglob step + `match="No model weights"` + YOLO call-path assert |
+| 30 | load_threat_detection_model — fuse-guard string names & `and`→`or` & getattr default | 6 | TEST-GAP | __33, __40, __43 | T6 (K) plain objects (no MagicMock auto-viv) |
+| 31 | load_threat_detection_model — raised `ImportError` message XX-wrapped | 1 | TEST-GAP | __63 | weak `match=` substring in test L228; tighten to `excinfo.value.args[0] == "Threat detection requires ultralytics. Install with: pip install ultralytics"` |
+| 32 | load_threat_detection_model — `logger.error` `exc_info`/`extra` dict mutants | 7 | LOW-VALUE | __67, __68, __76 | log structure only |
+| 33 | ThreatDetectionResult.to_context_string — no-threats return XX-wrapped | 1 | TEST-GAP | …ǁto_context_string__mutmut_2 | T5 (K) exact equality |
+| 34 | to_context_string — header / CRITICAL lines XX-wrapped | 2 | TEST-GAP | __6, __9 | T5 (K) exact lines incl. leading spaces |
+| 35 | to_context_string — `" [HIGH PRIORITY]"` marker mutants (None/`and False`/`or True`/wrap/case/else-text) | 6 | TEST-GAP | __20, __22, __24 | T5 (K) — marker never asserted anywhere |
+| 36 | to_context_string — `"\n".join` → `"XX\nXX".join` | 1 | TEST-GAP | __28 | T5 (K) exact output |
+| 37 | ThreatDetectionResult.to_dict — `"threat_summary"` key name clobbered/cased | 2 | TEST-GAP | …ǁto_dict__mutmut_9, __10 | T5 (K) assert `d["threat_summary"]` (test L136 checks other keys only) |
 
 **Totals: TEST-GAP 87 / EQUIVALENT 22 / LOW-VALUE 19 = 128.**
 The six drafted tests below kill 86 of the 87 TEST-GAP mutants (#31 is a one-line assert tightening,
@@ -236,7 +236,7 @@ class TestWp44TimeOfDayVariants:
 
 Red mechanism: `__mutmut_43/45` (`"XXlate_nightXX"` / `"XXearly_morningXX"` never match the
 lower-cased input) and `__mutmut_44/46` (`"LATE_NIGHT"`/`"EARLY_MORNING"` in the tuple while input is
-`.lower()`-ed) suppress the escalation block. The `LATE_NIGHT`/`EARLY_MORNING` _inputs_ pass because
+`.lower()`-ed) suppress the escalation block. The `LATE_NIGHT`/`EARLY_MORNING` *inputs* pass because
 of `.lower()` — that is exactly the contract.
 
 ### T5 — kills clusters 18–22, 24, 25, 33–37 (exact output contracts, 29 mutants)

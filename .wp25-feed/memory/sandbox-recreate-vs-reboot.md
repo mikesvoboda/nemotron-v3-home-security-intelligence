@@ -1,6 +1,6 @@
 ---
 name: sandbox-recreate-vs-reboot
-description: 'Sandbox recreation wipes the docker store and TEST_* env vars, so handoff "docker start" recovery steps silently fail'
+description: "Sandbox recreation wipes the docker store and TEST_* env vars, so handoff \"docker start\" recovery steps silently fail"
 metadata:
   node_type: memory
   type: project

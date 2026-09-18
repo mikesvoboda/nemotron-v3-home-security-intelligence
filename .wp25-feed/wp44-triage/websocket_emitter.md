@@ -13,32 +13,31 @@ Almost every dispatch test asserts only `assert_called_once()` / `call_count == 
 
 ## Cluster table
 
-| #         | Cluster                                                                                                                                                                                       | Count   | Class      | Example keys (suffix)                   |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------- | --------------------------------------- |
-| C1        | `emit_to_user` drops room (`user:{id}` → None) and/or correlation_id into `emit()`                                                                                                            | 5       | TEST-GAP   | emit_to_user**1, **4, \_\_5             |
-| C2        | `broadcast` drops correlation_id (`correlation_id=None` / kwarg removed)                                                                                                                      | 3       | TEST-GAP   | broadcast**3, **6, \_\_7                |
-| C3        | `emit_batch` shared-correlation derivation/pass-through broken (`None`, `and`-flip, `str(None)`, per-event None, kwarg removed)                                                               | 5       | TEST-GAP   | emit_batch**3, **4, \_\_5               |
-| C4        | `emit_batch` skip-warning log message text → `None`                                                                                                                                           | 1       | EQUIVALENT | emit_batch\_\_16                        |
-| C5        | alert dispatch: `broadcast_alert(payload, alert_type_map[...])` arg swaps/drops (payload→None, alert-type→None, args dropped)                                                                 | 4       | TEST-GAP   | \_deb**15, **16, \_\_17                 |
-| C6        | camera dispatch: `camera_payload` / `{"type":"camera_status","data":...}` message shape clobbered (whole dict→None, key renames `type`/`data`/`event_type`, value case/`XX` changes)          | 10      | TEST-GAP   | \_deb**20, **21, \_\_23                 |
-| C7        | security-event dispatch: `broadcast_event({"type":"event","data":payload})` message shape clobbered                                                                                           | 7       | TEST-GAP   | \_deb**39, **40, \_\_44                 |
-| C8        | service-status dispatch: `"timestamp"` field key/value clobbered (`XXtimestampXX`, `TIMESTAMP`, `message.get(None)` etc.)                                                                     | 5       | TEST-GAP   | \_deb**54, **56, \_\_58                 |
-| C9        | worker dispatch: `worker_payload` / `{"type":"worker_status","data":...,"timestamp":...}` message shape clobbered                                                                             | 15      | TEST-GAP   | \_deb**60, **61, \_\_63                 |
-| C10       | Redis-fallback dispatch: channel derivation (`channel=None`, `and`-flip, `get_event_channel(None)`) and `_publish_to_redis(message, channel)` arg drops                                       | 5       | TEST-GAP   | \_deb**76, **78, \_\_81                 |
-| C11       | `_dispatch_to_event_broadcaster` guard log message text (incl. `None`)                                                                                                                        | 4       | EQUIVALENT | \_deb**2, **3, \_\_4                    |
-| C12       | `_dispatch_to_event_broadcaster` `message.get("payload", {})` default tweak (only fires when "payload" key absent — always present via emit path)                                             | 2       | EQUIVALENT | \_deb**8, **10                          |
-| C13       | system dispatch: `status_data = {"type","data","timestamp"}` message shape clobbered (whole dict→None, key renames, `get(None,{})`, `get("XXpayloadXX",{})` → data lost, timestamp key/value) | 14      | TEST-GAP   | \_dsb**6, **7, \_\_11                   |
-| C14       | `_dispatch_to_system_broadcaster` guard log message text                                                                                                                                      | 4       | EQUIVALENT | \_dsb**2, **3, \_\_4                    |
-| C15       | `_dispatch_to_system_broadcaster` `message.get("payload", {})` default tweak (absent-key-only)                                                                                                | 2       | EQUIVALENT | \_dsb**12, **14                         |
-| C16       | `_publish_to_redis` log message texts (warning/debug/error) → `None`/case/`XX` variants                                                                                                       | 6       | EQUIVALENT | \_ptr**2, **10, \_\_11                  |
-| C17       | `_publish_to_redis` `exc_info=True` → `None`/absent/`False` (traceback capture in error log; no test inspects log record)                                                                     | 3       | LOW-VALUE  | \_ptr**12, **14, \_\_15                 |
-| C18       | `get_websocket_emitter` "Global WebSocket emitter initialized" info-log text                                                                                                                  | 4       | EQUIVALENT | get_websocket_emitter**17, **18, \_\_19 |
-| **Total** |                                                                                                                                                                                               | **101** |            |                                         |
+| # | Cluster | Count | Class | Example keys (suffix) |
+|---|---------|-------|-------|------------------------|
+| C1 | `emit_to_user` drops room (`user:{id}` → None) and/or correlation_id into `emit()` | 5 | TEST-GAP | emit_to_user__1, __4, __5 |
+| C2 | `broadcast` drops correlation_id (`correlation_id=None` / kwarg removed) | 3 | TEST-GAP | broadcast__3, __6, __7 |
+| C3 | `emit_batch` shared-correlation derivation/pass-through broken (`None`, `and`-flip, `str(None)`, per-event None, kwarg removed) | 5 | TEST-GAP | emit_batch__3, __4, __5 |
+| C4 | `emit_batch` skip-warning log message text → `None` | 1 | EQUIVALENT | emit_batch__16 |
+| C5 | alert dispatch: `broadcast_alert(payload, alert_type_map[...])` arg swaps/drops (payload→None, alert-type→None, args dropped) | 4 | TEST-GAP | _deb__15, __16, __17 |
+| C6 | camera dispatch: `camera_payload` / `{"type":"camera_status","data":...}` message shape clobbered (whole dict→None, key renames `type`/`data`/`event_type`, value case/`XX` changes) | 10 | TEST-GAP | _deb__20, __21, __23 |
+| C7 | security-event dispatch: `broadcast_event({"type":"event","data":payload})` message shape clobbered | 7 | TEST-GAP | _deb__39, __40, __44 |
+| C8 | service-status dispatch: `"timestamp"` field key/value clobbered (`XXtimestampXX`, `TIMESTAMP`, `message.get(None)` etc.) | 5 | TEST-GAP | _deb__54, __56, __58 |
+| C9 | worker dispatch: `worker_payload` / `{"type":"worker_status","data":...,"timestamp":...}` message shape clobbered | 15 | TEST-GAP | _deb__60, __61, __63 |
+| C10 | Redis-fallback dispatch: channel derivation (`channel=None`, `and`-flip, `get_event_channel(None)`) and `_publish_to_redis(message, channel)` arg drops | 5 | TEST-GAP | _deb__76, __78, __81 |
+| C11 | `_dispatch_to_event_broadcaster` guard log message text (incl. `None`) | 4 | EQUIVALENT | _deb__2, __3, __4 |
+| C12 | `_dispatch_to_event_broadcaster` `message.get("payload", {})` default tweak (only fires when "payload" key absent — always present via emit path) | 2 | EQUIVALENT | _deb__8, __10 |
+| C13 | system dispatch: `status_data = {"type","data","timestamp"}` message shape clobbered (whole dict→None, key renames, `get(None,{})`, `get("XXpayloadXX",{})` → data lost, timestamp key/value) | 14 | TEST-GAP | _dsb__6, __7, __11 |
+| C14 | `_dispatch_to_system_broadcaster` guard log message text | 4 | EQUIVALENT | _dsb__2, __3, __4 |
+| C15 | `_dispatch_to_system_broadcaster` `message.get("payload", {})` default tweak (absent-key-only) | 2 | EQUIVALENT | _dsb__12, __14 |
+| C16 | `_publish_to_redis` log message texts (warning/debug/error) → `None`/case/`XX` variants | 6 | EQUIVALENT | _ptr__2, __10, __11 |
+| C17 | `_publish_to_redis` `exc_info=True` → `None`/absent/`False` (traceback capture in error log; no test inspects log record) | 3 | LOW-VALUE | _ptr__12, __14, __15 |
+| C18 | `get_websocket_emitter` "Global WebSocket emitter initialized" info-log text | 4 | EQUIVALENT | get_websocket_emitter__17, __18, __19 |
+| **Total** | | **101** | | |
 
 Key: `emit_to_user`/`broadcast`/`emit_batch` keys are `...ǁWebSocketEmitterServiceǁ<fn>__mutmut_N`; `_deb` = `_dispatch_to_event_broadcaster`, `_dsb` = `_dispatch_to_system_broadcaster`, `_ptr` = `_publish_to_redis`.
 
 Notes:
-
 - `_deb__79/__80` (the `"events"` fallback literal → `XXeventsXX`/`EVENTS`) are a separate EQUIVALENT cluster (C10b, count 2, listed below the main table), NOT part of C10's 5 TEST-GAP keys: every one of the 59 enum event types has a truthy `channel` in `EVENT_TYPE_METADATA` (`backend/core/websocket/event_types.py:739-749`), so `get_event_channel(event_type) or "events"` never takes the fallback and the string mutation is a semantic no-op.
 
 C10b: Redis-fallback `"events"` default literal is dead code (all 59 event types carry a channel) — string mutation is a no-op | 2 | EQUIVALENT | keys: `_dispatch_to_event_broadcaster__mutmut_79, __80`.

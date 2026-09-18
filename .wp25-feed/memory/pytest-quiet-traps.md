@@ -1,6 +1,6 @@
 ---
 name: pytest-quiet-traps
-description: 'pytest quoting + double -q silently destroy measurement data — addopts inner quotes load-bearing, -q twice kills node IDs and the count line'
+description: "pytest quoting + double -q silently destroy measurement data — addopts inner quotes load-bearing, -q twice kills node IDs and the count line"
 metadata:
   node_type: memory
   type: reference

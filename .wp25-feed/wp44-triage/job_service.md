@@ -8,7 +8,6 @@ the run completes). Diffs derived by AST-diffing each clobbered variant in
 cluster counts below are script-counted, not hand-counted).
 
 Covering test files:
-
 - `backend/tests/unit/services/test_database_job_service.py` (DatabaseJobService; 30 tests;
   every query-shape question is dodged because `mock_db_session` — root conftest
   `backend/tests/conftest.py:1930` — is a permissive AsyncMock that never compiles SQL)
@@ -21,7 +20,7 @@ The DatabaseJobService tests drive every query through `AsyncMock` and assert on
 hands back — the mock is a mirror: whatever the test stuffs into
 `execute.return_value.X.return_value` comes out of the function unchanged. So every mutation of
 the SQL itself (WHERE / ORDER BY / GROUP BY / status lists / cutoff computation / select columns)
-is invisible, and every mutation that _breaks_ the query (`stmt = None`, `select(None)`, clause
+is invisible, and every mutation that *breaks* the query (`stmt = None`, `select(None)`, clause
 deleted) never crashes because the mock never compiles it. The one stats test
 (`test_database_job_service.py:541`) asserts only `"total_jobs" in stats` — key presence, no
 values — while feeding canned results. On top of that, mutmut's string mutations hit log
@@ -30,20 +29,20 @@ nothing captures.
 
 ## Cluster table (script-counted; sums to 176)
 
-| Cluster | Pattern                                                                                                                                                                                                               | Fn (count)                                                          | N      | Classification | Example keys (prefix `backend.services.job_service.`)                                                |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------ | -------------- | ---------------------------------------------------------------------------------------------------- |
-| C1      | Log-message text mutated → `None` / `XX..XX` / case flips                                                                                                                                                             | cancel 4, cleanup 4, complete 4, fail 4, retry 4, start 4, update 4 | **28** | EQUIVALENT     | `xǁDatabaseJobServiceǁcancel_job__mutmut_5`, `.._9`, `.._10`                                         |
-| C2      | Log `extra` dict: keys `XX..XX`/UPPER, entry dropped, `extra=None`, extra arg deleted                                                                                                                                 | cancel 6, cleanup 6, complete 6, fail 8, retry 6, start 4, update 6 | **42** | EQUIVALENT     | `xǁDatabaseJobServiceǁstart_job__mutmut_13`, `.._14`, `.._7`                                         |
-| C3      | Query-build clobbered — stmt/`select(...)`/where-arg/execute-arg → `None`, select-column removed, whole clause deleted — never compiled under the mock                                                                | get_job_stats 38, cleanup_old_jobs 6, get_active_jobs 4             | **48** | TEST-GAP       | `xǁDatabaseJobServiceǁget_job_stats__mutmut_1`, `.._3`, `xǁ...ǁcleanup_old_jobs__mutmut_19`, `.._22` |
-| C4      | Stats result-value mutations: response keys `status`/`count`/`job_type` → `XX..XX`/UPPER, `row[0]`→`row[1]` (label becomes its count), computed value → `None`/`""`                                                   | get_job_stats 16                                                    | **16** | TEST-GAP       | `xǁDatabaseJobServiceǁget_job_stats__mutmut_11`, `.._13`, `.._29`                                    |
-| C5      | Predicate operator flipped: `Job.status ==` → `!=` (COMPLETED avg filter, QUEUED oldest filter), `job_type ==` → `!=`, optional-filter `is not None` → `is None`                                                      | get_job_stats 2, get_active_jobs 2                                  | **4**  | TEST-GAP       | `xǁDatabaseJobServiceǁget_job_stats__mutmut_63`, `.._71`, `xǁ...ǁget_active_jobs__mutmut_5`          |
-| C6      | Cleanup cutoff-date math: `days` default 30→31, each `.replace(hour/minute/second/microsecond=0)` kwarg dropped or set to 1, `datetime.now(UTC)` → `now(None)`, `cutoff - timedelta` → `+ timedelta`                  | cleanup_old_jobs 11                                                 | **11** | TEST-GAP       | `xǁDatabaseJobServiceǁcleanup_old_jobs__mutmut_1`, `.._7`, `.._17`                                   |
-| C7      | `get_active_jobs` order_by shape: `order_by(priority.asc(), created_at.asc())` → single column / arg→`None` / assignment→`None`                                                                                       | get_active_jobs 5                                                   | **5**  | TEST-GAP       | `xǁDatabaseJobServiceǁget_active_jobs__mutmut_10`, `.._12`, `.._13`                                  |
-| C8      | Boundary & fallback arithmetic: `completed_at < cutoff` → `<=`; `rowcount or 0` → `or 1` (empty cleanup reports 1 deleted); `scalar() or 0` → `and 0` / `or 1`; avg truthiness guard folded (`and False` / `or True`) | cleanup 2, get_job_stats 4                                          | **6**  | TEST-GAP       | `xǁDatabaseJobServiceǁcleanup_old_jobs__mutmut_26`, `.._31`, `xǁ...ǁget_job_stats__mutmut_39`        |
-| C9      | Requested id passed as `None` to tracker lookup — killable with unit mocks                                                                                                                                            | JobService.get_job_or_404 1, get_job_detail 1                       | **2**  | TEST-GAP       | `xǁJobServiceǁget_job_or_404__mutmut_2`, `xǁJobServiceǁget_job_detail__mutmut_2`                     |
-| C10     | `get_job_by_id(job_id)` → `get_job_by_id(None)` in lifecycle methods — unit tests stub the lookup's _return_, so the swapped arg is unobservable under mocks                                                          | start/complete/fail/cancel/update_progress/retry 1 each             | **6**  | TEST-GAP       | `xǁDatabaseJobServiceǁstart_job__mutmut_2`, `.._cancel_job__mutmut_2`                                |
-| C11     | `func.extract("epoch", col)` literal/arg clobbered (`"EPOCH"`, `"XXepochXX"`, arg→`None`) — never compiled under the mock                                                                                             | get_job_stats 6                                                     | **6**  | EQUIVALENT     | `xǁDatabaseJobServiceǁget_job_stats__mutmut_51`, `.._55`, `.._62`                                    |
-| C12     | Log-gate operator on `if deleted_count > 0:` (`>= 0`, `> 1`) — only the cleanup info-log fires                                                                                                                        | cleanup_old_jobs 2                                                  | **2**  | LOW-VALUE      | `xǁDatabaseJobServiceǁcleanup_old_jobs__mutmut_32`, `.._33`                                          |
+| Cluster | Pattern | Fn (count) | N | Classification | Example keys (prefix `backend.services.job_service.`) |
+|---|---|---|---|---|---|
+| C1 | Log-message text mutated → `None` / `XX..XX` / case flips | cancel 4, cleanup 4, complete 4, fail 4, retry 4, start 4, update 4 | **28** | EQUIVALENT | `xǁDatabaseJobServiceǁcancel_job__mutmut_5`, `.._9`, `.._10` |
+| C2 | Log `extra` dict: keys `XX..XX`/UPPER, entry dropped, `extra=None`, extra arg deleted | cancel 6, cleanup 6, complete 6, fail 8, retry 6, start 4, update 6 | **42** | EQUIVALENT | `xǁDatabaseJobServiceǁstart_job__mutmut_13`, `.._14`, `.._7` |
+| C3 | Query-build clobbered — stmt/`select(...)`/where-arg/execute-arg → `None`, select-column removed, whole clause deleted — never compiled under the mock | get_job_stats 38, cleanup_old_jobs 6, get_active_jobs 4 | **48** | TEST-GAP | `xǁDatabaseJobServiceǁget_job_stats__mutmut_1`, `.._3`, `xǁ...ǁcleanup_old_jobs__mutmut_19`, `.._22` |
+| C4 | Stats result-value mutations: response keys `status`/`count`/`job_type` → `XX..XX`/UPPER, `row[0]`→`row[1]` (label becomes its count), computed value → `None`/`""` | get_job_stats 16 | **16** | TEST-GAP | `xǁDatabaseJobServiceǁget_job_stats__mutmut_11`, `.._13`, `.._29` |
+| C5 | Predicate operator flipped: `Job.status ==` → `!=` (COMPLETED avg filter, QUEUED oldest filter), `job_type ==` → `!=`, optional-filter `is not None` → `is None` | get_job_stats 2, get_active_jobs 2 | **4** | TEST-GAP | `xǁDatabaseJobServiceǁget_job_stats__mutmut_63`, `.._71`, `xǁ...ǁget_active_jobs__mutmut_5` |
+| C6 | Cleanup cutoff-date math: `days` default 30→31, each `.replace(hour/minute/second/microsecond=0)` kwarg dropped or set to 1, `datetime.now(UTC)` → `now(None)`, `cutoff - timedelta` → `+ timedelta` | cleanup_old_jobs 11 | **11** | TEST-GAP | `xǁDatabaseJobServiceǁcleanup_old_jobs__mutmut_1`, `.._7`, `.._17` |
+| C7 | `get_active_jobs` order_by shape: `order_by(priority.asc(), created_at.asc())` → single column / arg→`None` / assignment→`None` | get_active_jobs 5 | **5** | TEST-GAP | `xǁDatabaseJobServiceǁget_active_jobs__mutmut_10`, `.._12`, `.._13` |
+| C8 | Boundary & fallback arithmetic: `completed_at < cutoff` → `<=`; `rowcount or 0` → `or 1` (empty cleanup reports 1 deleted); `scalar() or 0` → `and 0` / `or 1`; avg truthiness guard folded (`and False` / `or True`) | cleanup 2, get_job_stats 4 | **6** | TEST-GAP | `xǁDatabaseJobServiceǁcleanup_old_jobs__mutmut_26`, `.._31`, `xǁ...ǁget_job_stats__mutmut_39` |
+| C9 | Requested id passed as `None` to tracker lookup — killable with unit mocks | JobService.get_job_or_404 1, get_job_detail 1 | **2** | TEST-GAP | `xǁJobServiceǁget_job_or_404__mutmut_2`, `xǁJobServiceǁget_job_detail__mutmut_2` |
+| C10 | `get_job_by_id(job_id)` → `get_job_by_id(None)` in lifecycle methods — unit tests stub the lookup's *return*, so the swapped arg is unobservable under mocks | start/complete/fail/cancel/update_progress/retry 1 each | **6** | TEST-GAP | `xǁDatabaseJobServiceǁstart_job__mutmut_2`, `.._cancel_job__mutmut_2` |
+| C11 | `func.extract("epoch", col)` literal/arg clobbered (`"EPOCH"`, `"XXepochXX"`, arg→`None`) — never compiled under the mock | get_job_stats 6 | **6** | EQUIVALENT | `xǁDatabaseJobServiceǁget_job_stats__mutmut_51`, `.._55`, `.._62` |
+| C12 | Log-gate operator on `if deleted_count > 0:` (`>= 0`, `> 1`) — only the cleanup info-log fires | cleanup_old_jobs 2 | **2** | LOW-VALUE | `xǁDatabaseJobServiceǁcleanup_old_jobs__mutmut_32`, `.._33` |
 
 **Sum: 28+42+48+16+4+11+5+6+2+6+6+2 = 176.**
 TEST-GAP 98 (C3–C10) · EQUIVALENT 76 (C1, C2, C11) · LOW-VALUE 2 (C12).
@@ -61,7 +60,7 @@ TEST-GAP 98 (C3–C10) · EQUIVALENT 76 (C1, C2, C11) · LOW-VALUE 2 (C12).
   single-row cleanup. Behavior change exists (an info line), but asserting on it is
   caplog-theater. Leave, or absorb into a future structured-log-contract test.
 - **C4 (16, TEST-GAP — highest value in module).** The only stats test
-  (`test_database_job_service.py:541`) asserts key _presence_ against a mock whose rows it
+  (`test_database_job_service.py:541`) asserts key *presence* against a mock whose rows it
   planted. Meanwhile `get_job_stats__mutmut_13` turns `{"status": row[0], "count": row[1]}` into
   `{"status": row[1], "count": row[1]}` — the dashboard would render counts where status names
   belong and no test notices. Value assertions kill this cluster plus most of C3∩stats and C11.
@@ -69,12 +68,12 @@ TEST-GAP 98 (C3–C10) · EQUIVALENT 76 (C1, C2, C11) · LOW-VALUE 2 (C12).
   statement is never captured/compiled. Kill = compile the `execute` argument and compare
   against a reference query / predicate text. (Covering test: `TestGetActiveJobs`,
   `TestGetJobStats`, `TestCleanupOldJobs`, `test_database_job_service.py:493-685`.)
-- **C5 (4) (TEST-GAP).** `==` → `!=` inverts _which jobs_ the avg-duration and oldest-pending
+- **C5 (4) (TEST-GAP).** `==` → `!=` inverts *which jobs* the avg-duration and oldest-pending
   stats measure; `job_type is None` inverts the optional active-jobs filter (filtered →
   unfiltered and vice versa). Observable only in compiled SQL/params.
 - **C6 (11) (TEST-GAP — prod-damage risk).** `cutoff = midnight − timedelta(days)` is the
   retention boundary (CLAUDE.md: Retention 30 days). Tests pass `days=30/7` and assert the mocked
-  `rowcount` only — the date math is never asserted, and `-`→`+` (would delete the _newest_
+  `rowcount` only — the date math is never asserted, and `-`→`+` (would delete the *newest*
   jobs' predecessors) passes.
 - **C8 (6) (TEST-GAP).** `<` vs `<=` boundary-second; `rowcount or 0` → `or 1` makes an empty
   cleanup API-report "1 deleted"; `total or 0` → `and 0` zeroes a nonzero total; avg-guard folds
@@ -90,14 +89,14 @@ TEST-GAP 98 (C3–C10) · EQUIVALENT 76 (C1, C2, C11) · LOW-VALUE 2 (C12).
 ## Drafted tests
 
 All marked **// UNVERIFIED — not yet run red/green**. TDD procedure for each: add the test,
-apply that cluster's one-line mutation (or run against the mutants/ copy), see the _new_
+apply that cluster's one-line mutation (or run against the mutants/ copy), see the *new*
 assertion FAIL; revert to original source, see it PASS; then re-run `mutmut run` scoped to this
 file and confirm the cluster's keys turn non-zero.
 
 File-level import additions for the unit drafts: add `from sqlalchemy import func, select` to
 `backend/tests/unit/services/test_database_job_service.py` (it currently imports no sqlalchemy).
 
-### T1 — kills C4 (16), C3∩stats (38), C11 (6) [~60 survivors]
+### T1 — kills C4 (16), C3∩stats (38), C11 (6)  [~60 survivors]
 
 ```python
 # UNVERIFIED - not yet run red/green

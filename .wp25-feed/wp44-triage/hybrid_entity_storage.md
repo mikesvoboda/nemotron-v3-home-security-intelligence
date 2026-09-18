@@ -17,7 +17,7 @@
 Every behavior-bearing survivor is a **kwarg/field value mutation** (`x=None`, kwarg deleted,
 `str(x)`→`str(None)`, ternary cond forced). Each survives for the same reason: tests assert the
 **return value** (`assert entity_id == new_entity.id`, `assert is_new is True`) and assert
-`assert_called_once()` plus only the _outermost_ fields of mock payloads —
+`assert_called_once()` plus only the *outermost* fields of mock payloads —
 `stored_embedding.entity_type/embedding/camera_id/attributes` (test L295-298) but **not** `detection_id`
 or `timestamp`; `assign_entity.call_args[1]["entity_type"]` (test L761-762) but no other kwarg;
 `list.call_args[1]` only for `limit`/`offset` (L673-675) but **not** `entity_type`/`since`. AsyncMocks
@@ -41,31 +41,31 @@ field-checked. Fix = assert the converted fields (T-D, T-E below).
 
 Key suffix = `__mutmut_N` within the named function.
 
-| #   | Pattern (function / concern)                                                                                                                                                         | Count   | Example keys                            | Classification                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | --------------------------------------- | ----------------------------------------- |
-| C1  | `store_detection_embedding` L265-272: `assign_entity(**kw)` → None or kwarg deleted (detection_id/entity_type/embedding/camera_id/timestamp/attributes)                              | 10      | store**2, store**4, store\_\_10         | TEST-GAP                                  |
-| C2  | `store_detection_embedding` L283-290: `EntityEmbedding(...)` field → None (timestamp, detection_id incl. `str(None)`)                                                                | 3       | store**35, store**36, store\_\_44       | TEST-GAP                                  |
-| C3  | `store_detection_embedding` L293: Redis client `self.redis` → None in `reid.store_embedding(...)`                                                                                    | 1       | store\_\_46                             | TEST-GAP                                  |
-| C4  | `store_detection_embedding` L274-279: `("created" if is_new else "matched")` cond forced (`and False` / `or True`) — debug log misreports created-vs-matched                         | 2       | store**25, store**26                    | TEST-GAP                                  |
-| C5  | `from_postgresql_match` L147-161: field assignments → None (entity_id/entity_type/embedding/camera_id/timestamp/detection_id/attributes/time_gap_seconds/entity)                     | 9       | from_postgresql_match**1, **2, \_\_5    | TEST-GAP                                  |
-| C6  | `store_detection_embedding` L300-304: warning path `str(e)` → `str(None)` — corrupts the only record of a failed Redis write                                                         | 1       | store\_\_66                             | TEST-GAP                                  |
-| C7  | `from_postgresql_match`: detection_id ternary cond forced, `str(pid)`→`str(None)` (yields literal `"None"`), `entity=entity` deletion, `or []`/`or {}` fallbacks → `and`             | 6       | from_postgresql_match**22, **26, \_\_29 | TEST-GAP                                  |
-| C8  | `from_redis_match` L116-128: field assignments → None (same nine fields; `entity=None` deletion)                                                                                     | 9       | from_redis_match**1, **3, \_\_9         | TEST-GAP                                  |
-| C9  | `get_entities_by_timerange` L494-499: `entity_repo.list(entity_type=…, since=…)` → None                                                                                              | 2       | timerange**2, timerange**3              | TEST-GAP                                  |
-| C10 | `get_entities_by_timerange` L494-499: `entity_repo.list(entity_type=…, since=…)` kwarg deleted                                                                                       | 2       | timerange**6, timerange**7              | TEST-GAP                                  |
-| C11 | `from_postgresql_match`: `"unknown"` sentinel string clobbers (`XXunknownXX`, `UNKNOWN`) in camera_id fallback                                                                       | 2       | from_postgresql_match**24, **25         | LOW-VALUE (T-D kills for free)            |
-| C12 | `store_detection_embedding` L274-279, L294-297, L300-304: logger debug+warning args → None (msg fmt, "created/matched", detection_id, is_new, str(e))                                | 9       | store**14, store**50, store\_\_57       | LOW-VALUE                                 |
-| C13 | `store_detection_embedding` L274-279: `"created"`/`"matched"` log-word clobbers (XX/UPPER/lowercase — text only, NOT the cond-forced C4)                                             | 4       | store**27, store**28, store\_\_29       | LOW-VALUE                                 |
-| C14 | `store_detection_embedding`: logger debug+warning args **deleted** (breaks format arity; fatal only if the call emits — debug never emits in tests, warning break is inside the try) | 9       | store**18, store**52, store\_\_60       | LOW-VALUE                                 |
-| C15 | `store_detection_embedding`: logger debug+warning message-string clobbers (XX/UPPER/lowercase ×3 lines)                                                                              | 9       | store**22, store**54, store\_\_63       | LOW-VALUE                                 |
-| C16 | `get_entity_full_history` L452-457: found-path logger.debug args → None (fmt, entity_id, detection_count)                                                                            | 3       | full_history**3, **4, \_\_5             | LOW-VALUE                                 |
-| C17 | `get_entity_full_history` L452-457: found-path logger.debug args deleted                                                                                                             | 3       | full_history**6, **7, \_\_8             | LOW-VALUE                                 |
-| C18 | `get_entity_full_history` L459: not-found-path logger.debug arg → None / arg deleted (fmt, entity_id, both-args forms)                                                               | 4       | full_history**12, **13, \_\_14          | LOW-VALUE                                 |
-| C19 | `get_entities_by_timerange` L501-507: logger.debug args → None (fmt, len, total, entity_type, since)                                                                                 | 5       | timerange**10, **11, \_\_14             | LOW-VALUE                                 |
-| C20 | `get_entities_by_timerange` L501-507: logger.debug args deleted                                                                                                                      | 5       | timerange**15, **16, \_\_19             | LOW-VALUE                                 |
-| C21 | `get_entity_full_history`: logger message-string clobbers (both debug lines: XX/UPPER/lowercase)                                                                                     | 6       | full_history**9, **10, \_\_11           | EQUIVALENT                                |
-| C22 | `get_entities_by_timerange`: logger message-string clobbers (XX/UPPER/lowercase)                                                                                                     | 3       | timerange**20, **21, \_\_22             | EQUIVALENT                                |
-|     | **Total**                                                                                                                                                                            | **107** |                                         | TEST-GAP 45 / LOW-VALUE 53 / EQUIVALENT 9 |
+| # | Pattern (function / concern) | Count | Example keys | Classification |
+|---|------------------------------|-------|--------------|----------------|
+| C1 | `store_detection_embedding` L265-272: `assign_entity(**kw)` → None or kwarg deleted (detection_id/entity_type/embedding/camera_id/timestamp/attributes) | 10 | store__2, store__4, store__10 | TEST-GAP |
+| C2 | `store_detection_embedding` L283-290: `EntityEmbedding(...)` field → None (timestamp, detection_id incl. `str(None)`) | 3 | store__35, store__36, store__44 | TEST-GAP |
+| C3 | `store_detection_embedding` L293: Redis client `self.redis` → None in `reid.store_embedding(...)` | 1 | store__46 | TEST-GAP |
+| C4 | `store_detection_embedding` L274-279: `("created" if is_new else "matched")` cond forced (`and False` / `or True`) — debug log misreports created-vs-matched | 2 | store__25, store__26 | TEST-GAP |
+| C5 | `from_postgresql_match` L147-161: field assignments → None (entity_id/entity_type/embedding/camera_id/timestamp/detection_id/attributes/time_gap_seconds/entity) | 9 | from_postgresql_match__1, __2, __5 | TEST-GAP |
+| C6 | `store_detection_embedding` L300-304: warning path `str(e)` → `str(None)` — corrupts the only record of a failed Redis write | 1 | store__66 | TEST-GAP |
+| C7 | `from_postgresql_match`: detection_id ternary cond forced, `str(pid)`→`str(None)` (yields literal `"None"`), `entity=entity` deletion, `or []`/`or {}` fallbacks → `and` | 6 | from_postgresql_match__22, __26, __29 | TEST-GAP |
+| C8 | `from_redis_match` L116-128: field assignments → None (same nine fields; `entity=None` deletion) | 9 | from_redis_match__1, __3, __9 | TEST-GAP |
+| C9 | `get_entities_by_timerange` L494-499: `entity_repo.list(entity_type=…, since=…)` → None | 2 | timerange__2, timerange__3 | TEST-GAP |
+| C10 | `get_entities_by_timerange` L494-499: `entity_repo.list(entity_type=…, since=…)` kwarg deleted | 2 | timerange__6, timerange__7 | TEST-GAP |
+| C11 | `from_postgresql_match`: `"unknown"` sentinel string clobbers (`XXunknownXX`, `UNKNOWN`) in camera_id fallback | 2 | from_postgresql_match__24, __25 | LOW-VALUE (T-D kills for free) |
+| C12 | `store_detection_embedding` L274-279, L294-297, L300-304: logger debug+warning args → None (msg fmt, "created/matched", detection_id, is_new, str(e)) | 9 | store__14, store__50, store__57 | LOW-VALUE |
+| C13 | `store_detection_embedding` L274-279: `"created"`/`"matched"` log-word clobbers (XX/UPPER/lowercase — text only, NOT the cond-forced C4) | 4 | store__27, store__28, store__29 | LOW-VALUE |
+| C14 | `store_detection_embedding`: logger debug+warning args **deleted** (breaks format arity; fatal only if the call emits — debug never emits in tests, warning break is inside the try) | 9 | store__18, store__52, store__60 | LOW-VALUE |
+| C15 | `store_detection_embedding`: logger debug+warning message-string clobbers (XX/UPPER/lowercase ×3 lines) | 9 | store__22, store__54, store__63 | LOW-VALUE |
+| C16 | `get_entity_full_history` L452-457: found-path logger.debug args → None (fmt, entity_id, detection_count) | 3 | full_history__3, __4, __5 | LOW-VALUE |
+| C17 | `get_entity_full_history` L452-457: found-path logger.debug args deleted | 3 | full_history__6, __7, __8 | LOW-VALUE |
+| C18 | `get_entity_full_history` L459: not-found-path logger.debug arg → None / arg deleted (fmt, entity_id, both-args forms) | 4 | full_history__12, __13, __14 | LOW-VALUE |
+| C19 | `get_entities_by_timerange` L501-507: logger.debug args → None (fmt, len, total, entity_type, since) | 5 | timerange__10, __11, __14 | LOW-VALUE |
+| C20 | `get_entities_by_timerange` L501-507: logger.debug args deleted | 5 | timerange__15, __16, __19 | LOW-VALUE |
+| C21 | `get_entity_full_history`: logger message-string clobbers (both debug lines: XX/UPPER/lowercase) | 6 | full_history__9, __10, __11 | EQUIVALENT |
+| C22 | `get_entities_by_timerange`: logger message-string clobbers (XX/UPPER/lowercase) | 3 | timerange__20, __21, __22 | EQUIVALENT |
+| | **Total** | **107** | | TEST-GAP 45 / LOW-VALUE 53 / EQUIVALENT 9 |
 
 Count check: 10+3+1+2+9+1+6+9+2+2 (=45) + 2+9+4+9+9+3+3+4+5+5 (=53) + 6+3 (=9) = **107** ✔
 Per-function check: from_redis 9 (C8) + from_pg 9+6+2=17 (C5,C7,C11) + store 10+3+1+2+1+9+4+9+9=48
@@ -79,13 +79,13 @@ Per-function check: from_redis 9 (C8) + from_pg 9+6+2=17 (C5,C7,C11) + store 10+
   (`test_stores_in_redis_and_postgresql`, test L202-233) but only `assert_called_once()` (L227); no
   `assert_called_once_with` exists for this call anywhere in the file. Executed, never asserted → TEST-GAP.
   (Mutants 7/13 `attributes=None` coincide with `test_none_attributes`' own None attributes —
-  unkillable _by that test_; T-A uses non-None attributes and kills them.)
+  unkillable *by that test*; T-A uses non-None attributes and kills them.)
 - **C2 (3)**: `:283-290` — hot-cache payload loses timestamp/detection_id.
   `test_stores_entity_embedding_in_redis` (L265-298) asserts four payload fields but skips exactly these
   two. "Test exists, asserts too weakly" → TEST-GAP.
 - **C3 (1)**: `:293` — the Redis hot-cache write would target client `None`; silent cache-miss on every
   store (read path then falls to slow PostgreSQL for everything). Killed by T-C's `args[0] is mock_redis`.
-- **C4 (2)**: `:274-279` — only the debug message differs ("matched" printed when an entity was _created_),
+- **C4 (2)**: `:274-279` — only the debug message differs ("matched" printed when an entity was *created*),
   and that line is the operator's only record of clustering outcomes. Marked TEST-GAP with a one-line
   caplog assert; demote to LOW-VALUE if the team rules debug-log content out of contract.
 - **C5/C8 (18)**: `:147-161`, `:116-128` — assignment→None raises on non-nullable fields (`camera_id=None`
@@ -93,19 +93,19 @@ Per-function check: from_redis 9 (C8) + from_pg 9+6+2=17 (C5,C7,C11) + store 10+
   then swallowed as a warning. Surviving asserts: `len(matches) >= 1` (L342/L376), `isinstance`,
   `.similarity`, `.source` (`TestMatchConversion` L916-985) — never field-by-field. The conversion
   contract is untested → TEST-GAP (kills by asserting every converted field; note `assert len(matches)
-== 1` alone fails when conversion crashes, which is itself the kill signal).
+  == 1` alone fails when conversion crashes, which is itself the kill signal).
 - **C6 (1)**: `:300-304` — the except path is contract ("log but don't fail when Redis is down", see
   `test_handles_redis_store_error_gracefully` L774-805); `str(e)`→`str(None)` erases the error text from
   the operator-visible warning. Killed by T-C's warning-message assert.
 - **C7 (6)**: `:151-160` — real output changes: `detection_id` becomes literal `"None"` (a truthy string
-  that then _pollutes the seen_ids dedup set_ — find_matches L388-391 stores `"None"`, so every future
+  that then *pollutes the seen_ids dedup set* — find_matches L388-391 stores `"None"`, so every future
   detection-less entity collides); `entity=entity` deletion drops the full Entity (default None);
   `or []`/`or {}`→`and` returns falsy-side values. Same unasserted conversion fields → TEST-GAP, killed
   by T-D.
 - **C9/C10 (4)**: `:494-499` — `since=None` (or dropped) silently disables the time filter: a 7-day
   dashboard query returns all-time rows while the test's mock echoes the fixture list back unchanged,
   so `len(entities) == 2` still passes. `test_pagination_parameters` asserts only limit/offset on
-  `call_args[1]` (L673-675) — the exact two kwargs _not_ mutated. Executed, weakly asserted → TEST-GAP.
+  `call_args[1]` (L673-675) — the exact two kwargs *not* mutated. Executed, weakly asserted → TEST-GAP.
 - **C11 (2)**: the sentinel literal `"unknown"` is asserted nowhere, and `create_mock_entity` always
   passes `entity_metadata=None` so even the fallback branch is value-untested. Nobody should assert the
   literal; T-D asserts `camera_id == "unknown"` for the fallback case and kills them incidentally.
@@ -167,7 +167,7 @@ new test FAILS on the asserted line; revert diff to original → PASSES. Style f
         )
 ```
 
-Kills store**2,4,5,6,7,8,10,11,12,13. TDD: mutant `**4` (`embedding=None`) → kwargs mismatch → fails on
+Kills store__2,4,5,6,7,8,10,11,12,13. TDD: mutant `__4` (`embedding=None`) → kwargs mismatch → fails on
 mutant, passes on original.
 
 ### T-B → kills C2 (3)
@@ -203,7 +203,7 @@ mutant, passes on original.
         assert stored.timestamp == timestamp
 ```
 
-Kills store**35, store**36, store**44. TDD: `**44` (`str(None)`→`"None"`) fails the first assert on the
+Kills store__35, store__36, store__44. TDD: `__44` (`str(None)`→`"None"`) fails the first assert on the
 mutant, passes on original.
 
 ### T-C → kills C3 (1) + C6 (1) + C4 (2, caplog)

@@ -1,6 +1,6 @@
 ---
 name: vitest-midnight-flake-window
-description: 'FIXED cc17daab: Date.now()-relative mocks failed 00:00-02:00 UTC; freeze clock per-test, never globally (userEvent v14 stalls). Sibling flake: test_redis_pubsub publish-before-listen race'
+description: "FIXED cc17daab: Date.now()-relative mocks failed 00:00-02:00 UTC; freeze clock per-test, never globally (userEvent v14 stalls). Sibling flake: test_redis_pubsub publish-before-listen race"
 metadata:
   node_type: memory
   type: project

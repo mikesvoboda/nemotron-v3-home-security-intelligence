@@ -3,7 +3,6 @@
 **Source:** `mutants/backend/services/alert_service.py.meta` (`exit_code_by_key`).
 **Survivors (exit_code == 0):** 101 of 376 total keys (220 killed, 55 still null).
 **Covering test files:**
-
 - `backend/tests/unit/services/test_alert_service.py` (unit CRUD + WS emissions, mock-session based)
 - `backend/tests/unit/services/test_webhook_integration.py` (NEM-3624 webhook trigger integration)
 
@@ -13,7 +12,6 @@ original body (per task constraints — no pytest / mutmut run). Two signature-o
 `mutmut show`. All 101 keys are placed in exactly one cluster (sum = 101).
 
 ## Semantic probes (plain `python`, not tests)
-
 - `AlertSeverity.HIGH == "high"` is **True** (StrEnum), and `AlertSeverity.HIGH.value == "high"`.
   So any `alert.X.value if hasattr(alert.X,"value") else alert.X` ternary that still yields the
   StrEnum member produces a payload value **equal** to the original `.value` string → EQUIVALENT.
@@ -23,7 +21,6 @@ original body (per task constraints — no pytest / mutmut run). Two signature-o
   original, False for all four mutants) → killable via a `compare()` assertion.
 
 ## Classification totals
-
 - **TEST-GAP:** 28 mutants (9 clusters: C3,C4,C5,C6,C7,C8,C10,C12,C13) — real behavior change, covered line never asserted.
 - **EQUIVALENT:** 32 mutants (3 clusters: C1,C9,C14) — pure log-message text + StrEnum/dead-default tweaks.
 - **LOW-VALUE:** 41 mutants (3 clusters: C2,C11,C15) — log `extra` metadata + dead/unexercised fallback branch.
@@ -34,23 +31,23 @@ original body (per task constraints — no pytest / mutmut run). Two signature-o
 
 ## Cluster table
 
-| #   | Function / concern                                              | Mutation pattern                                                                                                                                                                                                                                                                          | Count | Class          | Example keys (fn\_\_mutmut_N)                                                |
-| --- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------- | ---------------------------------------------------------------------------- |
-| C1  | create/update/delete/ack/dismiss `_emit_alert_created`          | `logger.<debug/warning>` **message arg**: `f"…"`→`None`, case-flip, `XX…XX` wrap                                                                                                                                                                                                          | 11    | **EQUIVALENT** | create_alert**30, \_emit_alert_created**3, \_emit_alert_created\_\_5         |
-| C2  | same set of public methods                                      | `logger…(msg, extra={…})`: `extra=None`, drop `extra=`, rename keys `alert_id`→`ALERT_ID`/`XXalert_idXX` etc.                                                                                                                                                                             | 38    | **LOW-VALUE**  | create_alert**31, create_alert**35, delete_alert\_\_18                       |
-| C3  | create/update/ack/dismiss                                       | session write hand-off: `_session.add(alert)`→`add(None)`, `refresh(alert)`→`refresh(None)`                                                                                                                                                                                               | 4     | **TEST-GAP**   | create_alert**17, update_alert**25, acknowledge_alert\_\_11                  |
-| C4  | update/delete/ack/dismiss                                       | lookup identity: `get_alert(alert_id)`→`get_alert(None)`                                                                                                                                                                                                                                  | 4     | **TEST-GAP**   | update_alert**2, delete_alert**2, dismiss_alert\_\_2                         |
-| C5  | get_alert                                                       | query construction: `execute(stmt)`→`execute(None)`, `where(x)`→`where(None)`, `select(Alert)`→`select(None)`, `==`→`!=`                                                                                                                                                                  | 4     | **TEST-GAP**   | get_alert**5 (`!=` — fetches wrong row), get_alert**2, get_alert\_\_4        |
-| C6  | update_alert                                                    | field assignment wipe: `alert.severity = severity`→`= None`, `alert.channels = channels`→`= None`                                                                                                                                                                                         | 2     | **TEST-GAP**   | update_alert**15, update_alert**20                                           |
-| C7  | create/ack/dismiss                                              | webhook call args: `event_data`→`None`, `alert.id`→`None` (event_id kwarg)                                                                                                                                                                                                                | 5     | **TEST-GAP**   | create_alert**24, create_alert**25, dismiss_alert\_\_30                      |
-| C8  | ack/dismiss                                                     | metadata timestamp value: `["acknowledged_at"/"dismissed_at"] = now(UTC).isoformat()` → `= None` / `now(None)` (naive)                                                                                                                                                                    | 4     | **TEST-GAP**   | acknowledge_alert**7, acknowledge_alert**10, dismiss_alert\_\_10             |
-| C9  | `_build_alert_created_payload` / `_build_alert_updated_payload` | `alert.{severity,status}.value if hasattr(alert.{s},"value") else …`: `and False`/`or True`/`hasattr(None,`/`"value"`→`"XXvalueXX"`/`"VALUE"`                                                                                                                                             | 20    | **EQUIVALENT** | \_build_alert_created_payload**9, **20, \_build_alert_updated_payload\_\_37  |
-| C10 | created + updated payload                                       | timestamp condition forced to fallback: `alert.created_at`→`(alert.created_at) and False`, `alert.updated_at`→`(…) and False` (uses wall-clock `now` instead of stored ts)                                                                                                                | 3     | **TEST-GAP**   | \_build_alert_created_payload**31, **36, \_build_alert_updated_payload\_\_11 |
-| C11 | created payload fallback                                        | fallback `datetime.now(UTC)`→`now(None)` in the `else` branch (naive) — branch unreachable when ts set (DB always populates)                                                                                                                                                              | 2     | **LOW-VALUE**  | \_build_alert_created_payload**33, **38                                      |
-| C12 | updated payload                                                 | `payload["severity"] = <ternary>` → `None` (key stays present, value nulled)                                                                                                                                                                                                              | 1     | **TEST-GAP**   | \_build_alert_updated_payload\_\_32                                          |
-| C13 | `_emit_alert_updated`                                           | signature default `acknowledged: bool = False`→`True` — relied upon by update/dismiss callers → wrongly emits `acknowledged=True`                                                                                                                                                         | 1     | **TEST-GAP**   | \_emit_alert_updated\_\_1                                                    |
-| C14 | `_build_alert_updated_payload`                                  | signature default `acknowledged: bool = False`→`True` — dead: every caller passes it explicitly                                                                                                                                                                                           | 1     | **EQUIVALENT** | \_build_alert_updated_payload\_\_1                                           |
-| C15 | updated payload                                                 | timestamp condition `alert.updated_at`→`(alert.updated_at) or True` — guard becomes truthy, so the `else now()` branch (reachable only if updated_at is None) crashes instead of falling back. Not a value change on any covered path (DB always populates updated_at); not worth killing | 1     | **LOW-VALUE**  | \_build_alert_updated_payload\_\_12                                          |
+| # | Function / concern | Mutation pattern | Count | Class | Example keys (fn__mutmut_N) |
+|---|--------------------|------------------|-------|-------|------------------------------|
+| C1 | create/update/delete/ack/dismiss `_emit_alert_created` | `logger.<debug/warning>` **message arg**: `f"…"`→`None`, case-flip, `XX…XX` wrap | 11 | **EQUIVALENT** | create_alert__30, _emit_alert_created__3, _emit_alert_created__5 |
+| C2 | same set of public methods | `logger…(msg, extra={…})`: `extra=None`, drop `extra=`, rename keys `alert_id`→`ALERT_ID`/`XXalert_idXX` etc. | 38 | **LOW-VALUE** | create_alert__31, create_alert__35, delete_alert__18 |
+| C3 | create/update/ack/dismiss | session write hand-off: `_session.add(alert)`→`add(None)`, `refresh(alert)`→`refresh(None)` | 4 | **TEST-GAP** | create_alert__17, update_alert__25, acknowledge_alert__11 |
+| C4 | update/delete/ack/dismiss | lookup identity: `get_alert(alert_id)`→`get_alert(None)` | 4 | **TEST-GAP** | update_alert__2, delete_alert__2, dismiss_alert__2 |
+| C5 | get_alert | query construction: `execute(stmt)`→`execute(None)`, `where(x)`→`where(None)`, `select(Alert)`→`select(None)`, `==`→`!=` | 4 | **TEST-GAP** | get_alert__5 (`!=` — fetches wrong row), get_alert__2, get_alert__4 |
+| C6 | update_alert | field assignment wipe: `alert.severity = severity`→`= None`, `alert.channels = channels`→`= None` | 2 | **TEST-GAP** | update_alert__15, update_alert__20 |
+| C7 | create/ack/dismiss | webhook call args: `event_data`→`None`, `alert.id`→`None` (event_id kwarg) | 5 | **TEST-GAP** | create_alert__24, create_alert__25, dismiss_alert__30 |
+| C8 | ack/dismiss | metadata timestamp value: `["acknowledged_at"/"dismissed_at"] = now(UTC).isoformat()` → `= None` / `now(None)` (naive) | 4 | **TEST-GAP** | acknowledge_alert__7, acknowledge_alert__10, dismiss_alert__10 |
+| C9 | `_build_alert_created_payload` / `_build_alert_updated_payload` | `alert.{severity,status}.value if hasattr(alert.{s},"value") else …`: `and False`/`or True`/`hasattr(None,`/`"value"`→`"XXvalueXX"`/`"VALUE"` | 20 | **EQUIVALENT** | _build_alert_created_payload__9, __20, _build_alert_updated_payload__37 |
+| C10 | created + updated payload | timestamp condition forced to fallback: `alert.created_at`→`(alert.created_at) and False`, `alert.updated_at`→`(…) and False` (uses wall-clock `now` instead of stored ts) | 3 | **TEST-GAP** | _build_alert_created_payload__31, __36, _build_alert_updated_payload__11 |
+| C11 | created payload fallback | fallback `datetime.now(UTC)`→`now(None)` in the `else` branch (naive) — branch unreachable when ts set (DB always populates) | 2 | **LOW-VALUE** | _build_alert_created_payload__33, __38 |
+| C12 | updated payload | `payload["severity"] = <ternary>` → `None` (key stays present, value nulled) | 1 | **TEST-GAP** | _build_alert_updated_payload__32 |
+| C13 | `_emit_alert_updated` | signature default `acknowledged: bool = False`→`True` — relied upon by update/dismiss callers → wrongly emits `acknowledged=True` | 1 | **TEST-GAP** | _emit_alert_updated__1 |
+| C14 | `_build_alert_updated_payload` | signature default `acknowledged: bool = False`→`True` — dead: every caller passes it explicitly | 1 | **EQUIVALENT** | _build_alert_updated_payload__1 |
+| C15 | updated payload | timestamp condition `alert.updated_at`→`(alert.updated_at) or True` — guard becomes truthy, so the `else now()` branch (reachable only if updated_at is None) crashes instead of falling back. Not a value change on any covered path (DB always populates updated_at); not worth killing | 1 | **LOW-VALUE** | _build_alert_updated_payload__12 |
 
 ### Per-cluster TEST-GAP justification (what the covering test misses)
 
@@ -58,12 +55,12 @@ original body (per task constraints — no pytest / mutmut run). Two signature-o
   `refresh.assert_called_once()`: **no argument check**. `add` is a `MagicMock` and `refresh` is an
   `AsyncMock` (in update/ack/dismiss tests it has no `side_effect`), so `add(None)`/`refresh(None)`
   are recorded silently. The created/updated alert is the same returned object, so value asserts pass.
-  → assert `add`/`refresh` called _with the alert instance_.
+  → assert `add`/`refresh` called *with the alert instance*.
 - **C4** — every CRUD test stubs `mock_session.execute.return_value = mock_result` unconditionally
   (`scalar_one_or_none` → the sample), so `get_alert(None)` still returns the found alert. Nothing
   asserts the id used for lookup. → assert `get_alert` was called with `alert_id`.
 - **C5** — `test_returns_alert_when_found:253-265` stubs `execute` to return the row regardless of the
-  statement and only asserts `result == sample_alert`. A `!=` predicate (fetches the _wrong_ alert) is
+  statement and only asserts `result == sample_alert`. A `!=` predicate (fetches the *wrong* alert) is
   invisible. → don't blind-stub: capture the statement and assert `stmt.compare(select(Alert).where(Alert.id==id))`.
 - **C6** — `test_updates_multiple_fields:369-390` asserts `updated_fields` membership only, never
   `result.severity` / `result.channels`. Assigning `None` still appends the field to `updated_fields`.
@@ -94,7 +91,6 @@ Style matches the existing file: fixtures `mock_session` / `mock_emitter` / `sam
 mutant(s), then confirm it PASSES against the unmutated `backend/services/alert_service.py`.
 
 ### T1 — kills C5 (get_alert query integrity) — HIGHEST VALUE
-
 ```python
 @pytest.mark.asyncio
 async def test_get_alert_queries_by_primary_key(self, mock_session: AsyncMock) -> None:
@@ -123,12 +119,10 @@ async def test_get_alert_queries_by_primary_key(self, mock_session: AsyncMock) -
         f"query must select alerts by primary key, got: {captured['stmt']}"
     )
 ```
-
 Red on `!=`/`where(None)`/`select(None)` (compare → False) and on `execute(None)` (`is not None` fails);
 green on the original (compare → True).
 
 ### T2 — kills C6 (update silently nulls severity/channels)
-
 ```python
 @pytest.mark.asyncio
 async def test_update_alert_assigns_severity_and_channels(
@@ -156,7 +150,6 @@ async def test_update_alert_assigns_severity_and_channels(
 ```
 
 ### T3 — kills C8 (metadata timestamp must be a real UTC-aware ISO string)
-
 ```python
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method,key", [("acknowledge", "acknowledged_at"), ("dismiss", "dismissed_at")])
@@ -193,7 +186,6 @@ async def test_status_timestamp_metadata_is_utc_aware(
 ```
 
 ### T4 — kills C3 (session add/refresh receive the alert instance, not None)
-
 ```python
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["create", "update", "acknowledge", "dismiss"])
@@ -250,7 +242,6 @@ async def test_persistence_calls_receive_the_alert_instance(self, method: str) -
 ```
 
 ### T5 — kills C7 (webhook receives the real payload dict + event_id)
-
 ```python
 @pytest.mark.asyncio
 async def test_alert_webhooks_carry_payload_and_event_id(
@@ -300,7 +291,6 @@ async def test_alert_webhooks_carry_payload_and_event_id(
 ```
 
 ### T6 — kills C10 (payload reports stored timestamps, not wall-clock now)
-
 ```python
 def test_payloads_use_stored_timestamps(self, mock_session: AsyncMock) -> None:
     """created/updated payloads must echo the alert's stored created_at/updated_at.
@@ -327,7 +317,6 @@ def test_payloads_use_stored_timestamps(self, mock_session: AsyncMock) -> None:
 ```
 
 ### Untested-but-trivially-killable TEST-GAP clusters (one-line assertions; not drafted in full)
-
 - **C4** (get_alert(None) in update/delete/ack/dismiss): after the CRUD call, assert
   `service.get_alert = AsyncMock(...)` then `service.get_alert.assert_called_once_with(alert_id)`.
 - **C12** (`payload["severity"] = None`): extend `test_build_alert_updated_payload` with
@@ -336,7 +325,6 @@ def test_payloads_use_stored_timestamps(self, mock_session: AsyncMock) -> None:
   `assert "acknowledged" not in payload`.
 
 ## Notes / caveats
-
 - **C9 = 20 EQUIVALENT** rests on StrEnum semantics (`HIGH == "high"`), verified. If a future
   consumer type-checks (`isinstance(str)` is True for StrEnum, but `type(x) is str` is False) or the
   payload is compared by identity somewhere outside these tests, these would become TEST-GAP.

@@ -162,7 +162,10 @@ repos:
     hooks:
       - id: prettier
         types_or: [css, json, markdown, yaml]
-        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$)
+        # .wp25-feed/ is triage PROSE-COMPUTE: prettier pairs mid-word
+        # underscores into emphasis (read_through_cache -> read*through_cache),
+        # silently corrupting module identifiers. Do not format it.
+        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$|^\.wp25-feed/)
         additional_dependencies:
           - prettier@3.2.4
 

@@ -1,6 +1,6 @@
 ---
 name: github-free-tier-boundaries-2026
-description: 'Verified 2026 free-tier boundaries for public repos: GitHub Models retired 2026-07-30, Copilot bills AI credits, Actions/LFS/limits specifics — plus the CI pitfall that `secrets` is invalid in step-level if'
+description: "Verified 2026 free-tier boundaries for public repos: GitHub Models retired 2026-07-30, Copilot bills AI credits, Actions/LFS/limits specifics — plus the CI pitfall that `secrets` is invalid in step-level if"
 metadata:
   node_type: memory
   type: reference
@@ -10,13 +10,13 @@ metadata:
 
 Verified against GitHub's own changelog/docs + live API probes on 2026-09-15 (personal Free
 account, PUBLIC repo — the cheapest surface: standard Linux/Windows/macOS Actions minutes are
-free _and unlimited_ on public repos).
+free *and unlimited* on public repos).
 
 - **GitHub Models: fully retired 2026-07-30.** Playground, catalog, inference API, BYOK all gone;
   `models.github.ai` returns **410** with stale "brownout" wording — treat as permanent.
   `github/gh-models` extension **archived 2026-09-04**. Old `openai/<model>` IDs are dead
   regardless. There is **no free GitHub-hosted LLM inference left** — no plan change fixes it.
-  A 200 from `api.githubcopilot.com/models` is the _Copilot_ surface (metered successor), not a
+  A 200 from `api.githubcopilot.com/models` is the *Copilot* surface (metered successor), not a
   free CI path: Copilot moved to AI credits (1 credit = $0.01), Copilot code review ~$0.05–1
   "Lite" / $0.25–5 "Balanced" per review and began consuming Actions minutes 2026-06-01.
 - **Always billed even on public repos:** larger runners (`ubuntu-24.04-16core`) — and those

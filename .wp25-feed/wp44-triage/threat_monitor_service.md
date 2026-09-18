@@ -1,20 +1,21 @@
 # WP4.4 Triage Dossier — backend/services/threat_monitor_service.py
 
-**Run**: WP4.3 meta (mutants/backend/services/threat*monitor_service.py.meta), triaged 2026-09-17.
+**Run**: WP4.3 meta (mutants/backend/services/threat_monitor_service.py.meta), triaged 2026-09-17.
 **Mutants**: 362 total - 118 killed - **244 survived** (0 unchecked).
 **Diffs**: `uv run mutmut show <key>` for all 244 (0 failures, ~170s). Full key prefix
 `backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ` - example keys below are
-abbreviated as `<fn>\_\_mutmut*<n>`(append that prefix to recover the full key).
-**Covering test file (all functions)**:`backend/tests/unit/services/test_threat_monitor_service.py`(Coverage set per-function: only file listed in mutmut-stats.json`tests_by_mangled_function_name`.)
+abbreviated as `<fn>__mutmut_<n>` (append that prefix to recover the full key).
+**Covering test file (all functions)**: `backend/tests/unit/services/test_threat_monitor_service.py`
+(Coverage set per-function: only file listed in mutmut-stats.json `tests_by_mangled_function_name`.)
 
-| Test region                                               | Lines    |
-| --------------------------------------------------------- | -------- |
-| TestThreatMonitorServiceAutoCreateAlert                   | :265-387 |
-| TestThreatMonitorServiceConfidenceThreshold               | :394-486 |
-| TestThreatMonitorServiceMultipleWeapons                   | :493-633 |
-| TestThreatMonitorServiceWebSocketBroadcast                | :640-688 |
+| Test region | Lines |
+| --- | --- |
+| TestThreatMonitorServiceAutoCreateAlert | :265-387 |
+| TestThreatMonitorServiceConfidenceThreshold | :394-486 |
+| TestThreatMonitorServiceMultipleWeapons | :493-633 |
+| TestThreatMonitorServiceWebSocketBroadcast | :640-688 |
 | TestThreatMonitorServiceAlertEngineIntegration (cooldown) | :694-755 |
-| TestThreatMonitorServiceEdgeCases                         | :811-931 |
+| TestThreatMonitorServiceEdgeCases | :811-931 |
 
 ## Why the survivor pile is so deep (root causes)
 
@@ -30,7 +31,7 @@ abbreviated as `<fn>\_\_mutmut*<n>`(append that prefix to recover the full key).
    grabs `call_args` and asserts NOTHING ("exact format depends on implementation"). The whole WS
    payload schema (`alert.created`, channel, data keys, uuid/now fallbacks) survives.
 3. **Webhooks are never reached.** No test patches `get_webhook_service`, so the lazy import at
-   :138 raises inside the two process\_\* methods -> swallowed by the broad `except Exception` at
+   :138 raises inside the two process_* methods -> swallowed by the broad `except Exception` at
    :560 -> `logger.warning` -> nobody asserts. All 43 `_trigger_webhooks` survivors live in this
    never-executed branch.
 4. **The multi-threat path never carries a rule and never asserts metadata.**
@@ -43,28 +44,28 @@ abbreviated as `<fn>\_\_mutmut*<n>`(append that prefix to recover the full key).
 
 ## Cluster table (machine fold of all 244 diffs; counts sum exactly to 244)
 
-| #   | Cluster (pattern @ concern)                                                                                                                                                                                                                    | N   | Class           | Example keys                                     | Test                    |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --------------- | ------------------------------------------------ | ----------------------- |
-| C1  | `_check_cooldown`: cutoff semantics - `now(UTC) - timedelta` -> `+` / `datetime.now(None)` naive; `dedup_key ==` -> `!=`; `created_at >=` -> `>` (lines 440-445)                                                                               | 4   | TEST-GAP        | \_check_cooldown\_\_mutmut_2, \_10, \_11         | T1                      |
-| C2  | `_check_cooldown`: query-shape collapses invisible to canned mocks - `stmt=None`, `select(None)`, `where(None)` x2, `limit(1)->2/None`, `execute(None)`                                                                                        | 7   | TEST-GAP        | \_check_cooldown\_\_mutmut_5, \_9, \_6           | (none drafted)          |
-| C3  | `_check_cooldown`: mock-tolerance guard (:456-458) - `or`->`and` flips, `hasattr` operand/string mutations                                                                                                                                     | 13  | TEST-GAP (weak) | \_check_cooldown\_\_mutmut_16, \_19, \_25        | (seam test sketched)    |
-| R1  | rule/cooldown wiring on BOTH creation paths - `_build_dedup_key(event, t, None)`, `cooldown_seconds ... and False`, `_check_cooldown(dedup=None, ..., rule=None)`, `existing_alert = None` swap (lines 227-231, 326-330)                       | 14  | TEST-GAP        | ptd**mutmut_28, pmt**mutmut_34, pmt\_\_mutmut_36 | T2                      |
-| R2  | alert-construction field wiring both paths - `rule_id=None` ternary collapse x6, `channels=None`/dropped x4, `status=None` x2, `event_id=None` x2, `dedup_key=None` x2, `session.add(None)`/`refresh(None)` x2 (lines 243-261, 347-367)        | 20  | TEST-GAP        | ptd**mutmut_53, pmt**mutmut_58, pmt\_\_mutmut_61 | T2                      |
-| S1  | multi-threat selection semantics - threshold `>= -> >` (line 309), `get_threat_severity(type, hint)` hint drops in severity_key/highest/detected_threats (`threat.severity` -> None/dropped/reordered)                                         | 10  | TEST-GAP        | pmt**mutmut_3, pmt**mutmut_8, pmt\_\_mutmut_23   | T3                      |
-| S2  | `SEVERITY_PRIORITY.get(...)` default-arg mutants (`None` key / default 0->1 / drop) - all 4 severities are map keys so default is unreachable: survivor-equivalent                                                                             | 4   | EQUIVALENT      | pmt\_\_mutmut_11, \_12, \_15                     | -                       |
-| MV  | alert_metadata VALUE mutants both paths - `auto_generated: True -> False`, `source` string values, `threat_detection_id` renames (lines 250-256, 354-362)                                                                                      | 12  | TEST-GAP        | ptd**mutmut_76, pmt**mutmut_86, pmt\_\_mutmut_89 | T6                      |
-| PK  | multi metadata KEY renames (XX/UPPER of threat_type/threat_confidence/total_threats/detected_threats subkeys etc.) - keys never fully enumerated by tests                                                                                      | 18  | TEST-GAP (weak) | pmt**mutmut_82, pmt**mutmut_47                   | T6                      |
-| W1  | WebSocket publish args - channel `"websocket:events"` -> None/XX/CASE, `publish(None, ...)`, payload -> None / `json.dumps(None)` / arg drops (lines 510-511)                                                                                  | 8   | TEST-GAP        | bc**mutmut_41, bc**mutmut_44                     | T4                      |
-| W2  | WS payload schema - `alert_data=None`, 24 key XX/CASE renames, `"type": "alert.created"` value+key renames, `"id": alert.id or str(uuid4())` -> `and`/`str(None)`, created/updated_at `if x and False` fallback defeat, `now_iso` None/tz None | 36  | TEST-GAP        | bc**mutmut_36, bc**mutmut_7, bc\_\_mutmut_21     | T4                      |
-| WH1 | `_trigger_webhooks` call contract - `get_webhook_service() -> None`, `webhook_data=None`, session/event-type/payload args -> None or dropped, `event_id=None`, `channels or [] -> and []` (lines 538-558)                                      | 11  | TEST-GAP        | tw**mutmut_1, tw**mutmut_29, tw\_\_mutmut_31     | T5                      |
-| WH2 | webhook payload VALUES - `matched_conditions: ["threat_detected"]` -> XX/UPPER values, error log `str(e) -> str(None)`                                                                                                                         | 3   | TEST-GAP        | tw**mutmut_20, tw**mutmut_44                     | T5                      |
-| WH3 | webhook payload key renames (XX/CASE of 11 keys) - payload dict never observed by any test                                                                                                                                                     | 22  | TEST-GAP (weak) | tw**mutmut_3, tw**mutmut_18                      | T5                      |
-| X   | downstream handoff arg swaps - `_broadcast_alert_created(alert, None, ...)`, `(alert, event, None)`, `_trigger_webhooks(alert, None)` (lines 275-278, 381-384)                                                                                 | 4   | TEST-GAP (weak) | pmt**mutmut_106, pmt**mutmut_112                 | (seam asserts sketched) |
-| V   | `raise ValueError("XX...requiredXX")` message renames - tests use `pytest.raises(match=...)` substring; XX-wrapped text still contains the matched substring -> contract-identical                                                             | 2   | EQUIVALENT      | ptd**mutmut_3, ptd**mutmut_7                     | -                       |
-| LG1 | `process_threat_detection` log mutations - skip/create/cooldown messages -> None, `extra` dicts dropped/renamed (lines 211-219, 233-239, 263-272)                                                                                              | 29  | LOW-VALUE       | ptd**mutmut_10, ptd**mutmut_83                   | -                       |
-| LG2 | `_broadcast_alert_created` debug-log message/extra mutations (:513-519)                                                                                                                                                                        | 8   | LOW-VALUE       | bc**mutmut_48, bc**mutmut_52                     | -                       |
-| LG3 | `_trigger_webhooks` failure-branch warning message/extra mutations (:562-565)                                                                                                                                                                  | 7   | LOW-VALUE       | tw**mutmut_36, tw**mutmut_40                     | -                       |
-| LG4 | `process_multiple_threat_detections` log mutations (:312-315, 332, 369-378)                                                                                                                                                                    | 12  | LOW-VALUE       | pmt**mutmut_5, pmt**mutmut_97                    | -                       |
+| # | Cluster (pattern @ concern) | N | Class | Example keys | Test |
+| - | --- | - | ----- | ---------- | ---- |
+| C1 | `_check_cooldown`: cutoff semantics - `now(UTC) - timedelta` -> `+` / `datetime.now(None)` naive; `dedup_key ==` -> `!=`; `created_at >=` -> `>` (lines 440-445) | 4 | TEST-GAP | _check_cooldown__mutmut_2, _10, _11 | T1 |
+| C2 | `_check_cooldown`: query-shape collapses invisible to canned mocks - `stmt=None`, `select(None)`, `where(None)` x2, `limit(1)->2/None`, `execute(None)` | 7 | TEST-GAP | _check_cooldown__mutmut_5, _9, _6 | (none drafted) |
+| C3 | `_check_cooldown`: mock-tolerance guard (:456-458) - `or`->`and` flips, `hasattr` operand/string mutations | 13 | TEST-GAP (weak) | _check_cooldown__mutmut_16, _19, _25 | (seam test sketched) |
+| R1 | rule/cooldown wiring on BOTH creation paths - `_build_dedup_key(event, t, None)`, `cooldown_seconds ... and False`, `_check_cooldown(dedup=None, ..., rule=None)`, `existing_alert = None` swap (lines 227-231, 326-330) | 14 | TEST-GAP | ptd__mutmut_28, pmt__mutmut_34, pmt__mutmut_36 | T2 |
+| R2 | alert-construction field wiring both paths - `rule_id=None` ternary collapse x6, `channels=None`/dropped x4, `status=None` x2, `event_id=None` x2, `dedup_key=None` x2, `session.add(None)`/`refresh(None)` x2 (lines 243-261, 347-367) | 20 | TEST-GAP | ptd__mutmut_53, pmt__mutmut_58, pmt__mutmut_61 | T2 |
+| S1 | multi-threat selection semantics - threshold `>= -> >` (line 309), `get_threat_severity(type, hint)` hint drops in severity_key/highest/detected_threats (`threat.severity` -> None/dropped/reordered) | 10 | TEST-GAP | pmt__mutmut_3, pmt__mutmut_8, pmt__mutmut_23 | T3 |
+| S2 | `SEVERITY_PRIORITY.get(...)` default-arg mutants (`None` key / default 0->1 / drop) - all 4 severities are map keys so default is unreachable: survivor-equivalent | 4 | EQUIVALENT | pmt__mutmut_11, _12, _15 | - |
+| MV | alert_metadata VALUE mutants both paths - `auto_generated: True -> False`, `source` string values, `threat_detection_id` renames (lines 250-256, 354-362) | 12 | TEST-GAP | ptd__mutmut_76, pmt__mutmut_86, pmt__mutmut_89 | T6 |
+| PK | multi metadata KEY renames (XX/UPPER of threat_type/threat_confidence/total_threats/detected_threats subkeys etc.) - keys never fully enumerated by tests | 18 | TEST-GAP (weak) | pmt__mutmut_82, pmt__mutmut_47 | T6 |
+| W1 | WebSocket publish args - channel `"websocket:events"` -> None/XX/CASE, `publish(None, ...)`, payload -> None / `json.dumps(None)` / arg drops (lines 510-511) | 8 | TEST-GAP | bc__mutmut_41, bc__mutmut_44 | T4 |
+| W2 | WS payload schema - `alert_data=None`, 24 key XX/CASE renames, `"type": "alert.created"` value+key renames, `"id": alert.id or str(uuid4())` -> `and`/`str(None)`, created/updated_at `if x and False` fallback defeat, `now_iso` None/tz None | 36 | TEST-GAP | bc__mutmut_36, bc__mutmut_7, bc__mutmut_21 | T4 |
+| WH1 | `_trigger_webhooks` call contract - `get_webhook_service() -> None`, `webhook_data=None`, session/event-type/payload args -> None or dropped, `event_id=None`, `channels or [] -> and []` (lines 538-558) | 11 | TEST-GAP | tw__mutmut_1, tw__mutmut_29, tw__mutmut_31 | T5 |
+| WH2 | webhook payload VALUES - `matched_conditions: ["threat_detected"]` -> XX/UPPER values, error log `str(e) -> str(None)` | 3 | TEST-GAP | tw__mutmut_20, tw__mutmut_44 | T5 |
+| WH3 | webhook payload key renames (XX/CASE of 11 keys) - payload dict never observed by any test | 22 | TEST-GAP (weak) | tw__mutmut_3, tw__mutmut_18 | T5 |
+| X | downstream handoff arg swaps - `_broadcast_alert_created(alert, None, ...)`, `(alert, event, None)`, `_trigger_webhooks(alert, None)` (lines 275-278, 381-384) | 4 | TEST-GAP (weak) | pmt__mutmut_106, pmt__mutmut_112 | (seam asserts sketched) |
+| V | `raise ValueError("XX...requiredXX")` message renames - tests use `pytest.raises(match=...)` substring; XX-wrapped text still contains the matched substring -> contract-identical | 2 | EQUIVALENT | ptd__mutmut_3, ptd__mutmut_7 | - |
+| LG1 | `process_threat_detection` log mutations - skip/create/cooldown messages -> None, `extra` dicts dropped/renamed (lines 211-219, 233-239, 263-272) | 29 | LOW-VALUE | ptd__mutmut_10, ptd__mutmut_83 | - |
+| LG2 | `_broadcast_alert_created` debug-log message/extra mutations (:513-519) | 8 | LOW-VALUE | bc__mutmut_48, bc__mutmut_52 | - |
+| LG3 | `_trigger_webhooks` failure-branch warning message/extra mutations (:562-565) | 7 | LOW-VALUE | tw__mutmut_36, tw__mutmut_40 | - |
+| LG4 | `process_multiple_threat_detections` log mutations (:312-315, 332, 369-378) | 12 | LOW-VALUE | pmt__mutmut_5, pmt__mutmut_97 | - |
 
 **Reconciliation**: 4+7+13 + 14+20 + 10+4 + 12+18 + 8+36 + 11+3+22 + 4+2 + 29+8+7+12 = **244**.
 By classification: TEST-GAP 182 - LOW-VALUE 56 - EQUIVALENT 6.

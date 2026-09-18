@@ -37,29 +37,29 @@ step where the accumulator is provably 0, a clamp boundary made unreachable by a
 
 ## Cluster table (sums to 105)
 
-| #   | Cluster (function @ module lines)                                                                                                                            | Count | Class      | Example keys                                       | Killers (drafted test)             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- | ---------- | -------------------------------------------------- | ---------------------------------- |
-| C1  | `detect_lying_down` keypoint retrieval → None/garbage name (`None`, `None` arg, `"XX…XX"`, `"UPPER"`) @225-230                                               | 16    | TEST-GAP   | `x_detect_lying_down__mutmut_1`, `…_13`, `…_20`    | T1                                 |
-| C2  | `detect_lying_down` "need one shoulder AND one ankle" guard flipped to need both @233                                                                        | 2     | TEST-GAP   | `x_detect_lying_down__mutmut_31`, `…_33`           | T1                                 |
-| C3  | `detect_lying_down` shoulder-mean accumulators (`+=`→`=`/`-=`/`+=2`, count variants, `max(count,1)`→`max(count,2)`, `/=`→`=`/`*`) @236-249                   | 18    | TEST-GAP   | `…_44`, `…_49`, `…_61`                             | T2                                 |
-| C4  | `detect_lying_down` ankle-mean accumulators (same families) @251-263                                                                                         | 19    | TEST-GAP   | `…_78`, `…_83`, `…_96`                             | T2                                 |
-| C5  | `detect_lying_down` first-step `+=`→`=` where accumulator is provably 0 (no-op) @241,243,255,257 etc.                                                        | 6     | EQUIVALENT | `…_41`, `…_75`                                     | — (keep surviving; equivalent)     |
-| C6  | `detect_lying_down` span computation + branch thresholds: `abs(a-b)`→`abs(a+b)`, `vertical_span > 0`→`>= 0`/`> 1`, `hs > vs*1.5`→`>=`/`/1.5`/`*2.5` @266-275 | 6     | TEST-GAP   | `…_105`, `…_109`, `…_111`                          | T3                                 |
-| C7  | `detect_lying_down` `shoulder_x = 0.0`→`1.0` init bias (0.5 px with single shoulder) @236                                                                    | 1     | LOW-VALUE  | `…_36`                                             | — (sub-pixel, not worth asserting) |
-| C8  | `detect_hands_raised` shoulder retrieval → None/garbage @303-304                                                                                             | 8     | TEST-GAP   | `x_detect_hands_raised__mutmut_19`, `…_26`, `…_31` | T4                                 |
-| C9  | `detect_hands_raised` "need at least one shoulder" guard `and`→`or` / operand flips @306                                                                     | 3     | TEST-GAP   | `…_33`, `…_34`, `…_35`                             | T4                                 |
-| C10 | `detect_hands_raised` shoulder-mean accumulators + `max(count,2)` @310-318                                                                                   | 6     | TEST-GAP   | `…_37`, `…_39`, `…_45`                             | T4                                 |
-| C11 | `detect_hands_raised` first-step `+=`→`=` no-ops @313,316                                                                                                    | 2     | EQUIVALENT | `…_40`, `…_42`                                     | —                                  |
-| C12 | `detect_hands_raised` 10-px margin + `<`→`<=` / `shoulder_y - margin`→`+ margin` @323-325                                                                    | 5     | TEST-GAP   | `…_58`, `…_60`, `…_61`                             | T5                                 |
-| C13 | `detect_fighting_stance` hip-pair / ankle-pair guards `or`→`and` (drop-one-side accepted) @352,359                                                           | 2     | TEST-GAP   | `x_detect_fighting_stance__mutmut_15`, `…_33`      | T6                                 |
-| C14 | `detect_fighting_stance` hip-width clamp `< 1`→`< 2` (real change: width-1.5px hips) @364                                                                    | 1     | TEST-GAP   | `…_41`                                             | T6                                 |
-| C15 | `detect_fighting_stance` clamp `< 1`→`<= 1` (unreachable boundary) @364                                                                                      | 1     | EQUIVALENT | `…_40`                                             | —                                  |
-| C16 | `detect_fighting_stance` `ankle_y_spread = abs(a-b)`→`abs(a+b)` @369                                                                                         | 1     | TEST-GAP   | `…_47`                                             | T6                                 |
-| C17 | `detect_fighting_stance` wide-band `2.0 < r < 4.0` flips: `<=4.0`→`2.0<=`, `<4.0`→`<=4.0`, upper `4.0`→`5.0` @380                                            | 3     | TEST-GAP   | `…_52`, `…_53`, `…_54`                             | T6                                 |
-| C18 | `detect_fighting_stance` asymmetry `>`→`>=` @384                                                                                                             | 1     | TEST-GAP   | `…_56`                                             | T6                                 |
-| C19 | `detect_fighting_stance` final `is_wide_stance and is_asymmetric`→`or` @387                                                                                  | 1     | TEST-GAP   | `…_59`                                             | T6                                 |
-| C20 | `detect_security_alerts` posture tuple `("lying","lying_down")` string clobbers @412                                                                         | 2     | TEST-GAP   | `x_detect_security_alerts__mutmut_15`, `…_16`      | T7                                 |
-| C21 | `analyze_pose` passes `posture=None` into `detect_security_alerts` @486                                                                                      | 1     | TEST-GAP   | `x_analyze_pose__mutmut_12`                        | T7                                 |
+| # | Cluster (function @ module lines) | Count | Class | Example keys | Killers (drafted test) |
+|---|-----------------------------------|-------|-------|--------------|------------------------|
+| C1 | `detect_lying_down` keypoint retrieval → None/garbage name (`None`, `None` arg, `"XX…XX"`, `"UPPER"`) @225-230 | 16 | TEST-GAP | `x_detect_lying_down__mutmut_1`, `…_13`, `…_20` | T1 |
+| C2 | `detect_lying_down` "need one shoulder AND one ankle" guard flipped to need both @233 | 2 | TEST-GAP | `x_detect_lying_down__mutmut_31`, `…_33` | T1 |
+| C3 | `detect_lying_down` shoulder-mean accumulators (`+=`→`=`/`-=`/`+=2`, count variants, `max(count,1)`→`max(count,2)`, `/=`→`=`/`*`) @236-249 | 18 | TEST-GAP | `…_44`, `…_49`, `…_61` | T2 |
+| C4 | `detect_lying_down` ankle-mean accumulators (same families) @251-263 | 19 | TEST-GAP | `…_78`, `…_83`, `…_96` | T2 |
+| C5 | `detect_lying_down` first-step `+=`→`=` where accumulator is provably 0 (no-op) @241,243,255,257 etc. | 6 | EQUIVALENT | `…_41`, `…_75` | — (keep surviving; equivalent) |
+| C6 | `detect_lying_down` span computation + branch thresholds: `abs(a-b)`→`abs(a+b)`, `vertical_span > 0`→`>= 0`/`> 1`, `hs > vs*1.5`→`>=`/`/1.5`/`*2.5` @266-275 | 6 | TEST-GAP | `…_105`, `…_109`, `…_111` | T3 |
+| C7 | `detect_lying_down` `shoulder_x = 0.0`→`1.0` init bias (0.5 px with single shoulder) @236 | 1 | LOW-VALUE | `…_36` | — (sub-pixel, not worth asserting) |
+| C8 | `detect_hands_raised` shoulder retrieval → None/garbage @303-304 | 8 | TEST-GAP | `x_detect_hands_raised__mutmut_19`, `…_26`, `…_31` | T4 |
+| C9 | `detect_hands_raised` "need at least one shoulder" guard `and`→`or` / operand flips @306 | 3 | TEST-GAP | `…_33`, `…_34`, `…_35` | T4 |
+| C10 | `detect_hands_raised` shoulder-mean accumulators + `max(count,2)` @310-318 | 6 | TEST-GAP | `…_37`, `…_39`, `…_45` | T4 |
+| C11 | `detect_hands_raised` first-step `+=`→`=` no-ops @313,316 | 2 | EQUIVALENT | `…_40`, `…_42` | — |
+| C12 | `detect_hands_raised` 10-px margin + `<`→`<=` / `shoulder_y - margin`→`+ margin` @323-325 | 5 | TEST-GAP | `…_58`, `…_60`, `…_61` | T5 |
+| C13 | `detect_fighting_stance` hip-pair / ankle-pair guards `or`→`and` (drop-one-side accepted) @352,359 | 2 | TEST-GAP | `x_detect_fighting_stance__mutmut_15`, `…_33` | T6 |
+| C14 | `detect_fighting_stance` hip-width clamp `< 1`→`< 2` (real change: width-1.5px hips) @364 | 1 | TEST-GAP | `…_41` | T6 |
+| C15 | `detect_fighting_stance` clamp `< 1`→`<= 1` (unreachable boundary) @364 | 1 | EQUIVALENT | `…_40` | — |
+| C16 | `detect_fighting_stance` `ankle_y_spread = abs(a-b)`→`abs(a+b)` @369 | 1 | TEST-GAP | `…_47` | T6 |
+| C17 | `detect_fighting_stance` wide-band `2.0 < r < 4.0` flips: `<=4.0`→`2.0<=`, `<4.0`→`<=4.0`, upper `4.0`→`5.0` @380 | 3 | TEST-GAP | `…_52`, `…_53`, `…_54` | T6 |
+| C18 | `detect_fighting_stance` asymmetry `>`→`>=` @384 | 1 | TEST-GAP | `…_56` | T6 |
+| C19 | `detect_fighting_stance` final `is_wide_stance and is_asymmetric`→`or` @387 | 1 | TEST-GAP | `…_59` | T6 |
+| C20 | `detect_security_alerts` posture tuple `("lying","lying_down")` string clobbers @412 | 2 | TEST-GAP | `x_detect_security_alerts__mutmut_15`, `…_16` | T7 |
+| C21 | `analyze_pose` passes `posture=None` into `detect_security_alerts` @486 | 1 | TEST-GAP | `x_analyze_pose__mutmut_12` | T7 |
 
 TEST-GAP: 95 mutants (16 clusters) · EQUIVALENT: 9 (C5, C11, C15) · LOW-VALUE: 1 (C7). Sum = 105.
 

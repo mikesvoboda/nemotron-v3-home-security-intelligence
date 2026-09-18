@@ -9,33 +9,33 @@
   `match_person` / `match_vehicle` are `AsyncMock`s (test file lines 210, 236, 259, 276, 298, 319,
   383, 412, 437–447, 477–478, 500–501, 560, 587, 609, 705–706, 745–746, 786–787, 849–850, 879–880, 1023, 1057–1060).
   A DB-None call (`session→None`) therefore propagates into a mock and dies invisibly, and every
-  argument passed _into_ a stubbed method (`session=`, `vehicle_type=`, `color=`, `license_plate=`,
+  argument passed *into* a stubbed method (`session=`, `vehicle_type=`, `color=`, `license_plate=`,
   the embedding array) is computed but never asserted. Plus: no test ever produces a similarity
-  _exactly_ at the threshold, no test uses a zero (falsy-but-present) embedding, no test feeds
+  *exactly* at the threshold, no test uses a zero (falsy-but-present) embedding, no test feeds
   `detections` that actually reach the inner match logic, and nothing ever touches `caplog`.
 
 ## Per-cluster table
 
-| #   | Cluster (pattern)                                                                                                                     | Keys                                                                                                                           | n             | Class       |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------- | ----------- |
-| C1  | Strict `>` similarity-threshold gate → `>=` (off-by-one boundary accepted as match)                                                   | `_match_vehicle_visual` 17; `match_person` 17                                                                                  | 2             | TEST-GAP    |
-| C2  | `if license_plates and len(license_plates) > 0:` → `... >= 0` (always true when truthy)                                               | `match_detections` 44                                                                                                          | 1             | TEST-GAP    |
-| C3  | `match.similarity >= threshold` → `>` (exactly-at-threshold person match dropped); sibling `and`→`or` (23)                            | `match_detections` 24 (23)                                                                                                     | 2             | TEST-GAP    |
-| C4  | Zero-length (falsy-but-present) embedding silently dropped: `if person_embedding:` / `if vehicle_embedding:` None-swaps at call sites | `match_detections` 13, 19; `match_vehicle` 2; `_match_vehicle_visual` 2; `match_detections` 52, 53, 57                         | 7             | TEST-GAP    |
-| C5  | `if license_plate:` branch → `license_plate=None` (plate route never taken)                                                           | `match_vehicle` 2 (shared key w/ C4), 56                                                                                       | 1             | TEST-GAP    |
-| C6  | Log `logger.debug(msg, *args)` — msg replaced by `None` (debug-logging crash not observed)                                            | `_match_vehicle_visual` 4,31–34,42,43; `match_person` 4,31–34,42,43; `match_vehicle` 6–9,37; `match_detections` 70–73          | 24            | LOW-VALUE   |
-| C7  | Log call args _removed_ (arity-mismatch crash not observed; incl. `session=None` at 60,65)                                            | `_match_vehicle_visual` 35–38,44,45; `match_person` 35–38,44,45; `match_vehicle` 10–13; `match_detections` 74–77               | 20            | LOW-VALUE   |
-| C8  | Log message cosmetic text: `XX` wrap / lowercase / UPPERCASE                                                                          | `_match_vehicle_visual` 5–7,39–41,46–48; `match_person` 5–7,39–41,46–48; `match_vehicle` 14–16,38–40; `match_detections` 78–80 | 34            | EQUIVALENT  |
-| C9  | enrichment dict key renamed/`None`: `license_plates`, `text`, `color`                                                                 | `match_detections` 36,40,41,49–51,66–68                                                                                        | 9             | LOW-VALUE¹  |
-| C10 | Vehicle-type whitelist tuple cosmetic (`"XXtruckXX"`, `"TRUCK"`, …)                                                                   | `match_detections` 29–34                                                                                                       | 6             | EQUIVALENT  |
-| C11 | `session=None` into mocked `_get_all_member_embeddings`                                                                               | `match_person` 2                                                                                                               | 1             | LOW-VALUE   |
-| C12 | `vehicle_type=None` into mock / stubbed-arg passthrough (`vehicle_type`, `color` are `noqa: ARG002`)                                  | `match_detections` 58,63; `match_vehicle` 30,31,32                                                                             | 5             | LOW-VALUE   |
-| C13 | Truthy-list `len(pl) > 0` → `> 1` (single-plate extraction skipped)                                                                   | `match_detections` 45                                                                                                          | 1             | LOW-VALUE²  |
-| C14 | Plate-keyword `license_plate=plate_text` → `None` at real call site (same kill as C5)                                                 | `match_detections` 56                                                                                                          | counted in C5 | TEST-GAP    |
-| C15 | `continue` → `break` on missing enrichment (only 1 detection tested)                                                                  | `match_detections` 7                                                                                                           | 1             | LOW-VALUE²  |
-| C16 | Dead defensive tweaks, no-op arg removals, cosmetic local defaults                                                                    | `match_detections` 17,39,42,43,46,48,54,61–64; `match_vehicle` 3,4,5; `_match_vehicle_visual` 16                               | 15            | EQUIVALENT³ |
-| C17 | `isinstance(x, list)` → `... or True` in `extract_*_embedding` return (non-list no longer coerced/None'd)                             | `x_extract_person_embedding` 16; `x_extract_vehicle_embedding` 16                                                              | 2             | EQUIVALENT  |
-| C18 | Empty-list guard `len(v) == 0` → `== 1` (single-element vehicle embedding now returns None)                                           | `x_extract_vehicle_embedding` 14                                                                                               | 1             | TEST-GAP    |
+| # | Cluster (pattern) | Keys | n | Class |
+|---|---|---|---|---|
+| C1 | Strict `>` similarity-threshold gate → `>=` (off-by-one boundary accepted as match) | `_match_vehicle_visual` 17; `match_person` 17 | 2 | TEST-GAP |
+| C2 | `if license_plates and len(license_plates) > 0:` → `... >= 0` (always true when truthy) | `match_detections` 44 | 1 | TEST-GAP |
+| C3 | `match.similarity >= threshold` → `>` (exactly-at-threshold person match dropped); sibling `and`→`or` (23) | `match_detections` 24 (23) | 2 | TEST-GAP |
+| C4 | Zero-length (falsy-but-present) embedding silently dropped: `if person_embedding:` / `if vehicle_embedding:` None-swaps at call sites | `match_detections` 13, 19; `match_vehicle` 2; `_match_vehicle_visual` 2; `match_detections` 52, 53, 57 | 7 | TEST-GAP |
+| C5 | `if license_plate:` branch → `license_plate=None` (plate route never taken) | `match_vehicle` 2 (shared key w/ C4), 56 | 1 | TEST-GAP |
+| C6 | Log `logger.debug(msg, *args)` — msg replaced by `None` (debug-logging crash not observed) | `_match_vehicle_visual` 4,31–34,42,43; `match_person` 4,31–34,42,43; `match_vehicle` 6–9,37; `match_detections` 70–73 | 24 | LOW-VALUE |
+| C7 | Log call args *removed* (arity-mismatch crash not observed; incl. `session=None` at 60,65) | `_match_vehicle_visual` 35–38,44,45; `match_person` 35–38,44,45; `match_vehicle` 10–13; `match_detections` 74–77 | 20 | LOW-VALUE |
+| C8 | Log message cosmetic text: `XX` wrap / lowercase / UPPERCASE | `_match_vehicle_visual` 5–7,39–41,46–48; `match_person` 5–7,39–41,46–48; `match_vehicle` 14–16,38–40; `match_detections` 78–80 | 34 | EQUIVALENT |
+| C9 | enrichment dict key renamed/`None`: `license_plates`, `text`, `color` | `match_detections` 36,40,41,49–51,66–68 | 9 | LOW-VALUE¹ |
+| C10 | Vehicle-type whitelist tuple cosmetic (`"XXtruckXX"`, `"TRUCK"`, …) | `match_detections` 29–34 | 6 | EQUIVALENT |
+| C11 | `session=None` into mocked `_get_all_member_embeddings` | `match_person` 2 | 1 | LOW-VALUE |
+| C12 | `vehicle_type=None` into mock / stubbed-arg passthrough (`vehicle_type`, `color` are `noqa: ARG002`) | `match_detections` 58,63; `match_vehicle` 30,31,32 | 5 | LOW-VALUE |
+| C13 | Truthy-list `len(pl) > 0` → `> 1` (single-plate extraction skipped) | `match_detections` 45 | 1 | LOW-VALUE² |
+| C14 | Plate-keyword `license_plate=plate_text` → `None` at real call site (same kill as C5) | `match_detections` 56 | counted in C5 | TEST-GAP |
+| C15 | `continue` → `break` on missing enrichment (only 1 detection tested) | `match_detections` 7 | 1 | LOW-VALUE² |
+| C16 | Dead defensive tweaks, no-op arg removals, cosmetic local defaults | `match_detections` 17,39,42,43,46,48,54,61–64; `match_vehicle` 3,4,5; `_match_vehicle_visual` 16 | 15 | EQUIVALENT³ |
+| C17 | `isinstance(x, list)` → `... or True` in `extract_*_embedding` return (non-list no longer coerced/None'd) | `x_extract_person_embedding` 16; `x_extract_vehicle_embedding` 16 | 2 | EQUIVALENT |
+| C18 | Empty-list guard `len(v) == 0` → `== 1` (single-element vehicle embedding now returns None) | `x_extract_vehicle_embedding` 14 | 1 | TEST-GAP |
 
 ¹ Killable in principle by asserting `match_vehicle` receives `license_plate="ABC123"` on enrichment containing one plate (Draft A also kills C5); survives today because `match_vehicle` is `AsyncMock`ed in both vehicle tests (787) and the cached test never supplies plates.
 ² Killable by a multi-detection test whose detections reach real matching logic (Draft B).
@@ -51,10 +51,10 @@
 - **C1 — threshold boundary, `>` vs `>=`** (src lines 198, 376). Tests use only clear-pass (≈1.0)
   and clear-fail (≈0.0) similarities; nothing constructs a vector with cosine exactly equal to the
   threshold, so relaxing the strict gate is unobservable. This is the risk-scoring boundary for
-  known persons/vehicles — accepting a borderline match suppresses alerts. Killable by a _constructed_
+  known persons/vehicles — accepting a borderline match suppresses alerts. Killable by a *constructed*
   similarity (e.g. 3-4 dim vectors tuned to land exactly on threshold) — see Draft D.
 - **C2 — `len(license_plates) >= 0`** (src 501). With a non-empty list guard, `>= 0` is always true,
-  so the mutant is equivalent _for truthy input_; the real bug surface is falsy-but-present input,
+  so the mutant is equivalent *for truthy input*; the real bug surface is falsy-but-present input,
   which the `>=0` variant exposes as `license_plates[0]` → IndexError. No test feeds `license_plates: []`
   while asserting the plate path is skipped. (The sibling `> 1` mutant = C13.)
 - **C3 — `match.similarity > threshold` at src 493.** A person match with similarity exactly equal to
@@ -64,14 +64,14 @@
   bypassed when the method is looked up — the surviving status of this line's mutants is partly a
   harness artifact of that fixture, which Draft B removes by using `AsyncMock` with side effects.
 - **C4 — zero-length embedding silently dropped.** `extract_*_embedding` deliberately maps `[]` →
-  None (valid contract), but src 490 `if person_embedding:` then treats _any_ falsy embedding the
-  same, and the `X=None` mutants model "never call match\_\* with it". Tests only use non-empty
+  None (valid contract), but src 490 `if person_embedding:` then treats *any* falsy embedding the
+  same, and the `X=None` mutants model "never call match_* with it". Tests only use non-empty
   embeddings. Draft B's zero-embedding case pins the contract (detection skipped, no crash) and kills
   13/19; the vehicle-side twins need a plate-less detection carrying `vehicle_visual: [0.0]` to
   observe the silent-None (drafted as secondary assertion in B).
-- **C5/C14 — plate route skipped.** `license_plate=None` into the real `_find_by_plate` (match*vehicle 2)
+- **C5/C14 — plate route skipped.** `license_plate=None` into the real `_find_by_plate` (match_vehicle 2)
   and `license_plate=None=` keyword into match_vehicle (match_detections 56) both survive because the
-  tests stub `_find_by_plate`/`match_vehicle` and only inspect the \_return*, never the _arguments_.
+  tests stub `_find_by_plate`/`match_vehicle` and only inspect the *return*, never the *arguments*.
   Draft A asserts the plate text is threaded.
 - **C18 — empty-list guard off-by-one** (src 609). `== 0` → `== 1`: a single-element `vehicle_visual`
   list now returns None. `extract_vehicle_embedding` is called by real code (not stubbed) in
@@ -86,7 +86,7 @@
   constant; `%`-formatting is unaffected; nothing asserts logs.
 - **C10 (6):** vehicle-type tuple members cosmetically renamed/uppercased; no detection in any test
   has `object_type == "truck"`/`"motorcycle"`/uppercase, and renames don't change membership for the
-  `"car"` input that _is_ tested. Equivalent for every input the type actually takes (lowercase).
+  `"car"` input that *is* tested. Equivalent for every input the type actually takes (lowercase).
 - **C16 (15):** defensive tweaks with no effect on tested or realistic behavior: `dtype` removal
   (`np.array(list)` ≈ float64 vs float32 — cosine result numerically equal at this scale), argument
   removals into AsyncMock'd methods (mock records the call but no test checks call args),
@@ -107,7 +107,7 @@
   confined to the debug log line. Nobody should assert debug log arity. Two C7 keys (match_detections
   60, 65: `session=None`/residue) sneak a real-behavior shape in, but only reachable by un-stubbing
   DB access → integration-level; not worth a unit assertion.
-- **C9 (9):** renamed dict keys silently change which enrichment key is read. The _behavioral_
+- **C9 (9):** renamed dict keys silently change which enrichment key is read. The *behavioral*
   consequence (plate text extracted from the right key) is exactly what Draft A pins — so C9 keys are
   jointly killable with C5 by argument-capture assertions, but in isolation they read as key-name
   cosmetics; kept LOW-VALUE with a pointer to Draft A.
@@ -359,13 +359,13 @@ mutant-killing either way and is the version to keep if the literal 0.85 one sho
 
 ## Covering test file:line map
 
-| Function                                                 | Covering tests (file:lines)                                                                            |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `match_person`                                           | `backend/tests/unit/services/test_household_matcher.py:156-330` (`TestHouseholdMatcherPersonMatching`) |
-| `match_vehicle`                                          | same file `:337-528` (`TestHouseholdMatcherVehicleMatching`)                                           |
-| `_match_vehicle_visual`                                  | same file `:536-618` (`TestHouseholdMatcherVisualVehicleMatching`)                                     |
-| `match_detections`                                       | same file `:680-893` (`TestHouseholdMatcherMatchDetections`)                                           |
-| `extract_person_embedding` / `extract_vehicle_embedding` | same file `:900-1085` (`TestHouseholdMatcherCachedEmbeddings`)                                         |
+| Function | Covering tests (file:lines) |
+|---|---|
+| `match_person` | `backend/tests/unit/services/test_household_matcher.py:156-330` (`TestHouseholdMatcherPersonMatching`) |
+| `match_vehicle` | same file `:337-528` (`TestHouseholdMatcherVehicleMatching`) |
+| `_match_vehicle_visual` | same file `:536-618` (`TestHouseholdMatcherVisualVehicleMatching`) |
+| `match_detections` | same file `:680-893` (`TestHouseholdMatcherMatchDetections`) |
+| `extract_person_embedding` / `extract_vehicle_embedding` | same file `:900-1085` (`TestHouseholdMatcherCachedEmbeddings`) |
 
 ## Kill arithmetic
 

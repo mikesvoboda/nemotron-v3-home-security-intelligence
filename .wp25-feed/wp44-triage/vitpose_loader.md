@@ -8,37 +8,37 @@ No survivors in `load_vitpose_model`, `extract_keypoints_from_output`, `classify
 Root cause common to nearly every survivor: **the success-path tests use an unconfigured
 `MagicMock` as `processor`/`model`/`torch` and assert only `result.bbox`**
 (`backend/tests/unit/services/test_vitpose_loader.py:747-831` crop, `:879-967` batch).
-Any change to the mock's inputs or to the _filled_ PoseResult's keypoints/pose_class/
+Any change to the mock's inputs or to the *filled* PoseResult's keypoints/pose_class/
 pose_confidence slips through silently — mock calls never raise, mock kwargs are never
 inspected. The three structural fixes below (A1/A2/A3) kill ~125 of the 155.
 
 ## Covering test files
 
-| File                                                                                                             | Line refs                                        | What it asserts                                |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------- |
-| `backend/tests/unit/services/test_vitpose_loader.py`                                                             | 724, 747, 793 (crop); 845, 856, 879, 923 (batch) | bbox only on success; shape+bbox on exceptions |
-| `backend/tests/unit/services/test_model_zoo.py`                                                                  | 2376, 2407, 2419                                 | same weak pattern                              |
+| File | Line refs | What it asserts |
+|---|---|---|
+| `backend/tests/unit/services/test_vitpose_loader.py` | 724, 747, 793 (crop); 845, 856, 879, 923 (batch) | bbox only on success; shape+bbox on exceptions |
+| `backend/tests/unit/services/test_model_zoo.py` | 2376, 2407, 2419 | same weak pattern |
 | helpers reused by drafted tests: `numpy` + `post_process_pose_estimation` stub at test_vitpose_loader.py:778-782 |
 
 ## Cluster table (sums to 155)
 
-| ID  | Count | Class      | Pattern                                                                                                  |
-| --- | ----- | ---------- | -------------------------------------------------------------------------------------------------------- |
-| C1  | 15    | TEST-GAP   | validation-guard conditions never fed invalid input                                                      |
-| C2  | 33    | TEST-GAP   | success/fill-path PoseResult content (kp/pose_class/conf, classify_pose arg, min_conf kwarg, drop-kwarg) |
-| C3  | 14    | TEST-GAP   | whole-call crash silently swallowed by except fallback; tests assert fallback shape only                 |
-| C4  | 8     | TEST-GAP   | full-frame box construction (origin [0,0]→[1,0]/[0,1], null, boxes=None)                                 |
-| C5  | 1     | TEST-GAP   | `result_idx < len(keypoints_list)` → `<=` (IndexError→fallback, same shape)                              |
-| C6  | 3     | TEST-GAP   | `bbox=None` drop in results-init (incl. `or True` tautology in same line)                                |
-| C7  | 1     | TEST-GAP   | no-valid-crops early-return `if not valid_crops` → `if valid_crops`                                      |
-| C8  | 1     | TEST-GAP   | except-path `keypoints={}` → `None`                                                                      |
-| C9  | 26    | LOW-VALUE  | processor/torch internals behind MagicMock (device, dataset_index, tensor args)                          |
-| C10 | 16    | EQUIVALENT | log message text / exc_info / extra tweaks                                                               |
-| C11 | 2     | EQUIVALENT | `min_confidence=0.3` kwarg removal == default                                                            |
-| C12 | 6     | TEST-GAP   | bbox guard `i < len(bboxes)` tautologies + `<=` in init/except/fill blocks                               |
-| C13 | 1     | EQUIVALENT | crop47 `or True` — except-path returns identical PoseResult values                                       |
-| C14 | 14    | TEST-GAP   | processor-call contract kwargs (images/return_tensors dropped·None·"XXptXX"·"PT")                        |
-| C15 | 14    | TEST-GAP   | extract_keypoints_from_output seam args (None-swap, kwarg drops, image_size/None)                        |
+| ID | Count | Class | Pattern |
+|----|-------|-------|---------|
+| C1 | 15 | TEST-GAP | validation-guard conditions never fed invalid input |
+| C2 | 33 | TEST-GAP | success/fill-path PoseResult content (kp/pose_class/conf, classify_pose arg, min_conf kwarg, drop-kwarg) |
+| C3 | 14 | TEST-GAP | whole-call crash silently swallowed by except fallback; tests assert fallback shape only |
+| C4 | 8 | TEST-GAP | full-frame box construction (origin [0,0]→[1,0]/[0,1], null, boxes=None) |
+| C5 | 1 | TEST-GAP | `result_idx < len(keypoints_list)` → `<=` (IndexError→fallback, same shape) |
+| C6 | 3 | TEST-GAP | `bbox=None` drop in results-init (incl. `or True` tautology in same line) |
+| C7 | 1 | TEST-GAP | no-valid-crops early-return `if not valid_crops` → `if valid_crops` |
+| C8 | 1 | TEST-GAP | except-path `keypoints={}` → `None` |
+| C9 | 26 | LOW-VALUE | processor/torch internals behind MagicMock (device, dataset_index, tensor args) |
+| C10 | 16 | EQUIVALENT | log message text / exc_info / extra tweaks |
+| C11 | 2 | EQUIVALENT | `min_confidence=0.3` kwarg removal == default |
+| C12 | 6 | TEST-GAP | bbox guard `i < len(bboxes)` tautologies + `<=` in init/except/fill blocks |
+| C13 | 1 | EQUIVALENT | crop47 `or True` — except-path returns identical PoseResult values |
+| C14 | 14 | TEST-GAP | processor-call contract kwargs (images/return_tensors dropped·None·"XXptXX"·"PT") |
+| C15 | 14 | TEST-GAP | extract_keypoints_from_output seam args (None-swap, kwarg drops, image_size/None) |
 
 Class totals: TEST-GAP 110, LOW-VALUE 26, EQUIVALENT 19.
 
@@ -49,16 +49,16 @@ Class totals: TEST-GAP 110, LOW-VALUE 26, EQUIVALENT 19.
 `enumerate(None)`, `.append(None)`. No test ever passes `None` or a 0-width crop — the boundary
 branches are never entered, so every operator tweak inside them survives. Kill: parametrized
 None/0-dim tests asserting fallback shape + "model/processor untouched" (note: batch8, the
-`crop is not None` flip, is _also_ killed by A2's happy-path content asserts via append(None)→
+`crop is not None` flip, is *also* killed by A2's happy-path content asserts via append(None)→
 processor crash→fallback — it's slotted here because it mutates the filter guard).
 
 **C2 (33) — success/fill-path PoseResult content: TEST-GAP.** crop 39,44,45,46,48,49,50,51,52,53,55,56,57;
 batch 50,55,57,58,59,61,62,63,65,66,67,74,75,76,78,79,80,82,83,84. `keypoints=None`/dropped,
 `pose_class=None`/`"XXunknownXX"`/`"UNKNOWN"`/dropped, `pose_confidence=None`/`1.0`/dropped,
-`classify_pose(None)`, `keypoints_list[1]`, `and False`, min*conf `None`/`1.3`. Tests run these
+`classify_pose(None)`, `keypoints_list[1]`, `and False`, min_conf `None`/`1.3`. Tests run these
 lines (100% coverage) but assert **only bbox** — never that the mocked 0.9-confidence keypoints
 made it into the result. Kill: A2 asserts `result.keypoints == expected` / non-empty /
-`keypoints={}` on the degenerate fixture. (batch65/66 "XXunknownXX"/"UNKNOWN" are \_not* equivalent:
+`keypoints={}` on the degenerate fixture. (batch65/66 "XXunknownXX"/"UNKNOWN" are *not* equivalent:
 "unknown" is the documented pose contract, consumers compare against it; the init block only
 survives on crops that classify unknown.)
 
@@ -66,7 +66,7 @@ survives on crops that classify unknown.)
 Whole-call → `None` where the mutation crashes mid-body (next(None), range(None), enumerate(None),
 `results=None`) and the broad `except Exception` returns a valid-shaped fallback. Tests already
 exercise the except path (`test_extract_*_exception`) but only assert the shape — they never prove
-_which_ call crashed or that the happy path actually completed. Kill: A2's non-empty-keypoints
+*which* call crashed or that the happy path actually completed. Kill: A2's non-empty-keypoints
 assert (a crashed body can't produce populated results); A1's untouched-mocks assert for C1.
 
 **C4 (8) — full-frame box construction: TEST-GAP.** crop 8,9,10,13; batch 17,18,19,22.
@@ -75,13 +75,13 @@ origin is the top-down-pose contract (ViTPose maps keypoints relative to the box
 accepts anything. Kill: A4 spy-assert.
 
 **C5 (1) — batch73: TEST-GAP.** `if result_idx < len(keypoints_list)` → `<=`: with a
-short keypoints*list this IndexError is swallowed → identical empty fallback. Kill: A3.
+short keypoints_list this IndexError is swallowed → identical empty fallback. Kill: A3.
 **C6 (3) — batch60,64,68: TEST-GAP.** `bbox=None` / kwarg-drop / `and False` in the results-init:
 invalid-crop slots lose their bboxes (fallback contract broken). Kill: A3.
 **C7 (1) — batch16: TEST-GAP.** `if not valid_crops` → `if valid_crops`: all-valid batches take the
 early-return empty fallback — A1/A2 catch it (keypoints populated in orig, empty in mutant).
 All-invalid batches survive (same output) — inherent.
-**C8 (1) — batch99: TEST-GAP.** except-path `keypoints={}`→`None`: the \_only* surviving fallback
+**C8 (1) — batch99: TEST-GAP.** except-path `keypoints={}`→`None`: the *only* surviving fallback
 field mutation because the existing except tests DO assert `keypoints == {}` — but only for
 crop/batch where `parameters` raises; batch99 is in the outer except whose existing test
 (test_extract_poses_batch_exception) does NOT assert keypoints. Fix: add `pose_result.keypoints == {}`
@@ -89,10 +89,10 @@ to that loop (line 872-875) — one-line strengthening, no new test needed.
 
 **C9 (26) — processor/torch internals behind MagicMock: LOW-VALUE.** crop 20,23-33; batch 29,32-44.
 device=None, `.to(None)`, `dataset_index=torch.tensor([1])`/dropped, `torch.zeros(batch_size…)`,
-dtype=None etc. Real changes, but under the mock harness they are invisible _and_ unobservable
+dtype=None etc. Real changes, but under the mock harness they are invisible *and* unobservable
 without reimplementing torch semantics; asserting `processor(**kwargs) was called_with exact`
 would be over-specification (brittle refactor-coupling). The one behaviorally-meaningful member
-(`dataset_index [0]→[1]` = wrong MoE expert, crop29/batch34) belongs in a _contract_ test with a
+(`dataset_index [0]→[1]` = wrong MoE expert, crop29/batch34) belongs in a *contract* test with a
 fake that validates args — recommend A4-lite assert instead of per-arg tests; leave as LOW-VALUE
 for scoring purposes.
 
@@ -118,7 +118,6 @@ A2's content assert + A4 seam spy kill. (crop35/batch46 whole-call→None are C3
 caught by A1 untouched-mocks / A2 content.)
 
 ## Drafted tests (append to backend/tests/unit/services/test_vitpose_loader.py)
-
 // UNVERIFIED - not yet run red/green
 
 ```python

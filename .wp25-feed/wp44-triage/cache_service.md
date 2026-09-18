@@ -6,36 +6,36 @@
 - **Covering unit tests (from `mutants/mutmut-stats.json` `tests_by_mangled_function_name`):**
   - `backend/tests/unit/services/test_cache_service.py` (get_or_set ×9, invalidate ×6, exists ×6,
     refresh ×5, invalidate_events ×1, invalidate_cameras ×2, invalidate_system_status ×1)
-  - `backend/tests/unit/services/test_cache_swr.py` (get_or_set_swr ×5, \_fetch_and_cache_swr ×4, cached_swr ×5)
+  - `backend/tests/unit/services/test_cache_swr.py` (get_or_set_swr ×5, _fetch_and_cache_swr ×4, cached_swr ×5)
 - **Repo-wide fact used in classifications:** `grep caplog backend/tests/unit/services/test_cache_service.py
-test_cache_swr.py` → **0 hits**. Neither cache test file ever inspects log records; all
+  test_cache_swr.py` → **0 hits**. Neither cache test file ever inspects log records; all
   Redis-error tests (`test_invalidate_handles_error` :330, `test_exists_handles_error` :437,
   `test_refresh_handles_error` :493, `test_swr_handles_redis_error_gracefully` test_cache_swr.py:84)
   assert only the return value.
 
 ## Cluster table (sums to 107)
 
-| #   | Cluster (pattern @ source lines)                                                                                                                                                                                                                                                                                                                                                                                                              | N   | Keys (≤3 examples)                                                    | Class        |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --------------------------------------------------------------------- | ------------ |
-| B3  | `refresh()` Redis-error `logger.warning(msg, extra={...})` payload clobbered — message text → `None`, `extra=` dict dropped/`None`, dict keys upper-cased/`XX..XX`-wrapped, `error_type` value case-changed (cache_service.py:694-716)                                                                                                                                                                                                        | 22  | refresh#7, refresh#14, refresh#30                                     | EQUIVALENT   |
-| B1  | `invalidate()` Redis-error `logger.warning(..., extra=...)` payload clobber (same shape) + debug-log message clobber (cache_service.py:441-463)                                                                                                                                                                                                                                                                                               | 19  | invalidate#9, invalidate#13, invalidate#18                            | EQUIVALENT   |
-| B2  | `exists()` Redis-error `logger.warning(..., extra=...)` payload clobber (same shape) (cache_service.py:662-684)                                                                                                                                                                                                                                                                                                                               | 18  | exists#6, exists#11, exists#25                                        | EQUIVALENT   |
-| F   | `_fetch_and_cache_swr()`: `total_ttl = ttl + stale_ttl` → `ttl - stale_ttl`/`None`; `self.set(key, result, ttl=total_ttl)` arg clobbers incl. **kwarg-drop → silent DEFAULT_TTL=300 fallback**; `fresh_until = time.time() + ttl` → `None`/`- ttl`; `self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)` key/value/expire clobbers, `expire=` dropped (**marker never expires**), positional-shift (cache_service.py:368-386) | 17  | \_fetch_and_cache_swr#7, #13, #18                                     | **TEST-GAP** |
-| G   | `invalidate_events/cameras/system_status()` pass-through to `invalidate_pattern`: `reason=` → `None`/dropped (→ default `MANUAL`), `cache_type=` → `None`/dropped/case-and-`XX..XX`-wrapped label (cache_service.py:545-596)                                                                                                                                                                                                                  | 14  | invalidate_events#2, invalidate_system_status#9, invalidate_cameras#3 | **TEST-GAP** |
-| E   | `get_or_set_swr()`: `metric_type = cache_type or self._infer_cache_type(key)` → `None`/`and`; `self.get(key, cache_type=cache_type)` → `cache_type=None`/kwarg-dropped (metric-type plumbing; falsy-cache_type variant **crashes** label processing in prod) (cache_service.py:302, 308)                                                                                                                                                      | 4   | get_or_set_swr#4, #5, #11                                             | **TEST-GAP** |
-| D   | `get_or_set_swr()` freshness plumbing: `full_key`/`freshness_key` derivation → `None`, `redis.get(freshness_key)` → skipped/`get(None)` (**always stale — SWR silently dead**), `if now < fresh_until:` → `<=` (off-by-one on freshness expiry boundary), `_fetch_and_cache_swr(key,...)` → `None` (cache_service.py:303-322, 344)                                                                                                            | 6   | get_or_set_swr#15, #20, #22                                           | **TEST-GAP** |
-| A   | `get_or_set`/`get_or_set_swr` debug/error log **message text** clobbered to `None` (cache_service.py:249, 260, 343)                                                                                                                                                                                                                                                                                                                           | 3   | get_or_set#4, get_or_set#14, get_or_set_swr#21                        | EQUIVALENT   |
-| C   | `invalidate()`: `if deleted > 0:` guard around the debug log → `>= 0` / `> 1` (changes only whether a debug line fires; return uses its own expression) (cache_service.py:441)                                                                                                                                                                                                                                                                | 2   | invalidate#4, invalidate#5                                            | EQUIVALENT   |
-| H   | `cached_swr(cache_type="other")` **default** label → `"XXotherXX"`/`"OTHER"` (metrics label only; every repo usage site passes cache_type explicitly) (cache_service.py:986)                                                                                                                                                                                                                                                                  | 2   | x_cached_swr#1, x_cached_swr#2                                        | LOW-VALUE    |
+| # | Cluster (pattern @ source lines) | N | Keys (≤3 examples) | Class |
+|---|---|---|---|---|
+| B3 | `refresh()` Redis-error `logger.warning(msg, extra={...})` payload clobbered — message text → `None`, `extra=` dict dropped/`None`, dict keys upper-cased/`XX..XX`-wrapped, `error_type` value case-changed (cache_service.py:694-716) | 22 | refresh#7, refresh#14, refresh#30 | EQUIVALENT |
+| B1 | `invalidate()` Redis-error `logger.warning(..., extra=...)` payload clobber (same shape) + debug-log message clobber (cache_service.py:441-463) | 19 | invalidate#9, invalidate#13, invalidate#18 | EQUIVALENT |
+| B2 | `exists()` Redis-error `logger.warning(..., extra=...)` payload clobber (same shape) (cache_service.py:662-684) | 18 | exists#6, exists#11, exists#25 | EQUIVALENT |
+| F | `_fetch_and_cache_swr()`: `total_ttl = ttl + stale_ttl` → `ttl - stale_ttl`/`None`; `self.set(key, result, ttl=total_ttl)` arg clobbers incl. **kwarg-drop → silent DEFAULT_TTL=300 fallback**; `fresh_until = time.time() + ttl` → `None`/`- ttl`; `self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)` key/value/expire clobbers, `expire=` dropped (**marker never expires**), positional-shift (cache_service.py:368-386) | 17 | _fetch_and_cache_swr#7, #13, #18 | **TEST-GAP** |
+| G | `invalidate_events/cameras/system_status()` pass-through to `invalidate_pattern`: `reason=` → `None`/dropped (→ default `MANUAL`), `cache_type=` → `None`/dropped/case-and-`XX..XX`-wrapped label (cache_service.py:545-596) | 14 | invalidate_events#2, invalidate_system_status#9, invalidate_cameras#3 | **TEST-GAP** |
+| E | `get_or_set_swr()`: `metric_type = cache_type or self._infer_cache_type(key)` → `None`/`and`; `self.get(key, cache_type=cache_type)` → `cache_type=None`/kwarg-dropped (metric-type plumbing; falsy-cache_type variant **crashes** label processing in prod) (cache_service.py:302, 308) | 4 | get_or_set_swr#4, #5, #11 | **TEST-GAP** |
+| D | `get_or_set_swr()` freshness plumbing: `full_key`/`freshness_key` derivation → `None`, `redis.get(freshness_key)` → skipped/`get(None)` (**always stale — SWR silently dead**), `if now < fresh_until:` → `<=` (off-by-one on freshness expiry boundary), `_fetch_and_cache_swr(key,...)` → `None` (cache_service.py:303-322, 344) | 6 | get_or_set_swr#15, #20, #22 | **TEST-GAP** |
+| A | `get_or_set`/`get_or_set_swr` debug/error log **message text** clobbered to `None` (cache_service.py:249, 260, 343) | 3 | get_or_set#4, get_or_set#14, get_or_set_swr#21 | EQUIVALENT |
+| C | `invalidate()`: `if deleted > 0:` guard around the debug log → `>= 0` / `> 1` (changes only whether a debug line fires; return uses its own expression) (cache_service.py:441) | 2 | invalidate#4, invalidate#5 | EQUIVALENT |
+| H | `cached_swr(cache_type="other")` **default** label → `"XXotherXX"`/`"OTHER"` (metrics label only; every repo usage site passes cache_type explicitly) (cache_service.py:986) | 2 | x_cached_swr#1, x_cached_swr#2 | LOW-VALUE |
 
 3 + 19 + 18 + 22 + 2 + 6 + 4 + 17 + 14 + 2 = **107** ✔
 
 ## Classification rationale
 
 - **B1/B2/B3 (59 survivors — the "extra= dict" machine-mutants).** These clobber only the `extra=`
-  structured-log payload and the message string of the three _graceful-degradation_ warning branches.
+  structured-log payload and the message string of the three *graceful-degradation* warning branches.
   Grep of the repo shows **no machine consumer** of the cache log `error_type` field: frontend hits
-  for `error_type` are Prometheus _label_ consumers of `hsi_pipeline_errors_total` and WebSocket
+  for `error_type` are Prometheus *label* consumers of `hsi_pipeline_errors_total` and WebSocket
   payloads — a different transport (metrics/WS), not these log records. Return values (`False`) are
   already asserted. `extra=` keys/values are pure observability text. Verdict: **EQUIVALENT for
   test purposes** — not worth hand-writing 59 per-field caplog asserts. **Feed recommendation:**
@@ -46,10 +46,10 @@ test_cache_swr.py` → **0 hits**. Neither cache test file ever inspects log rec
   return value unchanged. **EQUIVALENT.**
 - **H (2).** Default-label change of the decorator; changes only a Prometheus label when a caller
   omits `cache_type` (none do today, but future callers might). **LOW-VALUE.**
-- **F/D/E/G (41).** Real behavior changes on _covered_ lines that existing tests execute but never
+- **F/D/E/G (41).** Real behavior changes on *covered* lines that existing tests execute but never
   assert:
   - **F**: the only existing assertion is `assert mock_redis_client.set.called`
-    (test*cache_swr.py:80, :271) — true for \_any* args. The TTL sum (`ttl + stale_ttl`), the
+    (test_cache_swr.py:80, :271) — true for *any* args. The TTL sum (`ttl + stale_ttl`), the
     freshness-marker value/expiry, and kwarg identity are unasserted. `#13` (kwarg drop →
     silent 300s default) and `#18/#21` (expire dropped → marker lives as long as… never) are
     genuine SWR-correctness changes nobody checks.
@@ -61,9 +61,9 @@ test_cache_swr.py` → **0 hits**. Neither cache test file ever inspects log rec
   - **E**: metric-type plumbing is never asserted for SWR; worse, the `and`-flipped `#5` (and
     `#4` `None`) produce `record_cache_stale_hit(None)` on the stale path, which raises
     `ValueError: label value None is invalid` inside the **caller's** request path in prod.
-  - **G**: `test_invalidate_events_uses_correct_pattern` (test*cache_service.py:1000) asserts only
+  - **G**: `test_invalidate_events_uses_correct_pattern` (test_cache_service.py:1000) asserts only
     `scan_iter(match=...)`; only `invalidate_cameras`' custom-reason path asserts the metric
-    (`("cameras","camera_deleted")`, :1052). The \_default* reason/cache_type per invalidator
+    (`("cameras","camera_deleted")`, :1052). The *default* reason/cache_type per invalidator
     (e.g. dropping `reason=` → silently reports `"manual"` instead of `"event_created"`) is
     unasserted for events/system_status (and default-reason for cameras).
 
@@ -267,9 +267,8 @@ Red/green: on `#20` (`<=`) the value is treated fresh → `mock_stale` not calle
 on original. (Clock-freeze caveat: per-test `freeze_time` only, per repo fake-clock hygiene rule.)
 
 ### 6. `test_specialized_invalidators_report_type_and_default_reason` → kills 12 of G's 14
-
-(events#2, #5, #6, #9, #10; system*status#2, #5, #6, #9, #10; cameras#6; cameras#3/system#3/
-events#3 cache_type-None variants are \_inference-equivalents* that stay alive by design)
+(events#2, #5, #6, #9, #10; system_status#2, #5, #6, #9, #10; cameras#6; cameras#3/system#3/
+events#3 cache_type-None variants are *inference-equivalents* that stay alive by design)
 
 Target: `backend/tests/unit/services/test_cache_service.py` (imports already present:
 `CacheInvalidationReason`, `patch`, `AsyncMock`, `MagicMock`, `pytest`).
@@ -314,7 +313,7 @@ UPPER label mutants fail the exact-call assert; pass on original.
 ## Feed notes for WP4.4
 
 - **59 of the 107 survivors (B1/B2/B3) are one mutation archetype** — `logger.warning(...,
-extra={dict})` argument clobbering in graceful-degradation branches. Recommend a class-level
+  extra={dict})` argument clobbering in graceful-degradation branches. Recommend a class-level
   ruling (suppress or caplog-smoke) rather than per-key work; otherwise per-module scores stay
   dominated by observability-text noise.
 - The remaining actionable TEST-GAP work is exactly the 6 drafted tests above (41 survivors:

@@ -21,7 +21,7 @@ full stop** — it is never run. This matters enormously for the retention-cutof
 real boundary assertions already exist at `backend/tests/integration/test_cleanup_service.py:430`
 and `:641`, and they do exercise the operator on a real Postgres. They are invisible to the
 baseline. So the honest classification for the cutoff-operator pair is TEST-GAP **at the unit
-tier** — and the fix must be a _unit_ assertion, not "the integration test covers it". Note this
+tier** — and the fix must be a *unit* assertion, not "the integration test covers it". Note this
 is a harness-scope finding that also explains why 25 of the 49 LOW-VALUE mutants are
 message/argument clobbers whose only witnesses are log-capture or DB round-trips.
 
@@ -41,36 +41,36 @@ That single missing assertion accounts for the two largest clusters (N=16, P=2 �
 Every key below is prefixed `backend.services.cleanup_service.x` in the meta; the `x` + `ǁ`
 class separator is dropped for readability. `count` sums to `survivors_total = 105`.
 
-| #   | pattern                                                               | count | class        | example keys (≤3)                                                                         |
-| --- | --------------------------------------------------------------------- | ----- | ------------ | ----------------------------------------------------------------------------------------- |
-| A   | retention cutoff `Log.timestamp < cutoff` → `<=` (both log fns)       | 2     | **TEST-GAP** | `_count_old_logs__mutmut_11`, `cleanup_old_logs__mutmut_10`                               |
-| B   | retention cutoff `now(UTC) - timedelta(days=…)` → `+` (future cutoff) | 2     | **TEST-GAP** | `_count_old_logs__mutmut_3`, `cleanup_old_logs__mutmut_3`                                 |
-| C   | `datetime.now(UTC)` → `datetime.now(None)` in cutoff expr             | 2     | LOW-VALUE    | `_count_old_logs__mutmut_4`, `cleanup_old_logs__mutmut_4`                                 |
-| D   | `session.execute(<stmt>)` → `session.execute(None)` (log fns)         | 2     | LOW-VALUE    | `_count_old_logs__mutmut_7`, `cleanup_old_logs__mutmut_7`                                 |
-| E   | `select(...)`/`where(...)` args → `None` (count query only)           | 3     | LOW-VALUE    | `_count_old_logs__mutmut_8`, `_count_old_logs__mutmut_10`, `cleanup_old_logs__mutmut_8`   |
-| F   | log-guard `if count > 0:` → `>= 0` / `> 1` (both log fns)             | 4     | LOW-VALUE    | `_count_old_logs__mutmut_16`, `_count_old_logs__mutmut_17`, `cleanup_old_logs__mutmut_14` |
-| G   | `format_bytes`: `if size < 0:` → `<= 0` / `< 1`                       | 2     | EQUIVALENT   | `format_bytes__mutmut_1`, `format_bytes__mutmut_2`                                        |
-| H   | `logger.error(msg, exc_info=True)` → None/`False`/omitted             | 4     | LOW-VALUE    | `OrphanedFileCleanup.run_cleanup__mutmut_86`, `_87`, `_89`                                |
-| I   | `_scan_storage_directories`: bad-path `continue` → `break`            | 2     | **TEST-GAP** | `_scan_storage_directories__mutmut_6`, `__mutmut_9`                                       |
-| J   | `run_cleanup(self, dry_run: bool = True)` → `= False`                 | 1     | **TEST-GAP** | `OrphanedFileCleanup.run_cleanup__mutmut_1`                                               |
-| K   | `job_id: str \| None = None` → `= ""`                                 | 1     | EQUIVALENT   | `OrphanedFileCleanup.run_cleanup__mutmut_2`                                               |
-| L   | `start_job`/`complete_job` arg clobbers (None / arg-drop / arity)     | 9     | LOW-VALUE    | `run_cleanup__mutmut_7`, `_80`, `_81`                                                     |
-| M   | `start_job` message text tweaks (`"XX…XX"`, case)                     | 3     | LOW-VALUE    | `run_cleanup__mutmut_11`, `_12`, `_13`                                                    |
-| N   | `_update_job_progress(job_id, PCT, msg)` args clobbered — 4 sites     | 16    | **TEST-GAP** | `run_cleanup__mutmut_16`, `_32`, `_45`                                                    |
-| O   | `_update_job_progress` message _text_ tweaks — 4 sites                | 12    | LOW-VALUE    | `run_cleanup__mutmut_23`, `_39`, `_52`                                                    |
-| P   | `if job_id and self._job_tracker:` → `or` (success + except paths)    | 2     | **TEST-GAP** | `run_cleanup__mutmut_79`, `run_cleanup__mutmut_91`                                        |
-| Q   | `_get_referenced_files`: `referenced.add(abs_path)` → `add(None)`     | 3     | **TEST-GAP** | `_get_referenced_files__mutmut_12`, `_16`, `_25`                                          |
-| R   | `abs_path = str(Path(x).resolve())` → `None` / `str(None)`            | 6     | EQUIVALENT   | `_get_referenced_files__mutmut_9`, `_13`, `_22`                                           |
-| S   | `select(Detection…)` / `select(Event…)` arg clobbers                  | 8     | LOW-VALUE    | `_get_referenced_files__mutmut_2`, `_5`, `_17`                                            |
-| T   | `session.execute(<query>)` → `execute(None)` (referenced-files fns)   | 2     | LOW-VALUE    | `_get_referenced_files__mutmut_8`, `_21`                                                  |
-| U   | logger message arg → `None` / case / `XX…XX` (module-wide)            | 19    | EQUIVALENT   | `_wait_until_next_cleanup__mutmut_5`, `run_cleanup__mutmut_26`, `__init____mutmut_4`      |
+| # | pattern | count | class | example keys (≤3) |
+|---|---------|-------|-------|-------------------|
+| A | retention cutoff `Log.timestamp < cutoff` → `<=` (both log fns) | 2 | **TEST-GAP** | `_count_old_logs__mutmut_11`, `cleanup_old_logs__mutmut_10` |
+| B | retention cutoff `now(UTC) - timedelta(days=…)` → `+` (future cutoff) | 2 | **TEST-GAP** | `_count_old_logs__mutmut_3`, `cleanup_old_logs__mutmut_3` |
+| C | `datetime.now(UTC)` → `datetime.now(None)` in cutoff expr | 2 | LOW-VALUE | `_count_old_logs__mutmut_4`, `cleanup_old_logs__mutmut_4` |
+| D | `session.execute(<stmt>)` → `session.execute(None)` (log fns) | 2 | LOW-VALUE | `_count_old_logs__mutmut_7`, `cleanup_old_logs__mutmut_7` |
+| E | `select(...)`/`where(...)` args → `None` (count query only) | 3 | LOW-VALUE | `_count_old_logs__mutmut_8`, `_count_old_logs__mutmut_10`, `cleanup_old_logs__mutmut_8` |
+| F | log-guard `if count > 0:` → `>= 0` / `> 1` (both log fns) | 4 | LOW-VALUE | `_count_old_logs__mutmut_16`, `_count_old_logs__mutmut_17`, `cleanup_old_logs__mutmut_14` |
+| G | `format_bytes`: `if size < 0:` → `<= 0` / `< 1` | 2 | EQUIVALENT | `format_bytes__mutmut_1`, `format_bytes__mutmut_2` |
+| H | `logger.error(msg, exc_info=True)` → None/`False`/omitted | 4 | LOW-VALUE | `OrphanedFileCleanup.run_cleanup__mutmut_86`, `_87`, `_89` |
+| I | `_scan_storage_directories`: bad-path `continue` → `break` | 2 | **TEST-GAP** | `_scan_storage_directories__mutmut_6`, `__mutmut_9` |
+| J | `run_cleanup(self, dry_run: bool = True)` → `= False` | 1 | **TEST-GAP** | `OrphanedFileCleanup.run_cleanup__mutmut_1` |
+| K | `job_id: str \| None = None` → `= ""` | 1 | EQUIVALENT | `OrphanedFileCleanup.run_cleanup__mutmut_2` |
+| L | `start_job`/`complete_job` arg clobbers (None / arg-drop / arity) | 9 | LOW-VALUE | `run_cleanup__mutmut_7`, `_80`, `_81` |
+| M | `start_job` message text tweaks (`"XX…XX"`, case) | 3 | LOW-VALUE | `run_cleanup__mutmut_11`, `_12`, `_13` |
+| N | `_update_job_progress(job_id, PCT, msg)` args clobbered — 4 sites | 16 | **TEST-GAP** | `run_cleanup__mutmut_16`, `_32`, `_45` |
+| O | `_update_job_progress` message *text* tweaks — 4 sites | 12 | LOW-VALUE | `run_cleanup__mutmut_23`, `_39`, `_52` |
+| P | `if job_id and self._job_tracker:` → `or` (success + except paths) | 2 | **TEST-GAP** | `run_cleanup__mutmut_79`, `run_cleanup__mutmut_91` |
+| Q | `_get_referenced_files`: `referenced.add(abs_path)` → `add(None)` | 3 | **TEST-GAP** | `_get_referenced_files__mutmut_12`, `_16`, `_25` |
+| R | `abs_path = str(Path(x).resolve())` → `None` / `str(None)` | 6 | EQUIVALENT | `_get_referenced_files__mutmut_9`, `_13`, `_22` |
+| S | `select(Detection…)` / `select(Event…)` arg clobbers | 8 | LOW-VALUE | `_get_referenced_files__mutmut_2`, `_5`, `_17` |
+| T | `session.execute(<query>)` → `execute(None)` (referenced-files fns) | 2 | LOW-VALUE | `_get_referenced_files__mutmut_8`, `_21` |
+| U | logger message arg → `None` / case / `XX…XX` (module-wide) | 19 | EQUIVALENT | `_wait_until_next_cleanup__mutmut_5`, `run_cleanup__mutmut_26`, `__init____mutmut_4` |
 
 ### Cluster notes (the reasoning that isn't in the table)
 
 **A / B — retention cutoff (the only real semantic gap on the DB side).** `cleanup_service.py:487`
 and `:509` build `cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)`; `:491`
 counts `Log.timestamp < cutoff`, `:513` deletes it. A `<`→`<=` flip deletes one extra row exactly
-on the boundary; the `-`→`+` flip puts the cutoff _in the future_, which would delete **every
+on the boundary; the `-`→`+` flip puts the cutoff *in the future*, which would delete **every
 log in the database** — the worst-impact mutant in this module. Unit tests
 `test_cleanup_service.py:1292`/`:1313`/`:1334` and `:1360`/`:1383`/`:1406` mock
 `session.execute` with `AsyncMock(return_value=…)` and assert only the returned count, so no
@@ -96,18 +96,18 @@ See fact #2 — a single argument-level assertion kills all 16. → draft T5.
 
 **P — `and` → `or` (`cleanup_service.py:921`, `:930`).** With `job_id` None (no tracker) or
 tracker None, `or` lets `complete_job(None, …)` / `fail_job(None, …)` fire anyway — corrupting
-job state when only _one_ of the two guards holds. `run_cleanup__mutmut_79` sits on the success
+job state when only *one* of the two guards holds. `run_cleanup__mutmut_79` sits on the success
 path, `__mutmut_91` on the `except` path. Same one-line fix as N (assert tracker was **not**
 called when the tracker is absent — the existing `test_orphaned_file_cleanup_update_job_progress_without_tracker` at
 `:2170` only asserts "does not raise", never "was not called"). → folded into draft T5.
 
 **Q — `referenced.add(abs_path)` → `add(None)` (`cleanup_service.py:794`, `:797`, `:806`).**
 Set membership is what protects a file from deletion. Each mutant poisons one of the three
-sources (Detection.file*path / Detection.thumbnail_path / Event.clip_path): the real path never
+sources (Detection.file_path / Detection.thumbnail_path / Event.clip_path): the real path never
 enters the set, and `run_cleanup` then treats a **referenced** file as orphaned and deletes it —
 data loss. This is exactly what `_get_referenced_files` exists to do. The covering test
 `test_cleanup_service.py:1923` asserts `assert len(referenced) >= 5` (**:1957**) against 5 input
-rows: the bound is loose, and every `add(None)` mutant \_still* yields ≥5 distinct members
+rows: the bound is loose, and every `add(None)` mutant *still* yields ≥5 distinct members
 (`None` + surviving sources). A strict exact-membership assertion kills all three — and would
 also kill a slice of S for free. → draft T6.
 
@@ -115,7 +115,7 @@ also kill a slice of S for free. → draft T6.
 `if file_path:` / `if thumbnail_path:` / `if clip_path:` (`:791`, `:795`, `:804`), so the guard
 has already proven the value is truthy; the mutated expression itself raises (TypeError /
 `AttributeError` on `Path(None)`), so the mutant is an artificial crash, not a silent behavior
-change. Killing it needs a _different_ test (a real DB round-trip), not a stronger assertion.
+change. Killing it needs a *different* test (a real DB round-trip), not a stronger assertion.
 Same verdict reasoning as cluster K: `""` and `None` are both falsy at every one of the three
 `if job_id` sites (`:848`, `:921`, `:930`), so K is semantically identical — not a gap.
 
@@ -127,7 +127,7 @@ have to assert `format_bytes(0)` differs from the negative branch, but the funct
 on this cluster.**
 
 **C, D, E, F, S, T — LOW-VALUE.** All of them mutate a SQLAlchemy expression or a session call
-into something that _raises_ (session is `AsyncMock`; `execute(None)` returns a MagicMock whose
+into something that *raises* (session is `AsyncMock`; `execute(None)` returns a MagicMock whose
 `.scalar_one()` is a MagicMock → `int(MagicMock or 0)` is `TypeError`). Nobody should assert
 "passing None to execute() throws"; these mutants are only killable by asserting on compiled SQL
 text, which is exactly the brittleness that makes a suite rot. F's `if count > 0` → `>= 0`
@@ -149,7 +149,7 @@ the new test must FAIL; revert → must PASS; then re-check the cluster's other 
 
 Style notes followed: module-level `pytestmark = pytest.mark.unit` (**:47**) means no marker is
 needed on these; the autouse `mock_settings_for_cleanup_tests` (**:52**) already provides
-`DATABASE_URL`; `OrphanedFileCleanup` / `format_bytes` are imported _inside_ each test (existing
+`DATABASE_URL`; `OrphanedFileCleanup` / `format_bytes` are imported *inside* each test (existing
 convention); the local `mock_get_session` `@contextlib.asynccontextmanager` shim is the file's
 established pattern (**:1303-1306**); compiled-SQL assertions reuse the precedent at
 `backend/tests/unit/services/test_search.py:532`.
@@ -159,7 +159,6 @@ Existing imports at top of file (`:35-44`) already supply `contextlib`, `AsyncMo
 the SQL-dialect import is function-local exactly as `test_search.py` does it.
 
 ### T1 — kills cluster A (`<` → `<=`), also kills B, C
-
 ```python
 @pytest.mark.asyncio
 async def test_count_old_logs_cutoff_is_strictly_in_the_past():
@@ -210,13 +209,11 @@ async def test_count_old_logs_cutoff_is_strictly_in_the_past():
         f"cutoff comparison must be strict '<', got {condition.operator.__name__}"
     )
 ```
-
 Red-proves on `_count_old_logs__mutmut_11` (operator name is `le`) and on `__mutmut_3`
 (cutoff > now). Note `condition.right.value` needs the expression to be a `BinaryExpression`
 with a bind on the right — true for `Log.timestamp < cutoff`.
 
 ### T2 — kills cluster A on the delete path (highest blast radius)
-
 ```python
 @pytest.mark.asyncio
 async def test_cleanup_old_logs_delete_statement_targets_only_expired_logs():
@@ -270,7 +267,6 @@ async def test_cleanup_old_logs_delete_statement_targets_only_expired_logs():
     assert "DELETE FROM logs" in sql, sql
     assert "logs.timestamp <=" not in sql, f"cutoff must be strict '<', not '<=': {sql}"
 ```
-
 Rendered SQL, verified in isolation against the real `Log` model (no DB, no pytest):
 original `<` → `DELETE FROM logs WHERE logs.timestamp < %(timestamp_1)s`; mutant `<=` →
 `… <= %(timestamp_1)s`. `condition.right.value` returns the `datetime` cutoff bind and
@@ -278,7 +274,6 @@ original `<` → `DELETE FROM logs WHERE logs.timestamp < %(timestamp_1)s`; muta
 the file's existing style even though `asyncio_mode` is set.
 
 ### T3 — kills cluster I (multi-path `break`)
-
 ```python
 def test_orphaned_file_cleanup_scan_skips_bad_path_and_continues(tmp_path):
     """A bad storage path must not abort scanning the remaining paths.
@@ -323,12 +318,10 @@ def test_orphaned_file_cleanup_scan_skips_nonexistent_path_and_continues(tmp_pat
 
     assert [Path(p).name for p, _ in files] == ["only.jpg"]
 ```
-
 Both are red on `__mutmut_6` (nonexistent → break) / `__mutmut_9` (not-a-dir → break) and green
 as written. Cluster I's two keys are covered one-for-one.
 
 ### T4 — kills cluster J (the `dry_run=True` safety default)
-
 ```python
 @pytest.mark.asyncio
 async def test_orphaned_file_cleanup_dry_run_defaults_to_true(tmp_path):
@@ -375,7 +368,6 @@ def test_orphaned_file_cleanup_dry_run_signature_default():
 ```
 
 ### T5 — kills clusters N (16) and P (2); partial on L/M/O
-
 ```python
 @pytest.mark.asyncio
 async def test_orphaned_file_cleanup_progress_sequence_and_complete_result(tmp_path):
@@ -491,12 +483,10 @@ async def test_orphaned_file_cleanup_no_job_call_without_job_id(tmp_path):
 
     tracker_holds_id.fail_job.assert_not_called()
 ```
-
 Add to the file's existing `from unittest.mock import AsyncMock, MagicMock, patch` (**:40**):
 `call`. That import edit is required by T5 and is the only module-level change proposed.
 
 ### T6 — kills cluster Q; partial on S
-
 ```python
 @pytest.mark.asyncio
 async def test_orphaned_file_cleanup_get_referenced_files_exact_membership():
@@ -543,7 +533,6 @@ async def test_orphaned_file_cleanup_get_referenced_files_exact_membership():
     assert None not in referenced, "NULL path columns must not enter the referenced set"
     assert all(p != "None" for p in referenced)
 ```
-
 Exact-equality is the load-bearing assertion; the three `None`/`"None"` checks make the failure
 message legible. (Six members, not five — the `>= 5` in the existing test under-counts the rows;
 that looseness is precisely why the mutants survived.)
@@ -552,18 +541,18 @@ that looseness is precisely why the mutants survived.)
 
 ## Covering test files (with the lines that matter)
 
-| File                                                                                | Lines that decide the verdicts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| File | Lines that decide the verdicts |
+|---|---|
 | `/agents/agent-nemo2/workspace/backend/tests/unit/services/test_cleanup_service.py` | **2230 lines; the only file mutmut selects for this module.** `:52` autouse settings fixture · `:665` wait_until_next_cleanup (sleep-only) · `:1292`/`:1313`/`:1334` count_old_logs (return-value only) · `:1360`/`:1383`/`:1406` cleanup_old_logs (rowcount + commit only) · `:1734` format_bytes negative · `:1895`/`:1912` init · `:1923`→**`:1957` `assert len(referenced) >= 5`** · `:1960`/`:1991`/`:2003`/`:2019` scan (one path each) · `:2045`/`:2080` dry-run/delete (explicit `dry_run=`) · `:2116`→**`:2139` `complete_job.assert_called_once()`** · `:2143` exception→fail_job (arguments asserted) · `:2170` without_tracker (not-raised only) · `:2180`→`:2190` `_update_job_progress` full-arg assertion (direct call, bypasses run_cleanup) |
-| `/agents/agent-nemo2/workspace/backend/tests/integration/test_cleanup_service.py`   | `:430` `test_cleanup_old_logs_deletes_old_logs` (10-day deleted / 1-day kept) and `:641` `…_preserves_boundary_logs` — real cutoff assertions that **cannot kill any mutant** because `pyproject.toml:638-640` restricts selection to `backend/tests/unit`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `/agents/agent-nemo2/workspace/backend/tests/unit/services/test_search.py`          | `:532` precedent for asserting on `str(stmt.compile(dialect=postgresql.dialect()))` inside a unit test (basis for T2)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `/agents/agent-nemo2/workspace/backend/services/job_tracker.py`                     | `:335` `start_job(job_id, message=None)` · `:362` `update_progress(job_id, progress, message=None)` · `:437` `complete_job(job_id, result=None)` — `message` is optional, which is why arg-drop mutants (L/M/O) change nothing observable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `/agents/agent-nemo2/workspace/pyproject.toml`                                      | `:638-640` unit-only test selection · `:671` `mutate_only_covered_lines = true`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `/agents/agent-nemo2/workspace/backend/tests/integration/test_cleanup_service.py` | `:430` `test_cleanup_old_logs_deletes_old_logs` (10-day deleted / 1-day kept) and `:641` `…_preserves_boundary_logs` — real cutoff assertions that **cannot kill any mutant** because `pyproject.toml:638-640` restricts selection to `backend/tests/unit` |
+| `/agents/agent-nemo2/workspace/backend/tests/unit/services/test_search.py` | `:532` precedent for asserting on `str(stmt.compile(dialect=postgresql.dialect()))` inside a unit test (basis for T2) |
+| `/agents/agent-nemo2/workspace/backend/services/job_tracker.py` | `:335` `start_job(job_id, message=None)` · `:362` `update_progress(job_id, progress, message=None)` · `:437` `complete_job(job_id, result=None)` — `message` is optional, which is why arg-drop mutants (L/M/O) change nothing observable |
+| `/agents/agent-nemo2/workspace/pyproject.toml` | `:638-640` unit-only test selection · `:671` `mutate_only_covered_lines = true` |
 
 ## Handoff notes for WP4.4
 
 1. **Expected score movement.** The 6 drafts target 28 TEST-GAP survivors (clusters A, B, I, J, N, P, Q). Realistic kill: 26–28 of 28. Clusters Q and S interact — T6's exact-membership assertion likely also kills 2–4 of cluster S's 8 `select()` clobbers, since a clobbered column list changes which rows arrive. Do not promise an exact number until the drafts run.
 2. **The 28 EQUIVALENT survivors (clusters G, K, R, U) will not move** and should be triaged as "no test worth writing" rather than re-triaged next round. G in particular is unkillable without changing `format_bytes`'s contract.
-3. **Structural finding worth its own ticket:** the unit-only selection rule means this baseline _cannot_ see any integration-tier assertion. Every DB-semuality gap in this module (A, B) already has an integration test. That is a harness-scope tradeoff, not a test-quality failure — worth a line in the WP4.4 writeup so nobody "fixes" A and B by pointing at the integration file.
+3. **Structural finding worth its own ticket:** the unit-only selection rule means this baseline *cannot* see any integration-tier assertion. Every DB-semuality gap in this module (A, B) already has an integration test. That is a harness-scope tradeoff, not a test-quality failure — worth a line in the WP4.4 writeup so nobody "fixes" A and B by pointing at the integration file.
 4. **One module-level edit is proposed:** add `call` to the `unittest.mock` import at `test_cleanup_service.py:40`, required by T5.
 5. All six drafts are **UNVERIFIED**. The machine was under a live mutation run for this entire triage; no pytest, no mutmut run, no repo file touched. Only writes were under `/tmp/wp25/`.

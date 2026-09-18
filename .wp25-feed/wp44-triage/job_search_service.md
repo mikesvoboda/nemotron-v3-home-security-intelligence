@@ -16,7 +16,7 @@ Generated: 2026-09-17 (WP4.3 survivors → WP4.4). READ-ONLY analysis; no tests 
 
 ## Semantic facts used for classification
 
-1. `JobSearchFilters` (job*search_service.py:44-58) defaults: `statuses`/`job_types` default to `[]` via `field(default_factory=list)`, every other field defaults to `None`. → removing a kwarg or passing `None` is a **no-op only when the caller itself supplies None/[]** — which is exactly what every existing test does, hence G5/G10/G1 survive. When a test \_does* pass a real value, the same mutation is a real bug.
+1. `JobSearchFilters` (job_search_service.py:44-58) defaults: `statuses`/`job_types` default to `[]` via `field(default_factory=list)`, every other field defaults to `None`. → removing a kwarg or passing `None` is a **no-op only when the caller itself supplies None/[]** — which is exactly what every existing test does, hence G5/G10/G1 survive. When a test *does* pass a real value, the same mutation is a real bug.
 2. `filters.queue` is **never read** anywhere in the repo (grep-verified; docstring says "reserved for future use"). → all queue-argument mutations are no-ops.
 3. `JobInfo` (job_tracker.py:65, TypedDict) requires `status`/`job_type` keys → `"unknown"` fallbacks in `_compute_aggregations` only fire on malformed tracker rows (the module's deliberate graceful-degradation style, cf. NEM-2540 comment).
 4. `by_status.get(status, 0)` and `by_status[status]` assign the same key → `get(None, 0)` mutation mutates the wrong dict key but the right value: equivalent.
@@ -27,25 +27,25 @@ Generated: 2026-09-17 (WP4.3 survivors → WP4.4). READ-ONLY analysis; no tests 
 
 Legend: SJ = `search_jobs`, SWA = `search_jobs_with_aggregations`, SVC = `JobSearchService.search`, CJ = `_calculate_job_duration`, CA = `_compute_aggregations`. Keys below are shortened as `<func>__mutmut_N` after stripping `backend.services.job_search_service.x`.
 
-| #   | Pattern (cluster)                                                                                                                                                                                                                                                        | Fn         | Count | Class        | Example keys                |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ----: | ------------ | --------------------------- |
-| G1  | Delegation drops/nullifies every filter/sort/page argument (`kw=X` → `kw=None` / kwarg removed in the `search_jobs_with_aggregations(...)` call)                                                                                                                         | SVC        |    19 | **TEST-GAP** | SVC**2, SVC**9, SVC\_\_23   |
-| G2  | Range-unpack ternary forced always-false: `X if X else (None,None)` → `X if (X) and False else (None,None)` — created/completed/duration ranges silently discarded                                                                                                       | SJ+SWA     |     6 | **TEST-GAP** | SJ**2, SJ**5, SWA\_\_8      |
-| G3  | SWA sort-direction computation broken: `reverse = sort_order.lower() == "desc"` → `None` / `!=` / always-false comparisons — default output order flips to ascending                                                                                                     | SWA        |     5 | **TEST-GAP** | SWA**44, SWA**46, SWA\_\_47 |
-| G4  | Sort call argument mutations: `_get_sort_key(j, sort_by)` → `(j, None)` (always sorts by created_at) and `reverse=reverse` → `reverse=None`/removed (ascending)                                                                                                          | SJ+SWA     |     4 | **TEST-GAP** | SJ**53, SWA**50, SWA\_\_52  |
-| G5  | `JobSearchFilters(...)` construction: query / created*\* / completed*\* / has_error / min_duration / max_duration kwarg → `None` or removed — caller-supplied filters discarded                                                                                          | SJ+SWA     |    32 | **TEST-GAP** | SJ**11, SJ**16, SWA\_\_30   |
-| G6  | `_calculate_job_duration` second-guard flip `if started_at and completed_at` → `or` — raises `TypeError` (None timestamp subtracted) when one timestamp string is present but unparseable, instead of returning None                                                     | CJ         |     1 | **TEST-GAP** | CJ\_\_16                    |
-| G7  | `list or []` → `list and []` (always-empty when caller passes non-empty) on `job_types=` (SJ) / `statuses=` (SWA) — caller's filter list discarded                                                                                                                       | SJ+SWA     |     2 | **TEST-GAP** | SJ**34, SWA**33             |
-| G8  | `_compute_aggregations` `"unknown"` fallback mutations (`None`/removed/`"XXunknownXX"`/`"UNKNOWN"`, status and type sides) — malformed job rows bucket under `"None"`/`""`/sentinel instead of `"unknown"`                                                               | CA         |     8 | **TEST-GAP** | CA**6, CA**23, CA\_\_11     |
-| G9  | `by_status.get(status, 0)` → `by_status.get(None, 0)` — reads a permanently-absent key, so every status bucket is stuck at 1 whenever two jobs share a status                                                                                                            | CA         |     1 | **TEST-GAP** | CA\_\_15                    |
-| G10 | `statuses=statuses or []` / `job_types=job_types or []` → explicit `None` — overrides the dataclass default with `None`, and `_matches_status_filter`/`_matches_type_filter` treat falsy as all-pass → caller's filter silently becomes no-op                            | SJ+SWA     |     2 | **TEST-GAP** | SJ**13, SWA**12             |
-| E1  | `queue` kwarg → `None` / removed — `filters.queue` is never read (reserved param)                                                                                                                                                                                        | SJ+SWA+SVC |     6 | EQUIVALENT   | SJ**14, SVC**5, SWA\_\_25   |
-| E2  | `statuses=statuses or []` / `job_types=job_types or []` kwarg **removed entirely** — dataclass default `field(default_factory=list)` already yields `[]`, identical to `[] or []`                                                                                        | SJ+SWA     |     2 | EQUIVALENT   | SJ**24, SWA**23             |
-| E3  | `_calculate_job_duration` guard `not started or not completed` → `and` — redundant early-return: with exactly one timestamp missing, `_parse_datetime(None)` returns None and the second guard (`if started_at and completed_at`) already falls through to `return None` | CJ         |     1 | EQUIVALENT   | CJ\_\_9                     |
-| L1  | Logger message text mutations (`"Job search [with aggregations] completed"` → None/`XX..XX`/lower/UPPER)                                                                                                                                                                 | SJ+SWA     |     8 | LOW-VALUE    | SJ**62, SJ**58, SWA\_\_64   |
-| L2  | `extra=None` replacing the log `extra={...}` dict                                                                                                                                                                                                                        | SJ+SWA     |     2 | LOW-VALUE    | SJ**59, SWA**61             |
-| L3  | Log call `extra={...}` kwarg removed entirely                                                                                                                                                                                                                            | SJ+SWA     |     2 | LOW-VALUE    | SJ**61, SWA**63             |
-| L4  | Log `extra` dict **keys** renamed (`"total"`→`"XXtotalXX"`/`"TOTAL"` etc., 8 sites in SJ, 3+total in SWA)                                                                                                                                                                | SJ+SWA     |    20 | LOW-VALUE    | SJ**65, SJ**78, SWA\_\_71   |
+| # | Pattern (cluster) | Fn | Count | Class | Example keys |
+|---|---|---|---:|---|---|
+| G1 | Delegation drops/nullifies every filter/sort/page argument (`kw=X` → `kw=None` / kwarg removed in the `search_jobs_with_aggregations(...)` call) | SVC | 19 | **TEST-GAP** | SVC__2, SVC__9, SVC__23 |
+| G2 | Range-unpack ternary forced always-false: `X if X else (None,None)` → `X if (X) and False else (None,None)` — created/completed/duration ranges silently discarded | SJ+SWA | 6 | **TEST-GAP** | SJ__2, SJ__5, SWA__8 |
+| G3 | SWA sort-direction computation broken: `reverse = sort_order.lower() == "desc"` → `None` / `!=` / always-false comparisons — default output order flips to ascending | SWA | 5 | **TEST-GAP** | SWA__44, SWA__46, SWA__47 |
+| G4 | Sort call argument mutations: `_get_sort_key(j, sort_by)` → `(j, None)` (always sorts by created_at) and `reverse=reverse` → `reverse=None`/removed (ascending) | SJ+SWA | 4 | **TEST-GAP** | SJ__53, SWA__50, SWA__52 |
+| G5 | `JobSearchFilters(...)` construction: query / created_* / completed_* / has_error / min_duration / max_duration kwarg → `None` or removed — caller-supplied filters discarded | SJ+SWA | 32 | **TEST-GAP** | SJ__11, SJ__16, SWA__30 |
+| G6 | `_calculate_job_duration` second-guard flip `if started_at and completed_at` → `or` — raises `TypeError` (None timestamp subtracted) when one timestamp string is present but unparseable, instead of returning None | CJ | 1 | **TEST-GAP** | CJ__16 |
+| G7 | `list or []` → `list and []` (always-empty when caller passes non-empty) on `job_types=` (SJ) / `statuses=` (SWA) — caller's filter list discarded | SJ+SWA | 2 | **TEST-GAP** | SJ__34, SWA__33 |
+| G8 | `_compute_aggregations` `"unknown"` fallback mutations (`None`/removed/`"XXunknownXX"`/`"UNKNOWN"`, status and type sides) — malformed job rows bucket under `"None"`/`""`/sentinel instead of `"unknown"` | CA | 8 | **TEST-GAP** | CA__6, CA__23, CA__11 |
+| G9 | `by_status.get(status, 0)` → `by_status.get(None, 0)` — reads a permanently-absent key, so every status bucket is stuck at 1 whenever two jobs share a status | CA | 1 | **TEST-GAP** | CA__15 |
+| G10 | `statuses=statuses or []` / `job_types=job_types or []` → explicit `None` — overrides the dataclass default with `None`, and `_matches_status_filter`/`_matches_type_filter` treat falsy as all-pass → caller's filter silently becomes no-op | SJ+SWA | 2 | **TEST-GAP** | SJ__13, SWA__12 |
+| E1 | `queue` kwarg → `None` / removed — `filters.queue` is never read (reserved param) | SJ+SWA+SVC | 6 | EQUIVALENT | SJ__14, SVC__5, SWA__25 |
+| E2 | `statuses=statuses or []` / `job_types=job_types or []` kwarg **removed entirely** — dataclass default `field(default_factory=list)` already yields `[]`, identical to `[] or []` | SJ+SWA | 2 | EQUIVALENT | SJ__24, SWA__23 |
+| E3 | `_calculate_job_duration` guard `not started or not completed` → `and` — redundant early-return: with exactly one timestamp missing, `_parse_datetime(None)` returns None and the second guard (`if started_at and completed_at`) already falls through to `return None` | CJ | 1 | EQUIVALENT | CJ__9 |
+| L1 | Logger message text mutations (`"Job search [with aggregations] completed"` → None/`XX..XX`/lower/UPPER) | SJ+SWA | 8 | LOW-VALUE | SJ__62, SJ__58, SWA__64 |
+| L2 | `extra=None` replacing the log `extra={...}` dict | SJ+SWA | 2 | LOW-VALUE | SJ__59, SWA__61 |
+| L3 | Log call `extra={...}` kwarg removed entirely | SJ+SWA | 2 | LOW-VALUE | SJ__61, SWA__63 |
+| L4 | Log `extra` dict **keys** renamed (`"total"`→`"XXtotalXX"`/`"TOTAL"` etc., 8 sites in SJ, 3+total in SWA) | SJ+SWA | 20 | LOW-VALUE | SJ__65, SJ__78, SWA__71 |
 
 **TEST-GAP 80 (G1-G10) · EQUIVALENT 9 (E1-E3) · LOW-VALUE 32 (L1-L4) · total 121.**
 
@@ -53,21 +53,21 @@ Legend: SJ = `search_jobs`, SWA = `search_jobs_with_aggregations`, SVC = `JobSea
 
 All covering tests live in `backend/tests/unit/services/test_job_search_service.py` (TJS). Line refs to TJS; source refs to `backend/services/job_search_service.py` (JSS).
 
-- **G1** (TJS:497-514, `TestJobSearchService.test_search_method` — the _only_ test reaching `JobSearchService.search`, JSS:619-633): it asserts only `result.total == 2` with `query` + `statuses` that happen to select the same 2 jobs as `query` alone. `limit`, `offset`, `sort_*`, `*_range`, `duration_range`, `has_error`, `job_types` never pass through the wrapper in any test. Killer: T1 below (behavioral forwarding assertions + optional kwargs-equality variant patching `search_jobs_with_aggregations`).
+- **G1** (TJS:497-514, `TestJobSearchService.test_search_method` — the *only* test reaching `JobSearchService.search`, JSS:619-633): it asserts only `result.total == 2` with `query` + `statuses` that happen to select the same 2 jobs as `query` alone. `limit`, `offset`, `sort_*`, `*_range`, `duration_range`, `has_error`, `job_types` never pass through the wrapper in any test. Killer: T1 below (behavioral forwarding assertions + optional kwargs-equality variant patching `search_jobs_with_aggregations`).
 - **G2** (JSS:428-430 SJ / :517-519 SWA): no test ever passes `created_range`/`completed_range`/`duration_range` end-to-end; helper-level tests (`TestMatchesTimestampFilter` TJS:225, `TestMatchesDurationFilter` TJS:284) stop below the boundary. Killer: T2.
 - **G3** (JSS:548): TJS sort tests (`test_sorting_asc/desc`, TJS:426-456) exercise **`search_jobs` only**; SWA's sort direction is never asserted (its two tests, TJS:459-494, take default order and don't check sequence). All five mutants flip SWA's default order to ascending — an unobservable-by-existing-tests bug. Killer: T3.
 - **G4** (JSS:457 SJ / :549 SWA): SWA output order never asserted (see G3); SJ `sort_by` variation untested (both SJ sort tests use `sort_by="created_at"`, which equals the `None`-fallback behavior — JSS:389 defaults unknown/None keys to `created_at`). Killer: T3 (SWA side + non-created_at key) + T2's SJ sort assertion.
 - **G5** (JSS:432-444 SJ / :521-533 SWA): `search_jobs` tests (TJS:391-456) never pass `query`/`has_error`/ranges; SWA tests never pass `created_range`/`completed_range`/`duration_range`/`has_error`. Each mutant zeroes exactly the parameter no test supplies. Same killer as G2 (T2 passes every one of these through both functions).
 - **G6** (JSS:137): TJS:134-152 never feeds one valid + one unparseable timestamp; `and→or` then subtracts `None` → `TypeError` instead of the documented `None` return. Killer: T4. (The sibling `or`→`and` early-guard mutant is EQUIVALENT — see E3 — because `_parse_datetime(None)` → `None` and the second guard already returns `None`.)
-- **G7/G10** (JSS:434-435 SJ statuses/job_types / :522-523 SWA): SJ tests never pass `job_types` at all; the sole SWA caller-with-statuses test (`test_search_method`, TJS:500-514) uses `statuses=["completed","running"]` redundant with its `query="export"` filter, so nullifying statuses keeps `total==2`. Killers: T2's `sj(job_types=["backup"])` → total 1 (SJ**34, SJ**13) and T3's `swa(statuses=["completed"])` → total 1 (SWA**33, SWA**12).
+- **G7/G10** (JSS:434-435 SJ statuses/job_types / :522-523 SWA): SJ tests never pass `job_types` at all; the sole SWA caller-with-statuses test (`test_search_method`, TJS:500-514) uses `statuses=["completed","running"]` redundant with its `query="export"` filter, so nullifying statuses keeps `total==2`. Killers: T2's `sj(job_types=["backup"])` → total 1 (SJ__34, SJ__13) and T3's `swa(statuses=["completed"])` → total 1 (SWA__33, SWA__12).
 - **G8** (JSS:357,361): TJS `TestComputeAggregations` (TJS:342-364) always supplies status+job_type → fallback unexercised. Killer: T5.
 
 ### Why EQUIVALENT clusters need no tests
 
 - **E1**: `filters.queue` unread in the whole repo (grep-verified) — the argument can hold anything.
-- **E2**: `statuses`/`job_types` kwarg **removed** → dataclass default `field(default_factory=list)` yields `[]`, identical to the original's `X or []` → `[]` when the caller passes `None`/`[]`. Distinct from the `=None` override mutants (SJ**13/SWA**12), which defeat that default for non-empty callers — those are G10.
-- **E3**: `_calculate_job_duration` guard `not started or not completed` → `and` (CJ\_\_9): any job that bypasses the mutant's early guard has at least one falsy timestamp, whose `_parse_datetime` is `None`, so the second guard `if started_at and completed_at` still returns `None`. Unreachable-difference equivalent.
-  G9 note (not equivalent): `by_status.get(None, 0)` at JSS:358 reads a key that is never written, so the running count for every status is lost — each bucket stays stuck at 1 whenever two jobs share a status. `TestComputeAggregations` misses it only because its four sample jobs all have distinct statuses. Real behavior change → TEST-GAP, killed by T5's repeated-status assertion.
+- **E2**: `statuses`/`job_types` kwarg **removed** → dataclass default `field(default_factory=list)` yields `[]`, identical to the original's `X or []` → `[]` when the caller passes `None`/`[]`. Distinct from the `=None` override mutants (SJ__13/SWA__12), which defeat that default for non-empty callers — those are G10.
+- **E3**: `_calculate_job_duration` guard `not started or not completed` → `and` (CJ__9): any job that bypasses the mutant's early guard has at least one falsy timestamp, whose `_parse_datetime` is `None`, so the second guard `if started_at and completed_at` still returns `None`. Unreachable-difference equivalent.
+G9 note (not equivalent): `by_status.get(None, 0)` at JSS:358 reads a key that is never written, so the running count for every status is lost — each bucket stays stuck at 1 whenever two jobs share a status. `TestComputeAggregations` misses it only because its four sample jobs all have distinct statuses. Real behavior change → TEST-GAP, killed by T5's repeated-status assertion.
 
 ### Why LOW-VALUE clusters stay surviving
 
@@ -171,9 +171,9 @@ class TestSearchDelegation:
 // UNVERIFIED - not yet run red/green
 ```
 
-Kills every SVC\_\_N in G1: dropping/nullifying any single argument widens or reorders results so at least one assertion breaks. (Companion default-forwarding belt: `with patch("backend.services.job_search_service.search_jobs_with_aggregations", new=AsyncMock(return_value=JobSearchResult(jobs=[], total=0, aggregations=JobAggregations())))` … assert `mock.call_args.kwargs == {"job_tracker": mock_job_tracker, "query": None, "statuses": None, ..., "limit": 50, "offset": 0, "sort_by": "created_at", "sort_order": "desc"}` — kills G1 with zero behavioral coupling; pick either style in WP4.4.)
+Kills every SVC__N in G1: dropping/nullifying any single argument widens or reorders results so at least one assertion breaks. (Companion default-forwarding belt: `with patch("backend.services.job_search_service.search_jobs_with_aggregations", new=AsyncMock(return_value=JobSearchResult(jobs=[], total=0, aggregations=JobAggregations())))` … assert `mock.call_args.kwargs == {"job_tracker": mock_job_tracker, "query": None, "statuses": None, ..., "limit": 50, "offset": 0, "sort_by": "created_at", "sort_order": "desc"}` — kills G1 with zero behavioral coupling; pick either style in WP4.4.)
 
-### T2 — kills G2 + G5 (38) + G7/G10 SJ side (SJ**34, SJ**13) + SJ\_\_53 sort_by
+### T2 — kills G2 + G5 (38) + G7/G10 SJ side (SJ__34, SJ__13) + SJ__53 sort_by
 
 ```python
 class TestSearchEndToEndFilters:
@@ -286,7 +286,7 @@ class TestSearchEndToEndFilters:
 // UNVERIFIED - not yet run red/green
 ```
 
-TDD: with any SJ**{2,5,8}/SWA**{2,5,8} ternary or any G5 kwarg nullification/rollback-to-default applied, the range/query/flag no longer filters → `total` assertions fail; green on original.
+TDD: with any SJ__{2,5,8}/SWA__{2,5,8} ternary or any G5 kwarg nullification/rollback-to-default applied, the range/query/flag no longer filters → `total` assertions fail; green on original.
 
 ### T3 — kills G3 + G4 + G7-SWA
 
@@ -336,9 +336,9 @@ class TestAggregationSearchOrdering:
 // UNVERIFIED - not yet run red/green
 ```
 
-All five SWA\_\_{44..48} reverse mutants flip the default order (jobs[0] becomes "job-1"); reverse=None/removed same. `_get_sort_key(j, None)` mutants sort by created_at — the progress-order assertion fails.
+All five SWA__{44..48} reverse mutants flip the default order (jobs[0] becomes "job-1"); reverse=None/removed same. `_get_sort_key(j, None)` mutants sort by created_at — the progress-order assertion fails.
 
-### T4 — kills G6 (CJ\_\_16)
+### T4 — kills G6 (CJ__16)
 
 ```python
 class TestCalculateJobDurationPartialTimestamps:
@@ -365,7 +365,7 @@ class TestCalculateJobDurationPartialTimestamps:
 // UNVERIFIED - not yet run red/green
 ```
 
-CJ**16 (`and`→`or`): the second test raises `TypeError` (subtracting `None` from a datetime, since `_parse_datetime("not-a-date")` → None) where the original returns None. The first test passes on both original and CJ**9-equivalent mutant — it is kept to pin the guard behavior documented in E3. (No existing test ever feeds an unparseable timestamp; TJS:128-131 tests `_parse_datetime` directly but never through `_calculate_job_duration`.)
+CJ__16 (`and`→`or`): the second test raises `TypeError` (subtracting `None` from a datetime, since `_parse_datetime("not-a-date")` → None) where the original returns None. The first test passes on both original and CJ__9-equivalent mutant — it is kept to pin the guard behavior documented in E3. (No existing test ever feeds an unparseable timestamp; TJS:128-131 tests `_parse_datetime` directly but never through `_calculate_job_duration`.)
 
 ### T5 — kills G8 + G9 (9)
 

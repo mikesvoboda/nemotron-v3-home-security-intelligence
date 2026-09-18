@@ -25,33 +25,33 @@ The second systemic gap: capability booleans are built
 `hasattr(cap, "X") and cap.X is not None`, but tests attach MagicMock to **every**
 attribute, so every `hasattr` is True and every value non-None — the True→False
 directions of `and`→`or` and `is not None`→`is None` flips can only be observed with a
-bare capability object that _lacks_ the sub-capability. No test provides one.
+bare capability object that *lacks* the sub-capability. No test provides one.
 
 Third: in `get_presets`/`goto_preset`, `device_url = None` and
 `_split_onvif_device_url(None)` survive because `urlparse(None)` does not raise
 (hostname None, port → default 80) and the next mock call swallows None args. The
 `camera_id=None` mutants survive because the session mock is a fixture-level
-`MagicMock` whose `scalar_one_or_none` returns the same camera for _any_ query — the
+`MagicMock` whose `scalar_one_or_none` returns the same camera for *any* query — the
 WHERE value is never captured. (Verified: the captured statement params DO carry the
 id, e.g. `{'id_1': 'front_door'}` — a `side_effect` fake session can assert it.)
 
 ## Cluster table
 
-| #   | Cluster                                                                                                                                                                                                                          | Function                                   | Count | Keys (examples ≤3) | Classification           |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ----- | ------------------ | ------------------------ |
-| 1   | Capability-dict **key name** case/format changes (`"ptz_supported"`→`"PTZ_SUPPORTED"` etc.)                                                                                                                                      | get_capabilities                           | 10    | 102, 103, 61       | **TEST-GAP**             |
-| 2   | Capability **booleans**: `and`→`or` / `is not None`→`is None` flips + `hasattr(caps,X)`→`hasattr(None,X)`                                                                                                                        | get_capabilities                           | 8     | 83, 93, 104        | **TEST-GAP**             |
-| 3   | Capability **attribute-name string** changes in getattr/hasattr (`"PTZ"`→`"ptz"`, `"XXSerialNumberXX"`)                                                                                                                          | get_capabilities                           | 15    | 88, 68, 100        | **TEST-GAP**             |
-| 4   | **Missing-attribute fallback** changes: `"Unknown"`→None/lowercase (killed only by absent attrs), `"None"` default dropped (semantically identical), `capabilities=None` (AttributeError — equivalent under all-MagicMock tests) | get_capabilities                           | 13    | 27, 41, 34         | **TEST-GAP**             |
-| 5   | **ONVIFCamera constructor args** mutated (None host/port/user/passwd, creds→`"XXXX"`, `or`→`and`) — no test records args with empty creds; presets/goto have no arg test at all                                                  | get_presets, goto_preset                   | 18    | p9, g9, p18        | **TEST-GAP**             |
-| 6   | `camera_id` → `None` passed to `_get_camera` (fixture mock answers any query)                                                                                                                                                    | get_capabilities, get_presets, goto_preset | 3     | 2 (each)           | **TEST-GAP**             |
-| 7   | `device_url = None` / `_split_onvif_device_url(None)` — urlparse(None) doesn't raise; `or ""` fallback never hit                                                                                                                 | get_presets, goto_preset                   | 6     | p4, p7             | **TEST-GAP**             |
-| 8   | `GetStreamUri(ProfileToken=...)` dropped / →None / →`profiles[1]` — token never asserted (existing test asserts only `assert_called_once`)                                                                                       | get_rtsp_url_from_device                   | 5     | 20, 21, 22         | **TEST-GAP**             |
-| 9   | `GotoPreset(PresetToken=preset_token)` → `PresetToken=None` — token never asserted                                                                                                                                               | goto_preset                                | 1     | 21                 | **TEST-GAP**             |
-| 10  | `get_presets` result `"name": getattr(p,"Name",None)` default dropped (identical semantics)                                                                                                                                      | get_presets                                | 1     | 30                 | **EQUIVALENT**           |
-| 11  | Error-message text clobber in `raise ValueError("XXNo media profiles…")` — match is a prefix of both                                                                                                                             | get_rtsp_url_from_device                   | 1     | 16                 | **EQUIVALENT**           |
-| 12  | **StreamSetup ONVIF wire constants** clobbered (keys/values `"Stream"`→`"xx"`, `"RTP-Unicast"`→`"rtp-unicast"`, `"RTSP"`→`"rtsp"`) + whole-kwarg deletions — mock swallows dict contents                                         | get_rtsp_url_from_device                   | 16    | 25, 28, 34         | **LOW-VALUE** (see note) |
-| 13  | **goto_preset logging** mutants (message→None/case-clobbers, `extra` dict keys/values mutated, extra kwarg deleted)                                                                                                              | goto_preset                                | 10    | 22, 23, 29         | **LOW-VALUE**            |
+| # | Cluster | Function | Count | Keys (examples ≤3) | Classification |
+|---|---------|----------|-------|--------------------|----------------|
+| 1 | Capability-dict **key name** case/format changes (`"ptz_supported"`→`"PTZ_SUPPORTED"` etc.) | get_capabilities | 10 | 102, 103, 61 | **TEST-GAP** |
+| 2 | Capability **booleans**: `and`→`or` / `is not None`→`is None` flips + `hasattr(caps,X)`→`hasattr(None,X)` | get_capabilities | 8 | 83, 93, 104 | **TEST-GAP** |
+| 3 | Capability **attribute-name string** changes in getattr/hasattr (`"PTZ"`→`"ptz"`, `"XXSerialNumberXX"`) | get_capabilities | 15 | 88, 68, 100 | **TEST-GAP** |
+| 4 | **Missing-attribute fallback** changes: `"Unknown"`→None/lowercase (killed only by absent attrs), `"None"` default dropped (semantically identical), `capabilities=None` (AttributeError — equivalent under all-MagicMock tests) | get_capabilities | 13 | 27, 41, 34 | **TEST-GAP** |
+| 5 | **ONVIFCamera constructor args** mutated (None host/port/user/passwd, creds→`"XXXX"`, `or`→`and`) — no test records args with empty creds; presets/goto have no arg test at all | get_presets, goto_preset | 18 | p9, g9, p18 | **TEST-GAP** |
+| 6 | `camera_id` → `None` passed to `_get_camera` (fixture mock answers any query) | get_capabilities, get_presets, goto_preset | 3 | 2 (each) | **TEST-GAP** |
+| 7 | `device_url = None` / `_split_onvif_device_url(None)` — urlparse(None) doesn't raise; `or ""` fallback never hit | get_presets, goto_preset | 6 | p4, p7 | **TEST-GAP** |
+| 8 | `GetStreamUri(ProfileToken=...)` dropped / →None / →`profiles[1]` — token never asserted (existing test asserts only `assert_called_once`) | get_rtsp_url_from_device | 5 | 20, 21, 22 | **TEST-GAP** |
+| 9 | `GotoPreset(PresetToken=preset_token)` → `PresetToken=None` — token never asserted | goto_preset | 1 | 21 | **TEST-GAP** |
+| 10 | `get_presets` result `"name": getattr(p,"Name",None)` default dropped (identical semantics) | get_presets | 1 | 30 | **EQUIVALENT** |
+| 11 | Error-message text clobber in `raise ValueError("XXNo media profiles…")` — match is a prefix of both | get_rtsp_url_from_device | 1 | 16 | **EQUIVALENT** |
+| 12 | **StreamSetup ONVIF wire constants** clobbered (keys/values `"Stream"`→`"xx"`, `"RTP-Unicast"`→`"rtp-unicast"`, `"RTSP"`→`"rtsp"`) + whole-kwarg deletions — mock swallows dict contents | get_rtsp_url_from_device | 16 | 25, 28, 34 | **LOW-VALUE** (see note) |
+| 13 | **goto_preset logging** mutants (message→None/case-clobbers, `extra` dict keys/values mutated, extra kwarg deleted) | goto_preset | 10 | 22, 23, 29 | **LOW-VALUE** |
 
 **Sum: 10 + 8 + 15 + 13 + 18 + 3 + 6 + 5 + 1 + 1 + 1 + 16 + 10 = 106 ✔**
 TEST-GAP: 9 clusters / 79 mutants · EQUIVALENT: 2 / 14 · LOW-VALUE: 2 / 13.
@@ -60,19 +60,19 @@ TEST-GAP: 9 clusters / 79 mutants · EQUIVALENT: 2 / 14 · LOW-VALUE: 2 / 13.
 
 - **#1/#3/#4 (get_capabilities result shape):** every existing assertion is either a
   presence-check (`assert "ptz_supported" in result`, L479-480) or reads a field the
-  fixture _did_ populate (manufacturer/model/firmware). `serial_number`, `hardware_id`,
+  fixture *did* populate (manufacturer/model/firmware). `serial_number`, `hardware_id`,
   `analytics_supported` are never read; the `"Unknown"` fallbacks are never exercised
   because the test's `device_info` MagicMock answers every getattr.
 - **#2:** `test_get_capabilities_returns_device_info` sets `capabilities.PTZ =
-MagicMock()` / `.Media = MagicMock()` and asserts only membership — both booleans are
-  True under the original _and_ the flipped mutants (hasattr=True on the MagicMock;
+  MagicMock()` / `.Media = MagicMock()` and asserts only membership — both booleans are
+  True under the original *and* the flipped mutants (hasattr=True on the MagicMock;
   with `or`/`is None` still True). A bare `SimpleNamespace()` (no PTZ/Media/Analytics)
   yields False originals vs True mutants — kills the whole cluster. `hasattr(None, X)`
   variants also yield False vs True.
-- **#5:** get*presets/goto_preset have zero constructor-arg tests; the existing get_capabilities
+- **#5:** get_presets/goto_preset have zero constructor-arg tests; the existing get_capabilities
   arg test uses non-empty creds so `or ""` mutants (`username and ""` → "" vs "admin")
   are invisible. Kill with the same autospec-style assertion plus a `None`-creds camera.
-  (`host`→`None` in the \_get_presets/goto* copies is folded here — one assertion kills
+  (`host`→`None` in the *get_presets/goto* copies is folded here — one assertion kills
   those too.)
 - **#6:** needs a session fake that captures the executed statement — `stmt.compile().params`
   includes `{'id_1': 'front_door'}` (verified), so the fake can raise for wrong ids.
@@ -323,10 +323,10 @@ with a `camera_id`-correct path asserted; get_presets/goto_preset key 4
 ### Residual expectation
 
 After T1-T5: clusters 1-9 dead except the three EQUIVALENT line-mutants already flagged
-(get*capabilities 30/44 dropped-default, get_presets 30) plus one special:
+(get_capabilities 30/44 dropped-default, get_presets 30) plus one special:
 **get_capabilities mutmut_22** (`capabilities = None` → AttributeError) cannot be distinguished
 under the existing connection-failure test (which asserts `pytest.raises(Exception)` —
-AttributeError passes the filter) unless a test asserts \_which* exception the mock raises;
+AttributeError passes the filter) unless a test asserts *which* exception the mock raises;
 classify LOW-VALUE (dead-defensive: in production the line raising AttributeError inside no
 try/except is indistinguishable from "connection fails" for every caller
 — routes catch broad Exception). Recommend baseline-marking it EQUIVALENT-scope.

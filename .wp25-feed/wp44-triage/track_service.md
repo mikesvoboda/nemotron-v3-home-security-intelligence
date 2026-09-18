@@ -22,7 +22,7 @@ repo untouched):
    `func.deep_replace(original_node, mutated_node)` and difflib — produces the full ordered list of 569
    candidate mutants (unfiltered).
 2. Pinned meta numbering with the line-span signature: `len(rendered mutant function) == spans[name].end -
-spans[name].start + 1` (validated exact-match on 16/16 functions; e.g. get_track 1:20↔19+decorator,
+   spans[name].start + 1` (validated exact-match on 16/16 functions; e.g. get_track 1:20↔19+decorator,
    create_or_update_track 1:122↔122).
 3. 14 of 16 functions: per-function meta count == unfiltered generation count → identity index mapping,
    signature-validated. **105 of 152 survivors are therefore exactly mapped.**
@@ -42,34 +42,34 @@ their family cluster; family boundaries are the same for every feasible alignmen
 
 ## Cluster table (152 = TEST-GAP 98 + LOW-VALUE 48 + EQUIVALENT 6)
 
-| #   | Function / concern      | Pattern (example mutant keys, suffix)                                                                                                                                                     | n   | Class      |
-| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------- |
-| 1   | create_or_update_track  | SQL stmt built then handed to mock; stmt=None / where-condition→None / condition removed / `==`→`!=` / execute(None) — L125-130                                                           | 9   | TEST-GAP   |
-| 2   | create_or_update_track  | `Track(...)` kwargs → None or removed (track_id..reid_embedding); `track = None` — L134-142                                                                                               | 15  | TEST-GAP   |
-| 3   | create_or_update_track  | `db.add(x)`/`db.refresh(x)` args → None (create + update paths) — L143,145,186                                                                                                            | 3   | TEST-GAP   |
-| 4   | create_or_update_track  | stored metrics assignment: `calculate_metrics(None)` / `total_distance=None` / `avg_speed=None` — L181-183                                                                                | 3   | TEST-GAP   |
-| 5   | create_or_update_track  | debug-log message f-string → None — L148,169,189                                                                                                                                          | 3   | EQUIVALENT |
-| 6   | create_or_update_track  | debug-log `extra=` payload mutations (dict→None, key rename XX/UPPER, dict removed) — L149-153,170,190-195                                                                                | 24  | LOW-VALUE  |
-| 7   | create_or_update_track  | prune bound `> max_points` → `>=` (slice at len==max is identity — provably equivalent) — L166                                                                                            | 1   | EQUIVALENT |
-| 8   | get_track               | same SQL-opaque family: stmt/where/select(None), `==`→`!=`, execute(None) — L215-220                                                                                                      | 9   | TEST-GAP   |
-| 9   | get_track_history       | `get_track(None, ...)` / `(id, None)` args; `calculate_metrics(None)` (zero metrics flow into response, never asserted) — L248,263                                                        | 3   | TEST-GAP   |
-| 10  | get_tracks_by_camera ⚠ | pagination math: clamp `max(1,min(·,1000))`→`max(1,min(·,1001))`, offset `(page-1)*size` → None / `/ size` / `(page-2)*size` — L309-311                                                   | 6   | TEST-GAP   |
-| 11  | get_tracks_by_camera ⚠ | query build + order/offset/limit args: base/count/paginated query → None, `select(None)`, `order_by(None)`, `offset(None)`, execute(None) — L314,326,331-334                              | 9   | TEST-GAP   |
-| 12  | get_tracks_by_camera ⚠ | filter guards `is not None`→`is None` (filter skipped when provided / applied when None), `.where(None)`, condition removal — L316-323                                                    | 8   | TEST-GAP   |
-| 13  | get_tracks_by_camera ⚠ | response metrics branching: `metrics=""` init, and/or guard flips, `trajectory or []`→None/`and []`, `calculate_metrics(None)`, `metrics=None`/metric removed in TrackResponse — L340-357 | 10  | TEST-GAP   |
-| 14  | prune_old_tracks        | cutoff `now - timedelta` → `now + timedelta`; `now(UTC)`→`now(None)` (naive cutoff) — L388                                                                                                | 2   | TEST-GAP   |
-| 15  | prune_old_tracks        | delete stmt: None / `where(None)` / `last_seen <` → `<=` (boundary rows survive) / execute(None) — L390-391                                                                               | 4   | TEST-GAP   |
-| 16  | prune_old_tracks        | info-log message → None — L396                                                                                                                                                            | 1   | EQUIVALENT |
-| 17  | prune_old_tracks        | info-log `extra=` payload mutations — L397-401                                                                                                                                            | 8   | LOW-VALUE  |
-| 18  | prune_old_tracks        | log-emission gate `deleted_count > 0` → `>= 0` / `> 1` (log-only) — L394                                                                                                                  | 2   | LOW-VALUE  |
-| 19  | mark_track_lost ⚠      | default `reason="timeout"` → `"TIMEOUT"` (tests always pass reason explicitly) — L410                                                                                                     | 1   | TEST-GAP   |
-| 20  | mark_track_lost ⚠      | `track = None` lookup swap; `entity_type` fallback → None / `and "unknown"` / `"XXunknownXX"` (fallback path needs object_class=None, never tested) — L436,441                            | 4   | TEST-GAP   |
-| 21  | mark_track_lost ⚠      | `record_track_lost(camera_id, reason)` entity arg dropped — L449                                                                                                                          | 1   | TEST-GAP   |
-| 22  | mark_track_lost ⚠      | debug-log `extra=` payload mutations — L453-458                                                                                                                                           | 10  | LOW-VALUE  |
-| 23  | get_active_track_count  | cutoff `now - timedelta` → `+`; `now(UTC)`→`now(None)` (naive cutoff) — L501                                                                                                              | 2   | TEST-GAP   |
-| 24  | get_active_track_count  | count stmt: None / where-clauses → None or removed / `select(None)` / `last_seen >=` → `>` / execute(None) — L503-511                                                                     | 9   | TEST-GAP   |
-| 25  | record_reidentification | debug-log message → None — L480                                                                                                                                                           | 1   | EQUIVALENT |
-| 26  | record_reidentification | debug-log `extra=` payload mutations — L481                                                                                                                                               | 4   | LOW-VALUE  |
+| # | Function / concern | Pattern (example mutant keys, suffix) | n | Class |
+|---|--------------------|----------------------------------------|---|-------|
+| 1 | create_or_update_track | SQL stmt built then handed to mock; stmt=None / where-condition→None / condition removed / `==`→`!=` / execute(None) — L125-130 | 9 | TEST-GAP |
+| 2 | create_or_update_track | `Track(...)` kwargs → None or removed (track_id..reid_embedding); `track = None` — L134-142 | 15 | TEST-GAP |
+| 3 | create_or_update_track | `db.add(x)`/`db.refresh(x)` args → None (create + update paths) — L143,145,186 | 3 | TEST-GAP |
+| 4 | create_or_update_track | stored metrics assignment: `calculate_metrics(None)` / `total_distance=None` / `avg_speed=None` — L181-183 | 3 | TEST-GAP |
+| 5 | create_or_update_track | debug-log message f-string → None — L148,169,189 | 3 | EQUIVALENT |
+| 6 | create_or_update_track | debug-log `extra=` payload mutations (dict→None, key rename XX/UPPER, dict removed) — L149-153,170,190-195 | 24 | LOW-VALUE |
+| 7 | create_or_update_track | prune bound `> max_points` → `>=` (slice at len==max is identity — provably equivalent) — L166 | 1 | EQUIVALENT |
+| 8 | get_track | same SQL-opaque family: stmt/where/select(None), `==`→`!=`, execute(None) — L215-220 | 9 | TEST-GAP |
+| 9 | get_track_history | `get_track(None, ...)` / `(id, None)` args; `calculate_metrics(None)` (zero metrics flow into response, never asserted) — L248,263 | 3 | TEST-GAP |
+| 10 | get_tracks_by_camera ⚠ | pagination math: clamp `max(1,min(·,1000))`→`max(1,min(·,1001))`, offset `(page-1)*size` → None / `/ size` / `(page-2)*size` — L309-311 | 6 | TEST-GAP |
+| 11 | get_tracks_by_camera ⚠ | query build + order/offset/limit args: base/count/paginated query → None, `select(None)`, `order_by(None)`, `offset(None)`, execute(None) — L314,326,331-334 | 9 | TEST-GAP |
+| 12 | get_tracks_by_camera ⚠ | filter guards `is not None`→`is None` (filter skipped when provided / applied when None), `.where(None)`, condition removal — L316-323 | 8 | TEST-GAP |
+| 13 | get_tracks_by_camera ⚠ | response metrics branching: `metrics=""` init, and/or guard flips, `trajectory or []`→None/`and []`, `calculate_metrics(None)`, `metrics=None`/metric removed in TrackResponse — L340-357 | 10 | TEST-GAP |
+| 14 | prune_old_tracks | cutoff `now - timedelta` → `now + timedelta`; `now(UTC)`→`now(None)` (naive cutoff) — L388 | 2 | TEST-GAP |
+| 15 | prune_old_tracks | delete stmt: None / `where(None)` / `last_seen <` → `<=` (boundary rows survive) / execute(None) — L390-391 | 4 | TEST-GAP |
+| 16 | prune_old_tracks | info-log message → None — L396 | 1 | EQUIVALENT |
+| 17 | prune_old_tracks | info-log `extra=` payload mutations — L397-401 | 8 | LOW-VALUE |
+| 18 | prune_old_tracks | log-emission gate `deleted_count > 0` → `>= 0` / `> 1` (log-only) — L394 | 2 | LOW-VALUE |
+| 19 | mark_track_lost ⚠ | default `reason="timeout"` → `"TIMEOUT"` (tests always pass reason explicitly) — L410 | 1 | TEST-GAP |
+| 20 | mark_track_lost ⚠ | `track = None` lookup swap; `entity_type` fallback → None / `and "unknown"` / `"XXunknownXX"` (fallback path needs object_class=None, never tested) — L436,441 | 4 | TEST-GAP |
+| 21 | mark_track_lost ⚠ | `record_track_lost(camera_id, reason)` entity arg dropped — L449 | 1 | TEST-GAP |
+| 22 | mark_track_lost ⚠ | debug-log `extra=` payload mutations — L453-458 | 10 | LOW-VALUE |
+| 23 | get_active_track_count | cutoff `now - timedelta` → `+`; `now(UTC)`→`now(None)` (naive cutoff) — L501 | 2 | TEST-GAP |
+| 24 | get_active_track_count | count stmt: None / where-clauses → None or removed / `select(None)` / `last_seen >=` → `>` / execute(None) — L503-511 | 9 | TEST-GAP |
+| 25 | record_reidentification | debug-log message → None — L480 | 1 | EQUIVALENT |
+| 26 | record_reidentification | debug-log `extra=` payload mutations — L481 | 4 | LOW-VALUE |
 
 ⚠ = the alignment-ambiguous functions (see caveat above).
 
@@ -478,34 +478,34 @@ class TestMarkTrackLostFallbacks:
 Keys are `backend.services.track_service.xǁTrackServiceǁ<fn>__mutmut_<idx>` (prefix elided below).
 ⚠ functions: indices within a family are the length-signature-DP assignment (see caveat).
 
-| #   | Function                | Survivor indices (n)                   |
-| --- | ----------------------- | -------------------------------------- |
-| 1   | create_or_update_track  | 9, 10, 11, 12, 13, 14, 15, 16, 18 (9)  |
-| 2   | create_or_update_track  | 21–35 (15)                             |
-| 3   | create_or_update_track  | 36, 37, 74 (3)                         |
-| 4   | create_or_update_track  | 71, 72, 73 (3)                         |
-| 5   | create_or_update_track  | 38, 58, 75 (3)                         |
-| 6   | create_or_update_track  | 39, 41–47, 59, 61–65, 76, 78–86 (24)   |
-| 7   | create_or_update_track  | 55 (1)                                 |
-| 8   | get_track               | 1–8, 10 (9)                            |
-| 9   | get_track_history       | 2, 3, 22 (3)                           |
-| 10  | get_tracks_by_camera ⚠ | 12, 18, 19, 20, 21, 23 (6)             |
-| 11  | get_tracks_by_camera ⚠ | 24, 25, 40, 42, 44, 45, 46, 47, 49 (9) |
-| 12  | get_tracks_by_camera ⚠ | 28, 29, 32, 33, 34, 36, 37, 38 (8)     |
-| 13  | get_tracks_by_camera ⚠ | 53–60, 68, 75 (10)                     |
-| 14  | prune_old_tracks        | 4, 5 (2)                               |
-| 15  | prune_old_tracks        | 7, 8, 10, 12 (4)                       |
-| 16  | prune_old_tracks        | 18 (1)                                 |
-| 17  | prune_old_tracks        | 19, 21–27 (8)                          |
-| 18  | prune_old_tracks        | 16, 17 (2)                             |
-| 19  | mark_track_lost ⚠      | 2 (1)                                  |
-| 20  | mark_track_lost ⚠      | 3, 9, 10, 11 (4)                       |
-| 21  | mark_track_lost ⚠      | 26 (1)                                 |
-| 22  | mark_track_lost ⚠      | 27, 29–37 (10)                         |
-| 23  | get_active_track_count  | 2, 3 (2)                               |
-| 24  | get_active_track_count  | 5–9, 11, 12, 13, 15 (9)                |
-| 25  | record_reidentification | 2 (1)                                  |
-| 26  | record_reidentification | 3, 5, 6, 7 (4)                         |
+| # | Function | Survivor indices (n) |
+|---|----------|----------------------|
+| 1 | create_or_update_track | 9, 10, 11, 12, 13, 14, 15, 16, 18 (9) |
+| 2 | create_or_update_track | 21–35 (15) |
+| 3 | create_or_update_track | 36, 37, 74 (3) |
+| 4 | create_or_update_track | 71, 72, 73 (3) |
+| 5 | create_or_update_track | 38, 58, 75 (3) |
+| 6 | create_or_update_track | 39, 41–47, 59, 61–65, 76, 78–86 (24) |
+| 7 | create_or_update_track | 55 (1) |
+| 8 | get_track | 1–8, 10 (9) |
+| 9 | get_track_history | 2, 3, 22 (3) |
+| 10 | get_tracks_by_camera ⚠ | 12, 18, 19, 20, 21, 23 (6) |
+| 11 | get_tracks_by_camera ⚠ | 24, 25, 40, 42, 44, 45, 46, 47, 49 (9) |
+| 12 | get_tracks_by_camera ⚠ | 28, 29, 32, 33, 34, 36, 37, 38 (8) |
+| 13 | get_tracks_by_camera ⚠ | 53–60, 68, 75 (10) |
+| 14 | prune_old_tracks | 4, 5 (2) |
+| 15 | prune_old_tracks | 7, 8, 10, 12 (4) |
+| 16 | prune_old_tracks | 18 (1) |
+| 17 | prune_old_tracks | 19, 21–27 (8) |
+| 18 | prune_old_tracks | 16, 17 (2) |
+| 19 | mark_track_lost ⚠ | 2 (1) |
+| 20 | mark_track_lost ⚠ | 3, 9, 10, 11 (4) |
+| 21 | mark_track_lost ⚠ | 26 (1) |
+| 22 | mark_track_lost ⚠ | 27, 29–37 (10) |
+| 23 | get_active_track_count | 2, 3 (2) |
+| 24 | get_active_track_count | 5–9, 11, 12, 13, 15 (9) |
+| 25 | record_reidentification | 2 (1) |
+| 26 | record_reidentification | 3, 5, 6, 7 (4) |
 
 Totals per function: create_or_update_track 58 · get_track 9 · get_track_history 3 ·
 get_tracks_by_camera 33 · mark_track_lost 16 · prune_old_tracks 17 · get_active_track_count 11 ·
@@ -520,7 +520,7 @@ record_reidentification 5 = **152**.
   `pragma: no mutate` on the `extra=` literals or a mutmut pattern exclusion would retire ~54 of the
   152 survivors cheaply (log payload + message mutants), which is the single biggest score lift
   available for this module without new tests.
-- The 4+2 coverage-gap mutants (`get_tracks_by_camera`, `mark_track_lost`) mean the _checked set_ for
+- The 4+2 coverage-gap mutants (`get_tracks_by_camera`, `mark_track_lost`) mean the *checked set* for
   this module drifted mid-run; a full-cache regeneration at run6 resolves the numbering ambiguity —
   re-run this dossier's two ⚠ functions then (scripts kept in `/tmp/wp25/wp44-triage/track-scratch/`:
   `final_diffs.py` validates spans-signature mapping; `survivor_diffs.json` has per-key diffs).

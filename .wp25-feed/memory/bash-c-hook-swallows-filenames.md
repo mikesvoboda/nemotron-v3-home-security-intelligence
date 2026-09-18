@@ -1,6 +1,6 @@
 ---
 name: bash-c-hook-swallows-filenames
-description: 'pre-commit `bash -c` entry + pass_filenames formats NOTHING silently; audit any such hook for the vacuous-gate class'
+description: "pre-commit `bash -c` entry + pass_filenames formats NOTHING silently; audit any such hook for the vacuous-gate class"
 metadata:
   node_type: memory
   type: reference

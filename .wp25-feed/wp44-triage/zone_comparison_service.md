@@ -4,7 +4,6 @@
 killed 95 · **survived 111** · unchecked 1. All 111 diffs read via `uv run mutmut show <key>` (no errors).
 
 **Covering tests** (mutmut-stats.json tests_by_mangled_function_name): every function is covered only by
-
 - `backend/tests/unit/services/test_zone_comparison_service.py` — ALL metric fetchers run against a
   `MagicMock`-backed session whose `execute()` return value is canned; the SQL text is never inspected;
   collaborator methods are `patch.object`-mocked with `side_effect` lists, so call arguments are never asserted;
@@ -24,26 +23,26 @@ this sandbox). Only SQL-text/param assertions kill them; alternatively integrati
 
 ## Cluster table (18 clusters, sum = 111)
 
-| #   | Cluster                                                                     | Count | Keys (function:mutmut#)                                        | Classification | Note                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --- | --------------------------------------------------------------------------- | ----- | -------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `_calculate_trend` previous-window bounds → None / `+` flip                 | 3     | trend:3, trend:4, trend:5                                      | **TEST-GAP**   | `prev_start=start_time-period_duration`→None or `+period_duration` (future window), `prev_end=start_time`→None. Trend is computed over the wrong period.                                                                                                                                                                                                                                                                                 |
-| 2   | `_calculate_trend` current-period dwell callsite args → None / dropped      | 6     | trend:8,9,10,11,12,13                                          | **TEST-GAP**   | `_get_avg_dwell_time(zone_id,start,end)` → zone_id=None / start_time=None / end_time=None / args dropped.                                                                                                                                                                                                                                                                                                                                |
-| 3   | `_calculate_trend` previous-period dwell callsite args → None / dropped     | 6     | trend:15,16,17,18,19,20                                        | **TEST-GAP**   | same shape on the prev-period call.                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 4   | `_calculate_trend` anomaly callsites (current + prev) args → None / dropped | 6     | trend:23,24,25,26,27,28,30,31,32,33,34,35 (12)                 | **TEST-GAP**   | same shape for `_get_anomaly_count` both callsites.                                                                                                                                                                                                                                                                                                                                                                                      |
-| 5   | `_calculate_trend` `round(…, 1)` → `round(…, 2)`/None/dropped               | 3     | trend:43, trend:45, trend:50                                   | **TEST-GAP**   | mutmut_50 (`round(…,2)`) changes the user-visible `trend_percent` precision returned to the API — unasserted by any test (killed by drafted A's `== 23.5`). mutmut_43 (`ndigits=None`) raises TypeError that only surfaces as trend=None through compare_zones' blanket except (weaker value); dropped-arg variants behave like `round(x)` → integer. All three run under existing tests without failing them → TEST-GAP per definition. |
-| 6   | `_get_avg_dwell_time` full SQL predicate set mutated                        | 16    | dwell:1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17                   | **TEST-GAP**   | stmt/and_→None, `select(None)`, `func.avg(None)`→`avg(NULL)`, each predicate→None/dropped, `zone_id ==`→`!=`, `>=`→`>`, `<=`→`<`, `execute(stmt)`→`execute(None)`.                                                                                                                                                                                                                                                                       |
-| 7   | `_get_anomaly_count` full SQL predicate set mutated                         | 15    | anom:1,2,3,4,5,6,7,8,9,10,11,12,13,14,16                       | **TEST-GAP**   | same family; incl. `zone_id == str(None)` → binds string `'None'` (silent wrong query) and `>=`/`<=`→`>`/`<` boundary flips.                                                                                                                                                                                                                                                                                                             |
-| 8   | `_get_zone_info` polygon query predicate mutations                          | 5     | zone_info:1,2,3,4,6                                            | **TEST-GAP**   | `id ==`→`!=` (fetches a _different_ zone's name/type), select/where/execute→None.                                                                                                                                                                                                                                                                                                                                                        |
-| 9   | `_get_zone_info` line-zone query predicate mutations                        | 5     | zone_info:15,16,17,18,20                                       | **TEST-GAP**   | same on the LineZone fallback query.                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 10  | `_get_crossing_count` query predicate mutations                             | 5     | crossing:1,2,3,4,6                                             | **TEST-GAP**   | `LineZone.id ==`→`!=` + None mutations.                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 11  | `_get_current_occupancy` query predicate mutations                          | 5     | occupancy:1,2,3,4,6                                            | **TEST-GAP**   | `PolygonZone.id ==`→`!=` + None mutations.                                                                                                                                                                                                                                                                                                                                                                                               |
-| 12  | `compare_zones` dwell_time dispatch args → None / dropped                   | 6     | zc:12,13,14,15,16,17                                           | **TEST-GAP**   | window/zone_id never forwarded correctly, undetected.                                                                                                                                                                                                                                                                                                                                                                                    |
-| 13  | `compare_zones` anomalies dispatch args → None / dropped                    | 6     | zc:20,21,22,23,24,25                                           | **TEST-GAP**   | same for `_get_anomaly_count` branch.                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 14  | `compare_zones` `_calculate_trend` call kwargs → None / dropped             | 8     | zc:33,34,35,36,37,38,39,40                                     | **TEST-GAP**   | all four kwargs (zone_id/metric/start/end) individually Nulled or removed.                                                                                                                                                                                                                                                                                                                                                               |
-| 15  | `compare_zones` single-arg callsites zone_id → None                         | 3     | zc:3 (get_zone_info), zc:9 (crossing_count), zc:28 (occupancy) | **TEST-GAP**   | each metric's lookup keyed on None instead of the zone.                                                                                                                                                                                                                                                                                                                                                                                  |
-| 16  | `compare_zones` result dict key renames `zone_type`/`camera_id`             | 4     | zc:48,49 (zone_type), zc:52,53 (camera_id)                     | **TEST-GAP**   | keys `XXzone_typeXX`/`ZONE_TYPE` — route builds `ZoneComparisonData(**z)` (backend/api/routes/analytics_zones.py:1536) → pydantic ValidationError → 500. Existing tests omit these two keys from assertions.                                                                                                                                                                                                                             |
-| 17  | `compare_zones` logger.warning message → None                               | 2     | zc:5, zc:29                                                    | EQUIVALENT     | pure log-text change (skip + unknown-metric warnings); behavior identical.                                                                                                                                                                                                                                                                                                                                                               |
-| 18  | `compare_zones` `continue`→`break` on missing zone                          | 1     | zc:6                                                           | **TEST-GAP**   | stops comparing after first missing zone. Existing `test_compare_zones_skips_missing_zones` puts the gap LAST, where break/continue are indistinguishable.                                                                                                                                                                                                                                                                               |
+| # | Cluster | Count | Keys (function:mutmut#) | Classification | Note |
+|---|---------|-------|-------------------------|----------------|------|
+| 1 | `_calculate_trend` previous-window bounds → None / `+` flip | 3 | trend:3, trend:4, trend:5 | **TEST-GAP** | `prev_start=start_time-period_duration`→None or `+period_duration` (future window), `prev_end=start_time`→None. Trend is computed over the wrong period. |
+| 2 | `_calculate_trend` current-period dwell callsite args → None / dropped | 6 | trend:8,9,10,11,12,13 | **TEST-GAP** | `_get_avg_dwell_time(zone_id,start,end)` → zone_id=None / start_time=None / end_time=None / args dropped. |
+| 3 | `_calculate_trend` previous-period dwell callsite args → None / dropped | 6 | trend:15,16,17,18,19,20 | **TEST-GAP** | same shape on the prev-period call. |
+| 4 | `_calculate_trend` anomaly callsites (current + prev) args → None / dropped | 6 | trend:23,24,25,26,27,28,30,31,32,33,34,35 (12) | **TEST-GAP** | same shape for `_get_anomaly_count` both callsites. |
+| 5 | `_calculate_trend` `round(…, 1)` → `round(…, 2)`/None/dropped | 3 | trend:43, trend:45, trend:50 | **TEST-GAP** | mutmut_50 (`round(…,2)`) changes the user-visible `trend_percent` precision returned to the API — unasserted by any test (killed by drafted A's `== 23.5`). mutmut_43 (`ndigits=None`) raises TypeError that only surfaces as trend=None through compare_zones' blanket except (weaker value); dropped-arg variants behave like `round(x)` → integer. All three run under existing tests without failing them → TEST-GAP per definition. |
+| 6 | `_get_avg_dwell_time` full SQL predicate set mutated | 16 | dwell:1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17 | **TEST-GAP** | stmt/and_→None, `select(None)`, `func.avg(None)`→`avg(NULL)`, each predicate→None/dropped, `zone_id ==`→`!=`, `>=`→`>`, `<=`→`<`, `execute(stmt)`→`execute(None)`. |
+| 7 | `_get_anomaly_count` full SQL predicate set mutated | 15 | anom:1,2,3,4,5,6,7,8,9,10,11,12,13,14,16 | **TEST-GAP** | same family; incl. `zone_id == str(None)` → binds string `'None'` (silent wrong query) and `>=`/`<=`→`>`/`<` boundary flips. |
+| 8 | `_get_zone_info` polygon query predicate mutations | 5 | zone_info:1,2,3,4,6 | **TEST-GAP** | `id ==`→`!=` (fetches a *different* zone's name/type), select/where/execute→None. |
+| 9 | `_get_zone_info` line-zone query predicate mutations | 5 | zone_info:15,16,17,18,20 | **TEST-GAP** | same on the LineZone fallback query. |
+| 10 | `_get_crossing_count` query predicate mutations | 5 | crossing:1,2,3,4,6 | **TEST-GAP** | `LineZone.id ==`→`!=` + None mutations. |
+| 11 | `_get_current_occupancy` query predicate mutations | 5 | occupancy:1,2,3,4,6 | **TEST-GAP** | `PolygonZone.id ==`→`!=` + None mutations. |
+| 12 | `compare_zones` dwell_time dispatch args → None / dropped | 6 | zc:12,13,14,15,16,17 | **TEST-GAP** | window/zone_id never forwarded correctly, undetected. |
+| 13 | `compare_zones` anomalies dispatch args → None / dropped | 6 | zc:20,21,22,23,24,25 | **TEST-GAP** | same for `_get_anomaly_count` branch. |
+| 14 | `compare_zones` `_calculate_trend` call kwargs → None / dropped | 8 | zc:33,34,35,36,37,38,39,40 | **TEST-GAP** | all four kwargs (zone_id/metric/start/end) individually Nulled or removed. |
+| 15 | `compare_zones` single-arg callsites zone_id → None | 3 | zc:3 (get_zone_info), zc:9 (crossing_count), zc:28 (occupancy) | **TEST-GAP** | each metric's lookup keyed on None instead of the zone. |
+| 16 | `compare_zones` result dict key renames `zone_type`/`camera_id` | 4 | zc:48,49 (zone_type), zc:52,53 (camera_id) | **TEST-GAP** | keys `XXzone_typeXX`/`ZONE_TYPE` — route builds `ZoneComparisonData(**z)` (backend/api/routes/analytics_zones.py:1536) → pydantic ValidationError → 500. Existing tests omit these two keys from assertions. |
+| 17 | `compare_zones` logger.warning message → None | 2 | zc:5, zc:29 | EQUIVALENT | pure log-text change (skip + unknown-metric warnings); behavior identical. |
+| 18 | `compare_zones` `continue`→`break` on missing zone | 1 | zc:6 | **TEST-GAP** | stops comparing after first missing zone. Existing `test_compare_zones_skips_missing_zones` puts the gap LAST, where break/continue are indistinguishable. |
 
 **Classification totals (final)**: **TEST-GAP 109** (clusters 1-16 and 18), **EQUIVALENT 2**
 (cluster 17: zc:5, zc:29 log-message text only), **LOW-VALUE 0**. Sum = 111. Cluster 5 carries
@@ -55,50 +54,43 @@ members are TypeError-path variants that existing tests also execute without ass
 ## Per-cluster detail
 
 ### Clusters 1-5 — `_calculate_trend` (30 keys)
-
 Source: `backend/services/zone_comparison_service.py:257-299`. Every existing trend test
 (`test_zone_comparison_service.py:455-561`, `TestCalculateTrend`) patches `_get_avg_dwell_time` /
 `_get_anomaly_count` with `side_effect=[current, prev]` and asserts only the returned percentage.
-The _arguments_ of those calls — which window, which zone — are never checked, so any argument mutation
-inside `_calculate_trend` survives. mutmut*4 (`prev_start = start_time + period_duration`) makes the
-"previous period" the \_next* day. Killed only by asserting `call_args` (drafted test **A**).
+The *arguments* of those calls — which window, which zone — are never checked, so any argument mutation
+inside `_calculate_trend` survives. mutmut_4 (`prev_start = start_time + period_duration`) makes the
+"previous period" the *next* day. Killed only by asserting `call_args` (drafted test **A**).
 
 ### Clusters 6-7 — dwell & anomaly SQL builders (31 keys)
-
 Source: lines 180-235. Tests `TestAvgDwellTime` (test file lines 344-379) and `TestAnomalyCount`
 (382-417) feed `mock_db.execute.return_value = mock_result` with a canned scalar. The mutated WHERE
 clauses all compile (`WHERE NULL`, `NULL AND …`, `!=`, `avg(NULL)`, `count(*)`) and the mock is
-argument-blind, so 100% survive. Real-world impact if shipped: dwell averages across _all_ zones
+argument-blind, so 100% survive. Real-world impact if shipped: dwell averages across *all* zones
 (`zone_id !=` / dropped predicate), boundary records double-counted or dropped (`>=`→`>`), anomaly
 counts queried with string `'None'` as zone_id. Killed only by SQL-text + params assertions (drafted
 tests **B**, **C**).
 
 ### Clusters 8-11 — zone lookup SQL builders (20 keys)
-
 Source: lines 123-178, 237-255. Same mock-blindness; the dangerous members are the four `==`→`!=`
 flips (zone_info:4, zone_info:18, crossing:4, occupancy:4) — production would silently load an arbitrary
 different zone's name/type/count. Killed by drafted test **D**.
 
 ### Clusters 12-15 — `compare_zones` dispatch args (23 keys)
-
 Source: lines 84-102. Existing metric tests patch the collaborator with `return_value`/`side_effect`
 and assert only `results[0]["value"]`. Killed by drafted test **E** (call-args for all four metrics +
 trend kwargs).
 
 ### Cluster 16 — result dict keys (4 keys)
-
-Source: lines 104-113. `ZoneComparisonData` (backend/api/schemas/zone*comparison.py) \_requires*
+Source: lines 104-113. `ZoneComparisonData` (backend/api/schemas/zone_comparison.py) *requires*
 `zone_type` and `camera_id`, and the route constructs `ZoneComparisonData(**z)` at
 backend/api/routes/analytics_zones.py:1536 — so `XXzone_typeXX` is a shipped-500, caught nowhere.
 `test_compare_zones_crossings_metric` asserts zone_id/zone_name/value but not zone_type/camera_id.
 Killed by drafted test **F** (exact key-set assertion).
 
 ### Cluster 17 — log text (2 keys) — EQUIVALENT. `logger.warning(None)` changes only message text;
-
 no handler assertions exist or are warranted.
 
 ### Cluster 18 — `continue`→`break` (1 key: zc:6)
-
 `test_compare_zones_skips_missing_zones` (test file lines 172-207) uses `zone_ids=[1, 999]` — the
 missing zone is last, so `break` yields the same `[zone 1]`. Reordering to `[1, 999, 2]` kills it
 (drafted test **G**).
@@ -113,7 +105,6 @@ it must pass green; (2) run it under each cluster mutant (mutmut's copy) — the
 red on the mutant's diff; (3) keep only tests that are green-original/red-mutant.
 
 ### A — trend window + argument fidelity (kills clusters 1,2,3,4 and precision member of 5)
-
 ```python
     @pytest.mark.asyncio
     async def test_calculate_trend_uses_correct_previous_window_arguments(self) -> None:
@@ -148,7 +139,6 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 ```
 
 ### B — dwell SQL shape (kills cluster 6, all 16)
-
 ```python
     @pytest.mark.asyncio
     async def test_get_avg_dwell_time_builds_complete_filtered_query(self) -> None:
@@ -188,7 +178,6 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 ```
 
 ### C — anomaly SQL shape (kills cluster 7, all 15; incl. `str(None)` binder)
-
 ```python
     @pytest.mark.asyncio
     async def test_get_anomaly_count_builds_complete_filtered_query(self) -> None:
@@ -226,7 +215,6 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 ```
 
 ### D — zone lookups target the requested id (kills clusters 8,9,10,11, all 20)
-
 ```python
     @pytest.mark.asyncio
     async def test_zone_lookup_queries_filter_on_requested_zone_id(self) -> None:
@@ -265,7 +253,6 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 ```
 
 ### E — compare_zones dispatch fidelity (kills clusters 12,13,14,15, all 23)
-
 ```python
     @pytest.mark.asyncio
     async def test_compare_zones_forwards_zone_and_window_to_each_metric(self) -> None:
@@ -320,7 +307,6 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 ```
 
 ### F — result payload contract (kills cluster 16, all 4)
-
 ```python
     @pytest.mark.asyncio
     async def test_compare_zones_result_matches_zone_comparison_schema(self) -> None:
@@ -353,11 +339,9 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 
         ZoneComparisonData(**results[0])  # must not raise
 ```
-
 (add import at file top: `from backend.api.schemas.zone_comparison import ZoneComparisonData`)
 
 ### G — missing zone skipped, later zones still compared (kills cluster 18, zc:6)
-
 ```python
     @pytest.mark.asyncio
     async def test_compare_zones_skips_missing_zone_without_stopping(self) -> None:
@@ -393,16 +377,16 @@ red on the mutant's diff; (3) keep only tests that are green-original/red-mutant
 
 ## Killing forecast
 
-| Drafted test  | Kills clusters                        | Keys |
-| ------------- | ------------------------------------- | ---- |
-| A             | 1,2,3,4,5                             | 30   |
-| B             | 6                                     | 16   |
-| C             | 7                                     | 15   |
-| D             | 8,9,10,11                             | 20   |
-| E             | 12,13,14,15                           | 23   |
-| F             | 16                                    | 4    |
-| G             | 18                                    | 1    |
-| — none needed | 17 (EQUIVALENT log text: zc:5, zc:29) | 2    |
+| Drafted test | Kills clusters | Keys |
+|---|---|---|
+| A | 1,2,3,4,5 | 30 |
+| B | 6 | 16 |
+| C | 7 | 15 |
+| D | 8,9,10,11 | 20 |
+| E | 12,13,14,15 | 23 |
+| F | 16 | 4 |
+| G | 18 | 1 |
+| — none needed | 17 (EQUIVALENT log text: zc:5, zc:29) | 2 |
 
 A-G together kill **109/111**; residual 2 = the EQUIVALENT log-text pair (zc:5, zc:29). Drafted-test
 kill mechanics verified against each mutation shape (substring checks fail on `!=`/`>`/`<` variants

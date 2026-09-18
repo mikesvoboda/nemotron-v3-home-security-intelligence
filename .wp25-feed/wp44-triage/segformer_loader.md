@@ -10,14 +10,14 @@ Every survivor carries exactly one mutation; each is assigned to exactly one clu
 (1154 lines). Cross-checked against
 `mutants/mutmut-stats.json → tests_by_mangled_function_name`.
 
-| function                             | survivors / total | tests touching it (file:line)                                                                                             |
-| ------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `segment_clothing`                   | 152 / 153         | `test_segformer_loader.py:849` (`test_segment_clothing_success_path`), `:925` (`_with_shoes`), `:547` (`_error_handling`) |
-| `load_segformer_model`               | 20 / 46           | `:404`, `:435`, `:460`, `:476`                                                                                            |
-| `segment_clothing_batch`             | 8 / 12            | `:1017`, `:1037`, `:1056`, `:580`                                                                                         |
-| `format_clothing_context`            | 4 / 18            | `:183`, `:192`, `:207`, `:220`, `:233`, `:248`                                                                            |
-| `format_batch_clothing_context`      | 1 / 24            | `:269`–`:396`                                                                                                             |
-| `ClothingSegmentationResult.to_dict` | 0 / 9             | `:55`, `:75`, `:739`, `:773`, `:1087` (all 9 killed — well covered)                                                       |
+| function | survivors / total | tests touching it (file:line) |
+| --- | --- | --- |
+| `segment_clothing` | 152 / 153 | `test_segformer_loader.py:849` (`test_segment_clothing_success_path`), `:925` (`_with_shoes`), `:547` (`_error_handling`) |
+| `load_segformer_model` | 20 / 46 | `:404`, `:435`, `:460`, `:476` |
+| `segment_clothing_batch` | 8 / 12 | `:1017`, `:1037`, `:1056`, `:580` |
+| `format_clothing_context` | 4 / 18 | `:183`, `:192`, `:207`, `:220`, `:233`, `:248` |
+| `format_batch_clothing_context` | 1 / 24 | `:269`–`:396` |
+| `ClothingSegmentationResult.to_dict` | 0 / 9 | `:55`, `:75`, `:739`, `:773`, `:1087` (all 9 killed — well covered) |
 
 ## Why 71 % of this module survives
 
@@ -26,7 +26,7 @@ The two tests that drive `segment_clothing`'s success path
 complete mock inference graph and then assert **only** `isinstance(result,
 ClothingSegmentationResult)` (`:922`, `:969`). The mocks pre-bake `np.unique` returns and a fake
 mask, yet none of that value is checked. Worse: the module's blanket
-`except Exception: return ClothingSegmentationResult()` (`segformer_loader.py:304-306`) turns _any_
+`except Exception: return ClothingSegmentationResult()` (`segformer_loader.py:304-306`) turns *any*
 mock breakage caused by a mutation into an empty-but-valid result, which still passes `isinstance`.
 So every mutation to the inference pipeline, coverage arithmetic, shoe consolidation, face-covered
 rule and result construction is invisible. The "face covered logic" test (`:972-999`) never calls
@@ -38,33 +38,33 @@ case proving the mechanism.
 
 Example keys are suffixed on `backend.services.segformer_loader.`.
 
-| #   | n   | Class      | Cluster (pattern @ function/concern)                                                                                                                                                                                                                                                                                                                                                                                            | Example keys                                                                               |
-| --- | --- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1   | 28  | TEST-GAP   | `segment_clothing`: inference-pipeline argument forwarding — `processor(images=…)` / `return_tensors="pt"` variants, `next(model.parameters()).device`, `v.to(device)`, `model(**inputs)`, `outputs.logits`, `interpolate(logits, size=person_crop.size[::-1], mode="bilinear", align_corners=False)` (incl. `size[::+1]`, `size[::-2]`, `align_corners=True`, `mode="BILINEAR"`, required-arg deletions), `argmax(dim=2/None)` | `x_segment_clothing__mutmut_3`, `_17`, `_28`                                               |
-| 2   | 26  | TEST-GAP   | `segment_clothing`: security-item membership + shoe consolidation — `label in SECURITY_CLOTHING_LABELS`→`not in`, `add(label)`→`add(None)`, `elif label in SHOE_LABELS`→`not in`, `"shoes"` literal case/XX variants, `get("shoes", 0.0)` key/default corruption, `round(current + coverage*100, 2)`→`-`/`/100`/`*101`/ndigits-3/None, `pop(label, None)` key→None                                                              | `_71`, `_84`, `_92`                                                                        |
-| 3   | 28  | TEST-GAP   | `segment_clothing`: `has_face_covered` rule + `has_bag` membership — `in`→`not in` on sunglasses/hat/scarf/bag, label-literal case & XX variants, `hat or scarf`→`and`, `has_sunglasses and`→`or`, `(… or face_coverage < 5.0)`→`and`/`<=`/`< 6.0`, `get("face", 0.0)` key/default corruption                                                                                                                                   | `_104`, `_121`, `_123`                                                                     |
-| 4   | 18  | TEST-GAP   | `segment_clothing`: mask-stats + coverage-value arithmetic — whole-line `predicted_mask = …`→None, `total_pixels = predicted_mask.size`→None, `np.unique(…, return_counts=True)`→`False`/`None`/dropped, `count / total_pixels`→`*`, `round(coverage*100, 2)`→`/100`/`*101`/ndigits-3/None/whole→None, `coverage_percentages`/`clothing_items` init→None                                                                        | `_29`, `_38`, `_68`                                                                        |
-| 5   | 13  | TEST-GAP   | `segment_clothing`: coverage gate + label lookup — `label != "background"`→`==`/`"XXbackgroundXX"`/`"BACKGROUND"`, gate `and`→`or`, `coverage >= min_coverage`→`>`, `zip(unique_classes, counts, strict=True)` required-arg drops, `CLOTHING_LABELS.get(int(class_id), "unknown")` required-arg drops (incl. `_51` `get("unknown")` → key miss → `label=None` for EVERY class)                                                  | `_59`, `_62`, `_51`                                                                        |
-| 6   | 11  | LOW-VALUE  | `load_segformer_model`: log/message **text** only — CUDA-raise first line, `logger.info(None)` ×2, ImportError warning text (incl. both-args→None), `logger.error(None, …)`, case/XX variants                                                                                                                                                                                                                                   | `x_load_segformer_model__mutmut_6`, `_27`, `_34`                                           |
-| 7   | 10  | TEST-GAP   | `segment_clothing`: result-construction kwargs nulled/deleted — `clothing_items=None`, `has_face_covered=None`, `has_bag=None`, `coverage_percentages=None`, `raw_mask=None`, plus each kwarg deleted (→ dataclass default silently wins)                                                                                                                                                                                       | `_128`, `_131`, `_132`                                                                     |
-| 8   | 7   | TEST-GAP   | `segment_clothing_batch`: per-crop call forwarding — `segment_clothing(None, processor, …)`, `(model, None, …)`, `(model, processor, None, …)`, `min_coverage`→None/dropped, positional shifts `(model, crop, min_coverage)`, `(processor, crop, min_coverage)`                                                                                                                                                                 | `x_segment_clothing_batch__mutmut_4`, `_7`, `_10`                                          |
-| 9   | 7   | TEST-GAP   | `segment_clothing`: executor wiring broken — `loop=None`, `run_in_executor(None, None)`, `run_in_executor(_segment)` (executor dropped), whole call nulled/deleted; each lands in the blanket `except` and returns an **empty** result that still passes the `isinstance` assertions                                                                                                                                            | `_1`, `_142`, `_143`                                                                       |
-| 10  | 4   | EQUIVALENT | `segment_clothing`: `CLOTHING_LABELS` maps ids 0-17 contiguously and `argmax` ids are always in range, so the `.get(…, "unknown")` DEFAULT is unreachable — `"UNKNOWN"`, `"XXunknownXX"`, `None` default, default-dropped are semantic no-ops                                                                                                                                                                                   | `_50`, `_54`, `_55`                                                                        |
-| 11  | 5   | TEST-GAP   | `format_clothing_context` / `format_batch_clothing_context`: exact output delimiters/appendages — `", ".join`→`"XX, XX".join`, `" ".join(parts)`, `"(face appears covered)"`, `"(carrying bag)"`, `"\n".join(lines)`; existing tests assert with `in`, so decoration survives                                                                                                                                                   | `x_format_clothing_context__mutmut_9`, `_18`; `x_format_batch_clothing_context__mutmut_24` |
-| 12  | 4   | LOW-VALUE  | `segment_clothing`: `logger.error("Failed to segment clothing")` **text** only (`None`, case, XX)                                                                                                                                                                                                                                                                                                                               | `_146`, `_151`, `_152`                                                                     |
-| 13  | 3   | LOW-VALUE  | `segment_clothing`: `exc_info` truthiness dropped on the error log (`exc_info=False`/`None`/omitted) — traceback lost, control flow unchanged                                                                                                                                                                                                                                                                                   | `_147`, `_149`, `_153`                                                                     |
-| 14  | 4   | LOW-VALUE  | `load_segformer_model`: `extra={"model_path": …}` dropped or renamed — `extra=None`, `extra` kwarg deleted (`_39`), `"MODEL_PATH"`, `"XXmodel_pathXX"`                                                                                                                                                                                                                                                                          | `x_load_segformer_model__mutmut_36`, `_39`, `_44`                                          |
-| 15  | 3   | LOW-VALUE  | `load_segformer_model`: `exc_info=True` → `None`/`False`/deleted on the load-failure log — traceback lost, control flow unchanged                                                                                                                                                                                                                                                                                               | `x_load_segformer_model__mutmut_35`, `_38`, `_43`                                          |
-| 16  | 6   | EQUIVALENT | Pure-text trailing-comma / arg-list-closure removals — the parsed call is byte-for-byte the same: `processor(images=person_crop, )` `_6`, `np.unique(predicted_mask, )` `_37`, `round(coverage * 100, )` `_67`, `round(current + coverage * 100, )` `_91`, `coverage_percentages.pop(label, )` `_98`, `segment_clothing(model, processor, crop, )` batch-`_11`                                                                  | `x_segment_clothing__mutmut_6`, `_91`; `x_segment_clothing_batch__mutmut_11`               |
-| 17  | 3   | EQUIVALENT | `segment_clothing`: `zip(…, strict=True)` → `False`/`None`/omitted — `np.unique(…, return_counts=True)` always returns equal-length arrays, so the strict check can never fire                                                                                                                                                                                                                                                  | `_43`, `_46`, `_47`                                                                        |
-| 18  | 2   | LOW-VALUE  | `segment_clothing`: timeout tuning only — `timeout=15.0` → `16.0`/`None`; no test asserts the bound and the 15 s timeout branch is never exercised                                                                                                                                                                                                                                                                              | `_139`, `_145`                                                                             |
-| 19  | 2   | TEST-GAP   | `load_segformer_model`: processor construction — `processor = None`, `from_pretrained(None)`; `test_load_segformer_model_success_cuda:476` asserts the returned tuple and model kwargs but never _which_ processor came back or with what path                                                                                                                                                                                  | `x_load_segformer_model__mutmut_9`, `_10`                                                  |
-| 20  | 1   | EQUIVALENT | `segment_clothing`: `coverage_percentages.get("face", 0.0)` default → `1.0`; the default applies only when face coverage is below `min_coverage` (1 %), and 0.0 and 1.0 are both `< 5.0`, so `has_face_covered` is unchanged in every reachable state                                                                                                                                                                           | `_118`                                                                                     |
+| # | n | Class | Cluster (pattern @ function/concern) | Example keys |
+| --- | --- | --- | --- | --- |
+| 1 | 28 | TEST-GAP | `segment_clothing`: inference-pipeline argument forwarding — `processor(images=…)` / `return_tensors="pt"` variants, `next(model.parameters()).device`, `v.to(device)`, `model(**inputs)`, `outputs.logits`, `interpolate(logits, size=person_crop.size[::-1], mode="bilinear", align_corners=False)` (incl. `size[::+1]`, `size[::-2]`, `align_corners=True`, `mode="BILINEAR"`, required-arg deletions), `argmax(dim=2/None)` | `x_segment_clothing__mutmut_3`, `_17`, `_28` |
+| 2 | 26 | TEST-GAP | `segment_clothing`: security-item membership + shoe consolidation — `label in SECURITY_CLOTHING_LABELS`→`not in`, `add(label)`→`add(None)`, `elif label in SHOE_LABELS`→`not in`, `"shoes"` literal case/XX variants, `get("shoes", 0.0)` key/default corruption, `round(current + coverage*100, 2)`→`-`/`/100`/`*101`/ndigits-3/None, `pop(label, None)` key→None | `_71`, `_84`, `_92` |
+| 3 | 28 | TEST-GAP | `segment_clothing`: `has_face_covered` rule + `has_bag` membership — `in`→`not in` on sunglasses/hat/scarf/bag, label-literal case & XX variants, `hat or scarf`→`and`, `has_sunglasses and`→`or`, `(… or face_coverage < 5.0)`→`and`/`<=`/`< 6.0`, `get("face", 0.0)` key/default corruption | `_104`, `_121`, `_123` |
+| 4 | 18 | TEST-GAP | `segment_clothing`: mask-stats + coverage-value arithmetic — whole-line `predicted_mask = …`→None, `total_pixels = predicted_mask.size`→None, `np.unique(…, return_counts=True)`→`False`/`None`/dropped, `count / total_pixels`→`*`, `round(coverage*100, 2)`→`/100`/`*101`/ndigits-3/None/whole→None, `coverage_percentages`/`clothing_items` init→None | `_29`, `_38`, `_68` |
+| 5 | 13 | TEST-GAP | `segment_clothing`: coverage gate + label lookup — `label != "background"`→`==`/`"XXbackgroundXX"`/`"BACKGROUND"`, gate `and`→`or`, `coverage >= min_coverage`→`>`, `zip(unique_classes, counts, strict=True)` required-arg drops, `CLOTHING_LABELS.get(int(class_id), "unknown")` required-arg drops (incl. `_51` `get("unknown")` → key miss → `label=None` for EVERY class) | `_59`, `_62`, `_51` |
+| 6 | 11 | LOW-VALUE | `load_segformer_model`: log/message **text** only — CUDA-raise first line, `logger.info(None)` ×2, ImportError warning text (incl. both-args→None), `logger.error(None, …)`, case/XX variants | `x_load_segformer_model__mutmut_6`, `_27`, `_34` |
+| 7 | 10 | TEST-GAP | `segment_clothing`: result-construction kwargs nulled/deleted — `clothing_items=None`, `has_face_covered=None`, `has_bag=None`, `coverage_percentages=None`, `raw_mask=None`, plus each kwarg deleted (→ dataclass default silently wins) | `_128`, `_131`, `_132` |
+| 8 | 7 | TEST-GAP | `segment_clothing_batch`: per-crop call forwarding — `segment_clothing(None, processor, …)`, `(model, None, …)`, `(model, processor, None, …)`, `min_coverage`→None/dropped, positional shifts `(model, crop, min_coverage)`, `(processor, crop, min_coverage)` | `x_segment_clothing_batch__mutmut_4`, `_7`, `_10` |
+| 9 | 7 | TEST-GAP | `segment_clothing`: executor wiring broken — `loop=None`, `run_in_executor(None, None)`, `run_in_executor(_segment)` (executor dropped), whole call nulled/deleted; each lands in the blanket `except` and returns an **empty** result that still passes the `isinstance` assertions | `_1`, `_142`, `_143` |
+| 10 | 4 | EQUIVALENT | `segment_clothing`: `CLOTHING_LABELS` maps ids 0-17 contiguously and `argmax` ids are always in range, so the `.get(…, "unknown")` DEFAULT is unreachable — `"UNKNOWN"`, `"XXunknownXX"`, `None` default, default-dropped are semantic no-ops | `_50`, `_54`, `_55` |
+| 11 | 5 | TEST-GAP | `format_clothing_context` / `format_batch_clothing_context`: exact output delimiters/appendages — `", ".join`→`"XX, XX".join`, `" ".join(parts)`, `"(face appears covered)"`, `"(carrying bag)"`, `"\n".join(lines)`; existing tests assert with `in`, so decoration survives | `x_format_clothing_context__mutmut_9`, `_18`; `x_format_batch_clothing_context__mutmut_24` |
+| 12 | 4 | LOW-VALUE | `segment_clothing`: `logger.error("Failed to segment clothing")` **text** only (`None`, case, XX) | `_146`, `_151`, `_152` |
+| 13 | 3 | LOW-VALUE | `segment_clothing`: `exc_info` truthiness dropped on the error log (`exc_info=False`/`None`/omitted) — traceback lost, control flow unchanged | `_147`, `_149`, `_153` |
+| 14 | 4 | LOW-VALUE | `load_segformer_model`: `extra={"model_path": …}` dropped or renamed — `extra=None`, `extra` kwarg deleted (`_39`), `"MODEL_PATH"`, `"XXmodel_pathXX"` | `x_load_segformer_model__mutmut_36`, `_39`, `_44` |
+| 15 | 3 | LOW-VALUE | `load_segformer_model`: `exc_info=True` → `None`/`False`/deleted on the load-failure log — traceback lost, control flow unchanged | `x_load_segformer_model__mutmut_35`, `_38`, `_43` |
+| 16 | 6 | EQUIVALENT | Pure-text trailing-comma / arg-list-closure removals — the parsed call is byte-for-byte the same: `processor(images=person_crop, )` `_6`, `np.unique(predicted_mask, )` `_37`, `round(coverage * 100, )` `_67`, `round(current + coverage * 100, )` `_91`, `coverage_percentages.pop(label, )` `_98`, `segment_clothing(model, processor, crop, )` batch-`_11` | `x_segment_clothing__mutmut_6`, `_91`; `x_segment_clothing_batch__mutmut_11` |
+| 17 | 3 | EQUIVALENT | `segment_clothing`: `zip(…, strict=True)` → `False`/`None`/omitted — `np.unique(…, return_counts=True)` always returns equal-length arrays, so the strict check can never fire | `_43`, `_46`, `_47` |
+| 18 | 2 | LOW-VALUE | `segment_clothing`: timeout tuning only — `timeout=15.0` → `16.0`/`None`; no test asserts the bound and the 15 s timeout branch is never exercised | `_139`, `_145` |
+| 19 | 2 | TEST-GAP | `load_segformer_model`: processor construction — `processor = None`, `from_pretrained(None)`; `test_load_segformer_model_success_cuda:476` asserts the returned tuple and model kwargs but never *which* processor came back or with what path | `x_load_segformer_model__mutmut_9`, `_10` |
+| 20 | 1 | EQUIVALENT | `segment_clothing`: `coverage_percentages.get("face", 0.0)` default → `1.0`; the default applies only when face coverage is below `min_coverage` (1 %), and 0.0 and 1.0 are both `< 5.0`, so `has_face_covered` is unchanged in every reachable state | `_118` |
 
 ## Cluster notes
 
 - **Clusters 1-5, 7, 9 (the `segment_clothing` core, 125 survivors)** share one root cause: no test
-  asserts anything about the _value_ `segment_clothing` returns on its success path. One value-
+  asserts anything about the *value* `segment_clothing` returns on its success path. One value-
   asserting harness (drafted below) kills all of them. Deliberately **not** `MagicMock`ing numpy —
   the current harness's mocked `np.unique` is what lets arithmetic mutants through (a `MagicMock`
   absorbs `round(x*101, 3)` without complaint). Real numpy + a minimal logits stand-in makes every
@@ -76,23 +76,23 @@ Example keys are suffixed on `backend.services.segformer_loader.`.
   `_92` (subtract) yields **negative** coverage `-28.12`; `_96/_97` leave stale `left_shoe`/
   `right_shoe` entries in the dict sent to the LLM prompt.
 - **Cluster 3 (`:277-285`)** — `_121` turns the documented rule `sunglasses AND (head_covering OR
-face_coverage < 5 %)` into `… AND face_coverage < 5 %`: sunglasses + hat with a visible face stops
+  face_coverage < 5 %)` into `… AND face_coverage < 5 %`: sunglasses + hat with a visible face stops
   being flagged face-covered. `_104` (or→and) requires hat AND scarf. `_110` makes EVERY bare-face
   person (no hat/scarf) head-covered. These are the module's security headline features and no
   existing test executes the expression.
 - **Cluster 4 (`:249-263`)** — `_38`/`_35` (`return_counts=False/None`) are input-validation misses:
   `np.unique` returns a bare array, which unpacks into `unique_classes = counts = <ndarray>`; the
-  `zip` then pairs class ids with _mask values_ instead of counts — plausible-but-wrong output,
+  `zip` then pairs class ids with *mask values* instead of counts — plausible-but-wrong output,
   never an error. `_29` (`predicted_mask = None`) is masked by the blanket `except`. `_68` (`/100`)
   reports percentages 10 000× small; `_69`/`_94` (`*101`) +6 % skew; `_70`/`_95` (ndigits 3) break
   the 2-dp contract `test_coverage_percentages_float_precision:1087` asserts only on the
-  _dataclass_. **Kill design**: the shoe fixture uses 9+9 px of 64 so nd-3 (14.062/28.124) and
+  *dataclass*. **Kill design**: the shoe fixture uses 9+9 px of 64 so nd-3 (14.062/28.124) and
   `*101` (14.2) genuinely differ from the real 14.06/28.12 — integer-percentage masks would hide
   those three (e.g. `round(9.0, 3) == 9.0`).
 - **Cluster 5 (`:258-262`)** — `_62` (`>=`→`>`) is the exact-boundary case: with total=100 and
   count=1, `1/100 == 0.01` is exactly true in IEEE and the mutant silently drops the class.
   `_58` (`and`→`or`) admits background + sub-threshold classes; `_59` inverts the background
-  exclusion entirely; `_51` (`get("unknown")`) rebinds the dict's _key_, yielding `label=None` for
+  exclusion entirely; `_51` (`get("unknown")`) rebinds the dict's *key*, yielding `label=None` for
   every class (background guard passes, no items added). `_44/_45` (zip arg drops) crash → empty
   result → caught only by value assertions.
 - **Cluster 8 (`:334-335`)** — `test_segment_clothing_batch_with_custom_min_coverage:1037` passes
@@ -102,7 +102,7 @@ face_coverage < 5 %)` into `… AND face_coverage < 5 %`: sunglasses + hat with 
   tests are substring checks (`:202-204`, `:230`, `:394`) that cannot see `"XX, XX".join`,
   `"XX XX".join` or `"XX\nXX".join`.
 - **Clusters 6, 12-15, 18 (27 log/timeout mutants, LOW-VALUE)** — `load_segformer_model`'s four
-  tests already `pytest.raises(match=…)` the _exception_ strings, which killed 26 of its 46; what
+  tests already `pytest.raises(match=…)` the *exception* strings, which killed 26 of its 46; what
   survives is the `logger.*` payload only. Log wording is a legitimate non-goal; `exc_info=False`
   and `extra=None` do remove operator-visible data but nothing call-reachable. Recommend NOT
   writing per-mutant log tests; if the baseline wants them killed, one `caplog` helper (pattern at
@@ -416,7 +416,7 @@ mutant keys and confirm the cluster flips from exit 0 to exit 1.
 ## Verification caveats (UNVERIFIED by design — no test execution in this triage)
 
 1. Mutations that break the mock graph raise `TypeError`/`AssertionError` inside `_segment`; the
-   module's blanket `except Exception` converts those to empty results — the _value_ assertions
+   module's blanket `except Exception` converts those to empty results — the *value* assertions
    still fail (that IS the kill), reported as assertion failures rather than crashes. The
    `pixel_values.to` side-effect deliberately asserts on a wrong device so `_9`/`_12` (device→None)
    die deterministically. `argmax(self, dim)` keyword enforcement mirrors the real call site

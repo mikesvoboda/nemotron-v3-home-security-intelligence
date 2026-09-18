@@ -7,13 +7,13 @@ Verdicts: `mutants/backend/services/search.py.meta`
 
 ## Run state (important caveat)
 
-| metric                     | value         |
-| -------------------------- | ------------- |
-| total keys                 | 477           |
-| checked                    | 242           |
-| killed                     | 133           |
-| **survived (this triage)** | **109**       |
-| **not yet checked**        | **235 (49%)** |
+| metric | value |
+| --- | --- |
+| total keys | 477 |
+| checked | 242 |
+| killed | 133 |
+| **survived (this triage)** | **109** |
+| **not yet checked** | **235 (49%)** |
 
 Half the module is still unchecked. Expect the survivor set to grow; expect the new keys to land in
 the same clusters (`_build_search_query` holds 84/109 and most of its remaining unchecked keys).
@@ -40,7 +40,7 @@ Verified in a scratch reproduction (`/tmp/wp25/probe/`, throwaway model, repo ve
 never importing the repo): `select(Event)` emits every non-deferred column, so `summary` and
 `object_types` appear in the compiled string whether or not the ILIKE fallback mentions them; and
 `Event.reasoning` (`backend/models/event.py:70`) is `deferred(...)` yet also appears in the
-projection, contributed by the _separate_ `.options(undefer(Event.reasoning))`. **Deleting all three
+projection, contributed by the *separate* `.options(undefer(Event.reasoning))`. **Deleting all three
 ILIKE clauses still yields a statement string containing `summary`, `reasoning`, `object_types`
 and `is null`.** That is exactly why
 `test_ilike_fallback_searches_summary/_reasoning/_object_types` and
@@ -49,11 +49,11 @@ deletion mutants (cluster 6/7). This is a live bug-detection hole, not just a mu
 
 ## Structural finding 3: the "ordering" test never tests ordering
 
-`TestBuildSearchQueryOrderBehavior.test_search_query_has_relevance_ordering` (test*search.py:1048)
+`TestBuildSearchQueryOrderBehavior.test_search_query_has_relevance_ordering` (test_search.py:1048)
 calls `_build_search_query(...)` — **a function that never calls `order_by`**. The ordering lives in
 `search_events` (line 425). So all 8 ordering mutants survive a test written specifically to kill
 one of them, and its docstring even cites "mutant_25". Its assertion is
-`assert "relevance_score" in query_text.lower()`, which is satisfied by the \_projection alias*.
+`assert "relevance_score" in query_text.lower()`, which is satisfied by the *projection alias*.
 
 ---
 
@@ -63,37 +63,37 @@ Key prefixes: `bsq` = `backend.services.search.x__build_search_query__mutmut_`,
 `se` = `x_search_events__mutmut_`, `r2sr` = `x__row_to_search_result__mutmut_`,
 `rfr` = `x_refresh_event_search_vector__mutmut_`, `upt` = `x_update_event_object_types__mutmut_`.
 
-| #   | cluster                                                                         | n   | class      | example keys      | why it survives                                                                                                                              |
-| --- | ------------------------------------------------------------------------------- | --- | ---------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | ts_rank normalisation constants (`*10`, cap `1.0`)                              | 8   | TEST-GAP   | bsq:36,40,41      | `*10` and `1.0` are bind params (finding 1)                                                                                                  |
-| 2   | result ordering: relevance term + `started_at DESC` tiebreaker                  | 8   | TEST-GAP   | se:25,29          | ordering built in `search_events`, never compiled or inspected (finding 3)                                                                   |
-| 3   | filter wiring at the `search_events` call-site                                  | 2   | TEST-GAP   | se:10,13          | helper well covered; applying its output is not asserted                                                                                     |
-| 4   | pagination `limit` / `offset`                                                   | 3   | TEST-GAP   | se:34,35          | response echoes `limit`; `offset=0` compiles to **no** OFFSET clause                                                                         |
-| 5   | `ts_rank(search_vector, tsquery)` args                                          | 4   | TEST-GAP   | bsq:31,32         | bind-param blindness                                                                                                                         |
-| 6   | ILIKE fallback clauses (summary/reasoning/object_types)                         | 6   | TEST-GAP   | bsq:61,64,65      | **vacuous substring assertions** (finding 2)                                                                                                 |
-| 7   | `search_vector @@ tsquery` predicate                                            | 4   | TEST-GAP   | bsq:50,56         | same vacuity; `is null` satisfied by the fallback arm's guard                                                                                |
-| 8   | ILIKE escaping (`safe_query`)                                                   | 2   | TEST-GAP   | bsq:47,48         | escaped value lands in a bind param; `escape_ilike_pattern(None)` → `""`, no error                                                           |
-| 9   | `to_tsquery`/`websearch_to_tsquery` args (regconfig `english`, query strings)   | 16  | TEST-GAP   | bsq:17,21,29      | regconfig is a bind param; branch choice is only checked via `has_search is True`, which is always True                                      |
-| 10  | `has_operators` operator list `["&","\|","!","<->"]`                            | 6   | TEST-GAP   | bsq:3,7           | corrupting `"<->"` silently re-routes phrases to websearch; nothing distinguishes the branches                                               |
-| 11  | `outerjoin` ON `==`→`!=` (FTS branch)                                           | 1   | TEST-GAP   | bsq:91            | no test asserts join semantics                                                                                                               |
-| 12  | `outerjoin` ON `==`→`!=` (no-query branch)                                      | 1   | TEST-GAP   | bsq:120           | same                                                                                                                                         |
-| 13  | raw SQL statement → `None` (refresh/update)                                     | 2   | LOW-VALUE  | rfr:1, upt:8      | `db.execute` is an `AsyncMock`; tests read `call_args[0][1]` (params) only                                                                   |
-| 14  | raw SQL keyword-case / XX-wrap mutants                                          | 3   | EQUIVALENT | upt:13,14,15      | SQL keywords are case-insensitive; `:event_id`/`:object_types` preserved — semantically identical SQL                                        |
-| 15  | no-query placeholder columns dropped / → `None` (Event, relevance, camera_name) | 6   | LOW-VALUE  | bsq:103,106       | malformed projection; `compile()`-only tests never execute it                                                                                |
-| 16  | no-query `relevance_score` label renamed / →`None` / type→`None`                | 4   | LOW-VALUE  | bsq:109,111,115   | projection alias; the no-query path never orders on it                                                                                       |
-| 17  | no-query `camera_name` label renamed / →`None`                                  | 3   | LOW-VALUE  | bsq:117,119       | same                                                                                                                                         |
-| 18  | no-query `cast(0.0, None)` (Float→None)                                         | 1   | EQUIVALENT | bsq:110           | renders `CAST(NULL AS FLOAT)`; indistinguishable from the constant for every consumer                                                        |
-| 19  | no-query `cast(0.0 → 1.0, Float)`                                               | 1   | TEST-GAP   | bsq:114           | bind param; no test asserts the empty-query path yields relevance 0.0                                                                        |
-| 20  | FTS-branch projection/label mutants                                             | 7   | LOW-VALUE  | bsq:81,86,88      | malformed projection / invisible alias                                                                                                       |
-| 21  | `undefer(Event.reasoning)` dropped                                              | 2   | LOW-VALUE  | bsq:72,97         | deferred-load behaviour is not exercised (and the projection still shows `reasoning` — finding 2 cuts both ways)                             |
-| 22  | `selectinload(Event.detections)` dropped                                        | 2   | LOW-VALUE  | bsq:73,98         | N+1/perf only; no behaviour assertion                                                                                                        |
-| 23  | `outerjoin(Camera, None)` / ON dropped                                          | 4   | EQUIVALENT | bsq:76,78,100,102 | `Event.camera_id` carries `ForeignKey("cameras.id")` (event.py:53-55); **verified** both forms compile to `ON cameras.id = events.camera_id` |
-| 24  | thumbnail `detection_ids[0]` → `[1]`                                            | 1   | TEST-GAP   | r2sr:12           | fixture has 3 detections but never asserts `thumbnail_url`                                                                                   |
-| 25  | thumbnail forced to `None` (conditional/branch)                                 | 2   | TEST-GAP   | r2sr:9,10         | same                                                                                                                                         |
-| 26  | `thumbnail_url` kwarg → `None` / dropped                                        | 2   | TEST-GAP   | r2sr:27,42        | dataclass default is `None`, so dropping the kwarg is invisible                                                                              |
-| 27  | `search_events` orchestration args dropped                                      | 4   | LOW-VALUE  | se:3,6            | `db` is `AsyncMock`; only response shape asserted                                                                                            |
-| 28  | count-query construction mutants                                                | 3   | LOW-VALUE  | se:14,18          | `scalar()` mocked to a constant and echoed                                                                                                   |
-| 29  | `db.execute(None)`                                                              | 1   | LOW-VALUE  | se:37             | `AsyncMock` accepts anything                                                                                                                 |
+| # | cluster | n | class | example keys | why it survives |
+| --- | --- | --- | --- | --- | --- |
+| 1 | ts_rank normalisation constants (`*10`, cap `1.0`) | 8 | TEST-GAP | bsq:36,40,41 | `*10` and `1.0` are bind params (finding 1) |
+| 2 | result ordering: relevance term + `started_at DESC` tiebreaker | 8 | TEST-GAP | se:25,29 | ordering built in `search_events`, never compiled or inspected (finding 3) |
+| 3 | filter wiring at the `search_events` call-site | 2 | TEST-GAP | se:10,13 | helper well covered; applying its output is not asserted |
+| 4 | pagination `limit` / `offset` | 3 | TEST-GAP | se:34,35 | response echoes `limit`; `offset=0` compiles to **no** OFFSET clause |
+| 5 | `ts_rank(search_vector, tsquery)` args | 4 | TEST-GAP | bsq:31,32 | bind-param blindness |
+| 6 | ILIKE fallback clauses (summary/reasoning/object_types) | 6 | TEST-GAP | bsq:61,64,65 | **vacuous substring assertions** (finding 2) |
+| 7 | `search_vector @@ tsquery` predicate | 4 | TEST-GAP | bsq:50,56 | same vacuity; `is null` satisfied by the fallback arm's guard |
+| 8 | ILIKE escaping (`safe_query`) | 2 | TEST-GAP | bsq:47,48 | escaped value lands in a bind param; `escape_ilike_pattern(None)` → `""`, no error |
+| 9 | `to_tsquery`/`websearch_to_tsquery` args (regconfig `english`, query strings) | 16 | TEST-GAP | bsq:17,21,29 | regconfig is a bind param; branch choice is only checked via `has_search is True`, which is always True |
+| 10 | `has_operators` operator list `["&","\|","!","<->"]` | 6 | TEST-GAP | bsq:3,7 | corrupting `"<->"` silently re-routes phrases to websearch; nothing distinguishes the branches |
+| 11 | `outerjoin` ON `==`→`!=` (FTS branch) | 1 | TEST-GAP | bsq:91 | no test asserts join semantics |
+| 12 | `outerjoin` ON `==`→`!=` (no-query branch) | 1 | TEST-GAP | bsq:120 | same |
+| 13 | raw SQL statement → `None` (refresh/update) | 2 | LOW-VALUE | rfr:1, upt:8 | `db.execute` is an `AsyncMock`; tests read `call_args[0][1]` (params) only |
+| 14 | raw SQL keyword-case / XX-wrap mutants | 3 | EQUIVALENT | upt:13,14,15 | SQL keywords are case-insensitive; `:event_id`/`:object_types` preserved — semantically identical SQL |
+| 15 | no-query placeholder columns dropped / → `None` (Event, relevance, camera_name) | 6 | LOW-VALUE | bsq:103,106 | malformed projection; `compile()`-only tests never execute it |
+| 16 | no-query `relevance_score` label renamed / →`None` / type→`None` | 4 | LOW-VALUE | bsq:109,111,115 | projection alias; the no-query path never orders on it |
+| 17 | no-query `camera_name` label renamed / →`None` | 3 | LOW-VALUE | bsq:117,119 | same |
+| 18 | no-query `cast(0.0, None)` (Float→None) | 1 | EQUIVALENT | bsq:110 | renders `CAST(NULL AS FLOAT)`; indistinguishable from the constant for every consumer |
+| 19 | no-query `cast(0.0 → 1.0, Float)` | 1 | TEST-GAP | bsq:114 | bind param; no test asserts the empty-query path yields relevance 0.0 |
+| 20 | FTS-branch projection/label mutants | 7 | LOW-VALUE | bsq:81,86,88 | malformed projection / invisible alias |
+| 21 | `undefer(Event.reasoning)` dropped | 2 | LOW-VALUE | bsq:72,97 | deferred-load behaviour is not exercised (and the projection still shows `reasoning` — finding 2 cuts both ways) |
+| 22 | `selectinload(Event.detections)` dropped | 2 | LOW-VALUE | bsq:73,98 | N+1/perf only; no behaviour assertion |
+| 23 | `outerjoin(Camera, None)` / ON dropped | 4 | EQUIVALENT | bsq:76,78,100,102 | `Event.camera_id` carries `ForeignKey("cameras.id")` (event.py:53-55); **verified** both forms compile to `ON cameras.id = events.camera_id` |
+| 24 | thumbnail `detection_ids[0]` → `[1]` | 1 | TEST-GAP | r2sr:12 | fixture has 3 detections but never asserts `thumbnail_url` |
+| 25 | thumbnail forced to `None` (conditional/branch) | 2 | TEST-GAP | r2sr:9,10 | same |
+| 26 | `thumbnail_url` kwarg → `None` / dropped | 2 | TEST-GAP | r2sr:27,42 | dataclass default is `None`, so dropping the kwarg is invisible |
+| 27 | `search_events` orchestration args dropped | 4 | LOW-VALUE | se:3,6 | `db` is `AsyncMock`; only response shape asserted |
+| 28 | count-query construction mutants | 3 | LOW-VALUE | se:14,18 | `scalar()` mocked to a constant and echoed |
+| 29 | `db.execute(None)` | 1 | LOW-VALUE | se:37 | `AsyncMock` accepts anything |
 
 **Rollup: TEST-GAP 67 · LOW-VALUE 34 · EQUIVALENT 8 = 109.**
 
@@ -103,20 +103,20 @@ Key prefixes: `bsq` = `backend.services.search.x__build_search_query__mutmut_`,
 
 All in `backend/tests/unit/services/test_search.py`:
 
-| source construct                            | test class @ line                                                                                                                | what it actually asserts                                                                         |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `_convert_query_to_tsquery` + token helpers | `TestQueryParsing` @40, `TestQueryOperatorEdgeCases` @673, `TestQueryEmptyTokens` @757, `TestSearchQueryParsingProperties` @1126 | returned tsquery **string** — strong (0 survivors)                                               |
-| `_build_filter_conditions`                  | `TestBuildFilterConditions` @363                                                                                                 | `len(conditions) == N` per filter — strong (0 survivors)                                         |
-| `_build_search_query`                       | `TestBuildSearchQuery` @428, `TestILikeFallbackBehavior` @516, `TestBuildSearchQueryOrderBehavior` @1039                         | `has_search is True`, `result is not None`, `str(compiled)` substrings — **weak on every value** |
-| `_row_to_search_result`                     | `TestRowToSearchResult` @598                                                                                                     | every field **except** `thumbnail_url`; fixture has 3 detections                                 |
-| `search_events`                             | `TestSearchEventsAsync` @781, `TestPaginationAndLimits` @729                                                                     | `AsyncMock` db; response fields echoed                                                           |
-| `refresh_event_search_vector`               | `TestRefreshEventSearchVector` @912                                                                                              | `call_args[0][1] == {"event_id": 42}`, `commit.assert_called_once()`                             |
-| `update_event_object_types`                 | `TestUpdateEventObjectTypes` @948                                                                                                | `call_args[0][1]["object_types"] == "person, vehicle"` — strong on params, silent on SQL         |
+| source construct | test class @ line | what it actually asserts |
+| --- | --- | --- |
+| `_convert_query_to_tsquery` + token helpers | `TestQueryParsing` @40, `TestQueryOperatorEdgeCases` @673, `TestQueryEmptyTokens` @757, `TestSearchQueryParsingProperties` @1126 | returned tsquery **string** — strong (0 survivors) |
+| `_build_filter_conditions` | `TestBuildFilterConditions` @363 | `len(conditions) == N` per filter — strong (0 survivors) |
+| `_build_search_query` | `TestBuildSearchQuery` @428, `TestILikeFallbackBehavior` @516, `TestBuildSearchQueryOrderBehavior` @1039 | `has_search is True`, `result is not None`, `str(compiled)` substrings — **weak on every value** |
+| `_row_to_search_result` | `TestRowToSearchResult` @598 | every field **except** `thumbnail_url`; fixture has 3 detections |
+| `search_events` | `TestSearchEventsAsync` @781, `TestPaginationAndLimits` @729 | `AsyncMock` db; response fields echoed |
+| `refresh_event_search_vector` | `TestRefreshEventSearchVector` @912 | `call_args[0][1] == {"event_id": 42}`, `commit.assert_called_once()` |
+| `update_event_object_types` | `TestUpdateEventObjectTypes` @948 | `call_args[0][1]["object_types"] == "person, vehicle"` — strong on params, silent on SQL |
 
-Style to copy: params via `mock_db.execute.call_args[0][1]` (test*search.py:929, 965); SQL shape via
+Style to copy: params via `mock_db.execute.call_args[0][1]` (test_search.py:929, 965); SQL shape via
 `result.compile(dialect=postgresql.dialect())` + `str(compiled)` (test_search.py:532-533). The
 missing half of the idiom is `compiled.params`, `literal_binds=True`, and `call_args_list[1]` to
-reach the \_page* query (execute is called twice: count then page).
+reach the *page* query (execute is called twice: count then page).
 
 ---
 
@@ -399,7 +399,7 @@ Red-on-mutant: `r2sr:12` → `/api/detections/8/image`; `r2sr:9,10` → None on 
   `len(result._with_options) == 2` (verified: dropping either loader drops the count to 1). ~15
   keys for ~10 lines.
 - **Cluster 23 (4 keys) should be suppressed, not tested**: with the real FK, `outerjoin(Camera,
-None)` and `outerjoin(Camera)` compile to the identical ON clause. Consider a mutmut ignore for
+  None)` and `outerjoin(Camera)` compile to the identical ON clause. Consider a mutmut ignore for
   ON-clause-argument removal on FK-bearing joins.
 - **Clusters 27-29** are only killable against a real DB. `backend/tests/integration/` exists with
   `integration_db` / `db_session` fixtures (`backend/tests/conftest.py:41-43`). One integration

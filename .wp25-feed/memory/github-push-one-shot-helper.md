@@ -20,7 +20,7 @@ GIT_TERMINAL_PROMPT=0 git -c credential.helper="!f() { echo username=x-access-to
 (one-shot, nothing persisted to config/credentials; remote's dependabot banner means success).
 
 **Why:** CLAUDE.md promises "the proxy takes care of it" — true only when injection engages;
-treat the Username error as _either_ missing secret _or_ inert injection, and check
+treat the Username error as *either* missing secret *or* inert injection, and check
 `curl -H "Authorization: token $GH_TOKEN" api.github.com/user` before touching anything.
 
 **How to apply:** diagnose with the API call first; if 200, push via the one-shot helper
