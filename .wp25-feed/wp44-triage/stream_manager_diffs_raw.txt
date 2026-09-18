@@ -1,0 +1,197 @@
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_1
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_1: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -10,7 +10,7 @@
+         """
+     async with self._lock:
+         # Remove existing stream if present
+-        if camera_id in self._streams:
++        if camera_id not in self._streams:
+             await self._cleanup_stream(camera_id)
+
+         logger.info(
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_2
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_2: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -11,7 +11,7 @@
+     async with self._lock:
+         # Remove existing stream if present
+         if camera_id in self._streams:
+-            await self._cleanup_stream(camera_id)
++            await self._cleanup_stream(None)
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_3
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_3: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -14,7 +14,7 @@
+             await self._cleanup_stream(camera_id)
+
+         logger.info(
+-            f"Adding stream for camera {camera_id}",
++            None,
+             extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
+         )
+
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_4
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_4: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -15,7 +15,7 @@
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+-            extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
++            extra=None,
+         )
+
+         # Initialize stream context
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_6
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_6: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -15,8 +15,7 @@
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+-            extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
+-        )
++            )
+
+         # Initialize stream context
+         self._streams[camera_id] = {
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_7
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_7: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -15,7 +15,7 @@
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+-            extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
++            extra={"XXcamera_idXX": camera_id, "rtsp_url": rtsp_url},
+         )
+
+         # Initialize stream context
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_8
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_8: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -15,7 +15,7 @@
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+-            extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
++            extra={"CAMERA_ID": camera_id, "rtsp_url": rtsp_url},
+         )
+
+         # Initialize stream context
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_9
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_9: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -15,7 +15,7 @@
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+-            extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
++            extra={"camera_id": camera_id, "XXrtsp_urlXX": rtsp_url},
+         )
+
+         # Initialize stream context
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_10
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_10: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -15,7 +15,7 @@
+
+         logger.info(
+             f"Adding stream for camera {camera_id}",
+-            extra={"camera_id": camera_id, "rtsp_url": rtsp_url},
++            extra={"camera_id": camera_id, "RTSP_URL": rtsp_url},
+         )
+
+         # Initialize stream context
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_12
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_12: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -20,7 +20,7 @@
+
+         # Initialize stream context
+         self._streams[camera_id] = {
+-            "rtsp_url": rtsp_url,
++            "XXrtsp_urlXX": rtsp_url,
+             "capture": None,
+             "retry_count": 0,
+             "last_error": None,
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_13
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_13: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -20,7 +20,7 @@
+
+         # Initialize stream context
+         self._streams[camera_id] = {
+-            "rtsp_url": rtsp_url,
++            "RTSP_URL": rtsp_url,
+             "capture": None,
+             "retry_count": 0,
+             "last_error": None,
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_14
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_14: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -21,7 +21,7 @@
+         # Initialize stream context
+         self._streams[camera_id] = {
+             "rtsp_url": rtsp_url,
+-            "capture": None,
++            "XXcaptureXX": None,
+             "retry_count": 0,
+             "last_error": None,
+             "connection_time": None,
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_15
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_15: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -21,7 +21,7 @@
+         # Initialize stream context
+         self._streams[camera_id] = {
+             "rtsp_url": rtsp_url,
+-            "capture": None,
++            "CAPTURE": None,
+             "retry_count": 0,
+             "last_error": None,
+             "connection_time": None,
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_19
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_19: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -23,7 +23,7 @@
+             "rtsp_url": rtsp_url,
+             "capture": None,
+             "retry_count": 0,
+-            "last_error": None,
++            "XXlast_errorXX": None,
+             "connection_time": None,
+         }
+
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_20
+# backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_20: survived
+--- backend/services/stream_manager.py
++++ backend/services/stream_manager.py
+@@ -23,7 +23,7 @@
+             "rtsp_url": rtsp_url,
+             "capture": None,
+             "retry_count": 0,
+-            "last_error": None,
++            "LAST_ERROR": None,
+             "connection_time": None,
+         }
+
+=== backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_21

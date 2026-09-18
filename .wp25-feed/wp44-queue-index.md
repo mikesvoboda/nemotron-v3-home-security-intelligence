@@ -7,8 +7,8 @@ UNVERIFIED. Verification lane (serial, after run5 exits): for each draft —
 red on the mutant diff → green on original → commit into that WP's tests.
 EQUIVALENT/LOW-VALUE cluster notes are the no-deletion-without-record receipts.
 
-Aggregate at 110 modules / 15871 survivors: TEST-GAP 10083 survivors (64%),
-EQUIVALENT 3426 (22%), LOW-VALUE 2307 (15%); 724 drafted tests.
+Aggregate at 112 modules / 16365 survivors: TEST-GAP 10396 survivors (64%),
+EQUIVALENT 3553 (22%), LOW-VALUE 2361 (14%); 736 drafted tests.
 landed back at 64/22/14 — the same triple as the earliest waves; the
 aggregate oscillates inside classifier noise 64-66 and only PER-MODULE
 shape carries signal.) (orphan_cleanup folded at its 170-snapshot; live meta already 174 with checked count
@@ -41,9 +41,12 @@ owner, pattern-8 sweep material, not a test gap).
 
 ## Verification order (TEST-GAP survivors desc — biggest kill per unit of work)
 
+| Gap surv | Surv | TEST-GAP% | Dossier                          | Drafted |
+| -------: | ---: | --------: | -------------------------------- | ------: |
 |      650 |  696 |    93% | `container_discovery`            |      5 |
 |      209 |  210 |   100% | `llm_reasoning`                  |      6 |
 |      203 |  271 |    75% | `nemotron_streaming`             |      6 |
+|      183 |  283 |    65% | `scene_ocr_service`              |      6 |
 |      182 |  244 |    75% | `threat_monitor_service`         |      6 |
 |      167 |  282 |    59% | `pipeline_workers`               |      6 |
 |      166 |  187 |    89% | `system`                         |      8 |
@@ -59,6 +62,7 @@ owner, pattern-8 sweep material, not a test gap).
 |      133 |  158 |    84% | `webhook_service`                |     11 |
 |      132 |  137 |    96% | `zone_anomaly_service`           |      5 |
 |      130 |  158 |    82% | `enrichment_client`              |     10 |
+|      130 |  211 |    62% | `stream_manager`                 |      6 |
 |      129 |  184 |    70% | `redis_streams`                  |      6 |
 |      128 |  135 |    94% | `vision_extractor`               |      6 |
 |      121 |  134 |    90% | `auto_enrollment_service`        |     12 |
@@ -155,7 +159,7 @@ owner, pattern-8 sweep material, not a test gap).
 Wave-23 tail — system.py folded separately (the giant-module fix): 5,624
 lines / 1,899 mutants is why the first-slot agent died twice WITHOUT a dossier
 — one agent, one file, too much. Resume re-ran it solo -> 166/187 TEST-GAP
-(89%, row 6 of 110, top routes/ module, behind four services): the /system/health
+(89%, row 7 of 112, top routes/ module, behind four services): the /system/health
 exporter-status builder matches Prometheus targets by `job/instance in`
 (56 mutants) under a test that asserts only status.value=='up'; degradation
 payload keys/defaults 52 mutants (`mode` default -> response becomes None via
@@ -164,7 +168,7 @@ only. Health-endpoint contract = pattern 6 on the dashboard's OWN status page.
 Lane note: dispatch >1,200-mutant files as single-module waves.
 
 Wave-40 anchor (04:02-04:15 UTC, 1 module): exports (54 gap/100, 54%,
-row 90) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
+row 92) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
 identity family (start/complete/fail — job_id is the WS broadcast routing
 key) survives on assert_called_once() arity-only; the not-found path can
 SPURIOUSLY broadcast fail_job for a job that never existed (logger.error
@@ -179,7 +183,7 @@ scheduling. Dossier verified pydantic/stdlib behaviors rather than assume
 (3 kill recipes cite the verification).
 
 Wave-41 anchor (04:20-04:36 UTC, 1 module): reid_service (58 gap/109, 53%,
-row 86) — the NEM-4474 atomic-Lua store path is ENTIRELY unexercised (all
+row 88) — the NEM-4474 atomic-Lua store path is ENTIRELY unexercised (all
 tests pass a bare AsyncMock so use_atomic is always False — mock-absorption again,
 7 mutants) and get_entity_history's today/yesterday Redis date-keys are built
 under call-count side_effects that ignore the key (13 mutants; wrong keys
@@ -189,7 +193,7 @@ fed an empty-match dict (14 header-leak mutants). 7 drafts (T1-T7). Cluster-
 sum check regenerated mechanically: 109 = 58+12+39, matches live meta exactly.
 
 Wave-42 anchor (05:02-05:14 UTC, 1 module): summary_generator (89 gap/131, 68%,
-row 50) — call-arg forwarding at scale: window_start/window_end/period_type/
+row 52) — call-arg forwarding at scale: window_start/window_end/period_type/
 session flow through generate_{hourly,daily}_summary -> _generate_summary ->
 EventRepository/SummaryRepository/create_summary with NOTHING asserted at any
 hop (outer-branch survivors EXECUTED by the window test, which checks
@@ -202,7 +206,7 @@ WP4.3 widened-set cache reuse; WP4.4 re-proves red/green before trusting OR
 dropping them. 5 drafts kill 91 gap. Cluster-sum 131 = journal = live meta.
 
 Wave-43 anchor (05:22-05:31 UTC, 1 module): health_monitor_orchestrator (60 gap/138,
-43%, row 83) — shipped-behavior headliner: _handle_stopped_container's
+43%, row 85) — shipped-behavior headliner: _handle_stopped_container's
 on_health_change boolean flip tells LISTENERS A STOPPED CONTAINER IS HEALTHY
 (#22, HIGH) and the only callback-asserting tests route through the other
 handlers; the whole network-isolation recovery path (_on_network_isolation)
@@ -215,10 +219,10 @@ service. registry name=None clobber is a SILENT NO-OP (registry.py:202
 snapshot reconciliation. Universe 240 = 101k+138s+1 (dossier TOTAL row).
 
 Wave-44 anchor (05:42-05:54 UTC, 3 modules): health_ai_services (91 gap/111, 82%,
-row 45) — the endpoint-with-status-only-assertion shape at gpu_config scale but
+row 47) — the endpoint-with-status-only-assertion shape at gpu_config scale but
 smaller: payload/degradation fields flow unobserved. retry_handler (54 gap/151,
-36%, row 91) — 62% LOW-VALUE (94): the module's own retry-log prose; the real
-work is the backoff/budget arithmetic. cameras (44 gap/130, 34%, row 96) —
+36%, row 93) — 62% LOW-VALUE (94): the module's own retry-log prose; the real
+work is the backoff/budget arithmetic. cameras (44 gap/130, 34%, row 98) —
 SECURITY finding: _resolve_camera_dir's traversal gate '..' or '/' '\' tokens
 or->and + token clobbers let '..'-only and backslash folder names SLIP PAST
 into fallback resolution (tests only assert endpoint 404, never isolate the
@@ -232,19 +236,19 @@ sum = journal = meta for all three. 19 drafts.
 
 
 Wave-45 anchor (06:03-06:23 UTC, 3 modules): depth_anything_loader (106
-gap/167, 63%, row 29) — analyze_depth owns 70 survivors:
+gap/167, 63%, row 31) — analyze_depth owns 70 survivors:
 has_close_objects/average_depth/depth_variance and the produced DetectionDepth
 records are never asserted (the to_dict contract tests only HAND-BUILT ones);
 the logger.error msg-drop member turns the pipeline-failure re-raise into a
 TypeError under a stdlib logger (structlog absorbs it silently) and no test
 enters that path; to_context_string's sort key is droppable — context order
-silently flips to det_id order. weather_loader (97 gap/152, 64%, row 38) —
+silently flips to det_id order. weather_loader (97 gap/152, 64%, row 40) —
 classify_weather has ZERO happy-path coverage: its only test asserts
 pytest.raises, which every crash mutant still satisfies — that one gap is 67
 of 152; snowy loses its +0.1 risk modifier under a tuple-label mutation,
 clear-DAYTIME gains +0.25 under and->or, brightness /255->/256 off-by-one and
 the 6 AM docstring boundary are real normalization bugs (dossier kept them
-TEST-GAP, not LOW-VALUE). model_zoo (78 gap/185, 42%, row 62) — 56%
+TEST-GAP, not LOW-VALUE). model_zoo (78 gap/185, 42%, row 64) — 56%
 EQUIVALENT: the ModelConfig default mutants are dead branches against TODAY's
 models.yml — the dossier names the wake-up condition (a registered entry
 omitting a key turns 22 EQ members into real config bugs). The GAP core:
@@ -259,10 +263,35 @@ Snapshot flag: dispatched at 130 survivors, dossier froze at 185, live meta at
 fold 185 (2 unchecked) — re-tally from the FINAL score JSON. 27 drafts.
 Clusters sum = journal = meta for all three.
 
+Wave-46 anchor (06:41-07:10 UTC, 2 modules): scene_ocr_service (183
+gap/283, 65%, row 4) — the OCR-request-shape-at-scale + a REAL SIGN BUG:
+_calculate_iou/_calculate_overlap_ratio's no-overlap guard or->and lets
+one-axis-separated boxes compute NEGATIVE-intersection garbage IoU (tests only
+cover both-axes-separated). Biggest single cluster in the program's history so
+far: region_map side-entry key mangling (A11, 36) — left/right region labels
+have ZERO coverage; and crop/full-frame request payloads (URL/json/image key)
+flow entirely unasserted through MagicMock clients (A3+A4, 51); dedup consumer
+schema + 0.50/0.80 uncertain-boundary docstring contract never pinned.
+stream_manager (130 gap/211, 62%, row 20) — the LIVENESS-ASSERTS-ONLY shape
+named: hset.assert_called() with the key checked as a SUBSTRING of
+str(call_args_list), call_count>1, and one timing-dependent CONDITIONAL assert
+(if 'camera1' in manager._streams) — payloads, Redis hash schema, backoff
+sequence and retry_count never read. T-HEALTHKEY (9): health written/read/
+deleted at the WRONG Redis key silently (real Redis would orphan every health
+key); T-ADDGUARD: replacing a camera no longer tears down its old connection
+task (orphan loop + capture leak); broad excepts swallow the TypeErrors that
+mutants introduce, so broken-arg mutants still look like 'reconnect loop kept
+running'. Snapshot flag: dispatched at 211 survivors / 64 unchecked; dossier
+froze at 211 (130/74/7); live meta AT FOLD 250 survivors / 0 unchecked (the
+last 64 checked: 39 survived) — re-tally from the FINAL score JSON. 12 drafts.
+Clusters sum = journal = meta for both. (Repair note folded in: the wave-45
+fold's table rewrite dropped the header/sep rows — restored here; the fold
+validator now asserts their presence, not just row lines.)
+
 
 
 Wave-39 anchor (03:42-03:50 UTC, 1 module): background_evaluator (100
-gap/161, 62%, row 32) is the JOB-TRACKER WIRE contract end-to-end: every
+gap/161, 62%, row 34) is the JOB-TRACKER WIRE contract end-to-end: every
 progress/complete/fail call site — tracker AND legacy branches (legacy has
 ZERO assertions today) — takes None/dropped args invisibly; UI progress
 percents (10->11, 25->26, 40->41) never pinned; the NEM-3902 undefer
@@ -275,7 +304,7 @@ misconfigured singleton. Meta stable 161=161, no re-tally flag. 11 drafts,
 all three channels + meta agree.
 
 Wave-38 anchor (03:34-03:45 UTC, 1 module): orphan_cleanup_service (68
-gap/170, 40%, row 75) is the DELETIVE-FILE-SERVICE risk class: age-unit
+gap/170, 40%, row 77) is the DELETIVE-FILE-SERVICE risk class: age-unit
 arithmetic (now-mtime)/3600 -> \*3600 makes a 1-SECOND-old file read
 ~86,400h old and delete immediately (worst bug found in-module, draft T6
 frozen clock); the orphan DB lookup can query str(None) so clip_path
@@ -289,12 +318,12 @@ clusters; snapshot 170 vs live meta 174 (checked frozen at 371 - re-tally
 at final, context_enricher precedent).
 
 Wave-37 anchor (03:22-03:33 UTC, 2 modules): transcoding (71 gap/152,
-47%, row 70) is the ffmpeg-plumbing gap — argv construction, availability
+47%, row 72) is the ffmpeg-plumbing gap — argv construction, availability
 probe, stderr-tail failure message (boundary >5 vs >6 lines) and
 get_video_info defaults all unobserved; dossier adds a PRODUCT NOTE:
 \_validate_input_path's dash check is unreachable after resolve() (dead
 code, same family as florence's \_parse_list_response). smoke_fire_loader
-(66 gap/135, 49%, row 79) is the MOCK-ABSORPTION textbook: YOLO patched
+(66 gap/135, 49%, row 81) is the MOCK-ABSORPTION textbook: YOLO patched
 with a bare MagicMock makes is_mock always-True, so the entire weights-
 discovery chain (model.pt/best.pt/glob) is dead under test — its 66
 EQUIVALENT are mock-shaped, not semantically dead; the real gaps are the
@@ -307,7 +336,7 @@ rule points the other way, and the tie-break that decided it is the
 physical meta count, not an artifact's rank.
 
 Wave-36 anchor (03:07-03:22 UTC, 1 module): pipeline_workers (167 gap/282,
-59%, row 5) is the NEM-3607 BROADCAST WIRE-CONTRACT void — pattern 6's
+59%, row 6) is the NEM-3607 BROADCAST WIRE-CONTRACT void — pattern 6's
 biggest instance yet: no test in the repo injects a broadcaster (zero
 broadcast_batch grep hits), so the whole started/completed/failed region
 runs under broadcaster=None unobserved; 48 payload KEY renames + 50 un-
@@ -320,7 +349,7 @@ emitter; LOW share crosses to 14% on its weight (shape-driven, 103 of the
 +96).
 
 Wave-35 anchor (03:02-03:07 UTC, 1 module): cache_warming (69 gap/100,
-69%, row 72) is UNOBSERVED-REPORT-FIELD gap: the WarmingReport/WarmingResult
+69%, row 74) is UNOBSERVED-REPORT-FIELD gap: the WarmingReport/WarmingResult
 contract — durations ((perf_counter-start)*1000 droppable to /1000/*1001/
 None, 24 mutants), strategy, cache_name, success=False->None (assert not
 failed.success passes on None!) — is built and never read; the cameras
@@ -334,7 +363,7 @@ singleton ignores settings because mock 'parallel'/30.0 EQUAL code defaults
 again machine-verified all three channels (table=journal=Totals).
 
 Wave-34 anchor (02:33-02:50 UTC, 2 modules): context_enricher (106 gap/134,
-79%, row 28) is root-cause pattern #1 at module scale — every query builder
+79%, row 30) is root-cause pattern #1 at module scale — every query builder
 survives wholesale because tests mock session.execute and never inspect the
 statement (the window test literally asserts assert_called(), "we trust the
 query is correct"), and the deviation-score math is asserted only as ranges,
@@ -342,7 +371,7 @@ so formula mutations hide; dossier banks the kill recipe
 (str(stmt.compile()) + bind-param asserts + exact-value parametrizes) and
 flags 4 mutants boundary-unobservable. Snapshot was mid-run (82 keys still
 unchecked at dossier time — the count can grow by final score). ai_audit
-(43 gap/111, 39%, row 97) is log-noise-dominant (42 LOW-VALUE — extra=
+(43 gap/111, 39%, row 99) is log-noise-dominant (42 LOW-VALUE — extra=
 payloads + message renames) with real gaps under it: the progress message
 and processed/failed counters ride GET /batch/{job_id} while tests assert
 only the percentage, an == -> != query flip survives on a call-order mock
@@ -351,11 +380,11 @@ table, journal AND Totals line agreed for both modules (first full
 three-channel agreement — recorded, not assumed).
 
 Wave-33 anchors (02:23-03:00 UTC, 2 modules): osnet_loader (88 gap/136,
-65%, row 51) — the segformer wide-except-crash-swallow pattern lands on the
+65%, row 53) — the segformer wide-except-crash-swallow pattern lands on the
 embedding model's loader (blanket except -> degraded/empty result turns
 mutation breakage into silent model degradation); dossier Totals line again
 contradicted its own table (86/13 vs table+journal 88/11 — table folded).
-mqtt_publisher (37 gap/100, 37%, row 101) is the MQTT WIRE-CONTRACT gap: the
+mqtt_publisher (37 gap/100, 37%, row 103) is the MQTT WIRE-CONTRACT gap: the
 18-param topic table never puts fields under the nested data dict, never
 routes service./worker./zone.approach, and the timestamp test checks key
 presence only — so datetime.now(None) NAIVE timestamps and clobbered
@@ -377,7 +406,7 @@ service — kills the bulk; 5 drafts. Its 14+4 EQUIVALENT rows are kwarg==
 dataclass-default (mutmut-exclusion candidates, recorded not deleted).
 
 Wave-31 anchor (01:42 UTC, 1 module): websocket_emitter (73 gap/101,
-72%, row 67) is pattern 6 at the LAST dispatch hop: every
+72%, row 69) is pattern 6 at the LAST dispatch hop: every
 \_dispatch_to_event_broadcaster/\_dispatch_to_system_broadcaster arm survives
 full message-shape clobbers (camera/worker/system/security payloads,
 timestamp keys, redis channel derivation) because the covering tests assert
@@ -388,7 +417,7 @@ shape on emit_to_user/broadcast/emit_batch. Dossier note: its Totals LINE
 table + journal agree 73/25/3 — folded as such.
 
 Wave-30 anchor (01:22 UTC, 1 module): read_through_cache (97 gap/122,
-79%, row 37) is cache_service's sibling and the ARG-BLIND MOCK shape end to
+79%, row 39) is cache_service's sibling and the ARG-BLIND MOCK shape end to
 end: get/invalidate/refresh tests assert call_count or bare assert_called(),
 never args — so cache-key derivation damage, the stampede lock's SET NX
 semantics (nx=True→False survives; mock set returns scripted, lock still
@@ -407,13 +436,13 @@ all 10 call_llm_streaming context kwargs are never inspected — the FATAL-AS-
 RECOVERABLE family (recoverable=False→True/ deleted-behind-schema-default-
 True on 4 fatal handlers) mislabels terminal failures as retryable, and
 \_check_idempotency(None)-style call-arg damage is pattern-7 at its widest.
-reid_matcher (58/100, 58%, row 85) is the SQLAlchemy statement-inspection
+reid_matcher (58/100, 58%, row 87) is the SQLAlchemy statement-inspection
 hole — find_matches WHERE/ORDER BY/cutoff bind params invisible under
 execute.called-only tests (same family as w25 search's bind-params, but the
 predicates DO render: kill by compiling the executed stmt).
 
 Wave-28 anchor (00:22-00:40 UTC, 1 module): detections (60 gap/157,
-38%, row 84) — highest EQUIVALENT share of any routes/ module (78/157, 50%):
+38%, row 86) — highest EQUIVALENT share of any routes/ module (78/157, 50%):
 falsy-default swaps (get(k,{})→None), key-rename reads whose canonical
 lowercase consumer never sees them, and header-case variants starlette
 normalizes away. The 60 gap rows cluster in the ENRICHMENT-PAYLOAD contract:
@@ -423,7 +452,7 @@ key — and every existing fixture omits exactly those keys; vehicle_damage
 flag flip rides the same hole.
 
 Wave-27 anchor (00:10-00:40 UTC, 1 module): transcoding_service (71 gap/
-108, 66%, row 68) is the ffmpeg-ARGV family — both subprocess call sites are
+108, 66%, row 70) is the ffmpeg-ARGV family — both subprocess call sites are
 mocked with call-count-only asserts, so 42 argv-token + stdout/stderr=PIPE
 mutations survive (no stderr pipe destroys the TranscodingError diagnostic);
 boundary + age-window arithmetic (1000-byte cache validity, max_age_days
@@ -432,21 +461,21 @@ option-injection guard in \_validate_video_path (startswith("-")) becomes dead
 code under 2 mutants — security check with zero teeth-tests.
 
 Wave-26 anchors (23:45-00:10 UTC, 2 modules — endpoint + client noise
-shape): gpu_config (81 gap/111, 73%, row 54) is the status-code-only-asserted
+shape): gpu_config (81 gap/111, 73%, row 56) is the status-code-only-asserted
 endpoint at scale — every \_calculate_auto_assignments strategy (MANUAL/
 VRAM_BASED/BALANCED/ISOLATION_FIRST/LATENCY) survives full placement clobbers
 because tests assert len>=3, never the map; its SYMMETRIC-FIXTURE ABSORPTION
 family = mock-absorption's twin — LATENCY sort flips are test-no-ops while
 every fixture GPU shares compute_capability '8.6' (a tie swallows the
 mutation before any assert); \_update_gpu_devices_in_db survives on
-commit.called-once alone. clip_client (69/220, 31%, row 73) is the wave's
+commit.called-once alone. clip_client (69/220, 31%, row 75) is the wave's
 noise anchor: 118 LOW-VALUE + 33 EQUIVALENT — duration_ms arithmetic,
 exc_info toggles, extra= payloads, real changes whose only observable is
 diagnostic log text; the 69 gap rows are payload-shape asserts missing on
 anomaly/similarity (embed has the pattern to copy).
 
 Wave-25 anchors (23:22-23:45 UTC, 4 modules — the HTTP-client wave):
-florence_client (100 gap/208, row 33 at 48%) carries the wave's structural
+florence_client (100 gap/208, row 35 at 48%) carries the wave's structural
 proof — KILLED-TWIN ASYMMETRY: the identical textual mutation DIES in
 extract/ocr/detect (asserted methods) and SURVIVES in ocr_with_regions /
 describe_regions / phrase_grounding / detect_security_objects. That asymmetry
@@ -456,7 +485,7 @@ breaker BYPASS family: `_check_circuit_breaker("ocr_regions"->None/XX)` falls
 back to the EXTRACT breaker (aliased :364), so an OPEN per-endpoint breaker
 stops blocking its own endpoint; `detect_security_objects` has ZERO direct
 unit tests (exercised only as a mocked collaborator in
-test_vision_extractor:2735). enrichment_client (130 gap/158, 82%, row 18,
+test_vision_extractor:2735). enrichment_client (130 gap/158, 82%, row 19,
 10 drafts) joins the LLM-PROMPT-TEXT family (w20 threat_detection_loader +
 here): to_context_string labels feed nemotron_analyzer.py:4683 but tests
 assert only substrings, so XX/CAPS ride into the prompt; plus the NEM-3147
@@ -472,7 +501,7 @@ final score JSON before WP4.4 lane work on them.
 
 Wave-23/24 anchors (folded together; 10 modules, 23:05-23:22 UTC —
 queue shakeup + first aggregate drop): threat_monitor_service (182 gap/244,
-75%, row 4 of 110, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
+75%, row 5 of 112, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
 `session.execute` returns AsyncMock whatever statement it's handed, so the
 cooldown cutoff arithmetic / dedup `==` / `>=` / LIMIT all ride; the
 alert.created WEBSOCKET payload (36 mutants, 24 key renames) and the webhook
@@ -481,11 +510,11 @@ the two wires out of the alert pipeline; T1 kills the cooldown family with a
 REAL DB, no mocks. debug (78/107, 73%) is second routes/ module:
 redis-info dict + pubsub payload only membership-asserted; the ltrim
 off-by-one `start 0->1` DISCARDS every recorded pipeline error while
-returning True. scene_baseline (89/101, 88%, row 49) sharp gap. prompt_storage
-(93/104, 89%, row 43, 13 drafts — program record) is the cleanest module shape:
+returning True. scene_baseline (89/101, 88%, row 51) sharp gap. prompt_storage
+(93/104, 89%, row 45, 13 drafts — program record) is the cleanest module shape:
 ZERO log surface means zero LOW-VALUE noise, every mutant caller-observable;
 naive-`now()` timestamp leak (T2) is the shipped-behavior note. batch_aggregator
-(row 66; 74 gap/203) is the wave's noise anchor: 125 EQUIVALENT (62%) — a
+(row 68; 74 gap/203) is the wave's noise anchor: 125 EQUIVALENT (62%) — a
 log-heavy coalescer whose survivor pile is mostly structured-log text, the
 suppress-with-record family. registry (13 gap/125, last row): the screen's zero-direct-
 tests module was NOT untested (a pure-re-export shim test_service_registry.py

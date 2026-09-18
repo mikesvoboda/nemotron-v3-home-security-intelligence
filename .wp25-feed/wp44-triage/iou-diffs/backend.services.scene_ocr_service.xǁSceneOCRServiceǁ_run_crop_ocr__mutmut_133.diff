@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_133: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -89,7 +89,7 @@
+
+                     crop_results.append(
+                         RawOCRResult(
+-                            text=item.get("text", ""),
++                            text=item.get("text", None),
+                             confidence=confidence,
+                             bbox=frame_bbox,
+                             source="crop",

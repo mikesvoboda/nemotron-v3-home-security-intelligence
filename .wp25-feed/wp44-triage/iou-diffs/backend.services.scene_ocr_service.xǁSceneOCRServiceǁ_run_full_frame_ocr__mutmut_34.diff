@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_34: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -32,7 +32,7 @@
+         for item in data.get("regions", []):
+             # Florence OCR does not return confidence; use high default
+             confidence = item.get("confidence", 0.90)
+-            if confidence < CONFIDENCE_EXCLUDE:
++            if confidence <= CONFIDENCE_EXCLUDE:
+                 continue
+
+             # Record confidence metric for each detected text

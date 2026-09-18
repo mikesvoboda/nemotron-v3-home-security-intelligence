@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_46: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -59,7 +59,7 @@
+                 if iou >= IOU_DEDUP_THRESHOLD:
+                     # Duplicate found - keep the one with higher confidence
+                     # or prefer crop if confidence is similar
+-                    if abs(frame_ocr.confidence - crop_ocr.confidence) < 0.05:
++                    if abs(frame_ocr.confidence - crop_ocr.confidence) < 1.05:
+                         # Similar confidence - prefer crop (higher resolution)
+                         is_duplicate = True
+                         break

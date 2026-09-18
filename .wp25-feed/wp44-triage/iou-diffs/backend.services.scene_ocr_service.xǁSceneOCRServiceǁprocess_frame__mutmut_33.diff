@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_33: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -53,7 +53,7 @@
+         # Match service providers for detection OCR
+         for _det_id, det_ocr in result.detection_ocr.items():
+             all_texts = [t["value"] for t in det_ocr.texts if t.get("value")]
+-            matches = self.service_matcher.match_all(all_texts)
++            matches = None
+             if matches:
+                 # Use the highest confidence match
+                 det_ocr.service_match = max(matches, key=lambda m: m.confidence)

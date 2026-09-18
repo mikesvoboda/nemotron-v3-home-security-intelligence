@@ -1,0 +1,11 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ__init____mutmut_1: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -2,7 +2,7 @@
+     self,
+     florence_url: str | None = None,
+     timeout: float = OCR_TIMEOUT_SECONDS,
+-    enabled: bool = True,
++    enabled: bool = False,
+ ) -> None:
+     """Initialize the SceneOCRService.

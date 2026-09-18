@@ -108,3 +108,6 @@ backend/services/retry_handler.py
 backend/services/depth_anything_loader.py
 backend/services/model_zoo.py
 backend/services/weather_loader.py
+backend/services/scene_ocr_service.py
+backend/services/stream_manager.py
+backend/services/circuit_breaker.py

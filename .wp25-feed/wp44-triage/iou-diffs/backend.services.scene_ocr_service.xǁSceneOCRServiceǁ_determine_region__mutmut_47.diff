@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_47: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -26,7 +26,7 @@
+     rel_x = (text_center_x - det_bbox[0]) / det_width
+
+     # Determine vertical position
+-    v_region = "top" if rel_y < 0.33 else ("bottom" if rel_y > 0.66 else "middle")
++    v_region = "top" if rel_y < 0.33 else ("bottom" if rel_y >= 0.66 else "middle")
+
+     # Determine horizontal position
+     h_region = "left" if rel_x < 0.33 else ("right" if rel_x > 0.66 else "center")

@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_64: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -46,7 +46,7 @@
+                 if x2 <= x1 or y2 <= y1:
+                     return det_id, []
+
+-                crop = image.crop((x1, y1, x2, y2))
++                crop = image.crop(None)
+                 crop_base64 = _image_to_base64(crop)
+
+                 client = await self._get_client()

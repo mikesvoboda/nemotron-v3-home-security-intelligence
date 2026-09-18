@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_82: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -63,7 +63,7 @@
+                 data = response.json()
+                 crop_results: list[RawOCRResult] = []
+
+-                for item in data.get("regions", []):
++                for item in data.get("regions", ):
+                     # Florence OCR does not return confidence; use high default
+                     confidence = item.get("confidence", 0.90)
+                     if confidence < CONFIDENCE_EXCLUDE:

@@ -1,0 +1,9 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ__init____mutmut_17: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -20,4 +20,4 @@
+     # HTTP client is created lazily for async context
+     self._client: httpx.AsyncClient | None = None
+
+-    logger.info(f"SceneOCRService initialized (url={self.florence_url}, enabled={enabled})")
++    logger.info(None)

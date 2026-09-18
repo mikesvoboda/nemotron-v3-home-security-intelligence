@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_65: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -47,7 +47,7 @@
+                     return det_id, []
+
+                 crop = image.crop((x1, y1, x2, y2))
+-                crop_base64 = _image_to_base64(crop)
++                crop_base64 = None
+
+                 client = await self._get_client()
+                 response = await client.post(

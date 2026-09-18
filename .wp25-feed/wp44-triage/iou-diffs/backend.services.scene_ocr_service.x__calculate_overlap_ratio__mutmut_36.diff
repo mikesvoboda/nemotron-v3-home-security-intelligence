@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_36: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -29,7 +29,7 @@
+
+     # OCR bbox area
+     ocr_area = (x2_o - x1_o) * (y2_o - y1_o)
+-    if ocr_area <= 0:
++    if ocr_area <= 1:
+         return 0.0
+
+     return intersection / ocr_area

@@ -1,0 +1,14 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_62: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -85,9 +85,7 @@
+         if total_texts > 0:
+             record_scene_ocr_texts_detected(total_texts)
+         logger.debug(
+-            f"Scene OCR completed in {result.processing_time_ms:.1f}ms: "
+-            f"{len(result.scene_texts)} scene texts, "
+-            f"{len(result.detection_ocr)} detection OCRs"
++            None
+         )
+
+         return result

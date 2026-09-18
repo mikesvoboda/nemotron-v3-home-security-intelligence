@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_99: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -73,7 +73,7 @@
+                     observe_scene_ocr_confidence(confidence)
+
+                     # Convert crop coordinates to frame coordinates
+-                    item_bbox = item.get("bbox", [0, 0, 0, 0])
++                    item_bbox = item.get("bbox", )
+                     # Florence returns quadrilateral bbox [x1,y1,...,x4,y4];
+                     # convert to axis-aligned [x1,y1,x2,y2] using min/max
+                     if len(item_bbox) == 8:

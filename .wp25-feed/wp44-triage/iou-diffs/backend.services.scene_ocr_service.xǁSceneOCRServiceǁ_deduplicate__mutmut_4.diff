@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_4: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -28,7 +28,7 @@
+     # Build detection bboxes lookup
+     detection_bboxes: dict[str, tuple[int, int, int, int]] = {}
+     for det in detections:
+-        det_id = str(det.id) if det.id else f"det_{id(det)}"
++        det_id = None
+         detection_bboxes[det_id] = det.bbox.to_int_tuple()
+
+     # Initialize detection OCR results from crop results

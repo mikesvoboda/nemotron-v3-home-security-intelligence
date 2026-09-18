@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_23: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -22,7 +22,7 @@
+     x2_i = min(x2_o, x2_d)
+     y2_i = min(y2_o, y2_d)
+
+-    if x2_i <= x1_i or y2_i <= y1_i:
++    if x2_i <= x1_i and y2_i <= y1_i:
+         return 0.0
+
+     intersection = (x2_i - x1_i) * (y2_i - y1_i)

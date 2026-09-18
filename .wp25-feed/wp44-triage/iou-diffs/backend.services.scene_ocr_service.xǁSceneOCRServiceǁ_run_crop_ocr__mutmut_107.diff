@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_107: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -76,7 +76,7 @@
+                     item_bbox = item.get("bbox", [0, 0, 0, 0])
+                     # Florence returns quadrilateral bbox [x1,y1,...,x4,y4];
+                     # convert to axis-aligned [x1,y1,x2,y2] using min/max
+-                    if len(item_bbox) == 8:
++                    if len(item_bbox) == 9:
+                         xs = [item_bbox[i] for i in range(0, 8, 2)]
+                         ys = [item_bbox[i] for i in range(1, 8, 2)]
+                         item_bbox = [min(xs), min(ys), max(xs), max(ys)]

@@ -1,472 +1,417 @@
 [
  {
-  "pattern": "det_id extraction: nested .get() key/default mutations ('id' fallback renamed/dropped, default '' -> None/'XXXX') \u2014 dicts keyed only by 'id', or lacking both id keys, never fed to analyze_depth",
-  "count": 9,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_23",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_25",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_28"
+  "cluster": "A1",
+  "keys": [
+   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_23",
+   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_23"
   ],
-  "note": "Detection with only 'id' key is silently dropped by mutants 28/32/33; mutants 23/25/29/30/31 yield det_id 'None'/'XXXX' entries \u2014 test_depth_anything_loader.py never builds such input."
+  "detail": "A1 IoU/overlap or->and sign bug"
  },
  {
-  "pattern": "class_name extraction: nested .get() mutations ('label' fallback / 'object' default broken) \u2014 fallback chain never exercised",
-  "count": 15,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_35",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_36",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_37"
+  "cluster": "A10",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_84",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_85"
   ],
-  "note": "Mutant 35 (class_name=None) survives because analyze_depth tests never assert per-detection class_name."
+  "detail": "A10 is_uncertain boundary at 0.50/0.80"
  },
  {
-  "pattern": "depth_pipeline(image) -> depth_pipeline(None): mock pipeline returns its return_value for ANY argument",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_4"
+  "cluster": "A11",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_79",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_80",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_81",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_82",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_83",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_84",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_85",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_86",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_87",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_88",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_89",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_90",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_97",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_98",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_99",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_100",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_101",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_102",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_103",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_104",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_105",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_106",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_107",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_108",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_109",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_110",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_111",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_112",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_113",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_114",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_115",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_116",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_117",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_118",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_119",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_120"
   ],
-  "note": "Only killing route: assert mock_pipeline called with the actual image object."
+  "detail": "A11 region-map side entries + tokens untested"
  },
  {
-  "pattern": "logger.error on pipeline-failure path: msg/exc_info mutations \u2014 message None / exc_info None|False still logs and re-raises unchanged",
-  "count": 4,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_10",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_11",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_13"
+  "cluster": "A12",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_93",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_34"
   ],
-  "note": "Log payload only; control flow identical."
+  "detail": "A12 0.50-equal confidence now excluded"
  },
  {
-  "pattern": "logger.error(exc_info=True) drops the positional msg argument \u2014 stdlib logging raises TypeError inside the except handler, replacing the re-raised pipeline error",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_12"
+  "cluster": "A13",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_107",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_49"
   ],
-  "note": "No test makes the depth pipeline raise, so the failure path is never entered."
+  "detail": "A13 quad-bbox reduction disabled"
  },
  {
-  "pattern": "closest-detection tracking seeds/edges: init None->'' , min_depth 1.0->2.0 (depth exactly 1.0 then claims closest), < -> <= (tie now picks LAST)",
-  "count": 3,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_17",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_19",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_99"
+  "cluster": "A14",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_88",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_89",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_67",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_69",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_71"
   ],
-  "note": "test_analyze_depth_with_detections uses strictly increasing depths, no 1.0 sample, no tie."
+  "detail": "A14 scene-text result field construction"
  },
  {
-  "pattern": "detection/bbox validation guards weakened: 'not bbox or not det_id' -> 'and' (no-id detection now stored under empty key), isinstance 'and len>=4' -> 'or' (3-tuple bbox crashes unpacking), bbox[:4] -> bbox[:5] (5-tuple bbox crashes)",
-  "count": 3,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_54",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_63",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_68"
+  "cluster": "A15",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_5",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_7",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_10",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_11",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_12",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_1",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_2"
   ],
-  "note": "Malformed-bbox path (logger.warning + skip) never fed."
+  "detail": "A15 florence_url settings-fallback / timeout contract"
  },
  {
-  "pattern": "bbox duck-typing hasattr(bbox,'to_tuple') broken \u2014 BoundingBox-like bbox objects never passed",
-  "count": 3,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_57",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_61",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_62"
+  "cluster": "A16",
+  "keys": [
+   "backend.services.scene_ocr_service.x__classify_text_type__mutmut_4",
+   "backend.services.scene_ocr_service.x__classify_text_type__mutmut_5",
+   "backend.services.scene_ocr_service.x__classify_text_type__mutmut_15"
   ],
-  "note": "Comment in source says bbox 'might be a BoundingBox object'; tests only pass tuples."
+  "detail": "A16 classify boundary: 5-digit limit / sign substring"
  },
  {
-  "pattern": "depth_sampling_method kwarg dropped when calling get_depth_at_bbox \u2014 analyze_depth always samples 'center' regardless of caller choice",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_75"
+  "cluster": "A17",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_17",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_149",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_17",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_84",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_85",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_86",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_87",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_62"
   ],
-  "note": "No analyze_depth test passes a non-default depth_sampling_method."
+  "detail": "A17 log message text/None"
  },
  {
-  "pattern": "DetectionDepth field mutations: detection_id/class_name/depth_value/proximity_label set None, is_approaching None/True \u2014 per-detection field values never asserted",
-  "count": 7,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_82",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_85",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_86"
+  "cluster": "A18",
+  "keys": [
+   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_43",
+   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_36",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_3",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_4",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_5",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_6",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_7",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_8",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_9",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_10",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_11",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_12",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_get_client__mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_23",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_29",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_30",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_31",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_125",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_126",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_130",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_131",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_139",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_140",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_142",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_143",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_147",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_148",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_1",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_2",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_3",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_77",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_78",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_82",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_83",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_41",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_45",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_46",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_47",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_48",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_52",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_53",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_54",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_55",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_57",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_58",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_60"
   ],
-  "note": "to_dict contract is tested for DetectionDepth directly but not for analyze_depth's produced records."
+  "detail": "A18 one-pixel guard tweak"
  },
  {
-  "pattern": "is_approaching=False kwarg removed \u2014 equals the dataclass default False",
-  "count": 1,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_95"
+  "cluster": "A19",
+  "keys": [
+   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_24",
+   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_25",
+   "backend.services.scene_ocr_service.x__calculate_iou__mutmut_42",
+   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_24",
+   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_25",
+   "backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_35",
+   "backend.services.scene_ocr_service.x__image_to_base64__mutmut_7",
+   "backend.services.scene_ocr_service.x__image_to_base64__mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_1",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_2",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1__init____mutmut_16",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_23",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_25",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_26",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_27",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_28",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_29",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_35",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_44",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_50",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_52",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_53",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_75",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_76",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_78",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_79",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_80",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_81",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_82",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_63",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_122",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_124",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_125",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_126",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_7",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_9",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_11",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_15",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_80",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_82",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_21",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_23",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_58",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_59"
   ],
-  "note": ""
+  "detail": "A19 degenerate/falsy-equivalent guard tweak"
  },
  {
-  "pattern": "has_close_objects mutations: in->not in, label literals case/XX-broken, ->None, kwarg removed (default False) \u2014 result.has_close_objects never asserted",
-  "count": 8,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_102",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_104",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_105"
+  "cluster": "A2",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_1",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_2",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_3",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_4",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_6",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_7",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_17",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_18",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_21",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_27"
   ],
-  "note": "104 survives scenes that contain a close object; killed only by an all-far scene."
+  "detail": "A2 region guard degenerate / arithmetic index swaps"
  },
  {
-  "pattern": "average_depth mutations: ->None, ternary guard collapsed (and False / or True), else 0.5->1.5, kwarg ->None/removed (default 0.5) \u2014 result.average_depth never asserted",
-  "count": 6,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_109",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_110",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_111"
+  "cluster": "A20",
+  "keys": [
+   "backend.services.scene_ocr_service.x__image_to_base64__mutmut_9"
   ],
-  "note": "111 (or True) differs only when depth_values is empty -> np.mean([])=nan."
+  "detail": "A20 seek(1) truncates PNG bytes (helper mocked out)"
  },
  {
-  "pattern": "depth_variance mutations: ->None, guard collapsed, >1 -> >2, else 0.0->1.0, kwarg ->None/removed \u2014 result.depth_variance never asserted",
-  "count": 7,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_115",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_116",
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_117"
+  "cluster": "A3",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_26",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_28",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_64",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_65",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_69",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_70",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_71",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_72",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_73",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_74",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_86",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_87",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_89",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_90",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_91",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_92",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_97",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_99",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_102",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_103",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_104",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_105",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_122",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_132",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_133",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_134",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_135",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_136",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_137",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_138"
   ],
-  "note": "117 (or True) differs only on empty depth_values (np.var([])=nan)."
+  "detail": "A3 crop request payload / response parse unasserted"
  },
  {
-  "pattern": "variance guard len(depth_values)>1 -> >=1 \u2014 np.var([x]) == 0.0 equals the original else-branch",
-  "count": 1,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.analyze_depth__mutmut_120"
+  "cluster": "A4",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_6",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_9",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_10",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_12",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_14",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_28",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_30",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_33",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_38",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_39",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_41",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_42",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_43",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_44",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_45",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_46",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_47",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_60",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_62",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_full_frame_ocr__mutmut_65"
   ],
-  "note": ""
+  "detail": "A4 full-frame request payload / response parse unasserted"
  },
  {
-  "pattern": "calibration_points .get default [] -> None / dropped \u2014 'if not calibration_points' early-return absorbs the difference",
-  "count": 2,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_4",
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_6"
+  "cluster": "A5",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_6",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_8",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_10",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_12",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_14",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_39",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_46",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_60",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_61",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_run_crop_ocr__mutmut_62"
   ],
-  "note": ""
+  "detail": "A5 crop class filter XX-token untested"
  },
  {
-  "pattern": "bracketing boundary comparisons <= -> < and >= -> > \u2014 at an exact calibration node linear interpolation returns that node's distance either way (piecewise-linear continuity)",
-  "count": 2,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_24",
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_29"
+  "cluster": "A7",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_4",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_5",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_6",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_7",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_8",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_12",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_14",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_15",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_16",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_17",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_22",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_31",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_64",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_65",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_66",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_67",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_68",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_69",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_70"
   ],
-  "note": "Verified by hand for interior nodes, endpoints, and out-of-range depths."
+  "detail": "A7 dedup det_id/output schema unasserted"
  },
  {
-  "pattern": "multi-point bracketing degraded: lower_point/upper_point assignments -> None, 'upper is None' once-guard -> 'is not None' \u2014 every existing test uses 2-point calibration where the fallback pair equals the true bracket",
-  "count": 4,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_25",
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_26",
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_30"
+  "cluster": "A8",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_41",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_47",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_52",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_54",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_55",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_56",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_58",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_60",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_61",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_determine_region__mutmut_62"
   ],
-  "note": "Needs 3+ calibration points with depth in the last (or a non-first) segment."
+  "detail": "A8 region 33/66 boundary tokens"
  },
  {
-  "pattern": "below-range extrapolation picks points[1] twice -> depth_range==0 -> returns wrong point's distance instead of extrapolated value",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_34"
+  "cluster": "A9",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_42",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_45",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_46",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_60",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_62",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1_deduplicate__mutmut_63"
   ],
-  "note": "No test calls depth_to_feet with depth below the first calibration point."
+  "detail": "A9 dedup IoU boundary >= -> >"
  },
  {
-  "pattern": "'elif upper_point is None' -> 'is not None' \u2014 depth above the calibration range dereferences None (TypeError) instead of extrapolating",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_36"
+  "cluster": "B3",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_13",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_16",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_17"
   ],
-  "note": "No above-range call exists in tests."
+  "detail": "B3 return_exceptions contract"
  },
  {
-  "pattern": "clamp floor max(0.1, result) -> max(1.1, result)",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.depth_to_feet__mutmut_69"
+  "cluster": "B4",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_6",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_7",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_8",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_9"
   ],
-  "note": "Killed by any expected distance in (0.1, 1.1); e.g. below-range 0.1 floor."
+  "detail": "B4 process_frame call-arg mangling"
  },
  {
-  "pattern": "method kwarg dropped when calling get_depth_at_bbox \u2014 method pass-through untested",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.estimate_relative_distances__mutmut_6"
+  "cluster": "B5",
+  "keys": [
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_30",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_31",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_32",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_33",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_37",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_39",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_40",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_42",
+   "backend.services.scene_ocr_service.x\u01c1SceneOCRService\u01c1process_frame__mutmut_43"
   ],
-  "note": "test_estimate_relative_distances only exercises method='center'."
- },
- {
-  "pattern": "length-mismatch warning inverted ( != -> == ) / warning msg -> None \u2014 logging-only",
-  "count": 2,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.format_depth_for_nemotron__mutmut_7",
-   "backend.services.depth_anything_loader.format_depth_for_nemotron__mutmut_8"
-  ],
-  "note": "test_format_depth_for_nemotron_mismatched_lengths asserts output text, not the warning."
- },
- {
-  "pattern": "zip strict=False -> None / kwarg removed \u2014 falsy and default are identical",
-  "count": 2,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.format_depth_for_nemotron__mutmut_12",
-   "backend.services.depth_anything_loader.format_depth_for_nemotron__mutmut_15"
-  ],
-  "note": ""
- },
- {
-  "pattern": "early-return guard 'not detections or not depth_values' -> 'and' \u2014 one-empty partial input returns 'Spatial context: ' instead of the sentinel",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.format_depth_for_nemotron__mutmut_1"
-  ],
-  "note": ""
- },
- {
-  "pattern": "early-return guard 'or' -> 'and'",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.format_depth_for_nemotron_with_distances__mutmut_1"
-  ],
-  "note": ""
- },
- {
-  "pattern": "min-count 'count' arg removals and zip strict mutations \u2014 slicing to min then zip-shortest is provably identical output; post-slice lists are equal length so strict=True is inert",
-  "count": 7,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.format_depth_for_nemotron_with_distances__mutmut_4",
-   "backend.services.depth_anything_loader.format_depth_for_nemotron_with_distances__mutmut_8",
-   "backend.services.depth_anything_loader.format_depth_for_nemotron_with_distances__mutmut_9"
-  ],
-  "note": ""
- },
- {
-  "pattern": "class_name fallback mutations (key case, 'label'->None/wrong key, 'object' default -> None/'OBJECT'/'XXobjectXX') \u2014 with_distances has no fallback test at all; format_depth_for_nemotron's 'object' assert is a substring match that 'XXobjectXX' satisfies",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.Nemotron formatters__mutmut_30"
-  ],
-  "note": "FM:30 only; WD: 26,28,31-38"
- },
- {
-  "pattern": "prompt prefix / join-separator literal mutations pass loose membership asserts ('Spatial context:' inside 'XXSpatial context: XX') \u2014 formatter output is product-facing LLM prompt text",
-  "count": 2,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.Nemotron formatters__mutmut_36",
-   "backend.services.depth_anything_loader.Nemotron formatters__mutmut_40"
-  ],
-  "note": "FM:36,40; WD:46,47,48,50"
- },
- {
-  "pattern": "shape[:2] -> shape[:3] \u2014 2-D contract means the slice still unpacks (h, w)",
-  "count": 1,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_3"
-  ],
-  "note": ""
- },
- {
-  "pattern": "upper clamp w-1 -> w+1 / h-1 -> h+1 \u2014 any bbox with x1/h1 beyond the image lands in the invalid-bbox 0.5 branch under both original and mutant",
-  "count": 2,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_15",
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_28"
-  ],
-  "note": "x2/y2 clamp is untouched, so mutant x1 (>= w+1) > x2 (<= w-1) always invalid; original x1=w-1 >= x2 also invalid."
- },
- {
-  "pattern": "upper clamp w-1 -> w-2 / h-1 -> h-2 \u2014 a bbox touching the last column/row (e.g. x1=w-1) samples a real region under the mutant but hits the 0.5 sentinel originally",
-  "count": 2,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_16",
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_29"
-  ],
-  "note": ""
- },
- {
-  "pattern": "x2/y2 lower clamp 0 -> 1 \u2014 a bbox fully off the left/top edge returns an edge-pixel depth instead of the 0.5 sentinel",
-  "count": 2,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_35",
-   "backend.services.depth_anything_loader.get_depth_at_bbox__mutmut_48"
-  ],
-  "note": ""
- },
- {
-  "pattern": "shape[:2] -> shape[:3] \u2014 2-D contract",
-  "count": 1,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.get_depth_at_point__mutmut_2"
-  ],
-  "note": ""
- },
- {
-  "pattern": "logger.info/warning/error message and exc_info/extra mutations \u2014 log payloads only, control flow and raised exceptions unchanged",
-  "count": 19,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_6",
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_11",
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_12"
-  ],
-  "note": "No test captures log records (caplog unused in this module)."
- },
- {
-  "pattern": "is_local = Path(model_path).is_dir() -> None \u2014 the local-directory branch (explicit AutoImageProcessor/AutoModelForDepthEstimation.from_pretrained, the code that exists specifically to dodge huggingface_hub repo-id errors) is never taken in tests",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_15"
-  ],
-  "note": "Both existing success tests pass a fake non-dir path."
- },
- {
-  "pattern": "CUDA-guard / ImportError exception message case and XX mutations \u2014 substring match('requires a CUDA GPU' / 'Depth Anything V2 requires transformers and torch') still passes; diagnostic prose text",
-  "count": 4,
-  "classification": "LOW-VALUE",
-  "example_keys": [
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_3",
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_33",
-   "backend.services.depth_anything_loader.load_depth_model__mutmut_34"
-  ],
-  "note": ""
- },
- {
-  "pattern": ".get('depth', default) default -> None/dropped \u2014 a dict without 'depth' raises TypeError via np.array in original AND mutant; unassertable difference",
-  "count": 2,
-  "classification": "LOW-VALUE",
-  "example_keys": [
-   "backend.services.depth_anything_loader.normalize_depth_map__mutmut_9",
-   "backend.services.depth_anything_loader.normalize_depth_map__mutmut_11"
-  ],
-  "note": ""
- },
- {
-  "pattern": "PIL-detection hasattr 'convert' broken/renamed \u2014 the PIL branch and the fall-through branch execute the identical np.array(depth_data, dtype=float32)",
-  "count": 3,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.normalize_depth_map__mutmut_15",
-   "backend.services.depth_anything_loader.normalize_depth_map__mutmut_19",
-   "backend.services.depth_anything_loader.normalize_depth_map__mutmut_20"
-  ],
-  "note": "ndarray inputs still route to the astype branch in all variants."
- },
- {
-  "pattern": "'max_val - min_val > 0' -> '> 1' \u2014 any depth map whose raw range is <=1 (typical for already-scaled maps) is returned as an all-zeros map",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.normalize_depth_map__mutmut_27"
-  ],
-  "note": "Existing tests use range-100 and uniform-50 inputs only; analyze_depth tests feed 0.1-0.7 maps but assert only closest_detection_id (all-zeros map preserves the first-winner)."
- },
- {
-  "pattern": "zip strict=True -> None/False/kwarg removed \u2014 the explicit length check above guarantees equal lengths, so strict is unreachable",
-  "count": 3,
-  "classification": "EQUIVALENT",
-  "example_keys": [
-   "backend.services.depth_anything_loader.rank_detections_by_proximity__mutmut_10",
-   "backend.services.depth_anything_loader.rank_detections_by_proximity__mutmut_13",
-   "backend.services.depth_anything_loader.rank_detections_by_proximity__mutmut_14"
-  ],
-  "note": ""
- },
- {
-  "pattern": "ValueError message XX-wrapped \u2014 pytest.raises(match='Detection and depth value counts must match') substring still matches",
-  "count": 1,
-  "classification": "LOW-VALUE",
-  "example_keys": [
-   "backend.services.depth_anything_loader.rank_detections_by_proximity__mutmut_3"
-  ],
-  "note": ""
- },
- {
-  "pattern": "output keys 'average_depth'/'depth_variance' renamed or case-changed \u2014 test_depth_analysis_result_to_dict asserts only detection_depths/closest_detection_id/has_close_objects",
-  "count": 4,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.DepthAnalysisResult.to_dict__mutmut_7",
-   "backend.services.depth_anything_loader.DepthAnalysisResult.to_dict__mutmut_8",
-   "backend.services.depth_anything_loader.DepthAnalysisResult.to_dict__mutmut_9"
-  ],
-  "note": "Downstream JSON consumers read these keys."
- },
- {
-  "pattern": "depth sort key removed (key=None / kwarg dropped) \u2014 line order silently switches from depth-ordered to detection-id-ordered; no ordering assertion exists",
-  "count": 2,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.to_context_string__mutmut_11",
-   "backend.services.depth_anything_loader.to_context_string__mutmut_13"
-  ],
-  "note": "key=None sorts the (id, DetectionDepth) tuples by id (dataclass is not order=True, so equal ids would TypeError \u2014 never reached because ids differ)."
- },
- {
-  "pattern": "risk_note default '' -> None / 'XXXX' \u2014 every no-risk line gains literal 'None'/'XXXX' garbage; membership asserts never notice",
-  "count": 2,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.to_context_string__mutmut_16",
-   "backend.services.depth_anything_loader.to_context_string__mutmut_17"
-  ],
-  "note": ""
- },
- {
-  "pattern": "line joiner '\\n' -> 'XX\\nXX' \u2014 multi-line layout carries literal XX between lines; no structural (line-by-line) assertion exists",
-  "count": 1,
-  "classification": "TEST-GAP",
-  "example_keys": [
-   "backend.services.depth_anything_loader.to_context_string__mutmut_36"
-  ],
-  "note": ""
- },
- {
-  "pattern": "header / risk-marker / blank-summary-line literal XX-wrapped \u2014 substring asserts ('Spatial depth analysis:', 'CLOSE TO CAMERA') still match inside the wrapper; prompt cosmetics",
-  "count": 4,
-  "classification": "LOW-VALUE",
-  "example_keys": [
-   "backend.services.depth_anything_loader.to_context_string__mutmut_6",
-   "backend.services.depth_anything_loader.to_context_string__mutmut_22",
-   "backend.services.depth_anything_loader.to_context_string__mutmut_25"
-  ],
-  "note": ""
+  "detail": "B5 service-matcher wiring unasserted"
  }
 ]

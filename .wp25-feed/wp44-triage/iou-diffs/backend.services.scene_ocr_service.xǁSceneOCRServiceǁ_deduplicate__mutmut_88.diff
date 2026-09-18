@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_88: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -104,7 +104,7 @@
+             scene_texts.append(
+                 SceneTextResult(
+                     value=frame_ocr.text,
+-                    confidence=frame_ocr.confidence,
++                    confidence=None,
+                     bbox=frame_ocr.bbox,
+                     text_type=_classify_text_type(frame_ocr.text),
+                     is_uncertain=is_uncertain,

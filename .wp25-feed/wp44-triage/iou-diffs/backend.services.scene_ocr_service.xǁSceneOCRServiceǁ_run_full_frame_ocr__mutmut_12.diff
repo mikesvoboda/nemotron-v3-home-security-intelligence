@@ -1,0 +1,15 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_12: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -17,10 +17,7 @@
+
+         response = await client.post(
+             f"{self.florence_url}/ocr-with-regions",
+-            json={
+-                "image": image_base64,
+-            },
+-        )
++            )
+
+         if response.status_code != 200:
+             logger.warning(f"Full-frame OCR request failed: HTTP {response.status_code}")

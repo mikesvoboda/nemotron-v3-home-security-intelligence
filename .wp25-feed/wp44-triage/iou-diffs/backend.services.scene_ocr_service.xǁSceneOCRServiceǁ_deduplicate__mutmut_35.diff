@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_35: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -52,7 +52,7 @@
+     # Process frame results
+     for frame_ocr in frame_results:
+         # Check for duplicates against crop results (IoU > 70%)
+-        is_duplicate = False
++        is_duplicate = None
+         for _det_id, crop_ocr_list in crop_results.items():
+             for crop_ocr in crop_ocr_list:
+                 iou = _calculate_iou(frame_ocr.bbox, crop_ocr.bbox)

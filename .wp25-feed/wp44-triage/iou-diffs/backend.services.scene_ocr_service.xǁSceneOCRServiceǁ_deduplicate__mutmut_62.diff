@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_62: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -82,7 +82,7 @@
+             overlap = _calculate_overlap_ratio(frame_ocr.bbox, det_bbox)
+             if overlap > best_overlap:
+                 best_overlap = overlap
+-                best_det_id = det_id
++                best_det_id = None
+
+         if best_det_id:
+             # Associate with detection

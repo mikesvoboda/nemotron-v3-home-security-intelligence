@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_41: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -58,7 +58,7 @@
+                 # Use the highest confidence match
+                 det_ocr.service_match = max(matches, key=lambda m: m.confidence)
+                 # Record provider match metric
+-                record_scene_ocr_provider_match(det_ocr.service_match.category)
++                record_scene_ocr_provider_match(None)
+
+         # Also check scene texts for service providers
+         for scene_text in result.scene_texts:

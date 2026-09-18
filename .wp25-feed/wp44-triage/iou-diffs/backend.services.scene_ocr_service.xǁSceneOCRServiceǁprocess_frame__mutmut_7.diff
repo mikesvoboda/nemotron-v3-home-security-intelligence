@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_7: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -27,7 +27,7 @@
+     try:
+         # Run full-frame and crop OCR in parallel
+         frame_task = self._run_full_frame_ocr(image)
+-        crop_task = self._run_crop_ocr(image, detections)
++        crop_task = self._run_crop_ocr(image, None)
+
+         frame_results, crop_results = await asyncio.gather(
+             frame_task,
