@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁget_stream_info__mutmut_79: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -32,7 +32,7 @@
+         if "no such key" in str(e).lower():
+             return {
+                 "length": 0,
+-                "radix_tree_keys": 0,
++                "radix_tree_keys": 1,
+                 "radix_tree_nodes": 0,
+                 "groups": 0,
+                 "last_entry_id": "",

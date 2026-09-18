@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_43: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -62,7 +62,7 @@
+ 
+         # Also check scene texts for service providers
+         for scene_text in result.scene_texts:
+-            match = self.service_matcher.match(scene_text.value)
++            match = self.service_matcher.match(None)
+             if match:
+                 # If scene text matches a service provider, it might belong to
+                 # a detection we missed - log for debugging

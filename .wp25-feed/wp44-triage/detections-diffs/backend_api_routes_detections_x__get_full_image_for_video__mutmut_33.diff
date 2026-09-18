@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_video__mutmut_33: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -35,7 +35,7 @@
+         return Response(
+             content=image_data,
+             media_type="image/jpeg",
+-            headers={"Cache-Control": "public, max-age=3600"},
++            headers={"Cache-Control": "PUBLIC, MAX-AGE=3600"},
+         )
+     except HTTPException:
+         raise

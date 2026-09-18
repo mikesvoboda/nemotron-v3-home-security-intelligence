@@ -1,0 +1,19 @@
+Goal: Complete the test-platform program Phase 3→4 on feat/phase3 in the resized sandbox. READ .wp25-feed/HANDOFF-WP43.md FIRST, entirely — it is the migration ground truth (what landed, boot verification, run-restart recipe, close-out order, dead-on-arrival ideas). Spine: restart the mutation run at the new size, land WP4.3's first honest baseline, then run the WP4.4 verification lane.
+
+Paths: PLAN=docs/superpowers/plans/2026-09-15-test-platform-improvement.md; SPEC=docs/superpowers/specs/2026-09-15-test-platform-improvement-design.md; L=docs/plans/2026-09-12-context-map-doc-updates.md = LEDGER, ground truth. Every MEASURE number and DECIDE rationale lands in L's row format AND the commit body. One WP per commit (WP4.3 close-out completes pushed WIP 99829f9c; WP4.4 separate).
+
+S1 boot: verify per HANDOFF §1. nproc is the resize arbiter. Postgres/redis are HOST processes — containers never work here (/dev/fuse absent). If uv sync ran, uv pip install pre-commit before any commit. Re-append TEST_* exports from .wp25-feed/sandbox-persistent-exports.txt. Push via the one-shot credential helper; auto-rebase + force-with-lease sequence is documented.
+
+S2 restart the mutation run FIRST (HANDOFF §2): MUTMAX=nproc-4, NEVER =nproc — the 120s wall-clock timeout counts as KILLED, saturation inflates the baseline silently. Verdicts are durable under mutants/ (gitignored, mounted tree): ~19 min regeneration + hash-merge restores 24k+ checked, resumes unchecked-only. Arm the exit watcher. EVERY status update to the owner carries run % + ETA, recomputed with scripts/.eta.py, not vibes.
+
+S3 WP4.3 close-out (HANDOFF §3, strict order): scorer JSON → fill <BASELINE> in .wp25-feed/commit-wp43.txt + ledger-wp43-draft.md, touch triage numbers to final state → full ./scripts/validate.sh (box free) → append ledger into L, prettier fixed-point → ONE commit + push → CI green.
+
+S4 WP4.4 (HANDOFF §4): serial verification lane through .wp25-feed/wp44-queue-index.md — a drafted test enters the tree ONLY red-on-mutant → green-on-original → killed; no deletion without an EQUIVALENT/LOW-VALUE record; triage the un-crossed ~145 modules from the FINAL score JSON with the same wave machinery.
+
+S5 during any long tier: uv run python scripts/.new-stable.py (tree ledger .wp25-feed/triage-waves/dispatched.txt is canonical) + dispatch .wp25-feed/wp44-triage-workflow.js read-only drafting waves (args.modules; dossiers to /tmp, drafts UNVERIFIED; sync /tmp/wp25/wp44-triage → .wp25-feed after each wave). Close Linear via /linear-python at program end; skill absent here → disclose in the final report.
+
+Hard rules. TDD: failing test first. ONE heavy pytest/mutmut job at a time — a concurrent run voids the summary and collides on security_test_gwN; integration pytest only -n0 and only when no tier is live; vitest only when pytest doesn't own the box; standalone pytest needs --randomly-seed=N. Validate with ./scripts/validate.sh. NEVER --no-verify or SKIP=. Floors 85%/83% — never lower to pass. Never widen quarantine/allowlists to pass a gate; never scope a tree out of one. Align tests to the SHIPPED contract, never bend production. Trap: SetupGuard caches "no users" 60s → same-worker integration tests 503 after api_protection TRUNCATEs. Trap: git clean -xdf destroys untracked-and-precious mutants/ and .wp25-feed/.
+
+STOP AND ASK: WP3.6 (GB300 runner trust boundary); any pyproject edit outside a WP's named files; owner rulings R-T9-EXPORTDEFER/MQTTPUMP/MVSOURCE; any claimed need for a container; any proposal to change mutmut's scoring/classification semantics (badge math, timeout=killed, not_checked counts).
+
+DONE = completed mutation run (progress.completed=true) with the baseline in L + commit; WP4.3 pushed, CI green; WP4.4 drafts killed or recorded equivalent/low-value; all MEASURE/DECIDE in L; Linear updated.

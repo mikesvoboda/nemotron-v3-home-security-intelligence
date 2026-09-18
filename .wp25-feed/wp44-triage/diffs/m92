@@ -1,0 +1,13 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_92: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -48,8 +48,7 @@
+                 clothing_description=raw_desc if raw_desc else None,
+                 action=None,  # Action not in clothing classification
+                 carrying=carrying_list,
+-                is_suspicious=cc.get("is_suspicious", False),
+-            )
++                )
+ 
+     # Extract pet data using typed model
+     pet: PetEnrichmentData | None = None

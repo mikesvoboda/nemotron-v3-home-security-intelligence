@@ -1,0 +1,210 @@
+[ 14] x_build_person_analysis_section  L[3805]
+      LINE: clothing_suspicious = getattr(clothing, "is_suspicious", False)
+      MUTS: Fals->Non; Fals->Tru; False->; clothing->None; getattr(clothing, ->None; is_suspicious->IS_SUSPICIOUS; is_suspicious->XXis_suspiciousXX
+[ 14] x_check_member_schedule  L[3178]
+      LINE: day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+      MUTS: friday->FRIDAY; friday->XXfridayXX; monday->MONDAY; monday->XXmondayXX; saturday->SATURDAY; saturday->XXsaturdayXX; sunday->SUNDAY; sunday->XXsundayXX ...
+[  8] x_build_person_analysis_section  L[3803]
+      LINE: [f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]
+      MUTS: 'confidence'->None; 0->; 0->1; 0->None; c->; c->None; confidence->CONFIDENCE; confidence->XXconfidenceXX
+[  8] x_build_person_analysis_section  L[3820]
+      LINE: clothing_suspicious = clothing.get("is_suspicious", False)
+      MUTS: "is_suspicious", ->; "is_suspicious"->None; Fals->Non; Fals->Tru; False->; clothing.get("is_s->None; is_suspicious->IS_SUSPICIOUS; is_suspicious->XXis_suspiciousXX
+[  8] x_format_clip_analysis_context  L[1291]
+      LINE: scene_scores = getattr(enrichment_result, "clip_scene_classification", None)
+      MUTS: "clip_scene_classi->; "clip_scene_classi->None; None->; clip_scene_classif->CLIP_SCENE_CLASSIF; clip_scene_classif->XXclip_scene_class; enrichment_result,->; enrichment_result->None; getattr(enrichment->None
+[  8] x_format_clip_analysis_context  L[1292]
+      LINE: scene_top = getattr(enrichment_result, "clip_scene_top_label", None)
+      MUTS: "clip_scene_top_la->; "clip_scene_top_la->None; None->; clip_scene_top_lab->CLIP_SCENE_TOP_LAB; clip_scene_top_lab->XXclip_scene_top_l; enrichment_result,->; enrichment_result->None; getattr(enrichment->None
+[  8] x_format_clip_analysis_context  L[1297]
+      LINE: threat_matches = getattr(enrichment_result, "clip_threat_matches", None)
+      MUTS: "clip_threat_match->; "clip_threat_match->None; None->; clip_threat_matche->CLIP_THREAT_MATCHE; clip_threat_matche->XXclip_threat_matc; enrichment_result,->; enrichment_result->None; getattr(enrichment->None
+[  8] x_format_clip_analysis_context  L[1302]
+      LINE: anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)
+      MUTS: "clip_anomaly_scor->; "clip_anomaly_scor->None; None->; clip_anomaly_score->CLIP_ANOMALY_SCORE; clip_anomaly_score->XXclip_anomaly_sco; enrichment_result,->; enrichment_result->None; getattr(enrichment->None
+[  8] x_format_clip_analysis_context  L[1303]
+      LINE: anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)
+      MUTS: "clip_anomaly_simi->; "clip_anomaly_simi->None; None->; clip_anomaly_simil->CLIP_ANOMALY_SIMIL; clip_anomaly_simil->XXclip_anomaly_sim; enrichment_result,->; enrichment_result->None; getattr(enrichment->None
+[  8] x_format_florence_scene_context  L[4173]
+      LINE: high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}
+      MUTS: gun->GUN; gun->XXgunXX; knife->KNIFE; knife->XXknifeXX; tool->TOOL; tool->XXtoolXX; weapon->WEAPON; weapon->XXweaponXX
+[  8] x_format_pose_scene_conflict_warning  L[1589]
+      LINE: scene_keywords = ["sitting", "standing", "walking", "running", "lying"]
+      MUTS: lying->LYING; lying->XXlyingXX; running->RUNNING; running->XXrunningXX; standing->STANDING; standing->XXstandingXX; walking->WALKING; walking->XXwalkingXX
+[  7] x_build_person_analysis_section  L[3827]
+      LINE: - Suspicious attire: {"YES" if clothing_suspicious else "No"}"""
+      MUTS: N->n; No->XXNoXX; YES->XXYESXX; YES->yes; clothing_suspiciou->(clothing_suspicio; o->O
+[  7] x__collect_detection_ids_from_enrichment  L[2299]
+      LINE: detection_ids[det_id] = "vehicle"
+      MUTS: "vehicle"->None; vehicle->VEHICLE; vehicle->XXvehicleXX
+[  6] x_build_person_analysis_section  L[3782]
+      LINE: pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")
+      MUTS: crawling->CRAWLING; crawling->XXcrawlingXX; lying->LYING; lying->XXlyingXX
+[  6] x_build_person_analysis_section  L[3814]
+      LINE: f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"
+      MUTS: 0->; 0->1; 0->None; c->None; str(c)->; str(c)->None
+[  6] x__collect_detection_ids_from_enrichment  L[2292]
+      LINE: for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:
+      MUTS: clothing_segmentat->CLOTHING_SEGMENTAT; clothing_segmentat->XXclothing_segment; enrichment_result->None; or->and; {}->; {}->None
+[  6] x__collect_detection_ids_from_enrichment  L[2298]
+      LINE: for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:
+      MUTS: enrichment_result->None; or->and; vehicle_classifica->VEHICLE_CLASSIFICA; vehicle_classifica->XXvehicle_classifi; {}->; {}->None
+[  6] x__collect_detection_ids_from_enrichment  L[2300]
+      LINE: for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:
+      MUTS: enrichment_result->None; or->and; vehicle_damage->VEHICLE_DAMAGE; vehicle_damage->XXvehicle_damageXX; {}->; {}->None
+[  6] x__collect_detection_ids_from_enrichment  L[2304]
+      LINE: pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}
+      MUTS: enrichment_result->None; or->and; pet_classification->PET_CLASSIFICATION; pet_classification->XXpet_classificati; {}->; {}->None
+[  6] x_format_enhanced_clothing_context  L[4077]
+      LINE: susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)
+      MUTS: "suspicious attire->; "suspicious attire->None; isinstance(susp, d->(isinstance(susp, ; susp->None; suspicious attire->SUSPICIOUS ATTIRE; suspicious attire->XXsuspicious attir
+[  6] x_format_enhanced_clothing_context  L[4091]
+      LINE: deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)
+      MUTS: "delivery uniform"->; "delivery uniform"->None; deliv->None; delivery uniform->DELIVERY UNIFORM; delivery uniform->XXdelivery uniform; isinstance(deliv, ->(isinstance(deliv,
+[  6] x_format_enhanced_clothing_context  L[4104]
+      LINE: top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)
+      MUTS: "utility worker"->; "utility worker"->None; isinstance(util, d->(isinstance(util, ; util->None; utility worker->UTILITY WORKER; utility worker->XXutility workerXX
+[  6] x_format_enhanced_clothing_context  L[4117]
+      LINE: carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)
+      MUTS: "carrying item"->; "carrying item"->None; carry->None; carrying item->CARRYING ITEM; carrying item->XXcarrying itemXX; isinstance(carry, ->(isinstance(carry,
+[  6] x_format_enhanced_clothing_context  L[4125]
+      LINE: casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)
+      MUTS: "casual attire"->; "casual attire"->None; casual attire->CASUAL ATTIRE; casual attire->XXcasual attireXX; casual->None; isinstance(casual,->(isinstance(casual
+[  6] x_format_detections_with_all_enrichment  L[1436]
+      LINE: confidences = getattr(seg, "coverage_percentages", {}) or {}
+      MUTS: coverage_percentag->COVERAGE_PERCENTAG; coverage_percentag->XXcoverage_percent; getattr(seg, "cove->None; or->and; seg->None; {}->None
+[  6] x__format_violence_section  L[3477]
+      LINE: confidence = getattr(violence_result, "confidence", 0.0)
+      MUTS: 0->1; 0.0->; 0.0->None; confidence->CONFIDENCE; confidence->XXconfidenceXX; violence_result->None
+[  6] x__format_violence_section  L[1337]
+      LINE: violent_score = getattr(violence_result, "violent_score", 0.0)
+      MUTS: 0->1; 0.0->; 0.0->None; violence_result->None; violent_score->VIOLENT_SCORE; violent_score->XXviolent_scoreXX
+[  6] x__format_violence_section  L[3479]
+      LINE: non_violent_score = getattr(violence_result, "non_violent_score", 0.0)
+      MUTS: 0->1; 0.0->; 0.0->None; non_violent_score->NON_VIOLENT_SCORE; non_violent_score->XXnon_violent_scor; violence_result->None
+[  5] x__collect_detection_ids_from_enrichment  L[2291]
+      LINE: detection_ids[det_id] = "person"
+      MUTS: "person"->None; person->PERSON; person->XXpersonXX
+[  5] x__collect_detection_ids_from_enrichment  L[2294]
+      LINE: for det_id in getattr(enrichment_result, "pose_results", {}) or {}:
+      MUTS: enrichment_result->None; or->and; pose_results->POSE_RESULTS; pose_results->XXpose_resultsXX; {}->None
+[  5] x__collect_detection_ids_from_enrichment  L[2307]
+      LINE: animal_type = getattr(pet, "animal_type", None)
+      MUTS: None->; animal_type->ANIMAL_TYPE; animal_type->XXanimal_typeXX; getattr(pet, "anim->None; pet->None
+[  5] x_format_detections_with_all_enrichment  L[2377]
+      LINE: quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None
+      MUTS: ->=; 0->1; _compute_confidenc->; confidence > 0->(confidence > 0) a; confidence > 0->(confidence > 0) o
+[  5] x_format_clothing_analysis_context  L[1436]
+      LINE: confidences = getattr(seg, "coverage_percentages", {}) or {}
+      MUTS: coverage_percentag->COVERAGE_PERCENTAG; coverage_percentag->XXcoverage_percent; or->and; seg->None; {}->None
+[  5] x_format_clothing_analysis_context  L[1448]
+      LINE: return "\n\n".join(lines) if lines else "Clothing analysis: No results"
+      MUTS: Clothing analysis:->XXClothing analysi; Clothing analysis:->clothing analysis:; \n\n->XX\n\nXX; lines->(lines) or True; lothing analysis: ->LOTHING ANALYSIS: 
+[  5] x_build_vehicle_section  L[3986]
+      LINE: v_confidence = float(v.get("confidence") or 0.0)
+      MUTS: "confidence"->None; 0->1; confidence->CONFIDENCE; confidence->XXconfidenceXX; or->and
+[  5] x_build_enrichment_sections  L[3656]
+      LINE: getattr(enrichment_result, "clothing_segmentation", None),
+      MUTS: None->; clothing_segmentat->CLOTHING_SEGMENTAT; clothing_segmentat->XXclothing_segment; enrichment_result->None; getattr(enrichment->None
+[  4] x_build_person_analysis_section  L[3784]
+      LINE: pose_class = pose.get("pose_class", pose.get("classification", "unknown"))
+      MUTS: "unknown"->; "unknown"->None; unknown->UNKNOWN; unknown->XXunknownXX
+[  4] x_format_confidence_quality_summary  L[4488]
+      LINE: conf = det.get("confidence")
+      MUTS: "confidence"->None; confidence->CONFIDENCE; confidence->XXconfidenceXX; det.get("confidenc->None
+[  4] x_format_confidence_quality_summary  L[4489]
+      LINE: if conf is None or conf <= 0:
+      MUTS: ->not ; 0->1; =->; or->and
+[  4] x_format_confidence_quality_summary  L[4508]
+      LINE: lines = ["## Detection Confidence Quality"]
+      MUTS: ## Detection Confi->XX## Detection Con; Detection Confiden->detection confiden; ["## Detection Con->None; etection Confidenc->ETECTION CONFIDENC
+[  4] x__collect_detection_ids_from_enrichment  L[2308]
+      LINE: detection_ids[det_id] = animal_type or "animal"
+      MUTS: animal->ANIMAL; animal->XXanimalXX; animal_type or "an->None; or->and
+[  4] x_format_detections_with_all_enrichment  L[2371]
+      LINE: raw_class_name = det.get("class_name", det.get("object_type", "unknown"))
+      MUTS: "unknown"->; "unknown"->None; unknown->UNKNOWN; unknown->XXunknownXX
+[  4] x_format_detections_with_all_enrichment  L[2378]
+      LINE: quality_label = f" {quality_tier.value.upper()}" if quality_tier else ""
+      MUTS: ->XXXX; f" {quality_tier.v->None; quality_tier->(quality_tier) and; upp->low
+[  4] x_format_florence_scene_context  L[4179]
+      LINE: dense_captions = florence_result.get("dense_captions")
+      MUTS: "dense_captions"->None; dense_captions->DENSE_CAPTIONS; dense_captions->XXdense_captionsXX; florence_result.ge->None
+[  4] x_format_florence_scene_context  L[4199]
+      LINE: phrase_grounding = florence_result.get("phrase_grounding")
+      MUTS: "phrase_grounding"->None; florence_result.ge->None; phrase_grounding->PHRASE_GROUNDING; phrase_grounding->XXphrase_grounding
+[  4] x_format_florence_scene_context  L[4212]
+      LINE: region_descs = florence_result.get("region_descriptions")
+      MUTS: "region_descriptio->None; florence_result.ge->None; region_description->REGION_DESCRIPTION; region_description->XXregion_descripti
+[  4] x_format_florence_scene_context  L[4224]
+      LINE: security_vqa = florence_result.get("security_vqa")
+      MUTS: "security_vqa"->None; florence_result.ge->None; security_vqa->SECURITY_VQA; security_vqa->XXsecurity_vqaXX
+[  4] x__build_tracking_narratives  L[2931]
+      LINE: prev_camera = getattr(match_entity, "camera_id", "unknown camera")
+      MUTS: "unknown camera"->; "unknown camera"->None; unknown camera->UNKNOWN CAMERA; unknown camera->XXunknown cameraXX
+[  4] x__build_tracking_narratives  L[2963]
+      LINE: movement_str = f" Movement pattern: {movement}." if movement else ""
+      MUTS: ->XXXX; f" Movement patter->None; movement->(movement) and Fal; movement->(movement) or True
+[  4] x_check_member_schedule  L[3184]
+      LINE: elif is_sunday and "sunday" in typical_schedule:
+      MUTS: ->not ; and->or; sunday->SUNDAY; sunday->XXsundayXX
+[  4] x_format_camera_health_context  L[2024]
+      LINE: change_type = getattr(recent, "change_type", "unknown")
+      MUTS: "unknown"->; "unknown"->None; unknown->UNKNOWN; unknown->XXunknownXX
+[  4] x_build_threat_section  L[3936]
+      LINE: threat_type = str(getattr(t, "threat_type", "unknown"))
+      MUTS: "unknown"->; "unknown"->None; unknown->UNKNOWN; unknown->XXunknownXX
+[  4] x_build_threat_section  L[3937]
+      LINE: severity = str(getattr(t, "severity", "high"))
+      MUTS: "high"->; "high"->None; high->HIGH; high->XXhighXX
+[  4] x_format_household_context  L[3306]
+      LINE: base_risk = 5 if match.similarity > 0.9 else 15
+      MUTS: ->=; 0->1; 5->6; match.similarity >->(match.similarity 
+[  4] x_format_action_recognition_context  L[1653]
+      LINE: confidence = action.get("confidence", 0.0) if isinstance(action, dict) else 0.0
+      MUTS: 0->1; 0.0->; 0.0->None
+[  4] x_format_violence_context  L[1333]
+      LINE: tier = getattr(violence_result, "confidence_tier", None)
+      MUTS: confidence_tier->CONFIDENCE_TIER; confidence_tier->XXconfidence_tierX; getattr(violence_r->None; violence_result->None
+[  4] x_format_scene_context  L[662]
+      LINE: last_space = caption.rfind(" ", 0, truncate_at)
+      MUTS:  ->XX XX; 0->1; 0->None; r->
+[  4] x__format_pet_section  L[3601]
+      LINE: k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) > 0.85
+      MUTS: ->=; 0->1; 0.0->; 0.0->None
+[  3] x_build_person_analysis_section  L[3785]
+      LINE: pose_confidence = pose.get("pose_confidence", pose.get("confidence", 0.0))
+      MUTS: 0->1; 0.0->; 0.0->None
+[  3] x_build_person_analysis_section  L[3806]
+      LINE: elif hasattr(clothing, "raw_description"):
+      MUTS: clothing->None; raw_description->RAW_DESCRIPTION; raw_description->XXraw_descriptionX
+[  3] x_build_person_analysis_section  L[3810]
+      LINE: categories = clothing.get("categories", [])[:3]
+      MUTS: 3->4; []->; []->None
+[  3] x_build_person_analysis_section  L[3819]
+      LINE: categories_str = ", ".join(str(c) for c in categories) if categories else "unknown"
+      MUTS: categories->(categories) or Tr; unknown->UNKNOWN; unknown->XXunknownXX
+[  3] x_build_person_analysis_section  L[3861]
+      LINE: is_suspicious = bool(getattr(action, "is_suspicious", False))
+      MUTS: Fals->Non; Fals->Tru; False->
+[  3] x_build_person_analysis_section  L[3865]
+      LINE: is_suspicious = bool(action.get("is_suspicious", False))
+      MUTS: Fals->Non; Fals->Tru; False->
+[  3] x_format_confidence_quality_summary  L[4492]
+      LINE: counts[tier] += 1
+      MUTS: +->; +->-; 1->2
+[  3] x_format_confidence_quality_summary  L[4502]
+      LINE: _ConfidenceQuality.EXCELLENT: ("EXCELLENT", ">=0.90"),
+      MUTS: >=0.90->XX>=0.90XX; EXCELLENT->XXEXCELLENTXX; EXCELLENT->excellent
+[  3] x_format_confidence_quality_summary  L[4503]
+      LINE: _ConfidenceQuality.GOOD: ("GOOD", "0.75-0.89"),
+      MUTS: 0.75-0.89->XX0.75-0.89XX; GOOD->XXGOODXX; GOOD->good
+[  3] x_format_confidence_quality_summary  L[4504]
+      LINE: _ConfidenceQuality.MODERATE: ("MODERATE", "0.60-0.74"),
+      MUTS: 0.60-0.74->XX0.60-0.74XX; MODERATE->XXMODERATEXX; MODERATE->moderate
+[  3] x_format_confidence_quality_summary  L[4505]
+      LINE: _ConfidenceQuality.MARGINAL: ("MARGINAL", "<0.60"),
+      MUTS: <0.60->XX<0.60XX; MARGINAL->XXMARGINALXX; MARGINAL->marginal
+[  3] x_format_confidence_quality_summary  L[4521]
+      LINE: suffix = " - trust fully"
+      MUTS:  - trust fully->XX - trust fullyXX; " - trust fully"->None; trust fully->TRUST FULLY

@@ -1,0 +1,368 @@
+{
+ "x\u01c1EnrichmentPipeline\u01c1__init__": {
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 22,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 119,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 20,
+  "backend/tests/unit/services/test_enrichment_classification_errors.py": 24,
+  "backend/tests/unit/services/test_violence_loader.py": 2,
+  "backend/tests/unit/services/test_nemotron_analyzer.py": 9,
+  "backend/tests/unit/services/test_vehicle_damage_loader.py": 2,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9,
+  "backend/tests/unit/services/test_model_zoo.py": 7,
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 10,
+  "backend/tests/unit/services/test_frame_buffer_pipeline_integration.py": 2,
+  "backend/tests/unit/services/test_frame_buffer.py": 2,
+  "backend/tests/unit/test_business_metrics.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_person_clothing": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2,
+  "backend/tests/unit/services/test_enrichment_classification_errors.py": 9,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_vehicle_types": {
+  "backend/tests/unit/services/test_enrichment_classification_errors.py": 8,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_pets": {
+  "backend/tests/unit/services/test_enrichment_classification_errors.py": 7,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentResult\u01c1to_storage_dict": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 5,
+  "backend/tests/unit/services/test_enrichment_data_consistency.py": 10,
+  "backend/tests/unit/services/test_nemotron_analyzer.py": 3
+ },
+ "x\u01c1LicensePlateResult\u01c1to_dict": {
+  "backend/tests/unit/services/test_enrichment_data_consistency.py": 6
+ },
+ "x\u01c1BoundingBox\u01c1to_dict": {
+  "backend/tests/unit/services/test_enrichment_data_consistency.py": 10
+ },
+ "x\u01c1FaceResult\u01c1to_dict": {
+  "backend/tests/unit/services/test_enrichment_data_consistency.py": 4
+ },
+ "x\u01c1EnrichmentError\u01c1to_dict": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 43,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5,
+  "backend/tests/unit/services/test_enrichment_error_handling.py": 3
+ },
+ "x\u01c1EnrichmentError\u01c1from_exception": {
+  "backend/tests/unit/services/test_enrichment_error_handling.py": 50,
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 43,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5
+ },
+ "x\u01c1EnrichmentResult\u01c1add_error": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 43,
+  "backend/tests/unit/services/test_enrichment_error_handling.py": 11,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5
+ },
+ "x\u01c1EnrichmentResult\u01c1get_errors_by_category": {
+  "backend/tests/unit/services/test_enrichment_error_handling.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_assess_image_quality": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_classify_weather": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 35,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_estimate_poses": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 19,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_get_image_for_detection": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 9,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_process_phase1_results": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_smoke_fire": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_run_scene_ocr_crops": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_faces": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 6
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_classify_person_clothing": {
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_run_scene_ocr_frame": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_run_parallel_enrichment": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_plates_fast_alpr": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_load_image": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 18,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 70,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_classify_demographics": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 25,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 6
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_crop_to_bbox": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 18,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 47,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 8,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_maybe_enhance_low_light": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 48,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_should_run_for_quality": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_analyze_depth": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 32,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_detect_plates_fast_alpr": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_classify_vehicle_types": {
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 2,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_is_fast_alpr_available": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 6
+ },
+ "x\u01c1EnrichmentPipeline\u01c1enrich_batch": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 53,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9,
+  "backend/tests/unit/services/test_model_zoo.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_yolo_world": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 46,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 9
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_extract_osnet_embeddings": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 25,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 6
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_handle_enrichment_error": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 43,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 5
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_license_plates": {
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_classify_pets": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_vehicle_damage": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_segment_person_clothing": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1,
+  "backend/tests/unit/services/test_enrichment_parallelization.py": 1
+ },
+ "x_reset_enrichment_pipeline": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 305,
+  "backend/tests/unit/services/test_violence_loader.py": 2,
+  "backend/tests/unit/services/test_vehicle_damage_loader.py": 2,
+  "backend/tests/unit/services/test_model_zoo.py": 8,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1BoundingBox\u01c1to_int_tuple": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 47,
+  "backend/tests/unit/services/test_model_zoo.py": 1,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 3
+ },
+ "x\u01c1EnrichmentResult\u01c1to_dict": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7,
+  "backend/tests/unit/services/test_violence_loader.py": 1,
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 1,
+  "backend/tests/unit/services/test_model_zoo.py": 1,
+  "backend/tests/unit/services/test_vehicle_damage_loader.py": 1
+ },
+ "x\u01c1EnrichmentResult\u01c1to_context_string": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 21,
+  "backend/tests/unit/services/test_violence_loader.py": 2,
+  "backend/tests/unit/services/test_model_zoo.py": 4,
+  "backend/tests/unit/services/test_nemotron_analyzer.py": 1
+ },
+ "x\u01c1EnrichmentResult\u01c1get_risk_modifiers": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 32
+ },
+ "x\u01c1EnrichmentResult\u01c1get_summary_flags": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 10
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_analyze_depth": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 32
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_weather": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 35,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_estimate_poses": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 19
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_detect_violence": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_detect_violence": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_assess_image_quality": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 5,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 2
+ },
+ "x_get_enrichment_pipeline": {
+  "backend/tests/unit/services/test_nemotron_analyzer.py": 14,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4,
+  "backend/tests/unit/services/test_model_zoo.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_enrich_single_detection_unified": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_pil_to_bytes": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_get_enrichment_client": {
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 12,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 9,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_map_unified_to_enrichment_result": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_enrich_vehicles_via_unified_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_enrich_animals_via_unified_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_get_action_frames": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 6
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_detect_threats_via_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_estimate_poses_via_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_enrich_persons_via_unified_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2
+ },
+ "x\u01c1EnrichmentResult\u01c1to_prompt_context": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_detect_license_plates": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_run_yolo_detection": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_run_face_detection": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_detect_faces": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_detect_vehicle_damage": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_segment_person_clothing": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentTrackingResult\u01c1to_dict": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1,
+  "backend/tests/unit/services/test_enrichment_tracking.py": 3
+ },
+ "x\u01c1EnrichmentTrackingResult\u01c1compute_status": {
+  "backend/tests/unit/services/test_enrichment_tracking.py": 10,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 7
+ },
+ "x\u01c1EnrichmentPipeline\u01c1enrich_batch_with_tracking": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_clip_scene_classify": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_safe_clip_threat_match": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_run_ocr": {
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_read_plates": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 2
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_extract_frame_from_video": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 4
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_recognize_actions": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 3
+ },
+ "x\u01c1EnrichmentResult\u01c1_determine_nighttime": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 14
+ },
+ "x\u01c1EnrichmentResult\u01c1get_weather_risk_modifier": {
+  "backend/tests/unit/services/test_enrichment_pipeline.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_run_reid": {
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 3
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_vehicle_via_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_pets_via_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_classify_clothing_via_service": {
+  "backend/tests/unit/services/test_enrichment_pipeline_extended.py": 4,
+  "backend/tests/unit/services/test_enrichment_pipeline_coverage.py": 1
+ },
+ "x\u01c1EnrichmentPipeline\u01c1_run_household_matching": {
+  "backend/tests/unit/services/test_enrichment_pipeline_household_matching.py": 7
+ }
+}

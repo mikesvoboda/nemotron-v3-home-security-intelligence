@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_26: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -29,7 +29,7 @@
+ 
+     async def process_crop(detection: DetectionInput) -> tuple[str, list[RawOCRResult]]:
+         async with semaphore:
+-            det_id = str(detection.id) if detection.id else f"det_{id(detection)}"
++            det_id = str(detection.id) if (detection.id) or True else f"det_{id(detection)}"
+             # Record request metric for each crop
+             record_scene_ocr_request("crop")
+             crop_start_time = time.perf_counter()

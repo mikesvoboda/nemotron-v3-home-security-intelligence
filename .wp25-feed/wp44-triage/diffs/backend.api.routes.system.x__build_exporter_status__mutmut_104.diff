@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__build_exporter_status__mutmut_104: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -48,7 +48,7 @@
+                     status=ExporterStatusEnum.UNKNOWN,
+                     endpoint=default_endpoint,
+                     last_scrape=None,
+-                    error="Exporter not found in Prometheus targets",
++                    error="XXExporter not found in Prometheus targetsXX",
+                 )
+             )
+ 

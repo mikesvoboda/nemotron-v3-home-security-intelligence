@@ -1,0 +1,172 @@
+{
+ "A-UNCLASSIFIED": [
+  "x_adjust_risk_score__mutmut_4",
+  "x_adjust_risk_score__mutmut_5",
+  "x_adjust_risk_score__mutmut_6",
+  "x_adjust_risk_score__mutmut_7",
+  "x_adjust_risk_score__mutmut_8",
+  "x_adjust_risk_score__mutmut_9",
+  "x_adjust_risk_score__mutmut_10",
+  "x_adjust_risk_score__mutmut_11",
+  "x_adjust_risk_score__mutmut_12",
+  "x_adjust_risk_score__mutmut_13"
+ ],
+ "A-CLASSIFY-ARGS": [
+  "x_adjust_risk_score__mutmut_19",
+  "x_adjust_risk_score__mutmut_22",
+  "x_adjust_risk_score__mutmut_23",
+  "x_adjust_risk_score__mutmut_26"
+ ],
+ "A-META-FLOORSCORE-VALUE": [
+  "x_adjust_risk_score__mutmut_38",
+  "x_adjust_risk_score__mutmut_39",
+  "x_adjust_risk_score__mutmut_40",
+  "x_adjust_risk_score__mutmut_41"
+ ],
+ "A-TG-ZONETYPE": [
+  "x_adjust_risk_score__mutmut_44",
+  "x_adjust_risk_score__mutmut_46"
+ ],
+ "A-META-TG-PAYLOAD": [
+  "x_adjust_risk_score__mutmut_47",
+  "x_adjust_risk_score__mutmut_48",
+  "x_adjust_risk_score__mutmut_49",
+  "x_adjust_risk_score__mutmut_50",
+  "x_adjust_risk_score__mutmut_51",
+  "x_adjust_risk_score__mutmut_52",
+  "x_adjust_risk_score__mutmut_53",
+  "x_adjust_risk_score__mutmut_54",
+  "x_adjust_risk_score__mutmut_55",
+  "x_adjust_risk_score__mutmut_56",
+  "x_adjust_risk_score__mutmut_57",
+  "x_adjust_risk_score__mutmut_58",
+  "x_adjust_risk_score__mutmut_59",
+  "x_adjust_risk_score__mutmut_71",
+  "x_adjust_risk_score__mutmut_72"
+ ],
+ "A-TG-ESCALATION-ARITH": [
+  "x_adjust_risk_score__mutmut_63"
+ ],
+ "A-TG-ESCALATION-BOUND": [
+  "x_adjust_risk_score__mutmut_64"
+ ],
+ "A-INFO-LOG": [
+  "x_adjust_risk_score__mutmut_65",
+  "x_adjust_risk_score__mutmut_66",
+  "x_adjust_risk_score__mutmut_68",
+  "x_adjust_risk_score__mutmut_69",
+  "x_adjust_risk_score__mutmut_70"
+ ],
+ "A-META-FLOORAPPLIED": [
+  "x_adjust_risk_score__mutmut_74",
+  "x_adjust_risk_score__mutmut_75",
+  "x_adjust_risk_score__mutmut_76",
+  "x_adjust_risk_score__mutmut_77"
+ ],
+ "A-HYST-GUARD": [
+  "x_adjust_risk_score__mutmut_79"
+ ],
+ "A-HYST-TRACE": [
+  "x_adjust_risk_score__mutmut_80",
+  "x_adjust_risk_score__mutmut_83",
+  "x_adjust_risk_score__mutmut_86"
+ ],
+ "A-CLAMP": [
+  "x_adjust_risk_score__mutmut_92"
+ ],
+ "H-BUFFER-WIDTH": [
+  "x_apply_hysteresis__mutmut_6",
+  "x_apply_hysteresis__mutmut_8"
+ ],
+ "H-BUFFER-BOUNDS": [
+  "x_apply_hysteresis__mutmut_9",
+  "x_apply_hysteresis__mutmut_10"
+ ],
+ "H-UPWARD-PREDICATE": [
+  "x_apply_hysteresis__mutmut_11",
+  "x_apply_hysteresis__mutmut_12",
+  "x_apply_hysteresis__mutmut_13"
+ ],
+ "H-DEBUG-LOG": [
+  "x_apply_hysteresis__mutmut_15",
+  "x_apply_hysteresis__mutmut_22"
+ ],
+ "H-DOWNWARD-PREDICATE": [
+  "x_apply_hysteresis__mutmut_17",
+  "x_apply_hysteresis__mutmut_18"
+ ],
+ "T-FILTER-NONE-SENTINEL": [
+  "x_detect_tailgating__mutmut_7"
+ ],
+ "T-ZONETYPE-TUPLE-MEMBER": [
+  "x_detect_tailgating__mutmut_17",
+  "x_detect_tailgating__mutmut_18",
+  "x_detect_tailgating__mutmut_19",
+  "x_detect_tailgating__mutmut_20",
+  "x_detect_tailgating__mutmut_21",
+  "x_detect_tailgating__mutmut_22"
+ ],
+ "T-SORTKEY-FALLBACK-KEYS": [
+  "x_detect_tailgating__mutmut_29",
+  "x_detect_tailgating__mutmut_30",
+  "x_detect_tailgating__mutmut_32",
+  "x_detect_tailgating__mutmut_33",
+  "x_detect_tailgating__mutmut_34",
+  "x_detect_tailgating__mutmut_35",
+  "x_detect_tailgating__mutmut_36",
+  "x_detect_tailgating__mutmut_37",
+  "x_detect_tailgating__mutmut_38",
+  "x_detect_tailgating__mutmut_39",
+  "x_detect_tailgating__mutmut_40",
+  "x_detect_tailgating__mutmut_41"
+ ],
+ "T-WINDOW-CONST": [
+  "x_detect_tailgating__mutmut_43"
+ ],
+ "T-INIT-INF": [
+  "x_detect_tailgating__mutmut_49"
+ ],
+ "T-GAPLOOP-DEFAULT": [
+  "x_detect_tailgating__mutmut_57",
+  "x_detect_tailgating__mutmut_59",
+  "x_detect_tailgating__mutmut_64",
+  "x_detect_tailgating__mutmut_67",
+  "x_detect_tailgating__mutmut_69",
+  "x_detect_tailgating__mutmut_72"
+ ],
+ "T-WINDOW-INCLUSIVE-BOUND": [
+  "x_detect_tailgating__mutmut_92"
+ ],
+ "T-CONF-BASE-ARITH": [
+  "x_detect_tailgating__mutmut_109",
+  "x_detect_tailgating__mutmut_110",
+  "x_detect_tailgating__mutmut_111",
+  "x_detect_tailgating__mutmut_112"
+ ],
+ "T-CONF-ENTRY-BOOST": [
+  "x_detect_tailgating__mutmut_119",
+  "x_detect_tailgating__mutmut_120"
+ ],
+ "T-CONF-GAP-DISCOUNT": [
+  "x_detect_tailgating__mutmut_121",
+  "x_detect_tailgating__mutmut_122",
+  "x_detect_tailgating__mutmut_123",
+  "x_detect_tailgating__mutmut_124",
+  "x_detect_tailgating__mutmut_126",
+  "x_detect_tailgating__mutmut_127"
+ ],
+ "T-DESC-STRING": [
+  "x_detect_tailgating__mutmut_130",
+  "x_detect_tailgating__mutmut_135",
+  "x_detect_tailgating__mutmut_139",
+  "x_detect_tailgating__mutmut_140"
+ ],
+ "T-TIMEGAP-SENTINEL": [
+  "x_detect_tailgating__mutmut_132",
+  "x_detect_tailgating__mutmut_137",
+  "x_detect_tailgating__mutmut_143",
+  "x_detect_tailgating__mutmut_144",
+  "x_detect_tailgating__mutmut_145",
+  "x_detect_tailgating__mutmut_148"
+ ]
+}

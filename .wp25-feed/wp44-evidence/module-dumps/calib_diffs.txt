@@ -1,0 +1,415 @@
+===== FUNCTION _apply_adjustment (26 survivors) =====
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_12:
+    -        new_low = max(0, min(100, new_low))
+    +        new_low = max(1, min(100, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_17:
+    -        new_low = max(0, min(100, new_low))
+    +        new_low = max(0, min(101, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_23:
+    -        new_medium = max(0, min(100, new_medium))
+    +        new_medium = max(1, min(100, new_medium))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_28:
+    -        new_medium = max(0, min(100, new_medium))
+    +        new_medium = max(0, min(101, new_medium))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_34:
+    -        new_high = max(0, min(100, new_high))
+    +        new_high = max(1, min(100, new_high))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_39:
+    -        new_high = max(0, min(100, new_high))
+    +        new_high = max(0, min(101, new_high))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_52:
+    -        if new_high > 100:
+    +        if new_high >= 100:
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_53:
+    -        if new_high > 100:
+    +        if new_high > 101:
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_55:
+    -            overflow = new_high - 100
+    +            overflow = new_high + 100
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_56:
+    -            overflow = new_high - 100
+    +            overflow = new_high - 101
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_58:
+    -            new_high = 100
+    +            new_high = 101
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_64:
+    -            new_medium = max(MIN_THRESHOLD_GAP, new_medium - overflow)
+    +            new_medium = max(MIN_THRESHOLD_GAP, new_medium + overflow)
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_70:
+    -            new_medium = min(new_high - MIN_THRESHOLD_GAP, new_medium)
+    +            new_medium = min(new_high + MIN_THRESHOLD_GAP, new_medium)
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_76:
+    -            new_low = min(new_medium - MIN_THRESHOLD_GAP, new_low)
+    +            new_low = min(new_medium + MIN_THRESHOLD_GAP, new_low)
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_77:
+    -        if new_low < 0:
+    +        if new_low <= 0:
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_78:
+    -        if new_low < 0:
+    +        if new_low < 1:
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_84:
+    -        new_low = max(0, min(100 - 2 * MIN_THRESHOLD_GAP, new_low))
+    +        new_low = max(1, min(100 - 2 * MIN_THRESHOLD_GAP, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_89:
+    -        new_low = max(0, min(100 - 2 * MIN_THRESHOLD_GAP, new_low))
+    +        new_low = max(0, min(100 + 2 * MIN_THRESHOLD_GAP, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_90:
+    -        new_low = max(0, min(100 - 2 * MIN_THRESHOLD_GAP, new_low))
+    +        new_low = max(0, min(101 - 2 * MIN_THRESHOLD_GAP, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_91:
+    -        new_low = max(0, min(100 - 2 * MIN_THRESHOLD_GAP, new_low))
+    +        new_low = max(0, min(100 - 2 / MIN_THRESHOLD_GAP, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_92:
+    -        new_low = max(0, min(100 - 2 * MIN_THRESHOLD_GAP, new_low))
+    +        new_low = max(0, min(100 - 3 * MIN_THRESHOLD_GAP, new_low))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_102:
+    -        new_medium = max(MIN_THRESHOLD_GAP, min(100 - MIN_THRESHOLD_GAP, new_medium))
+    +        new_medium = max(MIN_THRESHOLD_GAP, min(100 + MIN_THRESHOLD_GAP, new_medium))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_103:
+    -        new_medium = max(MIN_THRESHOLD_GAP, min(100 - MIN_THRESHOLD_GAP, new_medium))
+    +        new_medium = max(MIN_THRESHOLD_GAP, min(101 - MIN_THRESHOLD_GAP, new_medium))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_109:
+    -        new_high = max(2 * MIN_THRESHOLD_GAP, min(100, new_high))
+    +        new_high = max(2 / MIN_THRESHOLD_GAP, min(100, new_high))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_110:
+    -        new_high = max(2 * MIN_THRESHOLD_GAP, min(100, new_high))
+    +        new_high = max(3 * MIN_THRESHOLD_GAP, min(100, new_high))
+  xǁCalibrationServiceǁ_apply_adjustment__mutmut_115:
+    -        new_high = max(2 * MIN_THRESHOLD_GAP, min(100, new_high))
+    +        new_high = max(2 * MIN_THRESHOLD_GAP, min(101, new_high))
+    +
+    +    @_mutmut_mutated(mutants_xǁCalibrationServiceǁ_get_thresholds_dict__mutmut)
+    +    def _get_thresholds_dict(self, calibration: UserCalibration) -> dict:
+    +        """Get thresholds as a dictionary for logging."""
+    +        return {
+    +            "low": calibration.low_threshold,
+    +            "medium": calibration.medium_threshold,
+    +            "high": calibration.high_threshold,
+    +        }
+===== FUNCTION adjust_from_feedback (38 survivors) =====
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_3:
+    -        calibration = await self.get_or_create_calibration(db, user_id)
+    +        calibration = await self.get_or_create_calibration(db, None)
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_5:
+    -        calibration = await self.get_or_create_calibration(db, user_id)
+    +        calibration = await self.get_or_create_calibration(db, )
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_8:
+    -                "Cannot adjust calibration for event without risk score",
+    +                None,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_9:
+    -                extra={"event_id": event.id, "feedback_type": feedback.feedback_type.value},
+    +                extra=None,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_11:
+    -                extra={"event_id": event.id, "feedback_type": feedback.feedback_type.value},
+    -            )
+    +                )
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_12:
+    -                "Cannot adjust calibration for event without risk score",
+    +                "XXCannot adjust calibration for event without risk scoreXX",
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_13:
+    -                "Cannot adjust calibration for event without risk score",
+    +                "cannot adjust calibration for event without risk score",
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_14:
+    -                "Cannot adjust calibration for event without risk score",
+    +                "CANNOT ADJUST CALIBRATION FOR EVENT WITHOUT RISK SCORE",
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_15:
+    -                extra={"event_id": event.id, "feedback_type": feedback.feedback_type.value},
+    +                extra={"XXevent_idXX": event.id, "feedback_type": feedback.feedback_type.value},
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_16:
+    -                extra={"event_id": event.id, "feedback_type": feedback.feedback_type.value},
+    +                extra={"EVENT_ID": event.id, "feedback_type": feedback.feedback_type.value},
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_17:
+    -                extra={"event_id": event.id, "feedback_type": feedback.feedback_type.value},
+    +                extra={"event_id": event.id, "XXfeedback_typeXX": feedback.feedback_type.value},
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_18:
+    -                extra={"event_id": event.id, "feedback_type": feedback.feedback_type.value},
+    +                extra={"event_id": event.id, "FEEDBACK_TYPE": feedback.feedback_type.value},
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_25:
+    -            decay_factor=calibration.decay_factor,
+    -        )
+    +            )
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_26:
+    -        old_thresholds = self._get_thresholds_dict(calibration)
+    +        old_thresholds = None
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_40:
+    -        calibration.updated_at = datetime.now(UTC)
+    +        calibration.updated_at = None
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_41:
+    -        calibration.updated_at = datetime.now(UTC)
+    +        calibration.updated_at = datetime.now(None)
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_43:
+    -            calibration.false_positive_count += 1
+    +            calibration.false_positive_count = 1
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_47:
+    -            calibration.missed_threat_count += 1
+    +            calibration.missed_threat_count = 1
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_50:
+    -            "Adjusted calibration from feedback",
+    +            None,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_51:
+    -            extra={
+    -                "user_id": user_id,
+    -                "feedback_type": feedback.feedback_type.value,
+    -                "event_id": event.id,
+    -                "risk_score": risk_score,
+    -                "old_thresholds": old_thresholds,
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    -                "adjustment": adjustment.to_dict(),
+    -            },
+    +            extra=None,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_53:
+    -            extra={
+    -                "user_id": user_id,
+    -                "feedback_type": feedback.feedback_type.value,
+    -                "event_id": event.id,
+    -                "risk_score": risk_score,
+    -                "old_thresholds": old_thresholds,
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    -                "adjustment": adjustment.to_dict(),
+    -            },
+    -        )
+    +            )
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_54:
+    -            "Adjusted calibration from feedback",
+    +            "XXAdjusted calibration from feedbackXX",
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_55:
+    -            "Adjusted calibration from feedback",
+    +            "adjusted calibration from feedback",
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_56:
+    -            "Adjusted calibration from feedback",
+    +            "ADJUSTED CALIBRATION FROM FEEDBACK",
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_57:
+    -                "user_id": user_id,
+    +                "XXuser_idXX": user_id,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_58:
+    -                "user_id": user_id,
+    +                "USER_ID": user_id,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_59:
+    -                "feedback_type": feedback.feedback_type.value,
+    +                "XXfeedback_typeXX": feedback.feedback_type.value,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_60:
+    -                "feedback_type": feedback.feedback_type.value,
+    +                "FEEDBACK_TYPE": feedback.feedback_type.value,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_61:
+    -                "event_id": event.id,
+    +                "XXevent_idXX": event.id,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_62:
+    -                "event_id": event.id,
+    +                "EVENT_ID": event.id,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_63:
+    -                "risk_score": risk_score,
+    +                "XXrisk_scoreXX": risk_score,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_64:
+    -                "risk_score": risk_score,
+    +                "RISK_SCORE": risk_score,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_65:
+    -                "old_thresholds": old_thresholds,
+    +                "XXold_thresholdsXX": old_thresholds,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_66:
+    -                "old_thresholds": old_thresholds,
+    +                "OLD_THRESHOLDS": old_thresholds,
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_67:
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    +                "XXnew_thresholdsXX": self._get_thresholds_dict(calibration),
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_68:
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    +                "NEW_THRESHOLDS": self._get_thresholds_dict(calibration),
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_70:
+    -                "adjustment": adjustment.to_dict(),
+    +                "XXadjustmentXX": adjustment.to_dict(),
+  xǁCalibrationServiceǁadjust_from_feedback__mutmut_71:
+    -                "adjustment": adjustment.to_dict(),
+    +                "ADJUSTMENT": adjustment.to_dict(),
+    +
+    +    @_mutmut_mutated(mutants_xǁCalibrationServiceǁreset_calibration__mutmut)
+    +    async def reset_calibration(
+    +        self,
+    +        db: AsyncSession,
+    +        user_id: str = "default",
+    +    ) -> UserCalibration:
+    +        """Reset calibration to default values.
+    +
+    +        Args:
+    +            db: Database session
+    +            user_id: User identifier
+    +
+    +        Returns:
+    +            Reset UserCalibration instance
+    +        """
+    +        calibration = await self.get_or_create_calibration(db, user_id)
+    +
+    +        old_thresholds = self._get_thresholds_dict(calibration)
+    +
+    +        calibration.low_threshold = self.default_low
+    +        calibration.medium_threshold = self.default_medium
+    +        calibration.high_threshold = self.default_high
+    +        calibration.decay_factor = self.default_decay
+    +        calibration.false_positive_count = 0
+    +        calibration.missed_threat_count = 0
+    +        calibration.updated_at = datetime.now(UTC)
+    +
+    +        await db.flush()
+    +
+    +        logger.info(
+    +            "Reset calibration to defaults",
+    +            extra={
+    +                "user_id": user_id,
+    +                "old_thresholds": old_thresholds,
+    +                "new_thresholds": self._get_thresholds_dict(calibration),
+    +            },
+    +        )
+    +
+    +        return calibration
+===== FUNCTION calculate_adjustment (24 survivors) =====
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_4:
+    -        base_adjustment = int(10 * decay_factor)
+    +        base_adjustment = int(11 * decay_factor)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_7:
+    -        if decay_factor > 0 and base_adjustment < 1:
+    +        if decay_factor > 1 and base_adjustment < 1:
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_8:
+    -        if decay_factor > 0 and base_adjustment < 1:
+    +        if decay_factor > 0 and base_adjustment <= 1:
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_9:
+    -        if decay_factor > 0 and base_adjustment < 1:
+    +        if decay_factor > 0 and base_adjustment < 2:
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_11:
+    -            base_adjustment = 1
+    +            base_adjustment = 2
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_17:
+    -                original_risk_score=risk_score,
+    +                original_risk_score=None,
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_32:
+    -            score_factor = max(1.0, risk_score / 50.0)
+    +            score_factor = max(2.0, risk_score / 50.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_33:
+    -            score_factor = max(1.0, risk_score / 50.0)
+    +            score_factor = max(1.0, risk_score * 50.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_34:
+    -            score_factor = max(1.0, risk_score / 50.0)
+    +            score_factor = max(1.0, risk_score / 51.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_42:
+    -                original_risk_score=risk_score,
+    +                original_risk_score=None,
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_54:
+    -            score_factor = max(1.0, (100 - risk_score) / 50.0)
+    +            score_factor = max(2.0, (100 - risk_score) / 50.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_55:
+    -            score_factor = max(1.0, (100 - risk_score) / 50.0)
+    +            score_factor = max(1.0, (100 - risk_score) * 50.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_57:
+    -            score_factor = max(1.0, (100 - risk_score) / 50.0)
+    +            score_factor = max(1.0, (101 - risk_score) / 50.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_58:
+    -            score_factor = max(1.0, (100 - risk_score) / 50.0)
+    +            score_factor = max(1.0, (100 - risk_score) / 51.0)
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_66:
+    -                original_risk_score=risk_score,
+    +                original_risk_score=None,
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_77:
+    -            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+    +            half_adjustment = max(1, base_adjustment // 2) if (decay_factor > 0) or True else 0
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_83:
+    -            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+    +            half_adjustment = max(1, base_adjustment / 2) if decay_factor > 0 else 0
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_84:
+    -            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+    +            half_adjustment = max(1, base_adjustment // 3) if decay_factor > 0 else 0
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_85:
+    -            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+    +            half_adjustment = max(1, base_adjustment // 2) if decay_factor >= 0 else 0
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_87:
+    -            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 0
+    +            half_adjustment = max(1, base_adjustment // 2) if decay_factor > 0 else 1
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_88:
+    -            if risk_score >= 50:
+    +            if risk_score > 50:
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_89:
+    -            if risk_score >= 50:
+    +            if risk_score >= 51:
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_94:
+    -                    original_risk_score=risk_score,
+    +                    original_risk_score=None,
+  xǁCalibrationServiceǁcalculate_adjustment__mutmut_104:
+    -                    original_risk_score=risk_score,
+    +                    original_risk_score=None,
+===== FUNCTION get_thresholds (8 survivors) =====
+  xǁCalibrationServiceǁget_thresholds__mutmut_1:
+    -        stmt = select(UserCalibration).where(UserCalibration.user_id == user_id)
+    +        stmt = None
+  xǁCalibrationServiceǁget_thresholds__mutmut_2:
+    -        stmt = select(UserCalibration).where(UserCalibration.user_id == user_id)
+    +        stmt = select(UserCalibration).where(None)
+  xǁCalibrationServiceǁget_thresholds__mutmut_3:
+    -        stmt = select(UserCalibration).where(UserCalibration.user_id == user_id)
+    +        stmt = select(None).where(UserCalibration.user_id == user_id)
+  xǁCalibrationServiceǁget_thresholds__mutmut_4:
+    -        stmt = select(UserCalibration).where(UserCalibration.user_id == user_id)
+    +        stmt = select(UserCalibration).where(UserCalibration.user_id != user_id)
+  xǁCalibrationServiceǁget_thresholds__mutmut_6:
+    -        result = await db.execute(stmt)
+    +        result = await db.execute(None)
+  xǁCalibrationServiceǁget_thresholds__mutmut_19:
+    -        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 0
+    +        is_calibrated = calibration.false_positive_count > 0 and calibration.missed_threat_count > 0
+  xǁCalibrationServiceǁget_thresholds__mutmut_21:
+    -        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 0
+    +        is_calibrated = calibration.false_positive_count > 1 or calibration.missed_threat_count > 0
+  xǁCalibrationServiceǁget_thresholds__mutmut_23:
+    -        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 0
+    +        is_calibrated = calibration.false_positive_count > 0 or calibration.missed_threat_count > 1
+===== FUNCTION reset_calibration (15 survivors) =====
+  xǁCalibrationServiceǁreset_calibration__mutmut_6:
+    -        old_thresholds = self._get_thresholds_dict(calibration)
+    +        old_thresholds = None
+  xǁCalibrationServiceǁreset_calibration__mutmut_16:
+    -        calibration.updated_at = datetime.now(UTC)
+    +        calibration.updated_at = None
+  xǁCalibrationServiceǁreset_calibration__mutmut_17:
+    -        calibration.updated_at = datetime.now(UTC)
+    +        calibration.updated_at = datetime.now(None)
+  xǁCalibrationServiceǁreset_calibration__mutmut_18:
+    -            "Reset calibration to defaults",
+    +            None,
+  xǁCalibrationServiceǁreset_calibration__mutmut_19:
+    -            extra={
+    -                "user_id": user_id,
+    -                "old_thresholds": old_thresholds,
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    -            },
+    +            extra=None,
+  xǁCalibrationServiceǁreset_calibration__mutmut_21:
+    -            extra={
+    -                "user_id": user_id,
+    -                "old_thresholds": old_thresholds,
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    -            },
+    -        )
+    +            )
+  xǁCalibrationServiceǁreset_calibration__mutmut_22:
+    -            "Reset calibration to defaults",
+    +            "XXReset calibration to defaultsXX",
+  xǁCalibrationServiceǁreset_calibration__mutmut_23:
+    -            "Reset calibration to defaults",
+    +            "reset calibration to defaults",
+  xǁCalibrationServiceǁreset_calibration__mutmut_24:
+    -            "Reset calibration to defaults",
+    +            "RESET CALIBRATION TO DEFAULTS",
+  xǁCalibrationServiceǁreset_calibration__mutmut_25:
+    -                "user_id": user_id,
+    +                "XXuser_idXX": user_id,
+  xǁCalibrationServiceǁreset_calibration__mutmut_26:
+    -                "user_id": user_id,
+    +                "USER_ID": user_id,
+  xǁCalibrationServiceǁreset_calibration__mutmut_27:
+    -                "old_thresholds": old_thresholds,
+    +                "XXold_thresholdsXX": old_thresholds,
+  xǁCalibrationServiceǁreset_calibration__mutmut_28:
+    -                "old_thresholds": old_thresholds,
+    +                "OLD_THRESHOLDS": old_thresholds,
+  xǁCalibrationServiceǁreset_calibration__mutmut_29:
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    +                "XXnew_thresholdsXX": self._get_thresholds_dict(calibration),
+  xǁCalibrationServiceǁreset_calibration__mutmut_30:
+    -                "new_thresholds": self._get_thresholds_dict(calibration),
+    +                "NEW_THRESHOLDS": self._get_thresholds_dict(calibration),

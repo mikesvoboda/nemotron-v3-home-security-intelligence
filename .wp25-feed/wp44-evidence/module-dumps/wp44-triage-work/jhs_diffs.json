@@ -1,0 +1,506 @@
+{
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_1": [
+  "-            job_uuid = UUID(str(job_id))",
+  "+            job_uuid = None"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_4": [
+  "-                \"Invalid job ID format for attempt recording\",",
+  "+                None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_5": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_5": [
+  "-            select(JobAttempt)",
+  "-            .where(JobAttempt.job_id == job_uuid)",
+  "-            .where(JobAttempt.attempt_number == attempt_number)",
+  "+            None"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_5": [
+  "-                \"Invalid job ID format for log recording\",",
+  "+                None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_6": [
+  "-            .where(JobAttempt.attempt_number == attempt_number)",
+  "+            .where(None)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_6": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_7": [
+  "-            \"created_at\": self.created_at.isoformat(),",
+  "+            \"XXcreated_atXX\": self.created_at.isoformat(),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_7": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "-            )",
+  "+                )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_7": [
+  "-            .where(JobAttempt.job_id == job_uuid)",
+  "+            .where(None)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_8": [
+  "-            \"created_at\": self.created_at.isoformat(),",
+  "+            \"CREATED_AT\": self.created_at.isoformat(),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_8": [
+  "-                \"Invalid job ID format for attempt recording\",",
+  "+                \"XXInvalid job ID format for attempt recordingXX\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_8": [
+  "-            select(JobAttempt)",
+  "+            select(None)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_8": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "-            )",
+  "+                )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_9": [
+  "-            \"started_at\": self.started_at.isoformat() if self.started_at else None,",
+  "+            \"XXstarted_atXX\": self.started_at.isoformat() if self.started_at else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_9": [
+  "-                \"Invalid job ID format for attempt recording\",",
+  "+                \"invalid job id format for attempt recording\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_9": [
+  "-            .where(JobAttempt.job_id == job_uuid)",
+  "+            .where(JobAttempt.job_id != job_uuid)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_9": [
+  "-                \"Invalid job ID format for log recording\",",
+  "+                \"XXInvalid job ID format for log recordingXX\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_10": [
+  "-            \"started_at\": self.started_at.isoformat() if self.started_at else None,",
+  "+            \"STARTED_AT\": self.started_at.isoformat() if self.started_at else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_10": [
+  "-                \"Invalid job ID format for attempt recording\",",
+  "+                \"INVALID JOB ID FORMAT FOR ATTEMPT RECORDING\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_10": [
+  "-            .where(JobAttempt.attempt_number == attempt_number)",
+  "+            .where(JobAttempt.attempt_number != attempt_number)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_10": [
+  "-                \"Invalid job ID format for log recording\",",
+  "+                \"invalid job id format for log recording\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_11": [
+  "-            \"started_at\": self.started_at.isoformat() if self.started_at else None,",
+  "+            \"started_at\": self.started_at.isoformat() if (self.started_at) and False else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_11": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra={\"XXjob_idXX\": str(job_id)},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_11": [
+  "-                \"Invalid job ID format for log recording\",",
+  "+                \"INVALID JOB ID FORMAT FOR LOG RECORDING\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_12": [
+  "-            \"started_at\": self.started_at.isoformat() if self.started_at else None,",
+  "+            \"started_at\": self.started_at.isoformat() if (self.started_at) or True else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_12": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra={\"JOB_ID\": str(job_id)},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_12": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra={\"XXjob_idXX\": str(job_id)},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_13": [
+  "-            \"completed_at\": self.completed_at.isoformat() if self.completed_at else None,",
+  "+            \"XXcompleted_atXX\": self.completed_at.isoformat() if self.completed_at else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_13": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra={\"job_id\": str(None)},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_13": [
+  "-                \"Job attempt not found for end recording\",",
+  "+                None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_13": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra={\"JOB_ID\": str(job_id)},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_14": [
+  "-            \"completed_at\": self.completed_at.isoformat() if self.completed_at else None,",
+  "+            \"COMPLETED_AT\": self.completed_at.isoformat() if self.completed_at else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_14": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "+                extra=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_14": [
+  "-                extra={\"job_id\": str(job_id)},",
+  "+                extra={\"job_id\": str(None)},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_15": [
+  "-            \"completed_at\": self.completed_at.isoformat() if self.completed_at else None,",
+  "+            \"completed_at\": self.completed_at.isoformat() if (self.completed_at) and False else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_15": [
+  "-            job_id=job_uuid,",
+  "+            job_id=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_16": [
+  "-            \"completed_at\": self.completed_at.isoformat() if self.completed_at else None,",
+  "+            \"completed_at\": self.completed_at.isoformat() if (self.completed_at) or True else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_16": [
+  "-            attempt_number=attempt_number,",
+  "+            attempt_number=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_16": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "-            )",
+  "+                )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_16": [
+  "-            job_id=job_uuid,",
+  "+            job_id=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_17": [
+  "-            worker_id=worker_id,",
+  "+            worker_id=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_17": [
+  "-                \"Job attempt not found for end recording\",",
+  "+                \"XXJob attempt not found for end recordingXX\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_17": [
+  "-            attempt_number=attempt_number,",
+  "+            attempt_number=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_18": [
+  "-            status=\"started\",",
+  "+            status=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_18": [
+  "-                \"Job attempt not found for end recording\",",
+  "+                \"job attempt not found for end recording\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_19": [
+  "-            job_id=job_uuid,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_19": [
+  "-                \"Job attempt not found for end recording\",",
+  "+                \"JOB ATTEMPT NOT FOUND FOR END RECORDING\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_19": [
+  "-            message=message,",
+  "+            message=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_20": [
+  "-            attempt_number=attempt_number,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_20": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "+                extra={\"XXjob_idXX\": str(job_id), \"attempt_number\": attempt_number},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_20": [
+  "-            context=context,",
+  "+            context=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_21": [
+  "-            worker_id=worker_id,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_21": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "+                extra={\"JOB_ID\": str(job_id), \"attempt_number\": attempt_number},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_21": [
+  "-            job_id=job_uuid,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_22": [
+  "-            status=\"started\",",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_22": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "+                extra={\"job_id\": str(None), \"attempt_number\": attempt_number},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_22": [
+  "-            attempt_number=attempt_number,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_23": [
+  "-                    \"at\": t.at.isoformat(),",
+  "+                    \"XXatXX\": t.at.isoformat(),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_23": [
+  "-            status=\"started\",",
+  "+            status=\"XXstartedXX\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_23": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "+                extra={\"job_id\": str(job_id), \"XXattempt_numberXX\": attempt_number},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_24": [
+  "-                    \"at\": t.at.isoformat(),",
+  "+                    \"AT\": t.at.isoformat(),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_24": [
+  "-            status=\"started\",",
+  "+            status=\"STARTED\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_24": [
+  "-                extra={\"job_id\": str(job_id), \"attempt_number\": attempt_number},",
+  "+                extra={\"job_id\": str(job_id), \"ATTEMPT_NUMBER\": attempt_number},"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_24": [
+  "-            message=message,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_25": [
+  "-                    \"triggered_by\": t.triggered_by,",
+  "+                    \"XXtriggered_byXX\": t.triggered_by,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_25": [
+  "-        self._session.add(attempt)",
+  "+        self._session.add(None)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_25": [
+  "-        attempt.ended_at = datetime.now(UTC)",
+  "+        attempt.ended_at = None"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_25": [
+  "-            context=context,",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_26": [
+  "-                    \"triggered_by\": t.triggered_by,",
+  "+                    \"TRIGGERED_BY\": t.triggered_by,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_26": [
+  "-            \"Job attempt started\",",
+  "+            None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_26": [
+  "-        attempt.ended_at = datetime.now(UTC)",
+  "+        attempt.ended_at = datetime.now(None)"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_27": [
+  "-                    \"details\": t.details,",
+  "+                    \"XXdetailsXX\": t.details,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_27": [
+  "-            extra={",
+  "-                \"job_id\": str(job_id),",
+  "-                \"attempt_number\": attempt_number,",
+  "-                \"worker_id\": worker_id,",
+  "-            },",
+  "+            extra=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_28": [
+  "-                    \"details\": t.details,",
+  "+                    \"DETAILS\": t.details,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_28": [
+  "-        attempt.error_message = error_message",
+  "+        attempt.error_message = None"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_29": [
+  "-            extra={",
+  "-                \"job_id\": str(job_id),",
+  "-                \"attempt_number\": attempt_number,",
+  "-                \"worker_id\": worker_id,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_29": [
+  "-        attempt.error_traceback = error_traceback",
+  "+        attempt.error_traceback = None"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_29": [
+  "-                    job_id=job_id,",
+  "+                    job_id=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_30": [
+  "-            \"Job attempt started\",",
+  "+            \"XXJob attempt startedXX\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_31": [
+  "-            \"Job attempt started\",",
+  "+            \"job attempt started\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_31": [
+  "-            \"Job attempt ended\",",
+  "+            None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_31": [
+  "-                    message=message,",
+  "+                    message=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_32": [
+  "-            \"Job attempt started\",",
+  "+            \"JOB ATTEMPT STARTED\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_32": [
+  "-            extra={",
+  "-                \"job_id\": str(job_id),",
+  "-                \"attempt_number\": attempt_number,",
+  "-                \"status\": status,",
+  "-            },",
+  "+            extra=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_32": [
+  "-                    context=context,",
+  "+                    context=None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_33": [
+  "-                    \"started_at\": a.started_at.isoformat(),",
+  "+                    \"XXstarted_atXX\": a.started_at.isoformat(),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_33": [
+  "-                \"job_id\": str(job_id),",
+  "+                \"XXjob_idXX\": str(job_id),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_34": [
+  "-                    \"started_at\": a.started_at.isoformat(),",
+  "+                    \"STARTED_AT\": a.started_at.isoformat(),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_34": [
+  "-                \"job_id\": str(job_id),",
+  "+                \"JOB_ID\": str(job_id),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_34": [
+  "-            extra={",
+  "-                \"job_id\": str(job_id),",
+  "-                \"attempt_number\": attempt_number,",
+  "-                \"status\": status,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_35": [
+  "-                    \"ended_at\": a.ended_at.isoformat() if a.ended_at else None,",
+  "+                    \"XXended_atXX\": a.ended_at.isoformat() if a.ended_at else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_35": [
+  "-                \"job_id\": str(job_id),",
+  "+                \"job_id\": str(None),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_35": [
+  "-            \"Job attempt ended\",",
+  "+            \"XXJob attempt endedXX\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_36": [
+  "-                    \"ended_at\": a.ended_at.isoformat() if a.ended_at else None,",
+  "+                    \"ENDED_AT\": a.ended_at.isoformat() if a.ended_at else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_36": [
+  "-                \"attempt_number\": attempt_number,",
+  "+                \"XXattempt_numberXX\": attempt_number,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_36": [
+  "-            \"Job attempt ended\",",
+  "+            \"job attempt ended\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1add_job_log__mutmut_36": [
+  "-                    context=context,",
+  "-                )",
+  "+                    )"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_37": [
+  "-                    \"ended_at\": a.ended_at.isoformat() if a.ended_at else None,",
+  "+                    \"ended_at\": a.ended_at.isoformat() if (a.ended_at) and False else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_37": [
+  "-                \"attempt_number\": attempt_number,",
+  "+                \"ATTEMPT_NUMBER\": attempt_number,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_37": [
+  "-            \"Job attempt ended\",",
+  "+            \"JOB ATTEMPT ENDED\","
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_38": [
+  "-                    \"ended_at\": a.ended_at.isoformat() if a.ended_at else None,",
+  "+                    \"ended_at\": a.ended_at.isoformat() if (a.ended_at) or True else None,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_38": [
+  "-                \"worker_id\": worker_id,",
+  "+                \"XXworker_idXX\": worker_id,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_38": [
+  "-                \"job_id\": str(job_id),",
+  "+                \"XXjob_idXX\": str(job_id),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_39": [
+  "-                    \"status\": a.status,",
+  "+                    \"XXstatusXX\": a.status,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_start__mutmut_39": [
+  "-                \"worker_id\": worker_id,",
+  "+                \"WORKER_ID\": worker_id,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_39": [
+  "-                \"job_id\": str(job_id),",
+  "+                \"JOB_ID\": str(job_id),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_40": [
+  "-                    \"status\": a.status,",
+  "+                    \"STATUS\": a.status,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_40": [
+  "-                \"job_id\": str(job_id),",
+  "+                \"job_id\": str(None),"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_41": [
+  "-                    \"error\": a.error,",
+  "+                    \"XXerrorXX\": a.error,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_41": [
+  "-                \"attempt_number\": attempt_number,",
+  "+                \"XXattempt_numberXX\": attempt_number,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_42": [
+  "-                    \"error\": a.error,",
+  "+                    \"ERROR\": a.error,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_42": [
+  "-                \"attempt_number\": attempt_number,",
+  "+                \"ATTEMPT_NUMBER\": attempt_number,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_43": [
+  "-                    \"worker_id\": a.worker_id,",
+  "+                    \"XXworker_idXX\": a.worker_id,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_43": [
+  "-                \"status\": status,",
+  "+                \"XXstatusXX\": status,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_44": [
+  "-                    \"worker_id\": a.worker_id,",
+  "+                    \"WORKER_ID\": a.worker_id,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistoryService\u01c1record_attempt_end__mutmut_44": [
+  "-                \"status\": status,",
+  "+                \"STATUS\": status,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_45": [
+  "-                    \"duration_seconds\": a.duration_seconds,",
+  "+                    \"XXduration_secondsXX\": a.duration_seconds,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_46": [
+  "-                    \"duration_seconds\": a.duration_seconds,",
+  "+                    \"DURATION_SECONDS\": a.duration_seconds,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_47": [
+  "-                    \"result\": a.result,",
+  "+                    \"XXresultXX\": a.result,"
+ ],
+ "backend.services.job_history_service.x\u01c1JobHistory\u01c1to_dict__mutmut_48": [
+  "-                    \"result\": a.result,",
+  "+                    \"RESULT\": a.result,"
+ ]
+}

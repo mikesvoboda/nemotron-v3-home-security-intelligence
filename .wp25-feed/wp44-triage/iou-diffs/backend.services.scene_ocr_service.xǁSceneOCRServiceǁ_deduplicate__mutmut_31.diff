@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_31: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -45,7 +45,7 @@
+                 }
+             )
+         detection_ocr[det_id] = DetectionOCRResult(
+-            detection_id=det_id,
++            detection_id=None,
+             texts=texts,
+         )
+ 

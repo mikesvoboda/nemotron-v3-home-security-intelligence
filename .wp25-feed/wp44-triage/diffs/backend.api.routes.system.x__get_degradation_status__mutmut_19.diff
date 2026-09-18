@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_degradation_status__mutmut_19: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -30,7 +30,7 @@
+                     status=health.get("status", "unknown"),
+                     last_check=health.get("last_check"),
+                     consecutive_failures=health.get("consecutive_failures", 0),
+-                    error_message=health.get("error_message"),
++                    error_message=None,
+                 )
+             )
+ 

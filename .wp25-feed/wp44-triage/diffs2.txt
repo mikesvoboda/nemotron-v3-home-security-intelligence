@@ -1,0 +1,346 @@
+backend.services.retry_handler.x_get_retry_handler__mutmut_4
+    -elif redis_client is not None and _retry_handler._redis is None:
+    +elif redis_client is not None or _retry_handler._redis is None:
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_12
+    -logger.debug(f"Failed to capture queue depths for error context: {e}")
+    +logger.debug(None)
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_13
+    -context["dlq_circuit_breaker_state"] = self._dlq_circuit_breaker.state.value
+    +context["dlq_circuit_breaker_state"] = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_2
+    -detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
+    +detection_depth = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_3
+    -detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
+    +detection_depth = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_4
+    -analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
+    +analysis_depth = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_5
+    -analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
+    +analysis_depth = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_6
+    -context["detection_queue_depth"] = detection_depth
+    +context["detection_queue_depth"] = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_9
+    -context["analysis_queue_depth"] = analysis_depth
+    +context["analysis_queue_depth"] = None
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_12
+    -stack_trace_suffix = "\n... [truncated]"
+    +stack_trace_suffix = "XX\n... [truncated]XX"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_13
+    -stack_trace_suffix = "\n... [truncated]"
+    +stack_trace_suffix = "\n... [TRUNCATED]"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_15
+    -response_body_suffix = "... [truncated]"
+    +response_body_suffix = "XX... [truncated]XX"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_16
+    -response_body_suffix = "... [truncated]"
+    +response_body_suffix = "... [TRUNCATED]"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_19
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "XXXX".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_20
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(None, exc, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_21
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(type(exc), None, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_22
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(type(exc), exc, None))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_26
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(type(None), exc, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_27
+    -if len(stack_trace) > max_stack_trace_length:
+    +if len(stack_trace) >= max_stack_trace_length:
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_39
+    -if len(response_text) > max_response_body_length:
+    +if len(response_text) >= max_response_body_length:
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_100
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_101
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_102
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_103
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_105
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_106
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_108
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_109
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_110
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_111
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_112
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_113
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_114
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_115
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_116
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_12
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_13
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_14
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_15
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_16
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_17
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_18
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_19
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_20
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_21
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_22
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_23
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_24
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_25
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_26
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_27
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_28
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_29
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_3
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_30
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_31
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_32
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_38
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_39
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_40
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_41
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_42
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_43
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_62
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_66
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_69
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_71
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_72
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_74
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_75
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_76
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_77
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_78
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_79
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_80
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_81
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_82
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_83
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_84
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_85
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_86
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_87
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_88
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_89
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_90
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_91
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_92
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_93
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_95
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_96
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_97
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_98
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_99
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁclear_dlq__mutmut_4
+    -logger.info(f"Cleared DLQ: {dlq_name}")
+    +logger.info(None)
+backend.services.retry_handler.xǁRetryHandlerǁclear_dlq__mutmut_6
+    -logger.error(f"Failed to clear DLQ: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁclear_dlq__mutmut_7
+    -logger.error(f"Failed to clear DLQ: {sanitize_error(e)}")
+    +logger.error(f"Failed to clear DLQ: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_jobs__mutmut_10
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_jobs__mutmut_11
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_13
+    -logger.error(f"Failed to get DLQ stats: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_14
+    -logger.error(f"Failed to get DLQ stats: {sanitize_error(e)}")
+    +logger.error(f"Failed to get DLQ stats: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_3
+    -detection_count = await self._redis.get_queue_length(self.DLQ_DETECTION_QUEUE)
+    +detection_count = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_5
+    -analysis_count = await self._redis.get_queue_length(self.DLQ_ANALYSIS_QUEUE)
+    +analysis_count = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_11
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_13
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_14
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_15
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_16
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_17
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_18
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_19
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_20
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_21
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_22
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_25
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_27
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_28
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_29
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_30
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_31
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_32
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_33
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_34
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_35
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_36
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_37
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_39
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_4
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_40
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_41
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_42
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_43
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_46
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_47
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_8
+IDENTICAL-TO-ORIG
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_10
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_11
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_12
+    -"original_queue": failure.queue_name,
+    +"XXoriginal_queueXX": failure.queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_13
+    -"original_queue": failure.queue_name,
+    +"ORIGINAL_QUEUE": failure.queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_14
+    -logger.error(f"Failed to requeue DLQ job: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_15
+    -logger.error(f"Failed to requeue DLQ job: {sanitize_error(e)}")
+    +logger.error(f"Failed to requeue DLQ job: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_6
+    -f"Requeued job from {dlq_name}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_7
+    -extra={ | "dlq_name": dlq_name, | "original_queue": failure.queue_name, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_9
+    -extra={ | "dlq_name": dlq_name, | "original_queue": failure.queue_name, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_1
+    -"DLQ circuit breaker reset to CLOSED state",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_2
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_4
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_5
+    -"DLQ circuit breaker reset to CLOSED state",
+    +"XXDLQ circuit breaker reset to CLOSED stateXX",
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_6
+    -"DLQ circuit breaker reset to CLOSED state",
+    +"dlq circuit breaker reset to closed state",
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_7
+    -"DLQ circuit breaker reset to CLOSED state",
+    +"DLQ CIRCUIT BREAKER RESET TO CLOSED STATE",
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_8
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +extra={"XXcircuit_nameXX": self._dlq_circuit_breaker.name},
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_9
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +extra={"CIRCUIT_NAME": self._dlq_circuit_breaker.name},

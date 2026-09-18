@@ -1,0 +1,13 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁadd_batch__mutmut_27: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -36,8 +36,7 @@
+             self._stream_key,
+             message_fields,
+             maxlen=self._maxlen,
+-            approximate=DEFAULT_STREAM_APPROXIMATE,
+-        )
++            )
+     )
+ 
+     logger.debug(

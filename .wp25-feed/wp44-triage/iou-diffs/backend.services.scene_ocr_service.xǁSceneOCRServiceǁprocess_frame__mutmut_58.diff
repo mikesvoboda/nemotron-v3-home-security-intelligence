@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_58: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -81,7 +81,7 @@
+         # Record detected text counts
+         total_texts = len(result.scene_texts)
+         for det_ocr in result.detection_ocr.values():
+-            total_texts += len(det_ocr.texts)
++            total_texts -= len(det_ocr.texts)
+         if total_texts > 0:
+             record_scene_ocr_texts_detected(total_texts)
+         logger.debug(

@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_120: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -58,7 +58,7 @@
+ 
+     # Extract violence data
+     violence_data = enrichment_data.get("violence_detection")
+-    violence_response: dict[str, Any] = {"detected": False, "score": 0.0}
++    violence_response: dict[str, Any] = {"detected": True, "score": 0.0}
+     if violence_data:
+         violence_response = {
+             "detected": violence_data.get("is_violent", False),

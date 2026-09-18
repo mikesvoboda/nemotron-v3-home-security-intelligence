@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_67: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -73,7 +73,7 @@
+                             inference_time_ms=inference_time_ms,
+                         )
+                         set_inference_result_attributes(
+-                            span, duration_ms=inference_time_ms, status="success"
++                            span, duration_ms=None, status="success"
+                         )
+                         return result
+ 

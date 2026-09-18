@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_18: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -17,7 +17,7 @@
+ 
+     # Calculate text center relative to detection
+     text_center_y = (text_bbox[1] + text_bbox[3]) / 2
+-    text_center_x = (text_bbox[0] + text_bbox[2]) / 2
++    text_center_x = (text_bbox[0] + text_bbox[3]) / 2
+ 
+     det_height = det_bbox[3] - det_bbox[1]
+     det_width = det_bbox[2] - det_bbox[0]

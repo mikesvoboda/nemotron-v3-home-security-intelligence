@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_76: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -84,7 +84,7 @@
+                 TimeoutError,
+             ) as e:
+                 last_exception = e
+-                if attempt < self._max_retries - 1:
++                if attempt < self._max_retries + 1:
+                     delay = min(2**attempt, 30)
+                     logger.warning(
+                         f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "

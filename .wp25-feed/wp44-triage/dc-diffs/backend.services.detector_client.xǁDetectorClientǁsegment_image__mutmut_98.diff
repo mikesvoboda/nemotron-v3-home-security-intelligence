@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_98: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -100,7 +100,7 @@
+ 
+             except httpx.HTTPStatusError as e:
+                 status_code = e.response.status_code
+-                if status_code >= 500:
++                if status_code > 500:
+                     last_exception = e
+                     if attempt < self._max_retries - 1:
+                         delay = min(2**attempt, 30)

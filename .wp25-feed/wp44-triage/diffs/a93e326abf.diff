@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_15: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -17,7 +17,7 @@
+         ],
+         "faces": [
+             {
+-                "bbox": face.bbox.to_tuple(),
++                "XXbboxXX": face.bbox.to_tuple(),
+                 "confidence": face.confidence,
+                 "source_detection_id": face.source_detection_id,
+             }

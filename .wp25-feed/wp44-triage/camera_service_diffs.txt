@@ -1,0 +1,1486 @@
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_online__mutmut_1
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.ONLINE.value, timestamp)
++    return await self.update_camera_status(None, CameraStatus.ONLINE.value, timestamp)
+
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_offline__mutmut_1
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.OFFLINE.value, timestamp)
++    return await self.update_camera_status(None, CameraStatus.OFFLINE.value, timestamp)
+
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_offline__mutmut_3
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.OFFLINE.value, timestamp)
++    return await self.update_camera_status(camera_id, CameraStatus.OFFLINE.value, None)
+
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_offline__mutmut_6
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.OFFLINE.value, timestamp)
++    return await self.update_camera_status(camera_id, CameraStatus.OFFLINE.value, )
+
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_error__mutmut_1
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.ERROR.value, timestamp)
++    return await self.update_camera_status(None, CameraStatus.ERROR.value, timestamp)
+
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_error__mutmut_3
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.ERROR.value, timestamp)
++    return await self.update_camera_status(camera_id, CameraStatus.ERROR.value, None)
+
+===== backend.services.camera_service.xǁCameraServiceǁset_camera_error__mutmut_6
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -14,4 +14,4 @@
+         Returns:
+             A tuple of (updated: bool, camera: Camera | None).
+         """
+-    return await self.update_camera_status(camera_id, CameraStatus.ERROR.value, timestamp)
++    return await self.update_camera_status(camera_id, CameraStatus.ERROR.value, )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_2
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -20,7 +20,7 @@
+             reason: Optional reason for the status change.
+         """
+     if self._emitter is None:
+-        logger.debug(f"WebSocket emitter not configured, skipping event for {camera.id}")
++        logger.debug(None)
+         return
+ 
+     # Check if we should debounce this event
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_9
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -31,8 +31,7 @@
+ 
+     if not should_emit:
+         logger.debug(
+-            f"Camera {camera.id} status change debounced "
+-            f"({previous_status} -> {camera.status})",
++            None,
+             extra={
+                 "camera_id": camera.id,
+                 "previous_status": previous_status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_10
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -33,12 +33,7 @@
+         logger.debug(
+             f"Camera {camera.id} status change debounced "
+             f"({previous_status} -> {camera.status})",
+-            extra={
+-                "camera_id": camera.id,
+-                "previous_status": previous_status,
+-                "new_status": camera.status,
+-                "debounced": True,
+-            },
++            extra=None,
+         )
+         return
+ 
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_12
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -33,13 +33,7 @@
+         logger.debug(
+             f"Camera {camera.id} status change debounced "
+             f"({previous_status} -> {camera.status})",
+-            extra={
+-                "camera_id": camera.id,
+-                "previous_status": previous_status,
+-                "new_status": camera.status,
+-                "debounced": True,
+-            },
+-        )
++            )
+         return
+ 
+     # Emit the appropriate event based on new status
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_13
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -34,7 +34,7 @@
+             f"Camera {camera.id} status change debounced "
+             f"({previous_status} -> {camera.status})",
+             extra={
+-                "camera_id": camera.id,
++                "XXcamera_idXX": camera.id,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+                 "debounced": True,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_14
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -34,7 +34,7 @@
+             f"Camera {camera.id} status change debounced "
+             f"({previous_status} -> {camera.status})",
+             extra={
+-                "camera_id": camera.id,
++                "CAMERA_ID": camera.id,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+                 "debounced": True,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_15
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -35,7 +35,7 @@
+             f"({previous_status} -> {camera.status})",
+             extra={
+                 "camera_id": camera.id,
+-                "previous_status": previous_status,
++                "XXprevious_statusXX": previous_status,
+                 "new_status": camera.status,
+                 "debounced": True,
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_16
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -35,7 +35,7 @@
+             f"({previous_status} -> {camera.status})",
+             extra={
+                 "camera_id": camera.id,
+-                "previous_status": previous_status,
++                "PREVIOUS_STATUS": previous_status,
+                 "new_status": camera.status,
+                 "debounced": True,
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_17
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -36,7 +36,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "previous_status": previous_status,
+-                "new_status": camera.status,
++                "XXnew_statusXX": camera.status,
+                 "debounced": True,
+             },
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_18
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -36,7 +36,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "previous_status": previous_status,
+-                "new_status": camera.status,
++                "NEW_STATUS": camera.status,
+                 "debounced": True,
+             },
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_19
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -37,7 +37,7 @@
+                 "camera_id": camera.id,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+-                "debounced": True,
++                "XXdebouncedXX": True,
+             },
+         )
+         return
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_20
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -37,7 +37,7 @@
+                 "camera_id": camera.id,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+-                "debounced": True,
++                "DEBOUNCED": True,
+             },
+         )
+         return
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_21
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -37,7 +37,7 @@
+                 "camera_id": camera.id,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+-                "debounced": True,
++                "debounced": False,
+             },
+         )
+         return
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_22
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -43,7 +43,7 @@
+         return
+ 
+     # Emit the appropriate event based on new status
+-    timestamp = datetime.now(UTC).isoformat()
++    timestamp = None
+     try:
+         await self._emit_camera_events(
+             camera=camera,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_23
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -43,7 +43,7 @@
+         return
+ 
+     # Emit the appropriate event based on new status
+-    timestamp = datetime.now(UTC).isoformat()
++    timestamp = datetime.now(None).isoformat()
+     try:
+         await self._emit_camera_events(
+             camera=camera,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_26
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -48,7 +48,7 @@
+         await self._emit_camera_events(
+             camera=camera,
+             previous_status=previous_status,
+-            timestamp=timestamp,
++            timestamp=None,
+             reason=reason,
+         )
+     except Exception as e:
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_32
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -54,7 +54,7 @@
+     except Exception as e:
+         # Log error but don't fail the status update
+         logger.error(
+-            f"Failed to emit WebSocket event for camera {camera.id}: {e}",
++            None,
+             extra={
+                 "camera_id": camera.id,
+                 "status": camera.status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_33
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -55,10 +55,6 @@
+         # Log error but don't fail the status update
+         logger.error(
+             f"Failed to emit WebSocket event for camera {camera.id}: {e}",
+-            extra={
+-                "camera_id": camera.id,
+-                "status": camera.status,
+-                "error": str(e),
+-            },
++            extra=None,
+             exc_info=True,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_34
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -60,5 +60,5 @@
+                 "status": camera.status,
+                 "error": str(e),
+             },
+-            exc_info=True,
++            exc_info=None,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_36
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -55,10 +55,5 @@
+         # Log error but don't fail the status update
+         logger.error(
+             f"Failed to emit WebSocket event for camera {camera.id}: {e}",
+-            extra={
+-                "camera_id": camera.id,
+-                "status": camera.status,
+-                "error": str(e),
+-            },
+             exc_info=True,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_37
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -60,5 +60,4 @@
+                 "status": camera.status,
+                 "error": str(e),
+             },
+-            exc_info=True,
+-        )
++            )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_38
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -56,7 +56,7 @@
+         logger.error(
+             f"Failed to emit WebSocket event for camera {camera.id}: {e}",
+             extra={
+-                "camera_id": camera.id,
++                "XXcamera_idXX": camera.id,
+                 "status": camera.status,
+                 "error": str(e),
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_39
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -56,7 +56,7 @@
+         logger.error(
+             f"Failed to emit WebSocket event for camera {camera.id}: {e}",
+             extra={
+-                "camera_id": camera.id,
++                "CAMERA_ID": camera.id,
+                 "status": camera.status,
+                 "error": str(e),
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_40
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -57,7 +57,7 @@
+             f"Failed to emit WebSocket event for camera {camera.id}: {e}",
+             extra={
+                 "camera_id": camera.id,
+-                "status": camera.status,
++                "XXstatusXX": camera.status,
+                 "error": str(e),
+             },
+             exc_info=True,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_41
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -57,7 +57,7 @@
+             f"Failed to emit WebSocket event for camera {camera.id}: {e}",
+             extra={
+                 "camera_id": camera.id,
+-                "status": camera.status,
++                "STATUS": camera.status,
+                 "error": str(e),
+             },
+             exc_info=True,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_42
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -58,7 +58,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "status": camera.status,
+-                "error": str(e),
++                "XXerrorXX": str(e),
+             },
+             exc_info=True,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_43
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -58,7 +58,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "status": camera.status,
+-                "error": str(e),
++                "ERROR": str(e),
+             },
+             exc_info=True,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_44
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -58,7 +58,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "status": camera.status,
+-                "error": str(e),
++                "error": str(None),
+             },
+             exc_info=True,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_status_change_event__mutmut_45
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -60,5 +60,5 @@
+                 "status": camera.status,
+                 "error": str(e),
+             },
+-            exc_info=True,
++            exc_info=False,
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_5
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -29,7 +29,7 @@
+ 
+     try:
+         # Check if there's a pending status change
+-        pending_status = await self._redis.get(debounce_key)
++        pending_status = await self._redis.get(None)
+ 
+         if pending_status == new_status:
+             # Status matches what was pending - it's been stable long enough
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_8
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -36,7 +36,7 @@
+             # Delete the debounce key and emit the event
+             await self._redis.delete(debounce_key)
+             logger.debug(
+-                f"Camera {camera_id} status stable, emitting event",
++                None,
+                 extra={
+                     "camera_id": camera_id,
+                     "status": new_status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_9
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -37,10 +37,7 @@
+             await self._redis.delete(debounce_key)
+             logger.debug(
+                 f"Camera {camera_id} status stable, emitting event",
+-                extra={
+-                    "camera_id": camera_id,
+-                    "status": new_status,
+-                },
++                extra=None,
+             )
+             return True
+         # Status is new or changed - set/update the pending status
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_10
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -36,7 +36,6 @@
+             # Delete the debounce key and emit the event
+             await self._redis.delete(debounce_key)
+             logger.debug(
+-                f"Camera {camera_id} status stable, emitting event",
+                 extra={
+                     "camera_id": camera_id,
+                     "status": new_status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_11
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -37,11 +37,7 @@
+             await self._redis.delete(debounce_key)
+             logger.debug(
+                 f"Camera {camera_id} status stable, emitting event",
+-                extra={
+-                    "camera_id": camera_id,
+-                    "status": new_status,
+-                },
+-            )
++                )
+             return True
+         # Status is new or changed - set/update the pending status
+         # Use SETEX to automatically expire after debounce period
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_12
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -38,7 +38,7 @@
+             logger.debug(
+                 f"Camera {camera_id} status stable, emitting event",
+                 extra={
+-                    "camera_id": camera_id,
++                    "XXcamera_idXX": camera_id,
+                     "status": new_status,
+                 },
+             )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_13
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -38,7 +38,7 @@
+             logger.debug(
+                 f"Camera {camera_id} status stable, emitting event",
+                 extra={
+-                    "camera_id": camera_id,
++                    "CAMERA_ID": camera_id,
+                     "status": new_status,
+                 },
+             )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_14
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -39,7 +39,7 @@
+                 f"Camera {camera_id} status stable, emitting event",
+                 extra={
+                     "camera_id": camera_id,
+-                    "status": new_status,
++                    "XXstatusXX": new_status,
+                 },
+             )
+             return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_15
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -39,7 +39,7 @@
+                 f"Camera {camera_id} status stable, emitting event",
+                 extra={
+                     "camera_id": camera_id,
+-                    "status": new_status,
++                    "STATUS": new_status,
+                 },
+             )
+             return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_23
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -51,8 +51,7 @@
+             new_status,
+         )
+         logger.debug(
+-            f"Camera {camera_id} status change pending, will emit in "
+-            f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
++            None,
+             extra={
+                 "camera_id": camera_id,
+                 "new_status": new_status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_24
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -53,12 +53,7 @@
+         logger.debug(
+             f"Camera {camera_id} status change pending, will emit in "
+             f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
+-            extra={
+-                "camera_id": camera_id,
+-                "new_status": new_status,
+-                "pending_status": pending_status,
+-                "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+-            },
++            extra=None,
+         )
+         return False
+ 
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_26
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -53,13 +53,7 @@
+         logger.debug(
+             f"Camera {camera_id} status change pending, will emit in "
+             f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
+-            extra={
+-                "camera_id": camera_id,
+-                "new_status": new_status,
+-                "pending_status": pending_status,
+-                "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+-            },
+-        )
++            )
+         return False
+ 
+     except Exception as e:
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_27
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -54,7 +54,7 @@
+             f"Camera {camera_id} status change pending, will emit in "
+             f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
+             extra={
+-                "camera_id": camera_id,
++                "XXcamera_idXX": camera_id,
+                 "new_status": new_status,
+                 "pending_status": pending_status,
+                 "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_28
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -54,7 +54,7 @@
+             f"Camera {camera_id} status change pending, will emit in "
+             f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
+             extra={
+-                "camera_id": camera_id,
++                "CAMERA_ID": camera_id,
+                 "new_status": new_status,
+                 "pending_status": pending_status,
+                 "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_29
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -55,7 +55,7 @@
+             f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
+             extra={
+                 "camera_id": camera_id,
+-                "new_status": new_status,
++                "XXnew_statusXX": new_status,
+                 "pending_status": pending_status,
+                 "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_30
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -55,7 +55,7 @@
+             f"{CAMERA_STATUS_DEBOUNCE_SECONDS}s if stable",
+             extra={
+                 "camera_id": camera_id,
+-                "new_status": new_status,
++                "NEW_STATUS": new_status,
+                 "pending_status": pending_status,
+                 "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_31
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -56,7 +56,7 @@
+             extra={
+                 "camera_id": camera_id,
+                 "new_status": new_status,
+-                "pending_status": pending_status,
++                "XXpending_statusXX": pending_status,
+                 "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+             },
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_32
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -56,7 +56,7 @@
+             extra={
+                 "camera_id": camera_id,
+                 "new_status": new_status,
+-                "pending_status": pending_status,
++                "PENDING_STATUS": pending_status,
+                 "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
+             },
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_33
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -57,7 +57,7 @@
+                 "camera_id": camera_id,
+                 "new_status": new_status,
+                 "pending_status": pending_status,
+-                "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
++                "XXdebounce_secondsXX": CAMERA_STATUS_DEBOUNCE_SECONDS,
+             },
+         )
+         return False
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_34
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -57,7 +57,7 @@
+                 "camera_id": camera_id,
+                 "new_status": new_status,
+                 "pending_status": pending_status,
+-                "debounce_seconds": CAMERA_STATUS_DEBOUNCE_SECONDS,
++                "DEBOUNCE_SECONDS": CAMERA_STATUS_DEBOUNCE_SECONDS,
+             },
+         )
+         return False
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_36
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -65,7 +65,7 @@
+     except Exception as e:
+         # If Redis fails, emit the event anyway
+         logger.warning(
+-            f"Redis error during debounce check for {camera_id}, emitting: {e}",
++            None,
+             extra={"camera_id": camera_id, "error": str(e)},
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_37
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,6 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
++            extra=None,
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_39
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,5 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
+-        )
++            )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_40
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,6 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
++            extra={"XXcamera_idXX": camera_id, "error": str(e)},
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_41
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,6 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
++            extra={"CAMERA_ID": camera_id, "error": str(e)},
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_42
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,6 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
++            extra={"camera_id": camera_id, "XXerrorXX": str(e)},
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_43
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,6 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
++            extra={"camera_id": camera_id, "ERROR": str(e)},
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_should_emit_debounced__mutmut_44
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,6 +66,6 @@
+         # If Redis fails, emit the event anyway
+         logger.warning(
+             f"Redis error during debounce check for {camera_id}, emitting: {e}",
+-            extra={"camera_id": camera_id, "error": str(e)},
++            extra={"camera_id": camera_id, "error": str(None)},
+         )
+         return True
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_4
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -22,7 +22,7 @@
+ 
+     # Map status to event type and emit specific event
+     status_lower = camera.status.lower()
+-    specific_event_type: WebSocketEventType | None = None
++    specific_event_type: WebSocketEventType | None = ""
+ 
+     if status_lower == CameraStatus.ONLINE.value:
+         specific_event_type = WebSocketEventType.CAMERA_ONLINE
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_19
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -35,7 +35,7 @@
+         specific_event_type = WebSocketEventType.CAMERA_OFFLINE
+         specific_payload = {
+             "camera_id": camera.id,
+-            "camera_name": camera.name,
++            "XXcamera_nameXX": camera.name,
+             "timestamp": timestamp,
+             "reason": reason,
+         }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_20
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -35,7 +35,7 @@
+         specific_event_type = WebSocketEventType.CAMERA_OFFLINE
+         specific_payload = {
+             "camera_id": camera.id,
+-            "camera_name": camera.name,
++            "CAMERA_NAME": camera.name,
+             "timestamp": timestamp,
+             "reason": reason,
+         }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_21
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -36,7 +36,7 @@
+         specific_payload = {
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+-            "timestamp": timestamp,
++            "XXtimestampXX": timestamp,
+             "reason": reason,
+         }
+     elif status_lower == CameraStatus.ERROR.value:
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_22
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -36,7 +36,7 @@
+         specific_payload = {
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+-            "timestamp": timestamp,
++            "TIMESTAMP": timestamp,
+             "reason": reason,
+         }
+     elif status_lower == CameraStatus.ERROR.value:
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_30
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -43,7 +43,7 @@
+         specific_event_type = WebSocketEventType.CAMERA_ERROR
+         specific_payload = {
+             "camera_id": camera.id,
+-            "camera_name": camera.name,
++            "XXcamera_nameXX": camera.name,
+             "error": reason or "Unknown error",
+             "error_code": None,
+             "timestamp": timestamp,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_31
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -43,7 +43,7 @@
+         specific_event_type = WebSocketEventType.CAMERA_ERROR
+         specific_payload = {
+             "camera_id": camera.id,
+-            "camera_name": camera.name,
++            "CAMERA_NAME": camera.name,
+             "error": reason or "Unknown error",
+             "error_code": None,
+             "timestamp": timestamp,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_35
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -44,7 +44,7 @@
+         specific_payload = {
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+-            "error": reason or "Unknown error",
++            "error": reason or "XXUnknown errorXX",
+             "error_code": None,
+             "timestamp": timestamp,
+         }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_36
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -44,7 +44,7 @@
+         specific_payload = {
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+-            "error": reason or "Unknown error",
++            "error": reason or "unknown error",
+             "error_code": None,
+             "timestamp": timestamp,
+         }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_37
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -44,7 +44,7 @@
+         specific_payload = {
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+-            "error": reason or "Unknown error",
++            "error": reason or "UNKNOWN ERROR",
+             "error_code": None,
+             "timestamp": timestamp,
+         }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_38
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -45,7 +45,7 @@
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+             "error": reason or "Unknown error",
+-            "error_code": None,
++            "XXerror_codeXX": None,
+             "timestamp": timestamp,
+         }
+     else:
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_39
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -45,7 +45,7 @@
+             "camera_id": camera.id,
+             "camera_name": camera.name,
+             "error": reason or "Unknown error",
+-            "error_code": None,
++            "ERROR_CODE": None,
+             "timestamp": timestamp,
+         }
+     else:
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_40
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -46,7 +46,7 @@
+             "camera_name": camera.name,
+             "error": reason or "Unknown error",
+             "error_code": None,
+-            "timestamp": timestamp,
++            "XXtimestampXX": timestamp,
+         }
+     else:
+         specific_payload = {}
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_41
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -46,7 +46,7 @@
+             "camera_name": camera.name,
+             "error": reason or "Unknown error",
+             "error_code": None,
+-            "timestamp": timestamp,
++            "TIMESTAMP": timestamp,
+         }
+     else:
+         specific_payload = {}
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_47
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -55,7 +55,7 @@
+     if specific_event_type is not None:
+         await self._emitter.emit(specific_event_type, specific_payload)
+         logger.info(
+-            f"Emitted {specific_event_type.value} for camera {camera.id}",
++            None,
+             extra={
+                 "camera_id": camera.id,
+                 "event_type": specific_event_type.value,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_48
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -56,12 +56,7 @@
+         await self._emitter.emit(specific_event_type, specific_payload)
+         logger.info(
+             f"Emitted {specific_event_type.value} for camera {camera.id}",
+-            extra={
+-                "camera_id": camera.id,
+-                "event_type": specific_event_type.value,
+-                "previous_status": previous_status,
+-                "new_status": camera.status,
+-            },
++            extra=None,
+         )
+ 
+     # Always emit the generic status_changed event with full details
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_50
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -56,13 +56,7 @@
+         await self._emitter.emit(specific_event_type, specific_payload)
+         logger.info(
+             f"Emitted {specific_event_type.value} for camera {camera.id}",
+-            extra={
+-                "camera_id": camera.id,
+-                "event_type": specific_event_type.value,
+-                "previous_status": previous_status,
+-                "new_status": camera.status,
+-            },
+-        )
++            )
+ 
+     # Always emit the generic status_changed event with full details
+     status_changed_payload: dict[str, Any] = {
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_51
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -57,7 +57,7 @@
+         logger.info(
+             f"Emitted {specific_event_type.value} for camera {camera.id}",
+             extra={
+-                "camera_id": camera.id,
++                "XXcamera_idXX": camera.id,
+                 "event_type": specific_event_type.value,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_52
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -57,7 +57,7 @@
+         logger.info(
+             f"Emitted {specific_event_type.value} for camera {camera.id}",
+             extra={
+-                "camera_id": camera.id,
++                "CAMERA_ID": camera.id,
+                 "event_type": specific_event_type.value,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_53
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -58,7 +58,7 @@
+             f"Emitted {specific_event_type.value} for camera {camera.id}",
+             extra={
+                 "camera_id": camera.id,
+-                "event_type": specific_event_type.value,
++                "XXevent_typeXX": specific_event_type.value,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_54
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -58,7 +58,7 @@
+             f"Emitted {specific_event_type.value} for camera {camera.id}",
+             extra={
+                 "camera_id": camera.id,
+-                "event_type": specific_event_type.value,
++                "EVENT_TYPE": specific_event_type.value,
+                 "previous_status": previous_status,
+                 "new_status": camera.status,
+             },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_55
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -59,7 +59,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "event_type": specific_event_type.value,
+-                "previous_status": previous_status,
++                "XXprevious_statusXX": previous_status,
+                 "new_status": camera.status,
+             },
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_56
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -59,7 +59,7 @@
+             extra={
+                 "camera_id": camera.id,
+                 "event_type": specific_event_type.value,
+-                "previous_status": previous_status,
++                "PREVIOUS_STATUS": previous_status,
+                 "new_status": camera.status,
+             },
+         )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_57
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -60,7 +60,7 @@
+                 "camera_id": camera.id,
+                 "event_type": specific_event_type.value,
+                 "previous_status": previous_status,
+-                "new_status": camera.status,
++                "XXnew_statusXX": camera.status,
+             },
+         )
+ 
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_58
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -60,7 +60,7 @@
+                 "camera_id": camera.id,
+                 "event_type": specific_event_type.value,
+                 "previous_status": previous_status,
+-                "new_status": camera.status,
++                "NEW_STATUS": camera.status,
+             },
+         )
+ 
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_60
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,7 +66,7 @@
+ 
+     # Always emit the generic status_changed event with full details
+     status_changed_payload: dict[str, Any] = {
+-        "camera_id": camera.id,
++        "XXcamera_idXX": camera.id,
+         "camera_name": camera.name,
+         "status": _map_status_string_to_enum(camera.status),
+         "previous_status": _map_status_string_to_enum(previous_status)
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_61
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -66,7 +66,7 @@
+ 
+     # Always emit the generic status_changed event with full details
+     status_changed_payload: dict[str, Any] = {
+-        "camera_id": camera.id,
++        "CAMERA_ID": camera.id,
+         "camera_name": camera.name,
+         "status": _map_status_string_to_enum(camera.status),
+         "previous_status": _map_status_string_to_enum(previous_status)
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_62
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -67,7 +67,7 @@
+     # Always emit the generic status_changed event with full details
+     status_changed_payload: dict[str, Any] = {
+         "camera_id": camera.id,
+-        "camera_name": camera.name,
++        "XXcamera_nameXX": camera.name,
+         "status": _map_status_string_to_enum(camera.status),
+         "previous_status": _map_status_string_to_enum(previous_status)
+         if previous_status
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_63
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -67,7 +67,7 @@
+     # Always emit the generic status_changed event with full details
+     status_changed_payload: dict[str, Any] = {
+         "camera_id": camera.id,
+-        "camera_name": camera.name,
++        "CAMERA_NAME": camera.name,
+         "status": _map_status_string_to_enum(camera.status),
+         "previous_status": _map_status_string_to_enum(previous_status)
+         if previous_status
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_70
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -70,7 +70,7 @@
+         "camera_name": camera.name,
+         "status": _map_status_string_to_enum(camera.status),
+         "previous_status": _map_status_string_to_enum(previous_status)
+-        if previous_status
++        if (previous_status) or True
+         else None,
+         "timestamp": timestamp,
+         "reason": reason,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_72
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -72,7 +72,7 @@
+         "previous_status": _map_status_string_to_enum(previous_status)
+         if previous_status
+         else None,
+-        "timestamp": timestamp,
++        "XXtimestampXX": timestamp,
+         "reason": reason,
+         "details": None,
+     }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_73
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -72,7 +72,7 @@
+         "previous_status": _map_status_string_to_enum(previous_status)
+         if previous_status
+         else None,
+-        "timestamp": timestamp,
++        "TIMESTAMP": timestamp,
+         "reason": reason,
+         "details": None,
+     }
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_74
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -73,7 +73,7 @@
+         if previous_status
+         else None,
+         "timestamp": timestamp,
+-        "reason": reason,
++        "XXreasonXX": reason,
+         "details": None,
+     }
+ 
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_75
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -73,7 +73,7 @@
+         if previous_status
+         else None,
+         "timestamp": timestamp,
+-        "reason": reason,
++        "REASON": reason,
+         "details": None,
+     }
+ 
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_76
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -74,7 +74,7 @@
+         else None,
+         "timestamp": timestamp,
+         "reason": reason,
+-        "details": None,
++        "XXdetailsXX": None,
+     }
+ 
+     await self._emitter.emit(
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_77
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -74,7 +74,7 @@
+         else None,
+         "timestamp": timestamp,
+         "reason": reason,
+-        "details": None,
++        "DETAILS": None,
+     }
+ 
+     await self._emitter.emit(
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_82
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -82,8 +82,7 @@
+         status_changed_payload,
+     )
+     logger.info(
+-        f"Emitted camera.status_changed for camera {camera.id}: "
+-        f"{previous_status} -> {camera.status}",
++        None,
+         extra={
+             "camera_id": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_83
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -84,10 +84,5 @@
+     logger.info(
+         f"Emitted camera.status_changed for camera {camera.id}: "
+         f"{previous_status} -> {camera.status}",
+-        extra={
+-            "camera_id": camera.id,
+-            "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+-            "previous_status": previous_status,
+-            "new_status": camera.status,
+-        },
++        extra=None,
+     )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_84
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -82,8 +82,6 @@
+         status_changed_payload,
+     )
+     logger.info(
+-        f"Emitted camera.status_changed for camera {camera.id}: "
+-        f"{previous_status} -> {camera.status}",
+         extra={
+             "camera_id": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_85
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -84,10 +84,4 @@
+     logger.info(
+         f"Emitted camera.status_changed for camera {camera.id}: "
+         f"{previous_status} -> {camera.status}",
+-        extra={
+-            "camera_id": camera.id,
+-            "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+-            "previous_status": previous_status,
+-            "new_status": camera.status,
+-        },
+-    )
++        )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_86
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -85,7 +85,7 @@
+         f"Emitted camera.status_changed for camera {camera.id}: "
+         f"{previous_status} -> {camera.status}",
+         extra={
+-            "camera_id": camera.id,
++            "XXcamera_idXX": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+             "previous_status": previous_status,
+             "new_status": camera.status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_87
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -85,7 +85,7 @@
+         f"Emitted camera.status_changed for camera {camera.id}: "
+         f"{previous_status} -> {camera.status}",
+         extra={
+-            "camera_id": camera.id,
++            "CAMERA_ID": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+             "previous_status": previous_status,
+             "new_status": camera.status,
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_88
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -86,7 +86,7 @@
+         f"{previous_status} -> {camera.status}",
+         extra={
+             "camera_id": camera.id,
+-            "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
++            "XXevent_typeXX": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+             "previous_status": previous_status,
+             "new_status": camera.status,
+         },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_89
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -86,7 +86,7 @@
+         f"{previous_status} -> {camera.status}",
+         extra={
+             "camera_id": camera.id,
+-            "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
++            "EVENT_TYPE": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+             "previous_status": previous_status,
+             "new_status": camera.status,
+         },
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_90
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -87,7 +87,7 @@
+         extra={
+             "camera_id": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+-            "previous_status": previous_status,
++            "XXprevious_statusXX": previous_status,
+             "new_status": camera.status,
+         },
+     )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_91
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -87,7 +87,7 @@
+         extra={
+             "camera_id": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+-            "previous_status": previous_status,
++            "PREVIOUS_STATUS": previous_status,
+             "new_status": camera.status,
+         },
+     )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_92
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -88,6 +88,6 @@
+             "camera_id": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+             "previous_status": previous_status,
+-            "new_status": camera.status,
++            "XXnew_statusXX": camera.status,
+         },
+     )
+
+===== backend.services.camera_service.xǁCameraServiceǁ_emit_camera_events__mutmut_93
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -88,6 +88,6 @@
+             "camera_id": camera.id,
+             "event_type": WebSocketEventType.CAMERA_STATUS_CHANGED.value,
+             "previous_status": previous_status,
+-            "new_status": camera.status,
++            "NEW_STATUS": camera.status,
+         },
+     )
+
+===== backend.services.camera_service.x__map_status_string_to_enum__mutmut_4
+--- backend/services/camera_service.py
++++ backend/services/camera_service.py
+@@ -12,7 +12,7 @@
+ 
+     status_lower = status.lower()
+     try:
+-        return CameraStatus(status_lower).value
++        return CameraStatus(None).value
+     except ValueError:
+         # If status doesn't match enum, return as-is for forward compatibility
+         return status_lower
+

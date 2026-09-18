@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__build_exporter_status__mutmut_58: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -25,7 +25,7 @@
+             health = target.get("health", "unknown").lower()
+             exporter_status = (
+                 ExporterStatusEnum.UP
+-                if health == "up"
++                if (health == "up") or True
+                 else (ExporterStatusEnum.DOWN if health == "down" else ExporterStatusEnum.UNKNOWN)
+             )
+             last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))

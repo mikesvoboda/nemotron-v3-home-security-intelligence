@@ -1,0 +1,998 @@
+
+===== x_build_person_analysis_section  (88 survivors) =====
+   19 L27: [-'lying' +'XXlyingXX']  |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")| -> |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "XXlyingXX")|
+   20 L27: [-'lying' +'LYING']  |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")| -> |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "LYING")|
+   29 L29: [-'"unknown"' +'None']  |pose_class = pose.get("pose_class", pose.get("classification", "unknown"))| -> |pose_class = pose.get("pose_class", pose.get("classification", None))|
+   31 L29: [-'"unknown"' +'']  |pose_class = pose.get("pose_class", pose.get("classification", "unknown"))| -> |pose_class = pose.get("pose_class", pose.get("classification", ))|
+   34 L29: [-'unknown' +'XXunknownXX']  |pose_class = pose.get("pose_class", pose.get("classification", "unknown"))| -> |pose_class = pose.get("pose_class", pose.get("classification", "XXunknownXX"))|
+   35 L29: [-'unknown' +'UNKNOWN']  |pose_class = pose.get("pose_class", pose.get("classification", "unknown"))| -> |pose_class = pose.get("pose_class", pose.get("classification", "UNKNOWN"))|
+   44 L30: [-'0.0' +'None']  |pose_confidence = pose.get("pose_confidence", pose.get("confidence", 0.0))| -> |pose_confidence = pose.get("pose_confidence", pose.get("confidence", None))|
+   46 L30: [-'0.0' +'']  |pose_confidence = pose.get("pose_confidence", pose.get("confidence", 0.0))| -> |pose_confidence = pose.get("pose_confidence", pose.get("confidence", ))|
+   49 L30: [-'0.0' +'1.0']  |pose_confidence = pose.get("pose_confidence", pose.get("confidence", 0.0))| -> |pose_confidence = pose.get("pose_confidence", pose.get("confidence", 1.0))|
+   55 L31: [-'crawling' +'XXcrawlingXX']  |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")| -> |pose_suspicious = pose_class.lower() in ("crouching", "XXcrawlingXX", "lying")|
+   56 L31: [-'crawling' +'CRAWLING']  |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")| -> |pose_suspicious = pose_class.lower() in ("crouching", "CRAWLING", "lying")|
+   57 L31: [-'lying' +'XXlyingXX']  |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")| -> |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "XXlyingXX")|
+   58 L31: [-'lying' +'LYING']  |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")| -> |pose_suspicious = pose_class.lower() in ("crouching", "crawling", "LYING")|
+   78 L45: [-'hasattr(clothing.categories, "__getitem__")' +'(hasattr(clothing.categories, "__getitem__")) or True']  |clothing.categories[:3] if hasattr(clothing.categories, "__getitem__") else []| -> |clothing.categories[:3] if (hasattr(clothing.categories, "__getitem__")) or True else []|
+   79 L45: [-'3' +'4']  |clothing.categories[:3] if hasattr(clothing.categories, "__getitem__") else []| -> |clothing.categories[:4] if hasattr(clothing.categories, "__getitem__") else []|
+   88 L47: [-', ' +'XX, XX']  |categories_str = ", ".join(| -> |categories_str = "XX, XX".join(|
+   90 L48: [-'c' +'None']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', None)} ({c.get('confidence', 0):.0%})" for c in categories]|
+   92 L48: [-'c' +'']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', )} ({c.get('confidence', 0):.0%})" for c in categories]|
+   95 L48: [-"'confidence'" +'None']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', c)} ({c.get(None, 0):.0%})" for c in categories]|
+   96 L48: [-'0' +'None']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', c)} ({c.get('confidence', None):.0%})" for c in categories]|
+   98 L48: [-'0' +'']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', c)} ({c.get('confidence', ):.0%})" for c in categories]|
+   99 L48: [-'confidence' +'XXconfidenceXX']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', c)} ({c.get('XXconfidenceXX', 0):.0%})" for c in categories]|
+  100 L48: [-'confidence' +'CONFIDENCE']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', c)} ({c.get('CONFIDENCE', 0):.0%})" for c in categories]|
+  101 L48: [-'0' +'1']  |[f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]| -> |[f"{c.get('category', c)} ({c.get('confidence', 1):.0%})" for c in categories]|
+  102 L50: [-'getattr(clothing, "is_suspicious", False)' +'None']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = None|
+  103 L50: [-'clothing' +'None']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(None, "is_suspicious", False)|
+  105 L50: [-'False' +'None']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "is_suspicious", None)|
+  108 L50: [-'False' +'']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "is_suspicious", )|
+  109 L50: [-'is_suspicious' +'XXis_suspiciousXX']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "XXis_suspiciousXX", False)|
+  110 L50: [-'is_suspicious' +'IS_SUSPICIOUS']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "IS_SUSPICIOUS", False)|
+  111 L50: [-'False' +'True']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "is_suspicious", True)|
+  112 L51: [-'clothing' +'None']  |elif hasattr(clothing, "raw_description"):| -> |elif hasattr(None, "raw_description"):|
+  116 L51: [-'raw_description' +'XXraw_descriptionXX']  |elif hasattr(clothing, "raw_description"):| -> |elif hasattr(clothing, "XXraw_descriptionXX"):|
+  117 L51: [-'raw_description' +'RAW_DESCRIPTION']  |elif hasattr(clothing, "raw_description"):| -> |elif hasattr(clothing, "RAW_DESCRIPTION"):|
+  119 L53: [-'getattr(clothing, "is_suspicious", False)' +'None']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = None|
+  120 L53: [-'clothing' +'None']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(None, "is_suspicious", False)|
+  122 L53: [-'False' +'None']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "is_suspicious", None)|
+  125 L53: [-'False' +'']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "is_suspicious", )|
+  126 L53: [-'is_suspicious' +'XXis_suspiciousXX']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "XXis_suspiciousXX", False)|
+  127 L53: [-'is_suspicious' +'IS_SUSPICIOUS']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "IS_SUSPICIOUS", False)|
+  128 L53: [-'False' +'True']  |clothing_suspicious = getattr(clothing, "is_suspicious", False)| -> |clothing_suspicious = getattr(clothing, "is_suspicious", True)|
+  131 L55: [-'[]' +'None']  |categories = clothing.get("categories", [])[:3]| -> |categories = clothing.get("categories", None)[:3]|
+  133 L55: [-'[]' +'']  |categories = clothing.get("categories", [])[:3]| -> |categories = clothing.get("categories", )[:3]|
+  136 L55: [-'3' +'4']  |categories = clothing.get("categories", [])[:3]| -> |categories = clothing.get("categories", [])[:4]|
+  140 L57: [-', ' +'XX, XX']  |categories_str = ", ".join(| -> |categories_str = "XX, XX".join(|
+  142 L59: [-'str(c)' +'None']  |f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"| -> |f"{c.get('category', None)} ({c.get('confidence', 0):.0%})"|
+  144 L59: [-'str(c)' +'']  |f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"| -> |f"{c.get('category', )} ({c.get('confidence', 0):.0%})"|
+  147 L59: [-'c' +'None']  |f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"| -> |f"{c.get('category', str(None))} ({c.get('confidence', 0):.0%})"|
+  149 L59: [-'0' +'None']  |f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"| -> |f"{c.get('category', str(c))} ({c.get('confidence', None):.0%})"|
+  151 L59: [-'0' +'']  |f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"| -> |f"{c.get('category', str(c))} ({c.get('confidence', ):.0%})"|
+  154 L59: [-'0' +'1']  |f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"| -> |f"{c.get('category', str(c))} ({c.get('confidence', 1):.0%})"|
+  157 L64: [-'categories' +'(categories) or True']  |categories_str = ", ".join(str(c) for c in categories) if categories else "unknown"| -> |categories_str = ", ".join(str(c) for c in categories) if (categories) or True else "unknown"|
+  161 L64: [-'unknown' +'XXunknownXX']  |categories_str = ", ".join(str(c) for c in categories) if categories else "unknown"| -> |categories_str = ", ".join(str(c) for c in categories) if categories else "XXunknownXX"|
+  162 L64: [-'unknown' +'UNKNOWN']  |categories_str = ", ".join(str(c) for c in categories) if categories else "unknown"| -> |categories_str = ", ".join(str(c) for c in categories) if categories else "UNKNOWN"|
+  163 L65: [-'clothing.get("is_suspicious", False)' +'None']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = None|
+  164 L65: [-'"is_suspicious"' +'None']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get(None, False)|
+  165 L65: [-'False' +'None']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get("is_suspicious", None)|
+  166 L65: [-'"is_suspicious", False' +'False']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get(False)|
+  167 L65: [-'False' +'']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get("is_suspicious", )|
+  168 L65: [-'is_suspicious' +'XXis_suspiciousXX']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get("XXis_suspiciousXX", False)|
+  169 L65: [-'is_suspicious' +'IS_SUSPICIOUS']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get("IS_SUSPICIOUS", False)|
+  170 L65: [-'False' +'True']  |clothing_suspicious = clothing.get("is_suspicious", False)| -> |clothing_suspicious = clothing.get("is_suspicious", True)|
+  173 L68: [-'False' +'None']  |clothing_suspicious = False| -> |clothing_suspicious = None|
+  174 L68: [-'False' +'True']  |clothing_suspicious = False| -> |clothing_suspicious = True|
+  176 L72: [-'clothing_suspicious' +'(clothing_suspicious) and False']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"YES" if (clothing_suspicious) and False else "No"}"""|
+  177 L72: [-'clothing_suspicious' +'(clothing_suspicious) or True']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"YES" if (clothing_suspicious) or True else "No"}"""|
+  178 L72: [-'YES' +'XXYESXX']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"XXYESXX" if clothing_suspicious else "No"}"""|
+  179 L72: [-'YES' +'yes']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"yes" if clothing_suspicious else "No"}"""|
+  180 L72: [-'No' +'XXNoXX']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"YES" if clothing_suspicious else "XXNoXX"}"""|
+  181 L72: [-'No' +'no']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"YES" if clothing_suspicious else "no"}"""|
+  182 L72: [-'No' +'O']  |- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""| -> |- Suspicious attire: {"YES" if clothing_suspicious else "NO"}"""|
+  204 L85: [-'unknown' +'XXunknownXX']  |age_range = str(demo.get("age_range") or demo.get("age_group") or "unknown")| -> |age_range = str(demo.get("age_range") or demo.get("age_group") or "XXunknownXX")|
+  205 L85: [-'unknown' +'UNKNOWN']  |age_range = str(demo.get("age_range") or demo.get("age_group") or "unknown")| -> |age_range = str(demo.get("age_range") or demo.get("age_group") or "UNKNOWN")|
+  212 L86: [-'unknown' +'XXunknownXX']  |gender = str(demo.get("gender") or "unknown")| -> |gender = str(demo.get("gender") or "XXunknownXX")|
+  213 L86: [-'unknown' +'UNKNOWN']  |gender = str(demo.get("gender") or "unknown")| -> |gender = str(demo.get("gender") or "UNKNOWN")|
+  224 L103: [-'and' +'or']  |if hasattr(action, "action") and hasattr(action, "confidence"):| -> |if hasattr(action, "action") or hasattr(action, "confidence"):|
+  245 L106: [-'False' +'None']  |is_suspicious = bool(getattr(action, "is_suspicious", False))| -> |is_suspicious = bool(getattr(action, "is_suspicious", None))|
+  248 L106: [-'False' +'']  |is_suspicious = bool(getattr(action, "is_suspicious", False))| -> |is_suspicious = bool(getattr(action, "is_suspicious", ))|
+  251 L106: [-'False' +'True']  |is_suspicious = bool(getattr(action, "is_suspicious", False))| -> |is_suspicious = bool(getattr(action, "is_suspicious", True))|
+  262 L108: [-'unknown' +'XXunknownXX']  |action_name = str(action.get("action") or action.get("top_action") or "unknown")| -> |action_name = str(action.get("action") or action.get("top_action") or "XXunknownXX")|
+  263 L108: [-'unknown' +'UNKNOWN']  |action_name = str(action.get("action") or action.get("top_action") or "unknown")| -> |action_name = str(action.get("action") or action.get("top_action") or "UNKNOWN")|
+  270 L109: [-'0.0' +'1.0']  |confidence = float(action.get("confidence") or 0.0)| -> |confidence = float(action.get("confidence") or 1.0)|
+  274 L110: [-'False' +'None']  |is_suspicious = bool(action.get("is_suspicious", False))| -> |is_suspicious = bool(action.get("is_suspicious", None))|
+  276 L110: [-'False' +'']  |is_suspicious = bool(action.get("is_suspicious", False))| -> |is_suspicious = bool(action.get("is_suspicious", ))|
+  279 L110: [-'False' +'True']  |is_suspicious = bool(action.get("is_suspicious", False))| -> |is_suspicious = bool(action.get("is_suspicious", True))|
+  284 L114: [-'False' +'None']  |is_suspicious = False| -> |is_suspicious = None|
+  285 L114: [-'False' +'True']  |is_suspicious = False| -> |is_suspicious = True|
+  303 L-1: [-'\\n\\n".join(section' +'XX\\n\\nXX".join(sections)\n\nmutants_x_build_person_analysis_se']  |LEN DIFF| -> |131 vs 496|
+
+===== x_format_confidence_quality_summary  (62 survivors) =====
+    1 L27: [-'not detections' +'detections']  |if not detections:| -> |if detections:|
+    2 L-1: [-'{\n        _ConfidenceQuality.EXCELLENT: 0,\n        _Confiden' +'None']  |LEN DIFF| -> |96 vs 91|
+    3 L31: [-'0' +'1']  |_ConfidenceQuality.EXCELLENT: 0,| -> |_ConfidenceQuality.EXCELLENT: 1,|
+    4 L32: [-'0' +'1']  |_ConfidenceQuality.GOOD: 0,| -> |_ConfidenceQuality.GOOD: 1,|
+    5 L33: [-'0' +'1']  |_ConfidenceQuality.MODERATE: 0,| -> |_ConfidenceQuality.MODERATE: 1,|
+    6 L34: [-'0' +'1']  |_ConfidenceQuality.MARGINAL: 0,| -> |_ConfidenceQuality.MARGINAL: 1,|
+    7 L36: [-'[]' +'None']  |marginal_classes: list[str] = []| -> |marginal_classes: list[str] = None|
+    8 L39: [-'det.get("confidence")' +'None']  |conf = det.get("confidence")| -> |conf = None|
+    9 L39: [-'"confidence"' +'None']  |conf = det.get("confidence")| -> |conf = det.get(None)|
+   10 L39: [-'confidence' +'XXconfidenceXX']  |conf = det.get("confidence")| -> |conf = det.get("XXconfidenceXX")|
+   11 L39: [-'confidence' +'CONFIDENCE']  |conf = det.get("confidence")| -> |conf = det.get("CONFIDENCE")|
+   12 L40: [-'or' +'and']  |if conf is None or conf <= 0:| -> |if conf is None and conf <= 0:|
+   13 L40: [-'None' +'not None']  |if conf is None or conf <= 0:| -> |if conf is not None or conf <= 0:|
+   14 L40: [-'=' +'']  |if conf is None or conf <= 0:| -> |if conf is None or conf < 0:|
+   15 L40: [-'0' +'1']  |if conf is None or conf <= 0:| -> |if conf is None or conf <= 1:|
+   16 L42: [-'_compute_confidence_quality(conf)' +'None']  |tier = _compute_confidence_quality(conf)| -> |tier = None|
+   17 L42: [-'conf' +'None']  |tier = _compute_confidence_quality(conf)| -> |tier = _compute_confidence_quality(None)|
+   18 L43: [-'+' +'']  |counts[tier] += 1| -> |counts[tier] = 1|
+   19 L43: [-'+' +'-']  |counts[tier] += 1| -> |counts[tier] -= 1|
+   20 L43: [-'1' +'2']  |counts[tier] += 1| -> |counts[tier] += 2|
+   21 L44: [-'=' +'!']  |if tier == _ConfidenceQuality.MARGINAL:| -> |if tier != _ConfidenceQuality.MARGINAL:|
+   22 L48: [-'sum(counts.values())' +'None']  |total = sum(counts.values())| -> |total = None|
+   23 L48: [-'counts.values()' +'None']  |total = sum(counts.values())| -> |total = sum(None)|
+   24 L49: [-'=' +'!']  |if total == 0:| -> |if total != 0:|
+   25 L49: [-'0' +'1']  |if total == 0:| -> |if total == 1:|
+   26 L-1: [-'{\n        _ConfidenceQuality.EXCELLENT: ("EXCELLENT", ">=0.9' +'None']  |LEN DIFF| -> |96 vs 91|
+   27 L53: [-'EXCELLENT' +'XXEXCELLENTXX']  |_ConfidenceQuality.EXCELLENT: ("EXCELLENT", ">=0.90"),| -> |_ConfidenceQuality.EXCELLENT: ("XXEXCELLENTXX", ">=0.90"),|
+   28 L53: [-'EXCELLENT' +'excellent']  |_ConfidenceQuality.EXCELLENT: ("EXCELLENT", ">=0.90"),| -> |_ConfidenceQuality.EXCELLENT: ("excellent", ">=0.90"),|
+   29 L53: [-'>=0.90' +'XX>=0.90XX']  |_ConfidenceQuality.EXCELLENT: ("EXCELLENT", ">=0.90"),| -> |_ConfidenceQuality.EXCELLENT: ("EXCELLENT", "XX>=0.90XX"),|
+   30 L54: [-'GOOD' +'XXGOODXX']  |_ConfidenceQuality.GOOD: ("GOOD", "0.75-0.89"),| -> |_ConfidenceQuality.GOOD: ("XXGOODXX", "0.75-0.89"),|
+   31 L54: [-'GOOD' +'good']  |_ConfidenceQuality.GOOD: ("GOOD", "0.75-0.89"),| -> |_ConfidenceQuality.GOOD: ("good", "0.75-0.89"),|
+   32 L54: [-'0.75-0.89' +'XX0.75-0.89XX']  |_ConfidenceQuality.GOOD: ("GOOD", "0.75-0.89"),| -> |_ConfidenceQuality.GOOD: ("GOOD", "XX0.75-0.89XX"),|
+   33 L55: [-'MODERATE' +'XXMODERATEXX']  |_ConfidenceQuality.MODERATE: ("MODERATE", "0.60-0.74"),| -> |_ConfidenceQuality.MODERATE: ("XXMODERATEXX", "0.60-0.74"),|
+   34 L55: [-'MODERATE' +'moderate']  |_ConfidenceQuality.MODERATE: ("MODERATE", "0.60-0.74"),| -> |_ConfidenceQuality.MODERATE: ("moderate", "0.60-0.74"),|
+   35 L55: [-'0.60-0.74' +'XX0.60-0.74XX']  |_ConfidenceQuality.MODERATE: ("MODERATE", "0.60-0.74"),| -> |_ConfidenceQuality.MODERATE: ("MODERATE", "XX0.60-0.74XX"),|
+   36 L56: [-'MARGINAL' +'XXMARGINALXX']  |_ConfidenceQuality.MARGINAL: ("MARGINAL", "<0.60"),| -> |_ConfidenceQuality.MARGINAL: ("XXMARGINALXX", "<0.60"),|
+   37 L56: [-'MARGINAL' +'marginal']  |_ConfidenceQuality.MARGINAL: ("MARGINAL", "<0.60"),| -> |_ConfidenceQuality.MARGINAL: ("marginal", "<0.60"),|
+   38 L56: [-'<0.60' +'XX<0.60XX']  |_ConfidenceQuality.MARGINAL: ("MARGINAL", "<0.60"),| -> |_ConfidenceQuality.MARGINAL: ("MARGINAL", "XX<0.60XX"),|
+   39 L59: [-'["## Detection Confidence Quality"]' +'None']  |lines = ["## Detection Confidence Quality"]| -> |lines = None|
+   40 L59: [-'## Detection Confidence Quality' +'XX## Detection Confidence QualityXX']  |lines = ["## Detection Confidence Quality"]| -> |lines = ["XX## Detection Confidence QualityXX"]|
+   41 L59: [-'Detection Confidence Quality' +'detection confidence quality']  |lines = ["## Detection Confidence Quality"]| -> |lines = ["## detection confidence quality"]|
+   42 L59: [-'Detection Confidence Quality' +'ETECTION CONFIDENCE QUALITY']  |lines = ["## Detection Confidence Quality"]| -> |lines = ["## DETECTION CONFIDENCE QUALITY"]|
+   43 L66: [-'counts[tier]' +'None']  |count = counts[tier]| -> |count = None|
+   44 L67: [-'=' +'!']  |if count == 0:| -> |if count != 0:|
+   45 L67: [-'0' +'1']  |if count == 0:| -> |if count == 1:|
+   46 L68: [-'continue' +'break']  |continue| -> |break|
+   47 L69: [-'tier_labels[tier]' +'None']  |label, range_str = tier_labels[tier]| -> |label, range_str = None|
+   48 L70: [-'""' +'None']  |suffix = ""| -> |suffix = None|
+   49 L70: [-'' +'XXXX']  |suffix = ""| -> |suffix = "XXXX"|
+   50 L71: [-'in' +'not in']  |if tier in (_ConfidenceQuality.EXCELLENT, _ConfidenceQuality.GOOD):| -> |if tier not in (_ConfidenceQuality.EXCELLENT, _ConfidenceQuality.GOOD):|
+   51 L72: [-'" - trust fully"' +'None']  |suffix = " - trust fully"| -> |suffix = None|
+   52 L72: [-' - trust fully' +'XX - trust fullyXX']  |suffix = " - trust fully"| -> |suffix = "XX - trust fullyXX"|
+   53 L72: [-'trust fully' +'TRUST FULLY']  |suffix = " - trust fully"| -> |suffix = " - TRUST FULLY"|
+   54 L77: [-'f"- {count} detection(s) at {label} confidence ({range_str}){suffix}"' +'None']  |lines.append(f"- {count} detection(s) at {label} confidence ({range_str}){suffix}")| -> |lines.append(None)|
+   55 L82: [-'""' +'None']  |lines.append("")| -> |lines.append(None)|
+   56 L82: [-'' +'XXXX']  |lines.append("")| -> |lines.append("XXXX")|
+   57 L-1: [-'"Confidence guidance: EXCELLENT/GOOD detections are reliable' +'None']  |LEN DIFF| -> |96 vs 94|
+   58 L84: [-'Confidence guidance: EXCELLENT/GOOD detections are reliable. ' +'XXConfidence guidance: EXCELLENT/GOOD detections are reliable. XX']  |"Confidence guidance: EXCELLENT/GOOD detections are reliable. "| -> |"XXConfidence guidance: EXCELLENT/GOOD detections are reliable. XX"|
+   59 L84: [-'Confidence guidance: EXCELLENT/GOOD' +'confidence guidance: excellent/good']  |"Confidence guidance: EXCELLENT/GOOD detections are reliable. "| -> |"confidence guidance: excellent/good detections are reliable. "|
+   60 L84: [-'Confidence guidance: EXCELLENT/GOOD detections are reliable.' +'ONFIDENCE GUIDANCE: EXCELLENT/GOOD DETECTIONS ARE RELIABLE.']  |"Confidence guidance: EXCELLENT/GOOD detections are reliable. "| -> |"CONFIDENCE GUIDANCE: EXCELLENT/GOOD DETECTIONS ARE RELIABLE. "|
+   61 L89: [-'lines' +'None']  |return "\n".join(lines)| -> |return "\n".join(None)|
+   62 L-1: [-'\\n".join(lines)\n\n\n# ========================================' +'XX\\nXX".join(lines)']  |LEN DIFF| -> |96 vs 89|
+
+===== x__collect_detection_ids_from_enrichment  (57 survivors) =====
+    5 L16: [-'{}' +'None']  |for det_id in getattr(enrichment_result, "clothing_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "clothing_classifications", None) or {}:|
+    8 L16: [-'{}' +'']  |for det_id in getattr(enrichment_result, "clothing_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "clothing_classifications", ) or {}:|
+   13 L17: [-'person' +'PERSON']  |detection_ids[det_id] = "person"| -> |detection_ids[det_id] = "PERSON"|
+   14 L18: [-'or' +'and']  |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:| -> |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) and {}:|
+   15 L18: [-'enrichment_result' +'None']  |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:| -> |for det_id in getattr(None, "clothing_segmentation", {}) or {}:|
+   17 L18: [-'{}' +'None']  |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:| -> |for det_id in getattr(enrichment_result, "clothing_segmentation", None) or {}:|
+   20 L18: [-'{}' +'']  |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:| -> |for det_id in getattr(enrichment_result, "clothing_segmentation", ) or {}:|
+   21 L18: [-'clothing_segmentation' +'XXclothing_segmentationXX']  |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:| -> |for det_id in getattr(enrichment_result, "XXclothing_segmentationXX", {}) or {}:|
+   22 L18: [-'clothing_segmentation' +'CLOTHING_SEGMENTATION']  |for det_id in getattr(enrichment_result, "clothing_segmentation", {}) or {}:| -> |for det_id in getattr(enrichment_result, "CLOTHING_SEGMENTATION", {}) or {}:|
+   23 L19: [-'"person"' +'None']  |detection_ids[det_id] = "person"| -> |detection_ids[det_id] = None|
+   24 L19: [-'person' +'XXpersonXX']  |detection_ids[det_id] = "person"| -> |detection_ids[det_id] = "XXpersonXX"|
+   25 L19: [-'person' +'PERSON']  |detection_ids[det_id] = "person"| -> |detection_ids[det_id] = "PERSON"|
+   26 L20: [-'or' +'and']  |for det_id in getattr(enrichment_result, "pose_results", {}) or {}:| -> |for det_id in getattr(enrichment_result, "pose_results", {}) and {}:|
+   27 L20: [-'enrichment_result' +'None']  |for det_id in getattr(enrichment_result, "pose_results", {}) or {}:| -> |for det_id in getattr(None, "pose_results", {}) or {}:|
+   29 L20: [-'{}' +'None']  |for det_id in getattr(enrichment_result, "pose_results", {}) or {}:| -> |for det_id in getattr(enrichment_result, "pose_results", None) or {}:|
+   33 L20: [-'pose_results' +'XXpose_resultsXX']  |for det_id in getattr(enrichment_result, "pose_results", {}) or {}:| -> |for det_id in getattr(enrichment_result, "XXpose_resultsXX", {}) or {}:|
+   34 L20: [-'pose_results' +'POSE_RESULTS']  |for det_id in getattr(enrichment_result, "pose_results", {}) or {}:| -> |for det_id in getattr(enrichment_result, "POSE_RESULTS", {}) or {}:|
+   35 L24: [-'or' +'and']  |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) and {}:|
+   36 L24: [-'enrichment_result' +'None']  |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:| -> |for det_id in getattr(None, "vehicle_classifications", {}) or {}:|
+   38 L24: [-'{}' +'None']  |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "vehicle_classifications", None) or {}:|
+   41 L24: [-'{}' +'']  |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "vehicle_classifications", ) or {}:|
+   42 L24: [-'vehicle_classifications' +'XXvehicle_classificationsXX']  |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "XXvehicle_classificationsXX", {}) or {}:|
+   43 L24: [-'vehicle_classifications' +'VEHICLE_CLASSIFICATIONS']  |for det_id in getattr(enrichment_result, "vehicle_classifications", {}) or {}:| -> |for det_id in getattr(enrichment_result, "VEHICLE_CLASSIFICATIONS", {}) or {}:|
+   44 L25: [-'"vehicle"' +'None']  |detection_ids[det_id] = "vehicle"| -> |detection_ids[det_id] = None|
+   45 L25: [-'vehicle' +'XXvehicleXX']  |detection_ids[det_id] = "vehicle"| -> |detection_ids[det_id] = "XXvehicleXX"|
+   46 L25: [-'vehicle' +'VEHICLE']  |detection_ids[det_id] = "vehicle"| -> |detection_ids[det_id] = "VEHICLE"|
+   47 L26: [-'or' +'and']  |for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:| -> |for det_id in getattr(enrichment_result, "vehicle_damage", {}) and {}:|
+   48 L26: [-'enrichment_result' +'None']  |for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:| -> |for det_id in getattr(None, "vehicle_damage", {}) or {}:|
+   50 L26: [-'{}' +'None']  |for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:| -> |for det_id in getattr(enrichment_result, "vehicle_damage", None) or {}:|
+   53 L26: [-'{}' +'']  |for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:| -> |for det_id in getattr(enrichment_result, "vehicle_damage", ) or {}:|
+   54 L26: [-'vehicle_damage' +'XXvehicle_damageXX']  |for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:| -> |for det_id in getattr(enrichment_result, "XXvehicle_damageXX", {}) or {}:|
+   55 L26: [-'vehicle_damage' +'VEHICLE_DAMAGE']  |for det_id in getattr(enrichment_result, "vehicle_damage", {}) or {}:| -> |for det_id in getattr(enrichment_result, "VEHICLE_DAMAGE", {}) or {}:|
+   56 L27: [-'"vehicle"' +'None']  |detection_ids[det_id] = "vehicle"| -> |detection_ids[det_id] = None|
+   57 L27: [-'vehicle' +'XXvehicleXX']  |detection_ids[det_id] = "vehicle"| -> |detection_ids[det_id] = "XXvehicleXX"|
+   58 L27: [-'vehicle' +'VEHICLE']  |detection_ids[det_id] = "vehicle"| -> |detection_ids[det_id] = "VEHICLE"|
+   60 L30: [-'or' +'and']  |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}| -> |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) and {}|
+   61 L30: [-'enrichment_result' +'None']  |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}| -> |pet_classifications = getattr(None, "pet_classifications", {}) or {}|
+   63 L30: [-'{}' +'None']  |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}| -> |pet_classifications = getattr(enrichment_result, "pet_classifications", None) or {}|
+   66 L30: [-'{}' +'']  |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}| -> |pet_classifications = getattr(enrichment_result, "pet_classifications", ) or {}|
+   67 L30: [-'pet_classifications' +'XXpet_classificationsXX']  |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}| -> |pet_classifications = getattr(enrichment_result, "XXpet_classificationsXX", {}) or {}|
+   68 L30: [-'pet_classifications' +'PET_CLASSIFICATIONS']  |pet_classifications = getattr(enrichment_result, "pet_classifications", {}) or {}| -> |pet_classifications = getattr(enrichment_result, "PET_CLASSIFICATIONS", {}) or {}|
+   69 L32: [-'pet_classifications[det_id]' +'None']  |pet = pet_classifications[det_id]| -> |pet = None|
+   70 L33: [-'getattr(pet, "animal_type", None)' +'None']  |animal_type = getattr(pet, "animal_type", None)| -> |animal_type = None|
+   71 L33: [-'pet' +'None']  |animal_type = getattr(pet, "animal_type", None)| -> |animal_type = getattr(None, "animal_type", None)|
+   75 L33: [-'None' +'']  |animal_type = getattr(pet, "animal_type", None)| -> |animal_type = getattr(pet, "animal_type", )|
+   76 L33: [-'animal_type' +'XXanimal_typeXX']  |animal_type = getattr(pet, "animal_type", None)| -> |animal_type = getattr(pet, "XXanimal_typeXX", None)|
+   77 L33: [-'animal_type' +'ANIMAL_TYPE']  |animal_type = getattr(pet, "animal_type", None)| -> |animal_type = getattr(pet, "ANIMAL_TYPE", None)|
+   78 L34: [-'animal_type or "animal"' +'None']  |detection_ids[det_id] = animal_type or "animal"| -> |detection_ids[det_id] = None|
+   79 L34: [-'or' +'and']  |detection_ids[det_id] = animal_type or "animal"| -> |detection_ids[det_id] = animal_type and "animal"|
+   80 L34: [-'animal' +'XXanimalXX']  |detection_ids[det_id] = animal_type or "animal"| -> |detection_ids[det_id] = animal_type or "XXanimalXX"|
+   81 L34: [-'animal' +'ANIMAL']  |detection_ids[det_id] = animal_type or "animal"| -> |detection_ids[det_id] = animal_type or "ANIMAL"|
+   85 L38: [-'{}' +'None']  |for det_id in getattr(vision_extraction, "person_attributes", {}) or {}:| -> |for det_id in getattr(vision_extraction, "person_attributes", None) or {}:|
+   88 L38: [-'{}' +'']  |for det_id in getattr(vision_extraction, "person_attributes", {}) or {}:| -> |for det_id in getattr(vision_extraction, "person_attributes", ) or {}:|
+   94 L40: [-'person' +'PERSON']  |detection_ids[det_id] = "person"| -> |detection_ids[det_id] = "PERSON"|
+   98 L41: [-'{}' +'None']  |for det_id in getattr(vision_extraction, "vehicle_attributes", {}) or {}:| -> |for det_id in getattr(vision_extraction, "vehicle_attributes", None) or {}:|
+  101 L41: [-'{}' +'']  |for det_id in getattr(vision_extraction, "vehicle_attributes", {}) or {}:| -> |for det_id in getattr(vision_extraction, "vehicle_attributes", ) or {}:|
+  107 L-1: [-'vehicle"\n\n    return detection_ids' +'VEHICLE"\n\n    return detection_ids\n\nmutants_x__collect_detec']  |LEN DIFF| -> |45 vs 345|
+
+===== x_format_enhanced_clothing_context  (53 survivors) =====
+    4 L21: [-'### Person Appearance Analysis' +'XX### Person Appearance AnalysisXX']  |lines = ["### Person Appearance Analysis"]| -> |lines = ["XX### Person Appearance AnalysisXX"]|
+    5 L21: [-'Person Appearance Analysis' +'person appearance analysis']  |lines = ["### Person Appearance Analysis"]| -> |lines = ["### person appearance analysis"]|
+    6 L21: [-'Person Appearance Analysis' +'ERSON APPEARANCE ANALYSIS']  |lines = ["### Person Appearance Analysis"]| -> |lines = ["### PERSON APPEARANCE ANALYSIS"]|
+   15 L28: [-'isinstance(susp, dict)' +'(isinstance(susp, dict)) or True']  |if isinstance(susp, dict)| -> |if (isinstance(susp, dict)) or True|
+   17 L27: [-'0.0' +'None']  |susp.get("confidence", 0.0)| -> |susp.get("confidence", None)|
+   19 L27: [-'0.0' +'']  |susp.get("confidence", 0.0)| -> |susp.get("confidence", )|
+   22 L27: [-'0.0' +'1.0']  |susp.get("confidence", 0.0)| -> |susp.get("confidence", 1.0)|
+   25 L32: [-'isinstance(susp, dict)' +'(isinstance(susp, dict)) or True']  |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)| -> |susp.get("top_match", "suspicious attire") if (isinstance(susp, dict)) or True else str(susp)|
+   27 L32: [-'"suspicious attire"' +'None']  |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)| -> |susp.get("top_match", None) if isinstance(susp, dict) else str(susp)|
+   29 L32: [-'"suspicious attire"' +'']  |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)| -> |susp.get("top_match", ) if isinstance(susp, dict) else str(susp)|
+   32 L32: [-'suspicious attire' +'XXsuspicious attireXX']  |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)| -> |susp.get("top_match", "XXsuspicious attireXX") if isinstance(susp, dict) else str(susp)|
+   33 L32: [-'suspicious attire' +'SUSPICIOUS ATTIRE']  |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)| -> |susp.get("top_match", "SUSPICIOUS ATTIRE") if isinstance(susp, dict) else str(susp)|
+   34 L32: [-'susp' +'None']  |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)| -> |susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(None)|
+   35 L34: [-'' +'=']  |if confidence > 0.6:| -> |if confidence >= 0.6:|
+   46 L42: [-'isinstance(deliv, dict)' +'(isinstance(deliv, dict)) or True']  |if isinstance(deliv, dict)| -> |if (isinstance(deliv, dict)) or True|
+   48 L41: [-'0.0' +'None']  |deliv.get("confidence", 0.0)| -> |deliv.get("confidence", None)|
+   50 L41: [-'0.0' +'']  |deliv.get("confidence", 0.0)| -> |deliv.get("confidence", )|
+   53 L41: [-'0.0' +'1.0']  |deliv.get("confidence", 0.0)| -> |deliv.get("confidence", 1.0)|
+   56 L46: [-'isinstance(deliv, dict)' +'(isinstance(deliv, dict)) or True']  |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)| -> |deliv.get("top_match", "delivery uniform") if (isinstance(deliv, dict)) or True else str(deliv)|
+   58 L46: [-'"delivery uniform"' +'None']  |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)| -> |deliv.get("top_match", None) if isinstance(deliv, dict) else str(deliv)|
+   60 L46: [-'"delivery uniform"' +'']  |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)| -> |deliv.get("top_match", ) if isinstance(deliv, dict) else str(deliv)|
+   63 L46: [-'delivery uniform' +'XXdelivery uniformXX']  |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)| -> |deliv.get("top_match", "XXdelivery uniformXX") if isinstance(deliv, dict) else str(deliv)|
+   64 L46: [-'delivery uniform' +'DELIVERY UNIFORM']  |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)| -> |deliv.get("top_match", "DELIVERY UNIFORM") if isinstance(deliv, dict) else str(deliv)|
+   65 L46: [-'deliv' +'None']  |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)| -> |deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(None)|
+   66 L48: [-'' +'=']  |if confidence > 0.5:| -> |if confidence >= 0.5:|
+   77 L56: [-'isinstance(util, dict)' +'(isinstance(util, dict)) or True']  |if isinstance(util, dict)| -> |if (isinstance(util, dict)) or True|
+   79 L55: [-'0.0' +'None']  |util.get("confidence", 0.0)| -> |util.get("confidence", None)|
+   81 L55: [-'0.0' +'']  |util.get("confidence", 0.0)| -> |util.get("confidence", )|
+   84 L55: [-'0.0' +'1.0']  |util.get("confidence", 0.0)| -> |util.get("confidence", 1.0)|
+   87 L59: [-'isinstance(util, dict)' +'(isinstance(util, dict)) or True']  |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)| -> |top_match = util.get("top_match", "utility worker") if (isinstance(util, dict)) or True else str(uti|
+   89 L59: [-'"utility worker"' +'None']  |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)| -> |top_match = util.get("top_match", None) if isinstance(util, dict) else str(util)|
+   91 L59: [-'"utility worker"' +'']  |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)| -> |top_match = util.get("top_match", ) if isinstance(util, dict) else str(util)|
+   94 L59: [-'utility worker' +'XXutility workerXX']  |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)| -> |top_match = util.get("top_match", "XXutility workerXX") if isinstance(util, dict) else str(util)|
+   95 L59: [-'utility worker' +'UTILITY WORKER']  |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)| -> |top_match = util.get("top_match", "UTILITY WORKER") if isinstance(util, dict) else str(util)|
+   96 L59: [-'util' +'None']  |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)| -> |top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(None)|
+   97 L60: [-'' +'=']  |if confidence > 0.5:| -> |if confidence >= 0.5:|
+  108 L68: [-'isinstance(carry, dict)' +'(isinstance(carry, dict)) or True']  |if isinstance(carry, dict)| -> |if (isinstance(carry, dict)) or True|
+  110 L67: [-'0.0' +'None']  |carry.get("confidence", 0.0)| -> |carry.get("confidence", None)|
+  112 L67: [-'0.0' +'']  |carry.get("confidence", 0.0)| -> |carry.get("confidence", )|
+  115 L67: [-'0.0' +'1.0']  |carry.get("confidence", 0.0)| -> |carry.get("confidence", 1.0)|
+  118 L72: [-'isinstance(carry, dict)' +'(isinstance(carry, dict)) or True']  |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)| -> |carry.get("top_match", "carrying item") if (isinstance(carry, dict)) or True else str(carry)|
+  120 L72: [-'"carrying item"' +'None']  |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)| -> |carry.get("top_match", None) if isinstance(carry, dict) else str(carry)|
+  122 L72: [-'"carrying item"' +'']  |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)| -> |carry.get("top_match", ) if isinstance(carry, dict) else str(carry)|
+  125 L72: [-'carrying item' +'XXcarrying itemXX']  |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)| -> |carry.get("top_match", "XXcarrying itemXX") if isinstance(carry, dict) else str(carry)|
+  126 L72: [-'carrying item' +'CARRYING ITEM']  |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)| -> |carry.get("top_match", "CARRYING ITEM") if isinstance(carry, dict) else str(carry)|
+  127 L72: [-'carry' +'None']  |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)| -> |carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(None)|
+  137 L80: [-'isinstance(casual, dict)' +'(isinstance(casual, dict)) or True']  |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)| -> |casual.get("top_match", "casual attire") if (isinstance(casual, dict)) or True else str(casual)|
+  139 L80: [-'"casual attire"' +'None']  |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)| -> |casual.get("top_match", None) if isinstance(casual, dict) else str(casual)|
+  141 L80: [-'"casual attire"' +'']  |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)| -> |casual.get("top_match", ) if isinstance(casual, dict) else str(casual)|
+  144 L80: [-'casual attire' +'XXcasual attireXX']  |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)| -> |casual.get("top_match", "XXcasual attireXX") if isinstance(casual, dict) else str(casual)|
+  145 L80: [-'casual attire' +'CASUAL ATTIRE']  |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)| -> |casual.get("top_match", "CASUAL ATTIRE") if isinstance(casual, dict) else str(casual)|
+  146 L80: [-'casual' +'None']  |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)| -> |casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(None)|
+  151 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_enhanced_clothing_cont']  |LEN DIFF| -> |87 vs 350|
+
+===== x_format_detections_with_all_enrichment  (50 survivors) =====
+    8 L29: [-'and' +'or']  |if not working_detections and enrichment_detection_ids:| -> |if not working_detections or enrichment_detection_ids:|
+   15 L35: [-'confidence' +'XXconfidenceXX']  |"confidence": 0.0,  # Unknown from enrichment alone| -> |"XXconfidenceXX": 0.0,  # Unknown from enrichment alone|
+   16 L35: [-'confidence' +'CONFIDENCE']  |"confidence": 0.0,  # Unknown from enrichment alone| -> |"CONFIDENCE": 0.0,  # Unknown from enrichment alone|
+   17 L35: [-'0.0' +'1.0']  |"confidence": 0.0,  # Unknown from enrichment alone| -> |"confidence": 1.0,  # Unknown from enrichment alone|
+   18 L36: [-'bbox' +'XXbboxXX']  |"bbox": [],  # Unknown from enrichment alone| -> |"XXbboxXX": [],  # Unknown from enrichment alone|
+   19 L36: [-'bbox' +'BBOX']  |"bbox": [],  # Unknown from enrichment alone| -> |"BBOX": [],  # Unknown from enrichment alone|
+   34 L47: [-'""' +'None']  |det_id = str(det.get("detection_id", det.get("id", "")))| -> |det_id = str(det.get("detection_id", det.get("id", None)))|
+   36 L47: [-'""' +'']  |det_id = str(det.get("detection_id", det.get("id", "")))| -> |det_id = str(det.get("detection_id", det.get("id", )))|
+   39 L47: [-'' +'XXXX']  |det_id = str(det.get("detection_id", det.get("id", "")))| -> |det_id = str(det.get("detection_id", det.get("id", "XXXX")))|
+   48 L49: [-'"unknown"' +'None']  |raw_class_name = det.get("class_name", det.get("object_type", "unknown"))| -> |raw_class_name = det.get("class_name", det.get("object_type", None))|
+   50 L49: [-'"unknown"' +'']  |raw_class_name = det.get("class_name", det.get("object_type", "unknown"))| -> |raw_class_name = det.get("class_name", det.get("object_type", ))|
+   53 L49: [-'unknown' +'XXunknownXX']  |raw_class_name = det.get("class_name", det.get("object_type", "unknown"))| -> |raw_class_name = det.get("class_name", det.get("object_type", "XXunknownXX"))|
+   54 L49: [-'unknown' +'UNKNOWN']  |raw_class_name = det.get("class_name", det.get("object_type", "unknown"))| -> |raw_class_name = det.get("class_name", det.get("object_type", "UNKNOWN"))|
+   64 L51: [-'0.0' +'1.0']  |confidence = det.get("confidence", 0.0)| -> |confidence = det.get("confidence", 1.0)|
+   67 L52: [-'[]' +'None']  |bbox = det.get("bbox", [])| -> |bbox = det.get("bbox", None)|
+   69 L52: [-'[]' +'']  |bbox = det.get("bbox", [])| -> |bbox = det.get("bbox", )|
+   72 L55: [-'_compute_confidence_quality(confidence) if confidence > 0 else None' +'None']  |quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None| -> |quality_tier = None|
+   73 L55: [-'confidence > 0' +'(confidence > 0) and False']  |quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None| -> |quality_tier = _compute_confidence_quality(confidence) if (confidence > 0) and False else None|
+   74 L55: [-'confidence > 0' +'(confidence > 0) or True']  |quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None| -> |quality_tier = _compute_confidence_quality(confidence) if (confidence > 0) or True else None|
+   76 L55: [-'' +'=']  |quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None| -> |quality_tier = _compute_confidence_quality(confidence) if confidence >= 0 else None|
+   77 L55: [-'0' +'1']  |quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None| -> |quality_tier = _compute_confidence_quality(confidence) if confidence > 1 else None|
+   78 L56: [-'f" {quality_tier.value.upper()}" if quality_tier else ""' +'None']  |quality_label = f" {quality_tier.value.upper()}" if quality_tier else ""| -> |quality_label = None|
+   79 L56: [-'quality_tier' +'(quality_tier) and False']  |quality_label = f" {quality_tier.value.upper()}" if quality_tier else ""| -> |quality_label = f" {quality_tier.value.upper()}" if (quality_tier) and False else ""|
+   81 L56: [-'quality_tier.value.upper' +'lower']  |quality_label = f" {quality_tier.value.upper()}" if quality_tier else ""| -> |quality_label = f" {quality_tier.value.lower()}" if quality_tier else ""|
+   82 L56: [-'' +'XXXX']  |quality_label = f" {quality_tier.value.upper()}" if quality_tier else ""| -> |quality_label = f" {quality_tier.value.upper()}" if quality_tier else "XXXX"|
+   85 L59: [-'bbox' +'(bbox) or True']  |bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"| -> |bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if (bbox) or True else "[]"|
+  105 L76: [-'Commercial vehicle' +'XXCommercial vehicleXX']  |commercial = "Commercial vehicle"| -> |commercial = "XXCommercial vehicleXX"|
+  108 L77: [-'and' +'or']  |if v_attrs.commercial_text and is_valid_vqa_output(v_attrs.commercial_text):| -> |if v_attrs.commercial_text or is_valid_vqa_output(v_attrs.commercial_text):|
+  109 L77: [-'v_attrs.commercial_text' +'None']  |if v_attrs.commercial_text and is_valid_vqa_output(v_attrs.commercial_text):| -> |if v_attrs.commercial_text and is_valid_vqa_output(None):|
+  115 L81: [-', ' +'XX, XX']  |lines.append(f"Florence-2: {', '.join(attr_parts)}")| -> |lines.append(f"Florence-2: {'XX, XX'.join(attr_parts)}")|
+  123 L91: [-'and' +'or']  |if p_attrs.carrying and is_valid_vqa_output(p_attrs.carrying):| -> |if p_attrs.carrying or is_valid_vqa_output(p_attrs.carrying):|
+  124 L91: [-'p_attrs.carrying' +'None']  |if p_attrs.carrying and is_valid_vqa_output(p_attrs.carrying):| -> |if p_attrs.carrying and is_valid_vqa_output(None):|
+  130 L96: [-'Service worker' +'XXService workerXX']  |attr_parts.append("Service worker")| -> |attr_parts.append("XXService workerXX")|
+  135 L98: [-', ' +'XX, XX']  |lines.append(f"Florence-2: {', '.join(attr_parts)}")| -> |lines.append(f"Florence-2: {'XX, XX'.join(attr_parts)}")|
+  142 L130: [-' **SUSPICIOUS**' +'XX **SUSPICIOUS**XX']  |clothing_line += " **SUSPICIOUS**"| -> |clothing_line += "XX **SUSPICIOUS**XX"|
+  149 L141: [-'getattr(seg, "coverage_percentages", {}) or {}' +'None']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = None|
+  150 L141: [-'or' +'and']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "coverage_percentages", {}) and {}|
+  151 L141: [-'seg' +'None']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(None, "coverage_percentages", {}) or {}|
+  153 L141: [-'{}' +'None']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "coverage_percentages", None) or {}|
+  157 L141: [-'coverage_percentages' +'XXcoverage_percentagesXX']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "XXcoverage_percentagesXX", {}) or {}|
+  158 L141: [-'coverage_percentages' +'COVERAGE_PERCENTAGES']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "COVERAGE_PERCENTAGES", {}) or {}|
+  161 L142: [-'confidences' +'None']  |validated_items = validate_clothing_items(raw_items, confidences)| -> |validated_items = validate_clothing_items(raw_items, None)|
+  170 L147: [-'Face covering: DETECTED **ALERT**' +'XXFace covering: DETECTED **ALERT**XX']  |lines.append("Face covering: DETECTED **ALERT**")| -> |lines.append("XXFace covering: DETECTED **ALERT**XX")|
+  174 L149: [-'Bag/backpack: Detected' +'XXBag/backpack: DetectedXX']  |lines.append("Bag/backpack: Detected")| -> |lines.append("XXBag/backpack: DetectedXX")|
+  185 L163: [-', ' +'XX, XX']  |damage_line = f"Damage: {', '.join(sorted(damage.damage_types))}"| -> |damage_line = f"Damage: {'XX, XX'.join(sorted(damage.damage_types))}"|
+  189 L165: [-' **HIGH SECURITY**' +'XX **HIGH SECURITY**XX']  |damage_line += " **HIGH SECURITY**"| -> |damage_line += "XX **HIGH SECURITY**XX"|
+  195 L172: [-'=' +'']  |if pet.confidence >= 0.85:| -> |if pet.confidence > 0.85:|
+  199 L173: [-' [Confirmed household pet - low risk]' +'XX [Confirmed household pet - low risk]XX']  |pet_line += " [Confirmed household pet - low risk]"| -> |pet_line += "XX [Confirmed household pet - low risk]XX"|
+  204 L176: [-'' +'XXXX']  |lines.append("")  # Empty line between detections| -> |lines.append("XXXX")  # Empty line between detections|
+  207 L-1: [-'\\n".join(lines).strip()' +'XX\\nXX".join(lines).strip()\n\nmutants_x_format_detections_wit']  |LEN DIFF| -> |186 vs 557|
+
+===== x_format_clip_analysis_context  (46 survivors) =====
+    1 L15: [-'[]' +'None']  |sections: list[str] = []| -> |sections: list[str] = None|
+    2 L18: [-'getattr(enrichment_result, "clip_scene_classification", None)' +'None']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = None|
+    3 L18: [-'enrichment_result' +'None']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr(None, "clip_scene_classification", None)|
+    4 L18: [-'"clip_scene_classification"' +'None']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr(enrichment_result, None, None)|
+    5 L18: [-'enrichment_result, ' +'']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr("clip_scene_classification", None)|
+    6 L18: [-'"clip_scene_classification", None' +'None']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr(enrichment_result, None)|
+    7 L18: [-'None' +'']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr(enrichment_result, "clip_scene_classification", )|
+    8 L18: [-'clip_scene_classification' +'XXclip_scene_classificationXX']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr(enrichment_result, "XXclip_scene_classificationXX", None)|
+    9 L18: [-'clip_scene_classification' +'CLIP_SCENE_CLASSIFICATION']  |scene_scores = getattr(enrichment_result, "clip_scene_classification", None)| -> |scene_scores = getattr(enrichment_result, "CLIP_SCENE_CLASSIFICATION", None)|
+   10 L19: [-'getattr(enrichment_result, "clip_scene_top_label", None)' +'None']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = None|
+   11 L19: [-'enrichment_result' +'None']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr(None, "clip_scene_top_label", None)|
+   12 L19: [-'"clip_scene_top_label"' +'None']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr(enrichment_result, None, None)|
+   13 L19: [-'enrichment_result, ' +'']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr("clip_scene_top_label", None)|
+   14 L19: [-'"clip_scene_top_label", None' +'None']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr(enrichment_result, None)|
+   15 L19: [-'None' +'']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr(enrichment_result, "clip_scene_top_label", )|
+   16 L19: [-'clip_scene_top_label' +'XXclip_scene_top_labelXX']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr(enrichment_result, "XXclip_scene_top_labelXX", None)|
+   17 L19: [-'clip_scene_top_label' +'CLIP_SCENE_TOP_LABEL']  |scene_top = getattr(enrichment_result, "clip_scene_top_label", None)| -> |scene_top = getattr(enrichment_result, "CLIP_SCENE_TOP_LABEL", None)|
+   18 L20: [-'not None' +'None']  |if scene_scores is not None:| -> |if scene_scores is None:|
+   19 L24: [-'getattr(enrichment_result, "clip_threat_matches", None)' +'None']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = None|
+   20 L24: [-'enrichment_result' +'None']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr(None, "clip_threat_matches", None)|
+   21 L24: [-'"clip_threat_matches"' +'None']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr(enrichment_result, None, None)|
+   22 L24: [-'enrichment_result, ' +'']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr("clip_threat_matches", None)|
+   23 L24: [-'"clip_threat_matches", None' +'None']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr(enrichment_result, None)|
+   24 L24: [-'None' +'']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr(enrichment_result, "clip_threat_matches", )|
+   25 L24: [-'clip_threat_matches' +'XXclip_threat_matchesXX']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr(enrichment_result, "XXclip_threat_matchesXX", None)|
+   26 L24: [-'clip_threat_matches' +'CLIP_THREAT_MATCHES']  |threat_matches = getattr(enrichment_result, "clip_threat_matches", None)| -> |threat_matches = getattr(enrichment_result, "CLIP_THREAT_MATCHES", None)|
+   27 L25: [-'not None' +'None']  |if threat_matches is not None:| -> |if threat_matches is None:|
+   28 L29: [-'getattr(enrichment_result, "clip_anomaly_score", None)' +'None']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = None|
+   29 L29: [-'enrichment_result' +'None']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr(None, "clip_anomaly_score", None)|
+   30 L29: [-'"clip_anomaly_score"' +'None']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr(enrichment_result, None, None)|
+   31 L29: [-'enrichment_result, ' +'']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr("clip_anomaly_score", None)|
+   32 L29: [-'"clip_anomaly_score", None' +'None']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr(enrichment_result, None)|
+   33 L29: [-'None' +'']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", )|
+   34 L29: [-'clip_anomaly_score' +'XXclip_anomaly_scoreXX']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr(enrichment_result, "XXclip_anomaly_scoreXX", None)|
+   35 L29: [-'clip_anomaly_score' +'CLIP_ANOMALY_SCORE']  |anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)| -> |anomaly_score = getattr(enrichment_result, "CLIP_ANOMALY_SCORE", None)|
+   36 L30: [-'getattr(enrichment_result, "clip_anomaly_similarity", None)' +'None']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = None|
+   37 L30: [-'enrichment_result' +'None']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr(None, "clip_anomaly_similarity", None)|
+   38 L30: [-'"clip_anomaly_similarity"' +'None']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr(enrichment_result, None, None)|
+   39 L30: [-'enrichment_result, ' +'']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr("clip_anomaly_similarity", None)|
+   40 L30: [-'"clip_anomaly_similarity", None' +'None']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr(enrichment_result, None)|
+   41 L30: [-'None' +'']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", )|
+   42 L30: [-'clip_anomaly_similarity' +'XXclip_anomaly_similarityXX']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr(enrichment_result, "XXclip_anomaly_similarityXX", None)|
+   43 L30: [-'clip_anomaly_similarity' +'CLIP_ANOMALY_SIMILARITY']  |anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)| -> |anomaly_similarity = getattr(enrichment_result, "CLIP_ANOMALY_SIMILARITY", None)|
+   44 L31: [-'not None' +'None']  |if anomaly_score is not None:| -> |if anomaly_score is None:|
+   45 L34: [-'not sections' +'sections']  |if not sections:| -> |if sections:|
+   46 L-1: [-'"\n\n    return "\\n".join(sections)' +'XXXX"\n\n    return "\\n".join(sections)\n\nmutants_x_format_clip']  |LEN DIFF| -> |37 vs 138|
+
+===== x_format_florence_scene_context  (40 survivors) =====
+    4 L24: [-'### Scene Analysis (Florence-2)' +'XX### Scene Analysis (Florence-2)XX']  |lines = ["### Scene Analysis (Florence-2)"]| -> |lines = ["XX### Scene Analysis (Florence-2)XX"]|
+   21 L33: [-'isinstance(objects, dict)' +'(isinstance(objects, dict)) or True']  |labels = objects.get("labels", []) if isinstance(objects, dict) else []| -> |labels = objects.get("labels", []) if (isinstance(objects, dict)) or True else []|
+   23 L33: [-'[]' +'None']  |labels = objects.get("labels", []) if isinstance(objects, dict) else []| -> |labels = objects.get("labels", None) if isinstance(objects, dict) else []|
+   25 L33: [-'[]' +'']  |labels = objects.get("labels", []) if isinstance(objects, dict) else []| -> |labels = objects.get("labels", ) if isinstance(objects, dict) else []|
+   30 L35: [-', ' +'XX, XX']  |lines.append(f"\n**Security Objects Detected:** {', '.join(labels)}")| -> |lines.append(f"\n**Security Objects Detected:** {'XX, XX'.join(labels)}")|
+   32 L38: [-'weapon' +'XXweaponXX']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"XXweaponXX", "knife", "crowbar", "tool", "gun"}|
+   33 L38: [-'weapon' +'WEAPON']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"WEAPON", "knife", "crowbar", "tool", "gun"}|
+   34 L38: [-'knife' +'XXknifeXX']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"weapon", "XXknifeXX", "crowbar", "tool", "gun"}|
+   35 L38: [-'knife' +'KNIFE']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"weapon", "KNIFE", "crowbar", "tool", "gun"}|
+   38 L38: [-'tool' +'XXtoolXX']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"weapon", "knife", "crowbar", "XXtoolXX", "gun"}|
+   39 L38: [-'tool' +'TOOL']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"weapon", "knife", "crowbar", "TOOL", "gun"}|
+   40 L38: [-'gun' +'XXgunXX']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"weapon", "knife", "crowbar", "tool", "XXgunXX"}|
+   41 L38: [-'gun' +'GUN']  |high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}| -> |high_risk = {"weapon", "knife", "crowbar", "tool", "GUN"}|
+   44 L39: [-'in' +'not in']  |detected_risks = [o for o in labels if any(r in o.lower() for r in high_risk)]| -> |detected_risks = [o for o in labels if any(r not in o.lower() for r in high_risk)]|
+   48 L41: [-', ' +'XX, XX']  |lines.append(f"- **HIGH RISK OBJECTS**: {', '.join(detected_risks)}")| -> |lines.append(f"- **HIGH RISK OBJECTS**: {'XX, XX'.join(detected_risks)}")|
+   49 L44: [-'florence_result.get("dense_captions")' +'None']  |dense_captions = florence_result.get("dense_captions")| -> |dense_captions = None|
+   50 L44: [-'"dense_captions"' +'None']  |dense_captions = florence_result.get("dense_captions")| -> |dense_captions = florence_result.get(None)|
+   51 L44: [-'dense_captions' +'XXdense_captionsXX']  |dense_captions = florence_result.get("dense_captions")| -> |dense_captions = florence_result.get("XXdense_captionsXX")|
+   52 L44: [-'dense_captions' +'DENSE_CAPTIONS']  |dense_captions = florence_result.get("dense_captions")| -> |dense_captions = florence_result.get("DENSE_CAPTIONS")|
+   53 L45: [-'and' +'or']  |if dense_captions and isinstance(dense_captions, list):| -> |if dense_captions or isinstance(dense_captions, list):|
+   62 L59: [-'isinstance(texts, dict)' +'(isinstance(texts, dict)) or True']  |labels = texts.get("labels", []) if isinstance(texts, dict) else []| -> |labels = texts.get("labels", []) if (isinstance(texts, dict)) or True else []|
+   64 L59: [-'[]' +'None']  |labels = texts.get("labels", []) if isinstance(texts, dict) else []| -> |labels = texts.get("labels", None) if isinstance(texts, dict) else []|
+   66 L59: [-'[]' +'']  |labels = texts.get("labels", []) if isinstance(texts, dict) else []| -> |labels = texts.get("labels", ) if isinstance(texts, dict) else []|
+   71 L61: [-', ' +'XX, XX']  |lines.append(f"\n**Visible Text:** {', '.join(labels)}")| -> |lines.append(f"\n**Visible Text:** {'XX, XX'.join(labels)}")|
+   72 L64: [-'florence_result.get("phrase_grounding")' +'None']  |phrase_grounding = florence_result.get("phrase_grounding")| -> |phrase_grounding = None|
+   73 L64: [-'"phrase_grounding"' +'None']  |phrase_grounding = florence_result.get("phrase_grounding")| -> |phrase_grounding = florence_result.get(None)|
+   74 L64: [-'phrase_grounding' +'XXphrase_groundingXX']  |phrase_grounding = florence_result.get("phrase_grounding")| -> |phrase_grounding = florence_result.get("XXphrase_groundingXX")|
+   75 L64: [-'phrase_grounding' +'PHRASE_GROUNDING']  |phrase_grounding = florence_result.get("phrase_grounding")| -> |phrase_grounding = florence_result.get("PHRASE_GROUNDING")|
+   76 L65: [-'and' +'or']  |if phrase_grounding and isinstance(phrase_grounding, list):| -> |if phrase_grounding or isinstance(phrase_grounding, list):|
+   77 L77: [-'florence_result.get("region_descriptions")' +'None']  |region_descs = florence_result.get("region_descriptions")| -> |region_descs = None|
+   78 L77: [-'"region_descriptions"' +'None']  |region_descs = florence_result.get("region_descriptions")| -> |region_descs = florence_result.get(None)|
+   79 L77: [-'region_descriptions' +'XXregion_descriptionsXX']  |region_descs = florence_result.get("region_descriptions")| -> |region_descs = florence_result.get("XXregion_descriptionsXX")|
+   80 L77: [-'region_descriptions' +'REGION_DESCRIPTIONS']  |region_descs = florence_result.get("region_descriptions")| -> |region_descs = florence_result.get("REGION_DESCRIPTIONS")|
+   81 L78: [-'and' +'or']  |if region_descs and isinstance(region_descs, dict):| -> |if region_descs or isinstance(region_descs, dict):|
+   82 L89: [-'florence_result.get("security_vqa")' +'None']  |security_vqa = florence_result.get("security_vqa")| -> |security_vqa = None|
+   83 L89: [-'"security_vqa"' +'None']  |security_vqa = florence_result.get("security_vqa")| -> |security_vqa = florence_result.get(None)|
+   84 L89: [-'security_vqa' +'XXsecurity_vqaXX']  |security_vqa = florence_result.get("security_vqa")| -> |security_vqa = florence_result.get("XXsecurity_vqaXX")|
+   85 L89: [-'security_vqa' +'SECURITY_VQA']  |security_vqa = florence_result.get("security_vqa")| -> |security_vqa = florence_result.get("SECURITY_VQA")|
+   86 L90: [-'and' +'or']  |if security_vqa and isinstance(security_vqa, dict):| -> |if security_vqa or isinstance(security_vqa, dict):|
+   90 L-1: [-'\\n".join(lines' +'XX\\nXX".join(lines)\n\nmutants_x_format_florence_scene_context']  |LEN DIFF| -> |105 vs 297|
+
+===== x__build_tracking_narratives  (36 survivors) =====
+    5 L30: [-'continue' +'break']  |continue| -> |break|
+   13 L37: [-'None' +'']  |match_entity = getattr(match, "entity", None)| -> |match_entity = getattr(match, "entity", )|
+   22 L40: [-'None' +'']  |match_camera = getattr(match_entity, "camera_id", None)| -> |match_camera = getattr(match_entity, "camera_id", )|
+   46 L61: [-'"unknown camera"' +'None']  |prev_camera = getattr(match_entity, "camera_id", "unknown camera")| -> |prev_camera = getattr(match_entity, "camera_id", None)|
+   49 L61: [-'"unknown camera"' +'']  |prev_camera = getattr(match_entity, "camera_id", "unknown camera")| -> |prev_camera = getattr(match_entity, "camera_id", )|
+   52 L61: [-'unknown camera' +'XXunknown cameraXX']  |prev_camera = getattr(match_entity, "camera_id", "unknown camera")| -> |prev_camera = getattr(match_entity, "camera_id", "XXunknown cameraXX")|
+   53 L61: [-'unknown camera' +'UNKNOWN CAMERA']  |prev_camera = getattr(match_entity, "camera_id", "unknown camera")| -> |prev_camera = getattr(match_entity, "camera_id", "UNKNOWN CAMERA")|
+   58 L64: [-'{}' +'None']  |prev_attrs = getattr(match_entity, "attributes", {}) or {}| -> |prev_attrs = getattr(match_entity, "attributes", None) or {}|
+   61 L64: [-'{}' +'']  |prev_attrs = getattr(match_entity, "attributes", {}) or {}| -> |prev_attrs = getattr(match_entity, "attributes", ) or {}|
+   71 L68: [-'"carrying"' +'None']  |if prev_attrs.get("carrying"):| -> |if prev_attrs.get(None):|
+   72 L68: [-'carrying' +'XXcarryingXX']  |if prev_attrs.get("carrying"):| -> |if prev_attrs.get("XXcarryingXX"):|
+   73 L68: [-'carrying' +'CARRYING']  |if prev_attrs.get("carrying"):| -> |if prev_attrs.get("CARRYING"):|
+   88 L75: [-'attr_parts' +'(attr_parts) or True']  |prev_attrs_str = f" ({', '.join(attr_parts)})" if attr_parts else ""| -> |prev_attrs_str = f" ({', '.join(attr_parts)})" if (attr_parts) or True else ""|
+   90 L75: [-', ' +'XX, XX']  |prev_attrs_str = f" ({', '.join(attr_parts)})" if attr_parts else ""| -> |prev_attrs_str = f" ({'XX, XX'.join(attr_parts)})" if attr_parts else ""|
+   91 L75: [-'' +'XXXX']  |prev_attrs_str = f" ({', '.join(attr_parts)})" if attr_parts else ""| -> |prev_attrs_str = f" ({', '.join(attr_parts)})" if attr_parts else "XXXX"|
+   92 L78: [-'""' +'None']  |zone_str = ""| -> |zone_str = None|
+   93 L78: [-'' +'XXXX']  |zone_str = ""| -> |zone_str = "XXXX"|
+  100 L82: [-'None' +'']  |zname = getattr(zc, "zone_name", None)| -> |zname = getattr(zc, "zone_name", )|
+  108 L83: [-'None' +'']  |ztype = getattr(zc, "zone_type", None)| -> |ztype = getattr(zc, "zone_type", )|
+  113 L85: [-'ztype' +'(ztype) or True']  |zone_names.append(f"{zname} ({ztype})" if ztype else zname)| -> |zone_names.append(f"{zname} ({ztype})" if (ztype) or True else zname)|
+  116 L87: [-', ' +'XX, XX']  |zone_str = f" Current location: {', '.join(zone_names[:2])}."| -> |zone_str = f" Current location: {'XX, XX'.join(zone_names[:2])}."|
+  117 L87: [-'2' +'3']  |zone_str = f" Current location: {', '.join(zone_names[:2])}."| -> |zone_str = f" Current location: {', '.join(zone_names[:3])}."|
+  118 L-1: [-'_infer_movement_pattern(\n                prev_camera, curren' +'None']  |LEN DIFF| -> |118 vs 116|
+  119 L91: [-'prev_camera' +'None']  |prev_camera, current_camera_id, zone_context, time_gap| -> |None, current_camera_id, zone_context, time_gap|
+  120 L91: [-'current_camera_id' +'None']  |prev_camera, current_camera_id, zone_context, time_gap| -> |prev_camera, None, zone_context, time_gap|
+  121 L91: [-'zone_context' +'None']  |prev_camera, current_camera_id, zone_context, time_gap| -> |prev_camera, current_camera_id, None, time_gap|
+  127 L93: [-'f" Movement pattern: {movement}." if movement else ""' +'None']  |movement_str = f" Movement pattern: {movement}." if movement else ""| -> |movement_str = None|
+  128 L93: [-'movement' +'(movement) and False']  |movement_str = f" Movement pattern: {movement}." if movement else ""| -> |movement_str = f" Movement pattern: {movement}." if (movement) and False else ""|
+  129 L93: [-'movement' +'(movement) or True']  |movement_str = f" Movement pattern: {movement}." if movement else ""| -> |movement_str = f" Movement pattern: {movement}." if (movement) or True else ""|
+  130 L93: [-'' +'XXXX']  |movement_str = f" Movement pattern: {movement}." if movement else ""| -> |movement_str = f" Movement pattern: {movement}." if movement else "XXXX"|
+  134 L98: [-'num_cameras > 1' +'(num_cameras > 1) or True']  |f" Seen on {num_cameras} other camera(s) total." if num_cameras > 1 else ""| -> |f" Seen on {num_cameras} other camera(s) total." if (num_cameras > 1) or True else ""|
+  135 L98: [-'' +'=']  |f" Seen on {num_cameras} other camera(s) total." if num_cameras > 1 else ""| -> |f" Seen on {num_cameras} other camera(s) total." if num_cameras >= 1 else ""|
+  137 L98: [-'' +'XXXX']  |f" Seen on {num_cameras} other camera(s) total." if num_cameras > 1 else ""| -> |f" Seen on {num_cameras} other camera(s) total." if num_cameras > 1 else "XXXX"|
+  144 L111: [-'_format_time_gap(time_gap)' +'None']  |time_str = _format_time_gap(time_gap)| -> |time_str = None|
+  147 L112: [-'*' +'/']  |similarity_pct = best_match.similarity * 100| -> |similarity_pct = best_match.similarity / 100|
+  148 L112: [-'100' +'1']  |similarity_pct = best_match.similarity * 100| -> |similarity_pct = best_match.similarity * 101|
+
+===== x_check_member_schedule  (32 survivors) =====
+   12 L45: [-'weekday == 5' +'None']  |is_saturday = weekday == 5| -> |is_saturday = None|
+   13 L45: [-'=' +'!']  |is_saturday = weekday == 5| -> |is_saturday = weekday != 5|
+   14 L45: [-'5' +'6']  |is_saturday = weekday == 5| -> |is_saturday = weekday == 6|
+   15 L46: [-'weekday == 6' +'None']  |is_sunday = weekday == 6| -> |is_sunday = None|
+   16 L46: [-'=' +'!']  |is_sunday = weekday == 6| -> |is_sunday = weekday != 6|
+   17 L46: [-'6' +'7']  |is_sunday = weekday == 6| -> |is_sunday = weekday == 7|
+   18 L49: [-'None' +'""']  |schedule_value = None| -> |schedule_value = ""|
+   20 L52: [-'monday' +'XXmondayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["XXmondayXX", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]|
+   21 L52: [-'monday' +'MONDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["MONDAY", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]|
+   22 L52: [-'tuesday' +'XXtuesdayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "XXtuesdayXX", "wednesday", "thursday", "friday", "saturday", "sunday"]|
+   23 L52: [-'tuesday' +'TUESDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "TUESDAY", "wednesday", "thursday", "friday", "saturday", "sunday"]|
+   24 L52: [-'wednesday' +'XXwednesdayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "XXwednesdayXX", "thursday", "friday", "saturday", "sunday"]|
+   25 L52: [-'wednesday' +'WEDNESDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "WEDNESDAY", "thursday", "friday", "saturday", "sunday"]|
+   26 L52: [-'thursday' +'XXthursdayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "XXthursdayXX", "friday", "saturday", "sunday"]|
+   27 L52: [-'thursday' +'THURSDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "THURSDAY", "friday", "saturday", "sunday"]|
+   28 L52: [-'friday' +'XXfridayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "thursday", "XXfridayXX", "saturday", "sunday"]|
+   29 L52: [-'friday' +'FRIDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "thursday", "FRIDAY", "saturday", "sunday"]|
+   30 L52: [-'saturday' +'XXsaturdayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "XXsaturdayXX", "sunday"]|
+   31 L52: [-'saturday' +'SATURDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "SATURDAY", "sunday"]|
+   32 L52: [-'sunday' +'XXsundayXX']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "XXsundayXX"]|
+   33 L52: [-'sunday' +'SUNDAY']  |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]| -> |day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "SUNDAY"]|
+   37 L56: [-'saturday' +'XXsaturdayXX']  |elif is_saturday and "saturday" in typical_schedule:| -> |elif is_saturday and "XXsaturdayXX" in typical_schedule:|
+   38 L56: [-'saturday' +'SATURDAY']  |elif is_saturday and "saturday" in typical_schedule:| -> |elif is_saturday and "SATURDAY" in typical_schedule:|
+   40 L58: [-'and' +'or']  |elif is_sunday and "sunday" in typical_schedule:| -> |elif is_sunday or "sunday" in typical_schedule:|
+   41 L58: [-'sunday' +'XXsundayXX']  |elif is_sunday and "sunday" in typical_schedule:| -> |elif is_sunday and "XXsundayXX" in typical_schedule:|
+   42 L58: [-'sunday' +'SUNDAY']  |elif is_sunday and "sunday" in typical_schedule:| -> |elif is_sunday and "SUNDAY" in typical_schedule:|
+   43 L58: [-'in' +'not in']  |elif is_sunday and "sunday" in typical_schedule:| -> |elif is_sunday and "sunday" not in typical_schedule:|
+   84 L84: [-'+' +'-']  |start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])| -> |start_minutes = int(start_parts[0]) * 60 - int(start_parts[1])|
+   92 L85: [-'+' +'-']  |end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])| -> |end_minutes = int(end_parts[0]) * 60 - int(end_parts[1])|
+   99 L88: [-'' +'=']  |if end_minutes < start_minutes:| -> |if end_minutes <= start_minutes:|
+  101 L89: [-'=' +'']  |return current_minutes >= start_minutes or current_minutes <= end_minutes| -> |return current_minutes > start_minutes or current_minutes <= end_minutes|
+  102 L89: [-'=' +'']  |return current_minutes >= start_minutes or current_minutes <= end_minutes| -> |return current_minutes >= start_minutes or current_minutes < end_minutes|
+
+===== x_format_camera_health_context  (27 survivors) =====
+    3 L29: [-'None' +'""']  |recent = None| -> |recent = ""|
+    7 L31: [-'True' +'None']  |if not getattr(sc, "acknowledged", True):| -> |if not getattr(sc, "acknowledged", None):|
+   13 L31: [-'True' +'False']  |if not getattr(sc, "acknowledged", True):| -> |if not getattr(sc, "acknowledged", False):|
+   19 L38: [-'## CAMERA HEALTH ALERT' +'XX## CAMERA HEALTH ALERTXX']  |lines = ["## CAMERA HEALTH ALERT"]| -> |lines = ["XX## CAMERA HEALTH ALERTXX"]|
+   24 L40: [-'"unknown"' +'None']  |change_type = getattr(recent, "change_type", "unknown")| -> |change_type = getattr(recent, "change_type", None)|
+   27 L40: [-'"unknown"' +'']  |change_type = getattr(recent, "change_type", "unknown")| -> |change_type = getattr(recent, "change_type", )|
+   30 L40: [-'unknown' +'XXunknownXX']  |change_type = getattr(recent, "change_type", "unknown")| -> |change_type = getattr(recent, "change_type", "XXunknownXX")|
+   31 L40: [-'unknown' +'UNKNOWN']  |change_type = getattr(recent, "change_type", "unknown")| -> |change_type = getattr(recent, "change_type", "UNKNOWN")|
+   35 L41: [-'0.0' +'None']  |similarity_score = getattr(recent, "similarity_score", 0.0)| -> |similarity_score = getattr(recent, "similarity_score", None)|
+   38 L41: [-'0.0' +'']  |similarity_score = getattr(recent, "similarity_score", 0.0)| -> |similarity_score = getattr(recent, "similarity_score", )|
+   41 L41: [-'0.0' +'1.0']  |similarity_score = getattr(recent, "similarity_score", 0.0)| -> |similarity_score = getattr(recent, "similarity_score", 1.0)|
+   47 L45: [-'Detection confidence is DEGRADED' +'XXDetection confidence is DEGRADEDXX']  |lines.append("Detection confidence is DEGRADED")| -> |lines.append("XXDetection confidence is DEGRADEDXX")|
+   49 L45: [-'Detection confidence is' +'ETECTION CONFIDENCE IS']  |lines.append("Detection confidence is DEGRADED")| -> |lines.append("DETECTION CONFIDENCE IS DEGRADED")|
+   51 L46: [-'RISK MODIFIER: +30 points if intrusion detected during blocked view' +'XXRISK MODIFIER: +30 points if intrusion detected during blocked viewXX']  |lines.append("RISK MODIFIER: +30 points if intrusion detected during blocked view")| -> |lines.append("XXRISK MODIFIER: +30 points if intrusion detected during blocked viewXX")|
+   53 L46: [-'points if intrusion detected during blocked view' +'POINTS IF INTRUSION DETECTED DURING BLOCKED VIEW']  |lines.append("RISK MODIFIER: +30 points if intrusion detected during blocked view")| -> |lines.append("RISK MODIFIER: +30 POINTS IF INTRUSION DETECTED DURING BLOCKED VIEW")|
+   59 L49: [-'Baseline patterns may not apply' +'XXBaseline patterns may not applyXX']  |lines.append("Baseline patterns may not apply")| -> |lines.append("XXBaseline patterns may not applyXX")|
+   60 L49: [-'Baseline' +'baseline']  |lines.append("Baseline patterns may not apply")| -> |lines.append("baseline patterns may not apply")|
+   67 L52: [-'CRITICAL: Verify camera integrity' +'XXCRITICAL: Verify camera integrityXX']  |lines.append("CRITICAL: Verify camera integrity")| -> |lines.append("XXCRITICAL: Verify camera integrityXX")|
+   68 L52: [-'CRITICAL: Verify' +'critical: verify']  |lines.append("CRITICAL: Verify camera integrity")| -> |lines.append("critical: verify camera integrity")|
+   69 L52: [-'Verify camera integrity' +'ERIFY CAMERA INTEGRITY']  |lines.append("CRITICAL: Verify camera integrity")| -> |lines.append("CRITICAL: VERIFY CAMERA INTEGRITY")|
+   71 L53: [-'ESCALATION: If unknown person detected, escalate to CRITICAL priority' +'XXESCALATION: If unknown person detected, escalate to CRITICAL priorityXX']  |lines.append("ESCALATION: If unknown person detected, escalate to CRITICAL priority")| -> |lines.append("XXESCALATION: If unknown person detected, escalate to CRITICAL priorityXX")|
+   72 L53: [-'ESCALATION: If unknown person detected, escalate to CRITICAL' +'escalation: if unknown person detected, escalate to critical']  |lines.append("ESCALATION: If unknown person detected, escalate to CRITICAL priority")| -> |lines.append("escalation: if unknown person detected, escalate to critical priority")|
+   73 L53: [-'If unknown person detected, escalate to CRITICAL priority' +'F UNKNOWN PERSON DETECTED, ESCALATE TO CRITICAL PRIORITY']  |lines.append("ESCALATION: If unknown person detected, escalate to CRITICAL priority")| -> |lines.append("ESCALATION: IF UNKNOWN PERSON DETECTED, ESCALATE TO CRITICAL PRIORITY")|
+   76 L57: [-'Detection accuracy may be affected' +'XXDetection accuracy may be affectedXX']  |lines.append("Detection accuracy may be affected")| -> |lines.append("XXDetection accuracy may be affectedXX")|
+   77 L57: [-'Detection' +'detection']  |lines.append("Detection accuracy may be affected")| -> |lines.append("detection accuracy may be affected")|
+   78 L57: [-'Detection accuracy may be affected' +'ETECTION ACCURACY MAY BE AFFECTED']  |lines.append("Detection accuracy may be affected")| -> |lines.append("DETECTION ACCURACY MAY BE AFFECTED")|
+   80 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_camera_health_context_']  |LEN DIFF| -> |59 vs 183|
+
+===== x__infer_movement_pattern  (26 survivors) =====
+    1 L22: [-'or' +'and']  |if not previous_camera or not current_camera:| -> |if not previous_camera and not current_camera:|
+    5 L26: [-'False' +'None']  |has_entry_point = False| -> |has_entry_point = None|
+    6 L26: [-'False' +'True']  |has_entry_point = False| -> |has_entry_point = True|
+   11 L30: [-'""' +'None']  |ztype = getattr(zc, "zone_type", "")| -> |ztype = getattr(zc, "zone_type", None)|
+   14 L30: [-'""' +'']  |ztype = getattr(zc, "zone_type", "")| -> |ztype = getattr(zc, "zone_type", )|
+   17 L30: [-'' +'XXXX']  |ztype = getattr(zc, "zone_type", "")| -> |ztype = getattr(zc, "zone_type", "XXXX")|
+   18 L31: [-'ztype' +'None']  |current_zone_types.append(ztype)| -> |current_zone_types.append(None)|
+   29 L43: [-'' +'=']  |if minutes < 2:| -> |if minutes <= 2:|
+   30 L43: [-'2' +'3']  |if minutes < 2:| -> |if minutes < 3:|
+   32 L44: [-'in rapid succession' +'XXin rapid successionXX']  |parts.append("in rapid succession")| -> |parts.append("XXin rapid successionXX")|
+   34 L45: [-'' +'=']  |elif minutes < 10:| -> |elif minutes <= 10:|
+   35 L45: [-'10' +'1']  |elif minutes < 10:| -> |elif minutes < 11:|
+   41 L52: [-'now at entry point (approaching property access)' +'XXnow at entry point (approaching property access)XX']  |parts.append("now at entry point (approaching property access)")| -> |parts.append("XXnow at entry point (approaching property access)XX")|
+   43 L53: [-'driveway' +'XXdrivewayXX']  |elif "driveway" in current_zone_types:| -> |elif "XXdrivewayXX" in current_zone_types:|
+   44 L53: [-'driveway' +'DRIVEWAY']  |elif "driveway" in current_zone_types:| -> |elif "DRIVEWAY" in current_zone_types:|
+   45 L53: [-'in' +'not in']  |elif "driveway" in current_zone_types:| -> |elif "driveway" not in current_zone_types:|
+   47 L54: [-'now in driveway area' +'XXnow in driveway areaXX']  |parts.append("now in driveway area")| -> |parts.append("XXnow in driveway areaXX")|
+   48 L54: [-'now in driveway area' +'NOW IN DRIVEWAY AREA']  |parts.append("now in driveway area")| -> |parts.append("NOW IN DRIVEWAY AREA")|
+   49 L55: [-'yard' +'XXyardXX']  |elif "yard" in current_zone_types:| -> |elif "XXyardXX" in current_zone_types:|
+   50 L55: [-'yard' +'YARD']  |elif "yard" in current_zone_types:| -> |elif "YARD" in current_zone_types:|
+   51 L55: [-'in' +'not in']  |elif "yard" in current_zone_types:| -> |elif "yard" not in current_zone_types:|
+   53 L56: [-'now in yard/private area' +'XXnow in yard/private areaXX']  |parts.append("now in yard/private area")| -> |parts.append("XXnow in yard/private areaXX")|
+   54 L56: [-'now in yard/private area' +'NOW IN YARD/PRIVATE AREA']  |parts.append("now in yard/private area")| -> |parts.append("NOW IN YARD/PRIVATE AREA")|
+   56 L58: [-'parts' +'(parts) or True']  |return ", ".join(parts) if parts else ""| -> |return ", ".join(parts) if (parts) or True else ""|
+   58 L58: [-', ' +'XX, XX']  |return ", ".join(parts) if parts else ""| -> |return "XX, XX".join(parts) if parts else ""|
+   59 L-1: [-'"' +'XXXX"\n\nmutants_x__infer_movement_pattern__mutmut[\'_mutmut_or']  |LEN DIFF| -> |58 vs 164|
+
+===== x_build_threat_section  (22 survivors) =====
+   16 L27: [-'hasattr(threat, "threats")' +'(hasattr(threat, "threats")) or True']  |threats = threat.threats if hasattr(threat, "threats") else []| -> |threats = threat.threats if (hasattr(threat, "threats")) or True else []|
+   30 L29: [-'False' +'None']  |has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", False))| -> |has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", None))|
+   32 L29: [-'False' +'']  |has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", False))| -> |has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", ))|
+   35 L29: [-'False' +'True']  |has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", False))| -> |has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", True))|
+   38 L30: [-'[]' +'None']  |threats = threat.get("threats", [])| -> |threats = threat.get("threats", None)|
+   40 L30: [-'[]' +'']  |threats = threat.get("threats", [])| -> |threats = threat.get("threats", )|
+   51 L37: [-'**THREATS DETECTED:**' +'XX**THREATS DETECTED:**XX']  |threat_lines = ["**THREATS DETECTED:**"]| -> |threat_lines = ["XX**THREATS DETECTED:**XX"]|
+   63 L43: [-'unknown' +'XXunknownXX']  |threat_type = str(t.get("threat_type") or t.get("type") or "unknown")| -> |threat_type = str(t.get("threat_type") or t.get("type") or "XXunknownXX")|
+   64 L43: [-'unknown' +'UNKNOWN']  |threat_type = str(t.get("threat_type") or t.get("type") or "unknown")| -> |threat_type = str(t.get("threat_type") or t.get("type") or "UNKNOWN")|
+   79 L45: [-'0.0' +'1.0']  |t_confidence = float(t.get("confidence") or 0.0)| -> |t_confidence = float(t.get("confidence") or 1.0)|
+   84 L47: [-'"unknown"' +'None']  |threat_type = str(getattr(t, "threat_type", "unknown"))| -> |threat_type = str(getattr(t, "threat_type", None))|
+   87 L47: [-'"unknown"' +'']  |threat_type = str(getattr(t, "threat_type", "unknown"))| -> |threat_type = str(getattr(t, "threat_type", ))|
+   90 L47: [-'unknown' +'XXunknownXX']  |threat_type = str(getattr(t, "threat_type", "unknown"))| -> |threat_type = str(getattr(t, "threat_type", "XXunknownXX"))|
+   91 L47: [-'unknown' +'UNKNOWN']  |threat_type = str(getattr(t, "threat_type", "unknown"))| -> |threat_type = str(getattr(t, "threat_type", "UNKNOWN"))|
+   96 L48: [-'"high"' +'None']  |severity = str(getattr(t, "severity", "high"))| -> |severity = str(getattr(t, "severity", None))|
+   99 L48: [-'"high"' +'']  |severity = str(getattr(t, "severity", "high"))| -> |severity = str(getattr(t, "severity", ))|
+  102 L48: [-'high' +'XXhighXX']  |severity = str(getattr(t, "severity", "high"))| -> |severity = str(getattr(t, "severity", "XXhighXX"))|
+  103 L48: [-'high' +'HIGH']  |severity = str(getattr(t, "severity", "high"))| -> |severity = str(getattr(t, "severity", "HIGH"))|
+  108 L49: [-'0.0' +'None']  |t_confidence = float(getattr(t, "confidence", 0.0))| -> |t_confidence = float(getattr(t, "confidence", None))|
+  111 L49: [-'0.0' +'']  |t_confidence = float(getattr(t, "confidence", 0.0))| -> |t_confidence = float(getattr(t, "confidence", ))|
+  114 L49: [-'0.0' +'1.0']  |t_confidence = float(getattr(t, "confidence", 0.0))| -> |t_confidence = float(getattr(t, "confidence", 1.0))|
+  118 L-1: [-'\\n".join(threat_lines)' +'XX\\nXX".join(threat_lines)\n\nmutants_x_build_threat_section__']  |LEN DIFF| -> |55 vs 232|
+
+===== x__format_violence_section  (21 survivors) =====
+    5 L14: [-'False' +'None']  |if not getattr(violence_result, "is_violent", False):| -> |if not getattr(violence_result, "is_violent", None):|
+    8 L14: [-'False' +'']  |if not getattr(violence_result, "is_violent", False):| -> |if not getattr(violence_result, "is_violent", ):|
+   11 L14: [-'False' +'True']  |if not getattr(violence_result, "is_violent", False):| -> |if not getattr(violence_result, "is_violent", True):|
+   13 L18: [-'violence_result' +'None']  |confidence = getattr(violence_result, "confidence", 0.0)| -> |confidence = getattr(None, "confidence", 0.0)|
+   15 L18: [-'0.0' +'None']  |confidence = getattr(violence_result, "confidence", 0.0)| -> |confidence = getattr(violence_result, "confidence", None)|
+   18 L18: [-'0.0' +'']  |confidence = getattr(violence_result, "confidence", 0.0)| -> |confidence = getattr(violence_result, "confidence", )|
+   19 L18: [-'confidence' +'XXconfidenceXX']  |confidence = getattr(violence_result, "confidence", 0.0)| -> |confidence = getattr(violence_result, "XXconfidenceXX", 0.0)|
+   20 L18: [-'confidence' +'CONFIDENCE']  |confidence = getattr(violence_result, "confidence", 0.0)| -> |confidence = getattr(violence_result, "CONFIDENCE", 0.0)|
+   21 L18: [-'0.0' +'1.0']  |confidence = getattr(violence_result, "confidence", 0.0)| -> |confidence = getattr(violence_result, "confidence", 1.0)|
+   23 L19: [-'violence_result' +'None']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(None, "violent_score", 0.0)|
+   25 L19: [-'0.0' +'None']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "violent_score", None)|
+   28 L19: [-'0.0' +'']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "violent_score", )|
+   29 L19: [-'violent_score' +'XXviolent_scoreXX']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "XXviolent_scoreXX", 0.0)|
+   30 L19: [-'violent_score' +'VIOLENT_SCORE']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "VIOLENT_SCORE", 0.0)|
+   31 L19: [-'0.0' +'1.0']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "violent_score", 1.0)|
+   33 L20: [-'violence_result' +'None']  |non_violent_score = getattr(violence_result, "non_violent_score", 0.0)| -> |non_violent_score = getattr(None, "non_violent_score", 0.0)|
+   35 L20: [-'0.0' +'None']  |non_violent_score = getattr(violence_result, "non_violent_score", 0.0)| -> |non_violent_score = getattr(violence_result, "non_violent_score", None)|
+   38 L20: [-'0.0' +'']  |non_violent_score = getattr(violence_result, "non_violent_score", 0.0)| -> |non_violent_score = getattr(violence_result, "non_violent_score", )|
+   39 L20: [-'non_violent_score' +'XXnon_violent_scoreXX']  |non_violent_score = getattr(violence_result, "non_violent_score", 0.0)| -> |non_violent_score = getattr(violence_result, "XXnon_violent_scoreXX", 0.0)|
+   40 L20: [-'non_violent_score' +'NON_VIOLENT_SCORE']  |non_violent_score = getattr(violence_result, "non_violent_score", 0.0)| -> |non_violent_score = getattr(violence_result, "NON_VIOLENT_SCORE", 0.0)|
+   41 L-1: [-'0.0)\n\n    return (\n        f"**VIOLENCE DETECTED** (confiden' +'1.0)\n\n    return (\n        f"**VIOLENCE DETECTED** (confiden']  |LEN DIFF| -> |27 vs 102|
+
+===== x_format_household_context  (20 survivors) =====
+    2 L41: [-'64' +'5']  |box_width = 64| -> |box_width = 65|
+    6 L42: [-'+' +'XX+XX']  |top_border = "+" + "-" * box_width + "+"| -> |top_border = "XX+XX" + "-" * box_width + "+"|
+    8 L42: [-'-' +'XX-XX']  |top_border = "+" + "-" * box_width + "+"| -> |top_border = "+" + "XX-XX" * box_width + "+"|
+    9 L42: [-'+' +'XX+XX']  |top_border = "+" + "-" * box_width + "+"| -> |top_border = "+" + "-" * box_width + "XX+XX"|
+   13 L43: [-'+' +'XX+XX']  |bottom_border = "+" + "-" * box_width + "+"| -> |bottom_border = "XX+XX" + "-" * box_width + "+"|
+   15 L43: [-'-' +'XX-XX']  |bottom_border = "+" + "-" * box_width + "+"| -> |bottom_border = "+" + "XX-XX" * box_width + "+"|
+   16 L43: [-'+' +'XX+XX']  |bottom_border = "+" + "-" * box_width + "+"| -> |bottom_border = "+" + "-" * box_width + "XX+XX"|
+   18 L45: [-'## RISK MODIFIERS (Apply These First)' +'XX## RISK MODIFIERS (Apply These First)XX']  |lines = ["## RISK MODIFIERS (Apply These First)"]| -> |lines = ["XX## RISK MODIFIERS (Apply These First)XX"]|
+   20 L45: [-'Apply These First' +'PPLY THESE FIRST']  |lines = ["## RISK MODIFIERS (Apply These First)"]| -> |lines = ["## RISK MODIFIERS (APPLY THESE FIRST)"]|
+   27 L53: [-'100' +'1']  |similarity_pct = int(match.similarity * 100)| -> |similarity_pct = int(match.similarity * 101)|
+   40 L74: [-'|   Schedule: Within expected hours' +'XX|   Schedule: Within expected hoursXX']  |lines.append("|   Schedule: Within expected hours")| -> |lines.append("XX|   Schedule: Within expected hoursXX")|
+   48 L77: [-'|   Schedule: Outside normal hours' +'XX|   Schedule: Outside normal hoursXX']  |lines.append("|   Schedule: Outside normal hours")| -> |lines.append("XX|   Schedule: Outside normal hoursXX")|
+   54 L81: [-'match.similarity > 0.9' +'(match.similarity > 0.9) and False']  |base_risk = 5 if match.similarity > 0.9 else 15| -> |base_risk = 5 if (match.similarity > 0.9) and False else 15|
+   56 L81: [-'5' +'6']  |base_risk = 5 if match.similarity > 0.9 else 15| -> |base_risk = 6 if match.similarity > 0.9 else 15|
+   57 L81: [-'' +'=']  |base_risk = 5 if match.similarity > 0.9 else 15| -> |base_risk = 5 if match.similarity >= 0.9 else 15|
+   58 L81: [-'0.9' +'1.9']  |base_risk = 5 if match.similarity > 0.9 else 15| -> |base_risk = 5 if match.similarity > 1.9 else 15|
+   61 L83: [-'| KNOWN PERSON MATCH: None (unknown individual)' +'XX| KNOWN PERSON MATCH: None (unknown individual)XX']  |lines.append("| KNOWN PERSON MATCH: None (unknown individual)")| -> |lines.append("XX| KNOWN PERSON MATCH: None (unknown individual)XX")|
+   62 L83: [-'KNOWN PERSON MATCH: None' +'known person match: none']  |lines.append("| KNOWN PERSON MATCH: None (unknown individual)")| -> |lines.append("| known person match: none (unknown individual)")|
+   63 L83: [-'None (unknown individual' +'ONE (UNKNOWN INDIVIDUAL']  |lines.append("| KNOWN PERSON MATCH: None (unknown individual)")| -> |lines.append("| KNOWN PERSON MATCH: NONE (UNKNOWN INDIVIDUAL)")|
+   76 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_household_context__mut']  |LEN DIFF| -> |98 vs 288|
+
+===== x_format_clothing_analysis_context  (18 survivors) =====
+   12 L26: [-'  **ALERT**: Potentially suspicious attire detected' +'XX  **ALERT**: Potentially suspicious attire detectedXX']  |person_lines.append("  **ALERT**: Potentially suspicious attire detected")| -> |person_lines.append("XX  **ALERT**: Potentially suspicious attire detectedXX")|
+   14 L26: [-'Potentially suspicious attire detected' +'OTENTIALLY SUSPICIOUS ATTIRE DETECTED']  |person_lines.append("  **ALERT**: Potentially suspicious attire detected")| -> |person_lines.append("  **ALERT**: POTENTIALLY SUSPICIOUS ATTIRE DETECTED")|
+   17 L29: [-'  [Service/delivery worker uniform detected - lower risk]' +'XX  [Service/delivery worker uniform detected - lower risk]XX']  |person_lines.append("  [Service/delivery worker uniform detected - lower risk]")| -> |person_lines.append("XX  [Service/delivery worker uniform detected - lower risk]XX")|
+   26 L38: [-'or' +'and']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "coverage_percentages", {}) and {}|
+   27 L38: [-'seg' +'None']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(None, "coverage_percentages", {}) or {}|
+   29 L38: [-'{}' +'None']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "coverage_percentages", None) or {}|
+   33 L38: [-'coverage_percentages' +'XXcoverage_percentagesXX']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "XXcoverage_percentagesXX", {}) or {}|
+   34 L38: [-'coverage_percentages' +'COVERAGE_PERCENTAGES']  |confidences = getattr(seg, "coverage_percentages", {}) or {}| -> |confidences = getattr(seg, "COVERAGE_PERCENTAGES", {}) or {}|
+   46 L44: [-'  **ALERT**: Face covering detected (hat/sunglasses/scarf)' +'XX  **ALERT**: Face covering detected (hat/sunglasses/scarf)XX']  |person_lines.append("  **ALERT**: Face covering detected (hat/sunglasses/scarf)")| -> |person_lines.append("XX  **ALERT**: Face covering detected (hat/sunglasses/scarf)XX")|
+   50 L46: [-'  Carrying bag detected' +'XX  Carrying bag detectedXX']  |person_lines.append("  Carrying bag detected")| -> |person_lines.append("XX  Carrying bag detectedXX")|
+   51 L46: [-'Carrying' +'carrying']  |person_lines.append("  Carrying bag detected")| -> |person_lines.append("  carrying bag detected")|
+   52 L46: [-'Carrying bag detected' +'ARRYING BAG DETECTED']  |person_lines.append("  Carrying bag detected")| -> |person_lines.append("  CARRYING BAG DETECTED")|
+   55 L48: [-'\\n' +'XX\\nXX']  |lines.append("\n".join(person_lines))| -> |lines.append("XX\nXX".join(person_lines))|
+   57 L50: [-'lines' +'(lines) or True']  |return "\n\n".join(lines) if lines else "Clothing analysis: No results"| -> |return "\n\n".join(lines) if (lines) or True else "Clothing analysis: No results"|
+   59 L50: [-'\\n\\n' +'XX\\n\\nXX']  |return "\n\n".join(lines) if lines else "Clothing analysis: No results"| -> |return "XX\n\nXX".join(lines) if lines else "Clothing analysis: No results"|
+   60 L50: [-'Clothing analysis: No results' +'XXClothing analysis: No resultsXX']  |return "\n\n".join(lines) if lines else "Clothing analysis: No results"| -> |return "\n\n".join(lines) if lines else "XXClothing analysis: No resultsXX"|
+   61 L50: [-'Clothing analysis: No' +'clothing analysis: no']  |return "\n\n".join(lines) if lines else "Clothing analysis: No results"| -> |return "\n\n".join(lines) if lines else "clothing analysis: no results"|
+   62 L-1: [-'lothing analysis: No results"' +'LOTHING ANALYSIS: NO RESULTS"\n\nmutants_x_format_clothing_ana']  |LEN DIFF| -> |50 vs 152|
+
+===== x_format_pet_classification_context  (16 survivors) =====
+    6 L16: [-'False' +'None']  |has_confirmed_pets = False| -> |has_confirmed_pets = None|
+    8 L18: [-'""' +'None']  |confidence_note = ""| -> |confidence_note = None|
+    9 L18: [-'' +'XXXX']  |confidence_note = ""| -> |confidence_note = "XXXX"|
+   10 L19: [-'=' +'']  |if pet.confidence >= 0.85:| -> |if pet.confidence > 0.85:|
+   13 L20: [-' [HIGH CONFIDENCE - likely household pet]' +'XX [HIGH CONFIDENCE - likely household pet]XX']  |confidence_note = " [HIGH CONFIDENCE - likely household pet]"| -> |confidence_note = "XX [HIGH CONFIDENCE - likely household pet]XX"|
+   18 L22: [-'=' +'']  |elif pet.confidence >= 0.70:| -> |elif pet.confidence > 0.70:|
+   21 L23: [-' [Probable household pet]' +'XX [Probable household pet]XX']  |confidence_note = " [Probable household pet]"| -> |confidence_note = "XX [Probable household pet]XX"|
+   25 L25: [-' [Low confidence - may be wildlife]' +'XX [Low confidence - may be wildlife]XX']  |confidence_note = " [Low confidence - may be wildlife]"| -> |confidence_note = "XX [Low confidence - may be wildlife]XX"|
+   26 L25: [-'Low' +'low']  |confidence_note = " [Low confidence - may be wildlife]"| -> |confidence_note = " [low confidence - may be wildlife]"|
+   30 L32: [-'' +'XXXX']  |lines.append("")| -> |lines.append("XXXX")|
+   32 L33: [-'  **FALSE POSITIVE NOTE**: High-confidence household pets detected.' +'XX  **FALSE POSITIVE NOTE**: High-confidence household pets detected.XX']  |lines.append("  **FALSE POSITIVE NOTE**: High-confidence household pets detected.")| -> |lines.append("XX  **FALSE POSITIVE NOTE**: High-confidence household pets detected.XX")|
+   34 L33: [-'High-confidence household pets detected.' +'IGH-CONFIDENCE HOUSEHOLD PETS DETECTED.']  |lines.append("  **FALSE POSITIVE NOTE**: High-confidence household pets detected.")| -> |lines.append("  **FALSE POSITIVE NOTE**: HIGH-CONFIDENCE HOUSEHOLD PETS DETECTED.")|
+   36 L34: [-'  Consider reducing risk score if no other suspicious activity present.' +'XX  Consider reducing risk score if no other suspicious activity present.XX']  |lines.append("  Consider reducing risk score if no other suspicious activity present.")| -> |lines.append("XX  Consider reducing risk score if no other suspicious activity present.XX")|
+   37 L34: [-'Consider' +'consider']  |lines.append("  Consider reducing risk score if no other suspicious activity present.")| -> |lines.append("  consider reducing risk score if no other suspicious activity present.")|
+   38 L34: [-'Consider reducing risk score if no other suspicious activity present.' +'ONSIDER REDUCING RISK SCORE IF NO OTHER SUSPICIOUS ACTIVITY PRESENT.']  |lines.append("  Consider reducing risk score if no other suspicious activity present.")| -> |lines.append("  CONSIDER REDUCING RISK SCORE IF NO OTHER SUSPICIOUS ACTIVITY PRESENT.")|
+   40 L-1: [-'\\n".join(lines' +'XX\\nXX".join(lines)\n\nmutants_x_format_pet_classification_con']  |LEN DIFF| -> |36 vs 101|
+
+===== x_format_age_classification_context  (16 survivors) =====
+    6 L16: [-'False' +'None']  |has_minors = False| -> |has_minors = None|
+    7 L16: [-'False' +'True']  |has_minors = False| -> |has_minors = True|
+    8 L18: [-'""' +'None']  |confidence_note = ""| -> |confidence_note = None|
+    9 L18: [-'' +'XXXX']  |confidence_note = ""| -> |confidence_note = "XXXX"|
+   10 L19: [-'' +'=']  |if age.confidence < 0.5:| -> |if age.confidence <= 0.5:|
+   13 L20: [-' [LOW CONFIDENCE]' +'XX [LOW CONFIDENCE]XX']  |confidence_note = " [LOW CONFIDENCE]"| -> |confidence_note = "XX [LOW CONFIDENCE]XX"|
+   15 L21: [-'' +'=']  |elif age.confidence < 0.7:| -> |elif age.confidence <= 0.7:|
+   16 L21: [-'0.7' +'1.7']  |elif age.confidence < 0.7:| -> |elif age.confidence < 1.7:|
+   18 L22: [-' [medium confidence]' +'XX [medium confidence]XX']  |confidence_note = " [medium confidence]"| -> |confidence_note = "XX [medium confidence]XX"|
+   20 L24: [-'""' +'None']  |minor_marker = ""| -> |minor_marker = None|
+   21 L24: [-'' +'XXXX']  |minor_marker = ""| -> |minor_marker = "XXXX"|
+   23 L26: [-' **MINOR**' +'XX **MINOR**XX']  |minor_marker = " **MINOR**"| -> |minor_marker = "XX **MINOR**XX"|
+   29 L35: [-'' +'XXXX']  |lines.append("")| -> |lines.append("XXXX")|
+   31 L36: [-'  **NOTE**: Minor(s) detected - may indicate lost/unaccompanied child' +'XX  **NOTE**: Minor(s) detected - may indicate lost/unaccompanied childXX']  |lines.append("  **NOTE**: Minor(s) detected - may indicate lost/unaccompanied child")| -> |lines.append("XX  **NOTE**: Minor(s) detected - may indicate lost/unaccompanied childXX")|
+   35 L37: [-'  Consider context and presence of adults when assessing risk' +'XX  Consider context and presence of adults when assessing riskXX']  |lines.append("  Consider context and presence of adults when assessing risk")| -> |lines.append("XX  Consider context and presence of adults when assessing riskXX")|
+   39 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_age_classification_con']  |LEN DIFF| -> |39 vs 110|
+
+===== x_format_class_anomaly_context  (14 survivors) =====
+   19 L43: [-'' +'=']  |if baseline is None or baseline.sample_count < 10:| -> |if baseline is None or baseline.sample_count <= 10:|
+   20 L43: [-'10' +'1']  |if baseline is None or baseline.sample_count < 10:| -> |if baseline is None or baseline.sample_count < 11:|
+   21 L44: [-'continue' +'break']  |continue| -> |break|
+   23 L49: [-'' +'=']  |if expected < 0.1:| -> |if expected <= 0.1:|
+   24 L49: [-'0.1' +'1.1']  |if expected < 0.1:| -> |if expected < 1.1:|
+   43 L-1: [-'risk_modifier=15,\n                    ' +'']  |LEN DIFF| -> |80 vs 79|
+   49 L64: [-'cls' +'None']  |class_name=cls,| -> |class_name=None,|
+   52 L67: [-'15' +'None']  |risk_modifier=15,| -> |risk_modifier=None,|
+   56 L-1: [-'risk_modifier=15,\n                ' +'']  |LEN DIFF| -> |80 vs 79|
+   59 L67: [-'15' +'6']  |risk_modifier=15,| -> |risk_modifier=16,|
+   63 L74: [-'## CLASS-SPECIFIC ANOMALIES' +'XX## CLASS-SPECIFIC ANOMALIESXX']  |lines = ["## CLASS-SPECIFIC ANOMALIES"]| -> |lines = ["XX## CLASS-SPECIFIC ANOMALIESXX"]|
+   68 L77: [-'[HIGH]' +'XX[HIGH]XX']  |icon = "[HIGH]" if a.severity == "high" else "[MEDIUM]"| -> |icon = "XX[HIGH]XX" if a.severity == "high" else "[MEDIUM]"|
+   73 L77: [-'[MEDIUM]' +'XX[MEDIUM]XX']  |icon = "[HIGH]" if a.severity == "high" else "[MEDIUM]"| -> |icon = "[HIGH]" if a.severity == "high" else "XX[MEDIUM]XX"|
+   77 L-1: [-'\\n".join(lines), anomalies' +'XX\\nXX".join(lines), anomalies\n\nmutants_x_format_class_anoma']  |LEN DIFF| -> |80 vs 219|
+
+===== x_build_vehicle_section  (14 survivors) =====
+   17 L29: [-'None' +'']  |color = getattr(v, "color", None)| -> |color = getattr(v, "color", )|
+   25 L30: [-'None' +'']  |make = getattr(v, "make", None)| -> |make = getattr(v, "make", )|
+   33 L31: [-'None' +'']  |model = getattr(v, "model", None)| -> |model = getattr(v, "model", )|
+   42 L33: [-'0.0' +'None']  |v_confidence = float(getattr(v, "confidence", 0.0))| -> |v_confidence = float(getattr(v, "confidence", None))|
+   45 L33: [-'0.0' +'']  |v_confidence = float(getattr(v, "confidence", 0.0))| -> |v_confidence = float(getattr(v, "confidence", ))|
+   48 L33: [-'0.0' +'1.0']  |v_confidence = float(getattr(v, "confidence", 0.0))| -> |v_confidence = float(getattr(v, "confidence", 1.0))|
+   71 L38: [-'vehicle' +'XXvehicleXX']  |vehicle_type = str(v.get("vehicle_type") or v.get("type") or "vehicle")| -> |vehicle_type = str(v.get("vehicle_type") or v.get("type") or "XXvehicleXX")|
+   72 L38: [-'vehicle' +'VEHICLE']  |vehicle_type = str(v.get("vehicle_type") or v.get("type") or "vehicle")| -> |vehicle_type = str(v.get("vehicle_type") or v.get("type") or "VEHICLE")|
+   75 L39: [-'or' +'and']  |v_confidence = float(v.get("confidence") or 0.0)| -> |v_confidence = float(v.get("confidence") and 0.0)|
+   76 L39: [-'"confidence"' +'None']  |v_confidence = float(v.get("confidence") or 0.0)| -> |v_confidence = float(v.get(None) or 0.0)|
+   77 L39: [-'confidence' +'XXconfidenceXX']  |v_confidence = float(v.get("confidence") or 0.0)| -> |v_confidence = float(v.get("XXconfidenceXX") or 0.0)|
+   78 L39: [-'confidence' +'CONFIDENCE']  |v_confidence = float(v.get("confidence") or 0.0)| -> |v_confidence = float(v.get("CONFIDENCE") or 0.0)|
+   79 L39: [-'0.0' +'1.0']  |v_confidence = float(v.get("confidence") or 0.0)| -> |v_confidence = float(v.get("confidence") or 1.0)|
+   86 L-1: [-" '.join(parts)} (confidence: {v_confidence:.0%})" +'XX XX\'.join(parts)} (confidence: {v_confidence:.0%})"\n\nmutan']  |LEN DIFF| -> |52 vs 185|
+
+===== x_format_pose_analysis_context  (13 survivors) =====
+    8 L17: [-'Detected poses:' +'XXDetected poses:XX']  |lines = ["Detected poses:"]| -> |lines = ["XXDetected poses:XX"]|
+    9 L17: [-'Detected' +'detected']  |lines = ["Detected poses:"]| -> |lines = ["detected poses:"]|
+   10 L17: [-'Detected poses' +'ETECTED POSES']  |lines = ["Detected poses:"]| -> |lines = ["DETECTED POSES:"]|
+   20 L19: [-'unknown' +'XXunknownXX']  |pose_class = pose.get("classification", "unknown") if isinstance(pose, dict) else str(pose)| -> |pose_class = pose.get("classification", "XXunknownXX") if isinstance(pose, dict) else str(pose)|
+   21 L19: [-'unknown' +'UNKNOWN']  |pose_class = pose.get("classification", "unknown") if isinstance(pose, dict) else str(pose)| -> |pose_class = pose.get("classification", "UNKNOWN") if isinstance(pose, dict) else str(pose)|
+   32 L20: [-'0.0' +'1.0']  |confidence = pose.get("confidence", 0.0) if isinstance(pose, dict) else 0.0| -> |confidence = pose.get("confidence", 1.0) if isinstance(pose, dict) else 0.0|
+   33 L20: [-'0.0' +'1.0']  |confidence = pose.get("confidence", 0.0) if isinstance(pose, dict) else 0.0| -> |confidence = pose.get("confidence", 0.0) if isinstance(pose, dict) else 1.0|
+   34 L23: [-'""' +'None']  |risk_note = ""| -> |risk_note = None|
+   35 L23: [-'' +'XXXX']  |risk_note = ""| -> |risk_note = "XXXX"|
+   43 L25: [-' [SUSPICIOUS: Low posture near ground]' +'XX [SUSPICIOUS: Low posture near ground]XX']  |risk_note = " [SUSPICIOUS: Low posture near ground]"| -> |risk_note = "XX [SUSPICIOUS: Low posture near ground]XX"|
+   51 L27: [-' [NOTE: Fast movement detected]' +'XX [NOTE: Fast movement detected]XX']  |risk_note = " [NOTE: Fast movement detected]"| -> |risk_note = "XX [NOTE: Fast movement detected]XX"|
+   59 L29: [-' [NOTE: Person on ground - may need attention]' +'XX [NOTE: Person on ground - may need attention]XX']  |risk_note = " [NOTE: Person on ground - may need attention]"| -> |risk_note = "XX [NOTE: Person on ground - may need attention]XX"|
+   64 L-1: [-'\\n".join(lines)' +'XX\\nXX".join(lines)\n\nmutants_x_format_pose_analysis_context_']  |LEN DIFF| -> |33 vs 173|
+
+===== x_format_action_recognition_context  (13 survivors) =====
+    8 L17: [-'Detected actions:' +'XXDetected actions:XX']  |lines = ["Detected actions:"]| -> |lines = ["XXDetected actions:XX"]|
+    9 L17: [-'Detected' +'detected']  |lines = ["Detected actions:"]| -> |lines = ["detected actions:"]|
+   10 L17: [-'Detected actions' +'ETECTED ACTIONS']  |lines = ["Detected actions:"]| -> |lines = ["DETECTED ACTIONS:"]|
+   27 L45: [-'action' +'None']  |action.get("action", str(action)) if isinstance(action, dict) else str(action)| -> |action.get("action", str(None)) if isinstance(action, dict) else str(action)|
+   33 L47: [-'0.0' +'None']  |confidence = action.get("confidence", 0.0) if isinstance(action, dict) else 0.0| -> |confidence = action.get("confidence", None) if isinstance(action, dict) else 0.0|
+   35 L47: [-'0.0' +'']  |confidence = action.get("confidence", 0.0) if isinstance(action, dict) else 0.0| -> |confidence = action.get("confidence", ) if isinstance(action, dict) else 0.0|
+   38 L47: [-'0.0' +'1.0']  |confidence = action.get("confidence", 0.0) if isinstance(action, dict) else 0.0| -> |confidence = action.get("confidence", 1.0) if isinstance(action, dict) else 0.0|
+   39 L47: [-'0.0' +'1.0']  |confidence = action.get("confidence", 0.0) if isinstance(action, dict) else 0.0| -> |confidence = action.get("confidence", 0.0) if isinstance(action, dict) else 1.0|
+   40 L49: [-'""' +'None']  |risk_level = ""| -> |risk_level = None|
+   41 L49: [-'' +'XXXX']  |risk_level = ""| -> |risk_level = "XXXX"|
+   45 L51: [-' **HIGH RISK**' +'XX **HIGH RISK**XX']  |risk_level = " **HIGH RISK**"| -> |risk_level = "XX **HIGH RISK**XX"|
+   50 L53: [-' [Suspicious]' +'XX [Suspicious]XX']  |risk_level = " [Suspicious]"| -> |risk_level = "XX [Suspicious]XX"|
+   55 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_action_recognition_con']  |LEN DIFF| -> |57 vs 193|
+
+===== x_format_pose_scene_conflict_warning  (11 survivors) =====
+    8 L30: [-'standing' +'XXstandingXX']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "XXstandingXX", "walking", "running", "lying"]|
+    9 L30: [-'standing' +'STANDING']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "STANDING", "walking", "running", "lying"]|
+   10 L30: [-'walking' +'XXwalkingXX']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "standing", "XXwalkingXX", "running", "lying"]|
+   11 L30: [-'walking' +'WALKING']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "standing", "WALKING", "running", "lying"]|
+   12 L30: [-'running' +'XXrunningXX']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "standing", "walking", "XXrunningXX", "lying"]|
+   13 L30: [-'running' +'RUNNING']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "standing", "walking", "RUNNING", "lying"]|
+   14 L30: [-'lying' +'XXlyingXX']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "standing", "walking", "running", "XXlyingXX"]|
+   15 L30: [-'lying' +'LYING']  |scene_keywords = ["sitting", "standing", "walking", "running", "lying"]| -> |scene_keywords = ["sitting", "standing", "walking", "running", "LYING"]|
+   16 L31: [-'"unknown"' +'None']  |scene_pose = "unknown"| -> |scene_pose = None|
+   17 L31: [-'unknown' +'XXunknownXX']  |scene_pose = "unknown"| -> |scene_pose = "XXunknownXX"|
+   18 L31: [-'unknown' +'UNKNOWN']  |scene_pose = "unknown"| -> |scene_pose = "UNKNOWN"|
+
+===== x_format_trajectory_context  (11 survivors) =====
+    2 L34: [-'Trajectory analysis: No track data available' +'XXTrajectory analysis: No track data availableXX']  |return "Trajectory analysis: No track data available"| -> |return "XXTrajectory analysis: No track data availableXX"|
+    3 L34: [-'Trajectory analysis: No' +'trajectory analysis: no']  |return "Trajectory analysis: No track data available"| -> |return "trajectory analysis: no track data available"|
+    4 L34: [-'Trajectory analysis: No track data available' +'RAJECTORY ANALYSIS: NO TRACK DATA AVAILABLE']  |return "Trajectory analysis: No track data available"| -> |return "TRAJECTORY ANALYSIS: NO TRACK DATA AVAILABLE"|
+    6 L36: [-'Trajectory analysis:' +'XXTrajectory analysis:XX']  |lines = ["Trajectory analysis:"]| -> |lines = ["XXTrajectory analysis:XX"]|
+    7 L36: [-'Trajectory' +'trajectory']  |lines = ["Trajectory analysis:"]| -> |lines = ["trajectory analysis:"]|
+    8 L36: [-'Trajectory analysis' +'RAJECTORY ANALYSIS']  |lines = ["Trajectory analysis:"]| -> |lines = ["TRAJECTORY ANALYSIS:"]|
+   15 L38: [-'None' +'']  |summary = getattr(analysis, "trajectory_summary", None)| -> |summary = getattr(analysis, "trajectory_summary", )|
+   21 L48: [-'False' +'None']  |if getattr(analysis, "is_approaching_entry", False):| -> |if getattr(analysis, "is_approaching_entry", None):|
+   24 L48: [-'False' +'']  |if getattr(analysis, "is_approaching_entry", False):| -> |if getattr(analysis, "is_approaching_entry", ):|
+   27 L48: [-'False' +'True']  |if getattr(analysis, "is_approaching_entry", False):| -> |if getattr(analysis, "is_approaching_entry", True):|
+   30 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_trajectory_context__mu']  |LEN DIFF| -> |51 vs 131|
+
+===== x_format_cross_camera_person_tracking  (11 survivors) =====
+   12 L46: [-'Person' +'person']  |person_reid_matches, "Person", current_camera_id, zone_context| -> |person_reid_matches, "person", current_camera_id, zone_context|
+   13 L46: [-'Person' +'ERSON']  |person_reid_matches, "Person", current_camera_id, zone_context| -> |person_reid_matches, "PERSON", current_camera_id, zone_context|
+   19 L52: [-'zone_context' +'None']  |vehicle_reid_matches, "Vehicle", current_camera_id, zone_context| -> |vehicle_reid_matches, "Vehicle", current_camera_id, None|
+   25 L52: [-'Vehicle' +'vehicle']  |vehicle_reid_matches, "Vehicle", current_camera_id, zone_context| -> |vehicle_reid_matches, "vehicle", current_camera_id, zone_context|
+   26 L52: [-'Vehicle' +'EHICLE']  |vehicle_reid_matches, "Vehicle", current_camera_id, zone_context| -> |vehicle_reid_matches, "VEHICLE", current_camera_id, zone_context|
+   29 L57: [-'Cross-camera person tracking: No cross-camera movement detected.' +'XXCross-camera person tracking: No cross-camera movement detected.XX']  |return "Cross-camera person tracking: No cross-camera movement detected."| -> |return "XXCross-camera person tracking: No cross-camera movement detected.XX"|
+   33 L59: [-'## Cross-Camera Person Tracking' +'XX## Cross-Camera Person TrackingXX']  |header = "## Cross-Camera Person Tracking"| -> |header = "XX## Cross-Camera Person TrackingXX"|
+   37 L61: [-'Cross-camera tracking context: A person moving from property perimeter ' +'XXCross-camera tracking context: A person moving from property perimeter XX']  |"Cross-camera tracking context: A person moving from property perimeter "| -> |"XXCross-camera tracking context: A person moving from property perimeter XX"|
+   38 L61: [-'Cross-camera tracking context: A' +'cross-camera tracking context: a']  |"Cross-camera tracking context: A person moving from property perimeter "| -> |"cross-camera tracking context: a person moving from property perimeter "|
+   39 L61: [-'Cross-camera tracking context: A person moving from property perimeter' +'ROSS-CAMERA TRACKING CONTEXT: A PERSON MOVING FROM PROPERTY PERIMETER']  |"Cross-camera tracking context: A person moving from property perimeter "| -> |"CROSS-CAMERA TRACKING CONTEXT: A PERSON MOVING FROM PROPERTY PERIMETER "|
+   43 L-1: [-'\\n".join(all_narratives) + f"\\n\\n{guidance}"\n\n\n# ===========' +'XX\\nXX".join(all_narratives) + f"\\n\\n{guidance}"\n\nmutants_x_']  |LEN DIFF| -> |71 vs 234|
+
+===== x_format_household_context_by_detection  (11 survivors) =====
+    2 L40: [-'HOUSEHOLD MATCHES BY DETECTION:' +'XXHOUSEHOLD MATCHES BY DETECTION:XX']  |lines = ["HOUSEHOLD MATCHES BY DETECTION:"]| -> |lines = ["XXHOUSEHOLD MATCHES BY DETECTION:XX"]|
+    8 L45: [-'unknown' +'XXunknownXX']  |zone = detection.zone_name or "unknown"| -> |zone = detection.zone_name or "XXunknownXX"|
+    9 L45: [-'unknown' +'UNKNOWN']  |zone = detection.zone_name or "unknown"| -> |zone = detection.zone_name or "UNKNOWN"|
+   12 L46: [-'%H:%M:%S' +'XX%H:%M:%SXX']  |time_str = detection.detected_at.strftime("%H:%M:%S")| -> |time_str = detection.detected_at.strftime("XX%H:%M:%SXX")|
+   19 L51: [-'100' +'1']  |similarity_pct = int(match.similarity * 100)| -> |similarity_pct = int(match.similarity * 101)|
+   32 L69: [-'  Schedule: Within expected hours' +'XX  Schedule: Within expected hoursXX']  |lines.append("  Schedule: Within expected hours")| -> |lines.append("XX  Schedule: Within expected hoursXX")|
+   33 L69: [-'Schedule: Within' +'schedule: within']  |lines.append("  Schedule: Within expected hours")| -> |lines.append("  schedule: within expected hours")|
+   34 L69: [-'Schedule: Within expected hours' +'CHEDULE: WITHIN EXPECTED HOURS']  |lines.append("  Schedule: Within expected hours")| -> |lines.append("  SCHEDULE: WITHIN EXPECTED HOURS")|
+   35 L70: [-'False' +'not False']  |elif schedule_status is False:| -> |elif schedule_status is not False:|
+   36 L70: [-'False' +'True']  |elif schedule_status is False:| -> |elif schedule_status is True:|
+   47 L-1: [-'\\n".join(lines' +'XX\\nXX".join(lines)\n\nmutants_x_format_household_context_by_d']  |LEN DIFF| -> |87 vs 191|
+
+===== x_format_violence_context  (10 survivors) =====
+    3 L20: [-'getattr(violence_result, "confidence_tier", None)' +'None']  |tier = getattr(violence_result, "confidence_tier", None)| -> |tier = None|
+    4 L20: [-'violence_result' +'None']  |tier = getattr(violence_result, "confidence_tier", None)| -> |tier = getattr(None, "confidence_tier", None)|
+    9 L20: [-'confidence_tier' +'XXconfidence_tierXX']  |tier = getattr(violence_result, "confidence_tier", None)| -> |tier = getattr(violence_result, "XXconfidence_tierXX", None)|
+   10 L20: [-'confidence_tier' +'CONFIDENCE_TIER']  |tier = getattr(violence_result, "confidence_tier", None)| -> |tier = getattr(violence_result, "CONFIDENCE_TIER", None)|
+   18 L24: [-'0.0' +'']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "violent_score", )|
+   21 L24: [-'0.0' +'1.0']  |violent_score = getattr(violence_result, "violent_score", 0.0)| -> |violent_score = getattr(violence_result, "violent_score", 1.0)|
+   27 L27: [-'=' +'']  |elif violent_score >= 0.55:| -> |elif violent_score > 0.55:|
+   32 L30: [-'"marginal"' +'None']  |tier = "marginal"| -> |tier = None|
+   33 L30: [-'marginal' +'XXmarginalXX']  |tier = "marginal"| -> |tier = "XXmarginalXX"|
+   34 L30: [-'marginal' +'MARGINAL']  |tier = "marginal"| -> |tier = "MARGINAL"|
+
+===== x_format_vehicle_damage_context  (10 survivors) =====
+    7 L20: [-'Vehicle damage: No damage detected on any vehicles' +'XXVehicle damage: No damage detected on any vehiclesXX']  |return "Vehicle damage: No damage detected on any vehicles"| -> |return "XXVehicle damage: No damage detected on any vehiclesXX"|
+   14 L26: [-', ' +'XX, XX']  |lines.append(f"    Damage types: {', '.join(sorted(damage.damage_types))}")| -> |lines.append(f"    Damage types: {'XX, XX'.join(sorted(damage.damage_types))}")|
+   19 L31: [-'    **SECURITY ALERT**: High-priority damage detected' +'XX    **SECURITY ALERT**: High-priority damage detectedXX']  |lines.append("    **SECURITY ALERT**: High-priority damage detected")| -> |lines.append("XX    **SECURITY ALERT**: High-priority damage detectedXX")|
+   21 L31: [-'High-priority damage detected' +'IGH-PRIORITY DAMAGE DETECTED']  |lines.append("    **SECURITY ALERT**: High-priority damage detected")| -> |lines.append("    **SECURITY ALERT**: HIGH-PRIORITY DAMAGE DETECTED")|
+   26 L33: [-'      - Glass shatter: Possible break-in or vandalism' +'XX      - Glass shatter: Possible break-in or vandalismXX']  |lines.append("      - Glass shatter: Possible break-in or vandalism")| -> |lines.append("XX      - Glass shatter: Possible break-in or vandalismXX")|
+   33 L35: [-'      - Broken lamp: Possible vandalism or collision' +'XX      - Broken lamp: Possible vandalism or collisionXX']  |lines.append("      - Broken lamp: Possible vandalism or collision")| -> |lines.append("XX      - Broken lamp: Possible vandalism or collisionXX")|
+   43 L38: [-'early_morning' +'XXearly_morningXX']  |if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):| -> |if time_of_day and time_of_day.lower() in ("night", "late_night", "XXearly_morningXX"):|
+   44 L38: [-'early_morning' +'EARLY_MORNING']  |if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):| -> |if time_of_day and time_of_day.lower() in ("night", "late_night", "EARLY_MORNING"):|
+   47 L40: [-'      Elevated risk: Suspicious activity more likely at this hour' +'XX      Elevated risk: Suspicious activity more likely at this hourXX']  |lines.append("      Elevated risk: Suspicious activity more likely at this hour")| -> |lines.append("XX      Elevated risk: Suspicious activity more likely at this hourXX")|
+   51 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_vehicle_damage_context']  |LEN DIFF| -> |42 vs 136|
+
+===== x_format_enhanced_reid_context  (10 survivors) =====
+    5 L32: [-'-> Base risk: 50' +'XX-> Base risk: 50XX']  |lines.append("-> Base risk: 50")| -> |lines.append("XX-> Base risk: 50XX")|
+    9 L33: [-'\\n' +'XX\\nXX']  |return "\n".join(lines)| -> |return "XX\nXX".join(lines)|
+   27 L47: [-'-> RISK MODIFIER: -40 points (established trusted entity)' +'XX-> RISK MODIFIER: -40 points (established trusted entity)XX']  |lines.append("-> RISK MODIFIER: -40 points (established trusted entity)")| -> |lines.append("XX-> RISK MODIFIER: -40 points (established trusted entity)XX")|
+   28 L47: [-'RISK MODIFIER' +'risk modifier']  |lines.append("-> RISK MODIFIER: -40 points (established trusted entity)")| -> |lines.append("-> risk modifier: -40 points (established trusted entity)")|
+   31 L49: [-'-> RISK MODIFIER: -20 points (familiar but unverified)' +'XX-> RISK MODIFIER: -20 points (familiar but unverified)XX']  |lines.append("-> RISK MODIFIER: -20 points (familiar but unverified)")| -> |lines.append("XX-> RISK MODIFIER: -20 points (familiar but unverified)XX")|
+   32 L49: [-'RISK MODIFIER' +'risk modifier']  |lines.append("-> RISK MODIFIER: -20 points (familiar but unverified)")| -> |lines.append("-> risk modifier: -20 points (familiar but unverified)")|
+   38 L53: [-'-> RISK MODIFIER: -10 points (repeat visitor)' +'XX-> RISK MODIFIER: -10 points (repeat visitor)XX']  |lines.append("-> RISK MODIFIER: -10 points (repeat visitor)")| -> |lines.append("XX-> RISK MODIFIER: -10 points (repeat visitor)XX")|
+   39 L53: [-'RISK MODIFIER' +'risk modifier']  |lines.append("-> RISK MODIFIER: -10 points (repeat visitor)")| -> |lines.append("-> risk modifier: -10 points (repeat visitor)")|
+   43 L57: [-'-> No risk modifier (insufficient history)' +'XX-> No risk modifier (insufficient history)XX']  |lines.append("-> No risk modifier (insufficient history)")| -> |lines.append("XX-> No risk modifier (insufficient history)XX")|
+   47 L-1: [-'\\n".join(lines)\n\n\n# ========================================' +'XX\\nXX".join(lines)\n\nmutants_x_format_enhanced_reid_context_']  |LEN DIFF| -> |64 vs 189|
+
+===== x_format_image_quality_context  (9 survivors) =====
+   11 L24: [-', ' +'XX, XX']  |", ".join(quality_result.quality_issues)| -> |"XX, XX".join(quality_result.quality_issues)|
+   12 L26: [-'general degradation' +'XXgeneral degradationXX']  |else "general degradation"| -> |else "XXgeneral degradationXX"|
+   16 L34: [-'  - Blur detected: May indicate fast movement or camera issue' +'XX  - Blur detected: May indicate fast movement or camera issueXX']  |lines.append("  - Blur detected: May indicate fast movement or camera issue")| -> |lines.append("XX  - Blur detected: May indicate fast movement or camera issueXX")|
+   17 L34: [-'Blur detected: May' +'blur detected: may']  |lines.append("  - Blur detected: May indicate fast movement or camera issue")| -> |lines.append("  - blur detected: may indicate fast movement or camera issue")|
+   20 L36: [-'  - Noise/artifacts detected: May affect detection accuracy' +'XX  - Noise/artifacts detected: May affect detection accuracyXX']  |lines.append("  - Noise/artifacts detected: May affect detection accuracy")| -> |lines.append("XX  - Noise/artifacts detected: May affect detection accuracyXX")|
+   24 L39: [-'' +'XXXX']  |lines.append("")| -> |lines.append("XXXX")|
+   27 L41: [-'  Possible camera obstruction or tampering - investigate' +'XX  Possible camera obstruction or tampering - investigateXX']  |lines.append("  Possible camera obstruction or tampering - investigate")| -> |lines.append("XX  Possible camera obstruction or tampering - investigateXX")|
+   28 L41: [-'Possible' +'possible']  |lines.append("  Possible camera obstruction or tampering - investigate")| -> |lines.append("  possible camera obstruction or tampering - investigate")|
+   31 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_image_quality_context_']  |LEN DIFF| -> |43 vs 140|
+
+===== x_build_summary_prompt  (9 survivors) =====
+    3 L24: [-'**Event Details:**\\n' +'XX**Event Details:**\\nXX']  |event_details = "**Event Details:**\n"| -> |event_details = "XX**Event Details:**\nXX"|
+    4 L24: [-'Event Details' +'event details']  |event_details = "**Event Details:**\n"| -> |event_details = "**event details:**\n"|
+    5 L24: [-'Event Details' +'VENT DETAILS']  |event_details = "**Event Details:**\n"| -> |event_details = "**EVENT DETAILS:**\n"|
+   40 L36: [-'**Event Details:**\\nNo high or critical events in this period.' +'XX**Event Details:**\\nNo high or critical events in this period.XX']  |event_details = "**Event Details:**\nNo high or critical events in this period."| -> |event_details = "XX**Event Details:**\nNo high or critical events in this period.XX"|
+   44 L37: [-'0' +'1']  |if routine_count > 0:| -> |if routine_count > 1:|
+   50 L42: [-'period_type' +'None']  |empty_instruction = SUMMARY_EMPTY_STATE_INSTRUCTION.format(period=period_type)| -> |empty_instruction = SUMMARY_EMPTY_STATE_INSTRUCTION.format(period=None)|
+   51 L44: [-'""' +'None']  |empty_instruction = ""| -> |empty_instruction = None|
+   52 L44: [-'' +'XXXX']  |empty_instruction = ""| -> |empty_instruction = "XXXX"|
+   56 L49: [-'period_type' +'None']  |period_type=period_type,| -> |period_type=None,|
+
+===== x_resolve_pose_scene_conflict  (8 survivors) =====
+   21 L39: [-'scene' +'XXsceneXX']  |resolved_winner = "pose" if has_motion_blur else "scene"| -> |resolved_winner = "pose" if has_motion_blur else "XXsceneXX"|
+   22 L39: [-'scene' +'SCENE']  |resolved_winner = "pose" if has_motion_blur else "scene"| -> |resolved_winner = "pose" if has_motion_blur else "SCENE"|
+   34 L47: [-'Preferred pose interpretation' +'XXPreferred pose interpretationXX']  |"resolution": "Preferred pose interpretation",| -> |"resolution": "XXPreferred pose interpretationXX",|
+   35 L47: [-'Preferred' +'preferred']  |"resolution": "Preferred pose interpretation",| -> |"resolution": "preferred pose interpretation",|
+   36 L47: [-'Preferred pose interpretation' +'REFERRED POSE INTERPRETATION']  |"resolution": "Preferred pose interpretation",| -> |"resolution": "PREFERRED POSE INTERPRETATION",|
+   46 L53: [-'Preferred scene interpretation' +'XXPreferred scene interpretationXX']  |"resolution": "Preferred scene interpretation",| -> |"resolution": "XXPreferred scene interpretationXX",|
+   47 L53: [-'Preferred' +'preferred']  |"resolution": "Preferred scene interpretation",| -> |"resolution": "preferred scene interpretation",|
+   48 L53: [-'Preferred scene interpretation' +'REFERRED SCENE INTERPRETATION']  |"resolution": "Preferred scene interpretation",| -> |"resolution": "PREFERRED SCENE INTERPRETATION",|
+
+===== x__format_clothing_section  (8 survivors) =====
+    4 L19: [-'clothing_segmentation' +'None']  |result = format_clothing_analysis_context(clothing_classifications, clothing_segmentation)| -> |result = format_clothing_analysis_context(clothing_classifications, None)|
+    6 L19: [-'clothing_segmentation' +'']  |result = format_clothing_analysis_context(clothing_classifications, clothing_segmentation)| -> |result = format_clothing_analysis_context(clothing_classifications, )|
+    8 L22: [-'Clothing analysis: No person detections analyzed' +'XXClothing analysis: No person detections analyzedXX']  |if result == "Clothing analysis: No person detections analyzed":| -> |if result == "XXClothing analysis: No person detections analyzedXX":|
+    9 L22: [-'Clothing analysis: No' +'clothing analysis: no']  |if result == "Clothing analysis: No person detections analyzed":| -> |if result == "clothing analysis: no person detections analyzed":|
+   10 L22: [-'Clothing analysis: No person detections analyzed' +'LOTHING ANALYSIS: NO PERSON DETECTIONS ANALYZED']  |if result == "Clothing analysis: No person detections analyzed":| -> |if result == "CLOTHING ANALYSIS: NO PERSON DETECTIONS ANALYZED":|
+   12 L24: [-'Clothing analysis: No results' +'XXClothing analysis: No resultsXX']  |if result == "Clothing analysis: No results":| -> |if result == "XXClothing analysis: No resultsXX":|
+   13 L24: [-'Clothing analysis: No' +'clothing analysis: no']  |if result == "Clothing analysis: No results":| -> |if result == "clothing analysis: no results":|
+   14 L-1: [-'lothing analysis: No results":\n        return None\n\n    retu' +'LOTHING ANALYSIS: NO RESULTS":\n        return None\n\n    retu']  |LEN DIFF| -> |27 vs 82|
+
+===== x_build_enrichment_sections  (8 survivors) =====
+    7 L45: [-'getattr(enrichment_result, "clothing_segmentation", None)' +'None']  |getattr(enrichment_result, "clothing_segmentation", None),| -> |None,|
+    9 L-1: [-'getattr(enrichment_result, "clothing_segmentation", None),\n ' +'']  |LEN DIFF| -> |65 vs 64|
+   10 L45: [-'enrichment_result' +'None']  |getattr(enrichment_result, "clothing_segmentation", None),| -> |getattr(None, "clothing_segmentation", None),|
+   14 L45: [-'None' +'']  |getattr(enrichment_result, "clothing_segmentation", None),| -> |getattr(enrichment_result, "clothing_segmentation", ),|
+   15 L45: [-'clothing_segmentation' +'XXclothing_segmentationXX']  |getattr(enrichment_result, "clothing_segmentation", None),| -> |getattr(enrichment_result, "XXclothing_segmentationXX", None),|
+   16 L45: [-'clothing_segmentation' +'CLOTHING_SEGMENTATION']  |getattr(enrichment_result, "clothing_segmentation", None),| -> |getattr(enrichment_result, "CLOTHING_SEGMENTATION", None),|
+   28 L65: [-'sections' +'(sections) or True']  |return "\n\n".join(sections) if sections else ""| -> |return "\n\n".join(sections) if (sections) or True else ""|
+   30 L65: [-'\\n\\n' +'XX\\n\\nXX']  |return "\n\n".join(sections) if sections else ""| -> |return "XX\n\nXX".join(sections) if sections else ""|
+
+===== x_format_scene_context  (7 survivors) =====
+    8 L47: [-'3' +'4']  |truncate_at = max_length - 3| -> |truncate_at = max_length - 4|
+   11 L50: [-'0' +'None']  |last_space = caption.rfind(" ", 0, truncate_at)| -> |last_space = caption.rfind(" ", None, truncate_at)|
+   16 L50: [-'caption.rfind' +'find']  |last_space = caption.rfind(" ", 0, truncate_at)| -> |last_space = caption.find(" ", 0, truncate_at)|
+   17 L50: [-' ' +'XX XX']  |last_space = caption.rfind(" ", 0, truncate_at)| -> |last_space = caption.rfind("XX XX", 0, truncate_at)|
+   18 L50: [-'0' +'1']  |last_space = caption.rfind(" ", 0, truncate_at)| -> |last_space = caption.rfind(" ", 1, truncate_at)|
+   19 L52: [-'' +'=']  |if last_space > 0:| -> |if last_space >= 0:|
+   20 L52: [-'0' +'1']  |if last_space > 0:| -> |if last_space > 1:|
+
+===== x_format_weather_context  (7 survivors) =====
+    3 L15: [-'""' +'None']  |visibility_notes = ""| -> |visibility_notes = None|
+    4 L15: [-'' +'XXXX']  |visibility_notes = ""| -> |visibility_notes = "XXXX"|
+   10 L18: [-' - Visibility significantly reduced, detection confidence may be lower' +'XX - Visibility significantly reduced, detection confidence may be lowerXX']  |visibility_notes = " - Visibility significantly reduced, detection confidence may be lower"| -> |visibility_notes = "XX - Visibility significantly reduced, detection confidence may be lowerXX"|
+   17 L20: [-' - Rain may affect visibility and detection accuracy' +'XX - Rain may affect visibility and detection accuracyXX']  |visibility_notes = " - Rain may affect visibility and detection accuracy"| -> |visibility_notes = "XX - Rain may affect visibility and detection accuracyXX"|
+   24 L22: [-' - Snow conditions may obscure objects and affect image quality' +'XX - Snow conditions may obscure objects and affect image qualityXX']  |visibility_notes = " - Snow conditions may obscure objects and affect image quality"| -> |visibility_notes = "XX - Snow conditions may obscure objects and affect image qualityXX"|
+   31 L24: [-' - Overcast conditions, lighting may vary' +'XX - Overcast conditions, lighting may varyXX']  |visibility_notes = " - Overcast conditions, lighting may vary"| -> |visibility_notes = "XX - Overcast conditions, lighting may varyXX"|
+   38 L26: [-' - Good visibility, high confidence in detections' +'XX - Good visibility, high confidence in detectionsXX']  |visibility_notes = " - Good visibility, high confidence in detections"| -> |visibility_notes = "XX - Good visibility, high confidence in detectionsXX"|
+
+===== x_format_threat_detection_context  (7 survivors) =====
+   10 L19: [-'**WEAPON/THREAT DETECTION**' +'XX**WEAPON/THREAT DETECTION**XX']  |lines = ["**WEAPON/THREAT DETECTION**"]| -> |lines = ["XX**WEAPON/THREAT DETECTION**XX"]|
+   13 L22: [-'  CRITICAL ALERT: High-priority weapon detected!' +'XX  CRITICAL ALERT: High-priority weapon detected!XX']  |lines.append("  CRITICAL ALERT: High-priority weapon detected!")| -> |lines.append("XX  CRITICAL ALERT: High-priority weapon detected!XX")|
+   17 L23: [-'  Immediate review recommended.' +'XX  Immediate review recommended.XX']  |lines.append("  Immediate review recommended.")| -> |lines.append("XX  Immediate review recommended.XX")|
+   33 L29: [-'threat.is_high_priority' +'(threat.is_high_priority) or True']  |priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""| -> |priority = " **HIGH PRIORITY**" if (threat.is_high_priority) or True else ""|
+   36 L29: [-'' +'XXXX']  |priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""| -> |priority = " **HIGH PRIORITY**" if threat.is_high_priority else "XXXX"|
+   49 L35: [-'  Elevated concern: Armed threat at unusual hour' +'XX  Elevated concern: Armed threat at unusual hourXX']  |lines.append("  Elevated concern: Armed threat at unusual hour")| -> |lines.append("XX  Elevated concern: Armed threat at unusual hourXX")|
+   53 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_threat_detection_conte']  |LEN DIFF| -> |37 vs 136|
+
+===== x_format_person_demographics_context  (7 survivors) =====
+   12 L31: [-'False' +'None']  |has_minors = False| -> |has_minors = None|
+   13 L31: [-'False' +'True']  |has_minors = False| -> |has_minors = True|
+   25 L45: [-' **MINOR**' +'XX **MINOR**XX']  |parts.append(" **MINOR**")| -> |parts.append("XX **MINOR**XX")|
+   33 L53: [-'' +'=']  |and gender_classifications[det_id].confidence < 0.6| -> |and gender_classifications[det_id].confidence <= 0.6|
+   41 L59: [-'' +'=']  |and age_classifications[det_id].confidence < 0.6| -> |and age_classifications[det_id].confidence <= 0.6|
+   53 L68: [-'' +'XXXX']  |lines.append("")| -> |lines.append("XXXX")|
+   55 L69: [-'  **NOTE**: Minor(s) detected - evaluate context carefully' +'XX  **NOTE**: Minor(s) detected - evaluate context carefullyXX']  |lines.append("  **NOTE**: Minor(s) detected - evaluate context carefully")| -> |lines.append("XX  **NOTE**: Minor(s) detected - evaluate context carefullyXX")|
+
+===== x_format_temporal_action_context  (6 survivors) =====
+   33 L50: [-'+10 points (approach detected)' +'XX+10 points (approach detected)XX']  |"approaching_door": "+10 points (approach detected)",| -> |"approaching_door": "XX+10 points (approach detected)XX",|
+   37 L51: [-'+20 points (fleeing behavior)' +'XX+20 points (fleeing behavior)XX']  |"running_away": "+20 points (fleeing behavior)",| -> |"running_away": "XX+20 points (fleeing behavior)XX",|
+   41 L52: [-'+25 points (vehicle tampering indicator)' +'XX+25 points (vehicle tampering indicator)XX']  |"checking_car_doors": "+25 points (vehicle tampering indicator)",| -> |"checking_car_doors": "XX+25 points (vehicle tampering indicator)XX",|
+   45 L53: [-'+20 points (unusual activity)' +'XX+20 points (unusual activity)XX']  |"suspicious_behavior": "+20 points (unusual activity)",| -> |"suspicious_behavior": "XX+20 points (unusual activity)XX",|
+   49 L54: [-'+40 points (intrusion indicator)' +'XX+40 points (intrusion indicator)XX']  |"breaking_in": "+40 points (intrusion indicator)",| -> |"breaking_in": "XX+40 points (intrusion indicator)XX",|
+   53 L55: [-'+35 points (property damage indicator)' +'XX+35 points (property damage indicator)XX']  |"vandalism": "+35 points (property damage indicator)",| -> |"vandalism": "XX+35 points (property damage indicator)XX",|
+
+===== x_validate_clothing_items  (5 survivors) =====
+   17 L43: [-'x' +'None']  |best_item = max(matches, key=lambda x: confidences.get(x, 0.0))| -> |best_item = max(matches, key=lambda x: confidences.get(None, 0.0))|
+   23 L45: [-'group_idx' +'None']  |processed_groups.add(group_idx)| -> |processed_groups.add(None)|
+   26 L48: [-'[m for m in matches if m != best_item]' +'None']  |rejected = [m for m in matches if m != best_item]| -> |rejected = None|
+   27 L48: [-'!' +'=']  |rejected = [m for m in matches if m != best_item]| -> |rejected = [m for m in matches if m == best_item]|
+   33 L55: [-'group_idx' +'None']  |processed_groups.add(group_idx)| -> |processed_groups.add(None)|
+
+===== x_format_vehicle_classification_context  (5 survivors) =====
+   11 L20: [-' [Commercial/delivery vehicle]' +'XX [Commercial/delivery vehicle]XX']  |vehicle_line += " [Commercial/delivery vehicle]"| -> |vehicle_line += "XX [Commercial/delivery vehicle]XX"|
+   16 L25: [-'' +'=']  |if classification.confidence < 0.6 and len(classification.all_scores) > 1:| -> |if classification.confidence <= 0.6 and len(classification.all_scores) > 1:|
+   18 L25: [-'' +'=']  |if classification.confidence < 0.6 and len(classification.all_scores) > 1:| -> |if classification.confidence < 0.6 and len(classification.all_scores) >= 1:|
+   30 L29: [-'' +'=']  |if len(sorted_scores) > 1:| -> |if len(sorted_scores) >= 1:|
+   36 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_vehicle_classification']  |LEN DIFF| -> |33 vs 118|
+
+===== x_format_gender_classification_context  (5 survivors) =====
+    6 L17: [-'""' +'None']  |confidence_note = ""| -> |confidence_note = None|
+    7 L17: [-'' +'XXXX']  |confidence_note = ""| -> |confidence_note = "XXXX"|
+    8 L18: [-'' +'=']  |if gender.confidence < 0.6:| -> |if gender.confidence <= 0.6:|
+   11 L19: [-' [low confidence]' +'XX [low confidence]XX']  |confidence_note = " [low confidence]"| -> |confidence_note = "XX [low confidence]XX"|
+   15 L-1: [-'' +'XX\\nXX".join(lines)\n\nmutants_x_format_gender_classification_']  |LEN DIFF| -> |25 vs 118|
+
+===== x_format_person_reid_context  (5 survivors) =====
+   10 L18: [-'Person re-identification:' +'XXPerson re-identification:XX']  |lines = ["Person re-identification:"]| -> |lines = ["XXPerson re-identification:XX"]|
+   25 L31: [-'=' +'']  |elif top_sim >= 0.8:| -> |elif top_sim > 0.8:|
+   33 L38: [-'unknown' +'XXunknownXX']  |alt_id = match.detection_id or "unknown"| -> |alt_id = match.detection_id or "XXunknownXX"|
+   34 L38: [-'unknown' +'UNKNOWN']  |alt_id = match.detection_id or "unknown"| -> |alt_id = match.detection_id or "UNKNOWN"|
+   37 L-1: [-'\\n".join(lines)' +'XX\\nXX".join(lines)\n\nmutants_x_format_person_reid_context__m']  |LEN DIFF| -> |41 vs 130|
+
+===== x__format_time_gap  (5 survivors) =====
+    4 L10: [-'' +'=']  |if minutes < 1:| -> |if minutes <= 1:|
+    5 L10: [-'1' +'2']  |if minutes < 1:| -> |if minutes < 2:|
+    7 L12: [-'' +'=']  |elif minutes < 60:| -> |elif minutes <= 60:|
+    8 L12: [-'60' +'1']  |elif minutes < 60:| -> |elif minutes < 61:|
+   12 L-1: [-'0\n        return f"{hours:.1f} hours ago' +'1\n        return f"{hours:.1f} hours ago"\n\nmutants_x__format']  |LEN DIFF| -> |16 vs 93|
+
+===== x__format_vehicle_damage_section  (5 survivors) =====
+    5 L19: [-'False' +'None']  |damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", False)}| -> |damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", None)}|
+    8 L19: [-'False' +'']  |damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", False)}| -> |damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", )}|
+   11 L19: [-'False' +'True']  |damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", False)}| -> |damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", True)}|
+   14 L25: [-'time_of_day' +'None']  |return format_vehicle_damage_context(damaged, time_of_day)| -> |return format_vehicle_damage_context(damaged, None)|
+   16 L-1: [-'time_of_day' +")\n\nmutants_x__format_vehicle_damage_section__mutmut['_mutmut"]  |LEN DIFF| -> |25 vs 72|
+
+===== x__compute_confidence_quality  (4 survivors) =====
+    1 L9: [-'=' +'']  |if confidence >= 0.90:| -> |if confidence > 0.90:|
+    2 L9: [-'0.90' +'1.9']  |if confidence >= 0.90:| -> |if confidence >= 1.9:|
+    3 L11: [-'=' +'']  |elif confidence >= 0.75:| -> |elif confidence > 0.75:|
+    4 L-1: [-'0.75:\n        return _ConfidenceQuality.GOOD\n    elif confid' +'1.75:\n        return _ConfidenceQuality.GOOD\n    elif confid']  |LEN DIFF| -> |16 vs 404|
+
+===== x_format_florence_attributes  (4 survivors) =====
+   11 L41: [-'+' +'']  |valid_count += 1| -> |valid_count = 1|
+   12 L41: [-'+' +'-']  |valid_count += 1| -> |valid_count -= 1|
+   13 L41: [-'1' +'2']  |valid_count += 1| -> |valid_count += 2|
+   18 L-1: [-'\\n".join(lines)' +'XX\\nXX".join(lines)\n\nmutants_x_format_florence_attributes__m']  |LEN DIFF| -> |47 vs 140|
+
+===== x__format_pet_section  (4 survivors) =====
+    5 L17: [-'0.0' +'None']  |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) > 0.85| -> |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", None) > 0.85|
+    8 L17: [-'0.0' +'']  |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) > 0.85| -> |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", ) > 0.85|
+   11 L17: [-'0.0' +'1.0']  |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) > 0.85| -> |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 1.0) > 0.85|
+   12 L17: [-'' +'=']  |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) > 0.85| -> |k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) >= 0.85|
+
+===== x_format_scene_ocr_context  (4 survivors) =====
+   19 L53: [-'0.0' +'None']  |if text.get("confidence", 0.0) >= _SCENE_OCR_MIN_CONFIDENCE| -> |if text.get("confidence", None) >= _SCENE_OCR_MIN_CONFIDENCE|
+   21 L53: [-'0.0' +'']  |if text.get("confidence", 0.0) >= _SCENE_OCR_MIN_CONFIDENCE| -> |if text.get("confidence", ) >= _SCENE_OCR_MIN_CONFIDENCE|
+   24 L53: [-'0.0' +'1.0']  |if text.get("confidence", 0.0) >= _SCENE_OCR_MIN_CONFIDENCE| -> |if text.get("confidence", 1.0) >= _SCENE_OCR_MIN_CONFIDENCE|
+   48 L-1: [-'2)' +"3)\n\nmutants_x_format_scene_ocr_context__mutmut['_mutmut_orig"]  |LEN DIFF| -> |72 vs 331|
+
+===== x_format_ondemand_enrichment_context  (2 survivors) =====
+   24 L40: [-'sections' +'(sections) or True']  |return "\n\n".join(sections) if sections else ""| -> |return "\n\n".join(sections) if (sections) or True else ""|
+   26 L40: [-'\\n\\n' +'XX\\n\\nXX']  |return "\n\n".join(sections) if sections else ""| -> |return "XX\n\nXX".join(sections) if sections else ""|
+
+===== x_is_valid_vqa_output  (1 survivors) =====
+    4 L28: [-'' +'XXXX']  |if text is None or text == "":| -> |if text is None or text == "XXXX":|
+
+===== x_validate_and_clean_vqa_output  (1 survivors) =====
+    7 L40: [-'100' +'1']  |f"VQA output contains garbage tokens, using fallback: {stripped[:100]!r}"| -> |f"VQA output contains garbage tokens, using fallback: {stripped[:101]!r}"|
+
+===== x_format_depth_context  (1 survivors) =====
+    4 L15: [-'Depth analysis: No detections analyzed' +'XXDepth analysis: No detections analyzedXX']  |return "Depth analysis: No detections analyzed"| -> |return "XXDepth analysis: No detections analyzedXX"|
+
+===== x__get_member_role  (1 survivors) =====
+    5 L9: [-'None' +'']  |return getattr(match, "member_role", None)| -> |return getattr(match, "member_role", )|
+
+===== x__get_schedule_status  (1 survivors) =====
+    5 L9: [-'None' +'']  |return getattr(match, "schedule_status", None)| -> |return getattr(match, "schedule_status", )|
+
+===== x__format_pose_section  (1 survivors) =====
+   11 L27: [-'' +'=']  |if confidence > 0.7:| -> |if confidence >= 0.7:|

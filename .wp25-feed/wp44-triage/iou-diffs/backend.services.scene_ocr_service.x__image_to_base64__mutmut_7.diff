@@ -1,0 +1,11 @@
+# backend.services.scene_ocr_service.x__image_to_base64__mutmut_7: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -8,6 +8,6 @@
+         Base64-encoded PNG string
+     """
+     buffer = io.BytesIO()
+-    image.save(buffer, format="PNG")
++    image.save(buffer, format="png")
+     buffer.seek(0)
+     return base64.b64encode(buffer.read()).decode("utf-8")

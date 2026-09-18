@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_52: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -64,7 +64,7 @@
+                         )
+                         response.raise_for_status()
+                         result: dict[str, Any] = response.json()
+-                        inference_time_ms = (time.monotonic() - start_time) * 1000
++                        inference_time_ms = (time.monotonic() - start_time) * 1001
+ 
+                         detections = result.get("detections", [])
+                         set_detection_attributes(

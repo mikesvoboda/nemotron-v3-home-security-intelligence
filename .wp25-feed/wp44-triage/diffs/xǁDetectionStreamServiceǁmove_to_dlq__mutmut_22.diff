@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_22: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -35,7 +35,7 @@
+         await self._redis._client.xadd(
+             self._dlq_key,
+             dlq_fields,
+-            maxlen=self._maxlen,
++            maxlen=None,
+             approximate=DEFAULT_STREAM_APPROXIMATE,
+         )
+     )

@@ -1,0 +1,415 @@
+[
+ {
+  "pid": "C1",
+  "name": "set_gpu_monitor: _gpu_monitor assignment replaced by None",
+  "fn": "x_set_gpu_monitor",
+  "count": 1,
+  "cls": "TEST-GAP",
+  "idxs": [
+   1
+  ],
+  "note": "Real behavior change: global monitor never wired. test_batch_aggregator.py:1632 calls set_gpu_monitor with NO assertion ('should complete without error')."
+ },
+ {
+  "pid": "C2",
+  "name": "set_gpu_monitor: logger.debug message text (None/lower/upper/XX-wrap)",
+  "fn": "x_set_gpu_monitor",
+  "count": 4,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "note": "Pure log text; no observable behavior."
+ },
+ {
+  "pid": "C3",
+  "name": "get_memory_pressure_level: 'if _gpu_monitor is None' inverted to 'is not None'",
+  "fn": "x_get_memory_pressure_level",
+  "count": 1,
+  "cls": "TEST-GAP",
+  "idxs": [
+   1
+  ],
+  "note": "Inverted guard makes the function ignore a wired monitor (always NORMAL). Covering tests only exercise the None-monitor and raises-monitor paths (test_batch_aggregator.py:1647,1668); the happy path 'monitor returns WARNING/CRITICAL' is never tested -> mutant returns NORMAL and still passes."
+ },
+ {
+  "pid": "C4",
+  "name": "get_memory_pressure_level: except-path debug-log payload (msg None, extra key case/XX, str(None))",
+  "fn": "x_get_memory_pressure_level",
+  "count": 9,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   2,
+   3,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  "note": "All 9 live inside logger.debug(...) in the except branch; return value unchanged."
+ },
+ {
+  "pid": "C5",
+  "name": "should_apply_backpressure: logger.warning/debug message+extra payload text (both branches)",
+  "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+  "count": 17,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   4,
+   5,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22
+  ],
+  "note": "Every survivor mutates only the message string or extra={} of logger calls. Return-value lines (== CRITICAL, return False) were all killed earlier. No test asserts these log payloads (tests only assert the bool)."
+ },
+ {
+  "pid": "C6",
+  "name": "recover: WHERE/join predicate + cutoff operator mutations",
+  "fn": "x_recover_orphaned_detections",
+  "count": 10,
+  "cls": "TEST-GAP",
+  "idxs": [
+   2,
+   3,
+   9,
+   10,
+   11,
+   12,
+   14,
+   16,
+   18,
+   19
+  ],
+  "note": "cutoff '-'->'+', now(UTC)->now(None), join cond None/!=, event_id.is_(None) None/dropped, detected_at < dropped, <= boundary. Tests mock session.execute -> SQL text never inspected (test_orphan_recovery.py:39-124)."
+ },
+ {
+  "pid": "C7",
+  "name": "recover: SELECT pipeline structural mutations (stmt/execute/select None, limit None, order_by None)",
+  "fn": "x_recover_orphaned_detections",
+  "count": 5,
+  "cls": "TEST-GAP",
+  "idxs": [
+   5,
+   6,
+   7,
+   17,
+   31
+  ],
+  "note": "LIMIT 500 cap and oldest-first order and the whole query silently vanish against AsyncMock session."
+ },
+ {
+  "pid": "C8",
+  "name": "recover: load_only() column projection entries dropped",
+  "fn": "x_recover_orphaned_detections",
+  "count": 5,
+  "cls": "TEST-GAP",
+  "idxs": [
+   25,
+   26,
+   27,
+   28,
+   29
+  ],
+  "note": "Dropped projection columns force runtime reloads (N+1) on real DB; mock rows hide it."
+ },
+ {
+  "pid": "C9",
+  "name": "recover: add_detection kwargs clobbered to None / dropped",
+  "fn": "x_recover_orphaned_detections",
+  "count": 6,
+  "cls": "TEST-GAP",
+  "idxs": [
+   42,
+   43,
+   44,
+   47,
+   48,
+   49
+  ],
+  "note": "_file_path/confidence/object_type -> None (42,43,44) or removed (47,48,49). test_recovers_orphans_across_cameras:90-94 asserts ONLY camera_id and detection_id kwargs."
+ },
+ {
+  "pid": "C10",
+  "name": "recover: logger message/extra text + exc_info (3 log sites: error/warning/warning)",
+  "fn": "x_recover_orphaned_detections",
+  "count": 45,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   53,
+   54,
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   79,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   93,
+   94,
+   95,
+   96,
+   97,
+   98,
+   99,
+   100,
+   101
+  ],
+  "note": "45 survivors, all inside logger.error/warning calls (incl exc_info=True->None/False: diagnostic traceback inclusion only). Return counts unaffected."
+ },
+ {
+  "pid": "C11",
+  "name": "_close_batch_for_size_limit: lrange key + range args mutated (key None/dropped, 0/-1 tweaks)",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 10,
+  "cls": "TEST-GAP",
+  "idxs": [
+   25,
+   27,
+   28,
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35
+  ],
+  "note": "detections_key=None, range 0/-1 -> 1/-1/None/+1/-2/dropped. lrange return is fixture-mocked so mutated args change nothing observable; no test asserts the lrange call args for this method."
+ },
+ {
+  "pid": "C12",
+  "name": "_close_batch_for_size_limit: delete() key-list entries -> None / dropped",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 14,
+  "cls": "TEST-GAP",
+  "idxs": [
+   118,
+   119,
+   120,
+   121,
+   122,
+   123,
+   124,
+   125,
+   126,
+   127,
+   128,
+   129,
+   130,
+   131
+  ],
+  "note": "Real consequence: batch keys leak (stale :current blocks new batches; closing-flag/detections keys linger to TTL). The delete-key-list assertions at test_batch_aggregator.py:1533 & 3531 target close_batch only - this method's delete call is never asserted."
+ },
+ {
+  "pid": "C13",
+  "name": "_close_batch_for_size_limit: closing-flag stored value '1' -> None/dropped/'XX1XX'",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 3,
+  "cls": "TEST-GAP",
+  "idxs": [
+   19,
+   22,
+   24
+  ],
+  "note": "No code reads the flag (only set+delete), but the existing TTL test already asserts call_args[0]/ex; value half is unasserted. One-line assert kills all 3."
+ },
+ {
+  "pid": "C14",
+  "name": "_close_batch_for_size_limit: summary dict keys started_at/ended_at renamed (XX/case)",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 4,
+  "cls": "TEST-GAP",
+  "idxs": [
+   60,
+   61,
+   62,
+   63
+  ],
+  "note": "summary is pushed to the analysis queue and consumed downstream; existing tests assert batch_id/camera_id/detection_ids/reason/pipeline_start_time but NEVER started_at/ended_at."
+ },
+ {
+  "pid": "C15",
+  "name": "_close_batch_for_size_limit: started_at fetch/truthiness mutations (get->None, key None, 'and False'/'or True')",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 4,
+  "cls": "TEST-GAP",
+  "idxs": [
+   44,
+   45,
+   49,
+   50
+  ],
+  "note": "Stored started_at ignored (duration/latency wrong; idx50 crashes float(None) when key missing - untested path)."
+ },
+ {
+  "pid": "C16",
+  "name": "_close_batch_for_size_limit: queue name -> None and overflow_policy dropped/None",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 3,
+  "cls": "TEST-GAP",
+  "idxs": [
+   72,
+   74,
+   77
+  ],
+  "note": "Batch summary pushed to wrong queue / DLQ overflow protection silently off. test at :2981 only checks add_to_queue_safe.called; :3539 only result fields."
+ },
+ {
+  "pid": "C17",
+  "name": "_close_batch_for_size_limit: _broadcast_detection_batch kwargs None/dropped/max_size variants",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 8,
+  "cls": "TEST-GAP",
+  "idxs": [
+   136,
+   137,
+   139,
+   140,
+   141,
+   147,
+   148,
+   149
+  ],
+  "note": "WS UI receives batch events with null/garbage fields. Zero references to _broadcast_detection_batch in any test (grep over backend/tests)."
+ },
+ {
+  "pid": "C18",
+  "name": "_close_batch_for_size_limit: log_context(batch_id=, camera_id=) correlation args mutated",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 4,
+  "cls": "LOW-VALUE",
+  "idxs": [
+   14,
+   15,
+   16,
+   17
+  ],
+  "note": "Changes only the correlation context attached to later logs - observability plumbing with no functional consumer; asserting contextvars would be brittle."
+ },
+ {
+  "pid": "C19",
+  "name": "_close_batch_for_size_limit: bytes decode 'utf-8' -> 'UTF-8'",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 1,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   41
+  ],
+  "note": "Codec alias - same lookup in Python."
+ },
+ {
+  "pid": "C20",
+  "name": "_close_batch_for_size_limit: batch_duration_ms arithmetic (only feeds logger extra)",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 4,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   95,
+   96,
+   97,
+   98
+  ],
+  "note": "Computed value flows solely into the 'Batch closed' log extra; not in summary, not in metrics."
+ },
+ {
+  "pid": "C21",
+  "name": "_close_batch_for_size_limit: logger message/extra text across all 5 log call sites",
+  "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+  "count": 45,
+  "cls": "EQUIVALENT",
+  "idxs": [
+   5,
+   6,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   79,
+   81,
+   82,
+   83,
+   84,
+   85,
+   86,
+   87,
+   88,
+   89,
+   90,
+   91,
+   92,
+   93,
+   94,
+   99,
+   100,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   112,
+   113,
+   114,
+   115,
+   116,
+   117,
+   132,
+   133,
+   134,
+   135
+  ],
+  "note": "50 survivors: camera-not-found warning, queue-overflow warning, 'Batch closed' info, no-detections debug, cleanup debug. Existing log tests use substring lower-case matches ('overflow', 'max'+'size') that the XX/case mutants defeat... wait they survive, proving substring asserts also miss. All are text-only."
+ }
+]

@@ -1,0 +1,126 @@
+n=1 fn=to_dict keys=8 DIFF: -            "vram_budget_override": self.vram_budget_override, ⟂ +            "VRAM_BUDGET_OVERRIDE": self.vram_budget_override,
+n=1 fn=to_dict keys=7 DIFF: -            "vram_budget_override": self.vram_budget_override, ⟂ +            "XXvram_budget_overrideXX": self.vram_budget_override,
+n=2 fn=_get_compose_command keys=15,26 DIFF: -                        "--version",
+n=2 fn=_get_compose_command keys=19,30 DIFF: -                        "--version", ⟂ +                        "--VERSION",
+n=2 fn=_get_compose_command keys=18,29 DIFF: -                        "--version", ⟂ +                        "XX--versionXX",
+n=2 fn=_get_compose_command keys=11,22 DIFF: -                        "--version", ⟂ +                        None,
+n=2 fn=_get_compose_command keys=13,24 DIFF: -                        stderr=asyncio.subprocess.DEVNULL, ⟂ +                        stderr=None,
+n=2 fn=_get_compose_command keys=17,28 DIFF: -                        stderr=asyncio.subprocess.DEVNULL, ⟂ -                    ) ⟂ +                        )
+n=2 fn=_get_compose_command keys=16,27 DIFF: -                        stdout=asyncio.subprocess.DEVNULL,
+n=2 fn=_get_compose_command keys=12,23 DIFF: -                        stdout=asyncio.subprocess.DEVNULL, ⟂ +                        stdout=None,
+n=1 fn=_get_compose_command keys=14 DIFF: -                        *parts,
+n=1 fn=_get_compose_command keys=25 DIFF: -                        cmd,
+n=1 fn=_get_compose_command keys=21 DIFF: -                        cmd, ⟂ +                        None,
+n=1 fn=_get_compose_command keys=33 DIFF: -                    logger.debug(f"Using compose command: {cmd}") ⟂ +                    logger.debug(None)
+n=1 fn=_get_compose_command keys=34 DIFF: -                continue ⟂ +                break
+n=1 fn=_get_compose_command keys=8 DIFF: -                if " " in cmd: ⟂ +                if " " not in cmd:
+n=1 fn=_get_compose_command keys=7 DIFF: -                if " " in cmd: ⟂ +                if "XX XX" in cmd:
+n=1 fn=_get_compose_command keys=6 DIFF: -        for cmd in ["podman-compose", "docker-compose", "docker compose"]: ⟂ +        for cmd in ["podman-compose", "docker-compose", "DOCKER COMPOSE"]:
+n=1 fn=_get_compose_command keys=5 DIFF: -        for cmd in ["podman-compose", "docker-compose", "docker compose"]: ⟂ +        for cmd in ["podman-compose", "docker-compose", "XXdocker composeXX"]:
+n=3 fn=_recreate_service keys=48,59,72 DIFF: -                        "service_name": service_name, ⟂ +                        "SERVICE_NAME": service_name,
+n=3 fn=_recreate_service keys=47,58,71 DIFF: -                        "service_name": service_name, ⟂ +                        "XXservice_nameXX": service_name,
+n=2 fn=_recreate_service keys=16,19 DIFF: -            "-f", ⟂ +            "-F",
+n=2 fn=_recreate_service keys=15,18 DIFF: -            "-f", ⟂ +            "XX-fXX",
+n=1 fn=_recreate_service keys=61 DIFF: -                        "returncode": 0, ⟂ +                        "RETURNCODE": 0,
+n=1 fn=_recreate_service keys=60 DIFF: -                        "returncode": 0, ⟂ +                        "XXreturncodeXX": 0,
+n=1 fn=_recreate_service keys=62 DIFF: -                        "returncode": 0, ⟂ +                        "returncode": 1,
+n=1 fn=_recreate_service keys=74 DIFF: -                        "returncode": process.returncode, ⟂ +                        "RETURNCODE": process.returncode,
+n=1 fn=_recreate_service keys=73 DIFF: -                        "returncode": process.returncode, ⟂ +                        "XXreturncodeXX": process.returncode,
+n=1 fn=_recreate_service keys=76 DIFF: -                        "stderr": stderr.decode().strip()[:500], ⟂ +                        "STDERR": stderr.decode().strip()[:500],
+n=1 fn=_recreate_service keys=75 DIFF: -                        "stderr": stderr.decode().strip()[:500], ⟂ +                        "XXstderrXX": stderr.decode().strip()[:500],
+n=1 fn=_recreate_service keys=77 DIFF: -                        "stderr": stderr.decode().strip()[:500], ⟂ +                        "stderr": stderr.decode().strip()[:501],
+n=1 fn=_recreate_service keys=64 DIFF: -                        "stdout": stdout.decode().strip()[:500], ⟂ +                        "STDOUT": stdout.decode().strip()[:500],
+n=1 fn=_recreate_service keys=63 DIFF: -                        "stdout": stdout.decode().strip()[:500], ⟂ +                        "XXstdoutXX": stdout.decode().strip()[:500],
+n=1 fn=_recreate_service keys=65 DIFF: -                        "stdout": stdout.decode().strip()[:500], ⟂ +                        "stdout": stdout.decode().strip()[:501],
+n=1 fn=_recreate_service keys=50 DIFF: -                        "timeout": self.COMPOSE_TIMEOUT, ⟂ +                        "TIMEOUT": self.COMPOSE_TIMEOUT,
+n=1 fn=_recreate_service keys=49 DIFF: -                        "timeout": self.COMPOSE_TIMEOUT, ⟂ +                        "XXtimeoutXX": self.COMPOSE_TIMEOUT,
+n=1 fn=_recreate_service keys=55 DIFF: -                    extra={ ⟂ -                        "service_name": service_name, ⟂ -                        "returncode": 0, ⟂ -                        "stdout": stdout.decode().strip()[:500], ⟂ -                    }, ⟂ +                    extra=None,
+n=1 fn=_recreate_service keys=57 DIFF: -                    extra={ ⟂ -                        "service_name": service_name, ⟂ -                        "returncode": 0, ⟂ -                        "stdout": stdout.decode().strip()[:500], ⟂ -                    }, ⟂ -                ) ⟂ +                    )
+n=1 fn=_recreate_service keys=68 DIFF: -                    extra={ ⟂ -                        "service_name": service_name, ⟂ -                        "returncode": process.returncode, ⟂ -                        "stderr": stderr.decode().strip()[:500], ⟂ -                    }, ⟂ +                    extra=None,
+n=1 fn=_recreate_service keys=70 DIFF: -                    extra={ ⟂ -                        "service_name": service_name, ⟂ -                        "returncode": process.returncode, ⟂ -                        "stderr": stderr.decode().strip()[:500], ⟂ -                    }, ⟂ -                ) ⟂ +                    )
+n=1 fn=_recreate_service keys=44 DIFF: -                    extra={ ⟂ -                        "service_name": service_name, ⟂ -                        "timeout": self.COMPOSE_TIMEOUT, ⟂ -                    }, ⟂ +                    extra=None,
+n=1 fn=_recreate_service keys=46 DIFF: -                    extra={ ⟂ -                        "service_name": service_name, ⟂ -                        "timeout": self.COMPOSE_TIMEOUT, ⟂ -                    }, ⟂ -                ) ⟂ +                    )
+n=1 fn=_recreate_service keys=43 DIFF: -                    f"Compose command timed out for {service_name}", ⟂ +                    None,
+n=1 fn=_recreate_service keys=69 DIFF: -                    f"Failed to restart {service_name}: exit code {process.returncode}",
+n=1 fn=_recreate_service keys=67 DIFF: -                    f"Failed to restart {service_name}: exit code {process.returncode}", ⟂ +                    None,
+n=1 fn=_recreate_service keys=54 DIFF: -                    f"Successfully restarted {service_name}", ⟂ +                    None,
+n=1 fn=_recreate_service keys=40 DIFF: -                    timeout=self.COMPOSE_TIMEOUT, ⟂ +                    timeout=None,
+n=1 fn=_recreate_service keys=32 DIFF: -                cwd=str(self._project_root), ⟂ +                cwd=None,
+n=1 fn=_recreate_service keys=37 DIFF: -                cwd=str(self._project_root), ⟂ +                cwd=str(None),
+n=1 fn=_recreate_service keys=36 DIFF: -                cwd=str(self._project_root), ⟂ -            ) ⟂ +                )
+n=1 fn=_recreate_service keys=35 DIFF: -                stderr=asyncio.subprocess.PIPE,
+n=1 fn=_recreate_service keys=31 DIFF: -                stderr=asyncio.subprocess.PIPE, ⟂ +                stderr=None,
+n=1 fn=_recreate_service keys=34 DIFF: -                stdout=asyncio.subprocess.PIPE,
+n=1 fn=_recreate_service keys=30 DIFF: -                stdout=asyncio.subprocess.PIPE, ⟂ +                stdout=None,
+n=1 fn=_recreate_service keys=26 DIFF: -            "--force-recreate", ⟂ +            "--FORCE-RECREATE",
+n=1 fn=_recreate_service keys=25 DIFF: -            "--force-recreate", ⟂ +            "XX--force-recreateXX",
+n=1 fn=_recreate_service keys=28 DIFF: -            "--no-deps", ⟂ +            "--NO-DEPS",
+n=1 fn=_recreate_service keys=27 DIFF: -            "--no-deps", ⟂ +            "XX--no-depsXX",
+n=1 fn=_recreate_service keys=24 DIFF: -            "-d", ⟂ +            "-D",
+n=1 fn=_recreate_service keys=23 DIFF: -            "-d", ⟂ +            "XX-dXX",
+n=1 fn=_recreate_service keys=22 DIFF: -            "up", ⟂ +            "UP",
+n=1 fn=_recreate_service keys=21 DIFF: -            "up", ⟂ +            "XXupXX",
+n=1 fn=_recreate_service keys=2 DIFF: -            extra={"service_name": service_name}, ⟂ +            extra=None,
+n=1 fn=_recreate_service keys=6 DIFF: -            extra={"service_name": service_name}, ⟂ +            extra={"SERVICE_NAME": service_name},
+n=1 fn=_recreate_service keys=5 DIFF: -            extra={"service_name": service_name}, ⟂ +            extra={"XXservice_nameXX": service_name},
+n=1 fn=_recreate_service keys=4 DIFF: -            extra={"service_name": service_name}, ⟂ -        ) ⟂ +            )
+n=1 fn=_recreate_service keys=1 DIFF: -            f"Restarting service via compose: {service_name}", ⟂ +            None,
+n=1 fn=_recreate_service keys=12 DIFF: -            logger.error("Neither podman-compose nor docker-compose found") ⟂ +            logger.error("NEITHER PODMAN-COMPOSE NOR DOCKER-COMPOSE FOUND")
+n=1 fn=_recreate_service keys=10 DIFF: -            logger.error("Neither podman-compose nor docker-compose found") ⟂ +            logger.error("XXNeither podman-compose nor docker-compose foundXX")
+n=1 fn=_recreate_service keys=11 DIFF: -            logger.error("Neither podman-compose nor docker-compose found") ⟂ +            logger.error("neither podman-compose nor docker-compose found")
+n=1 fn=_recreate_service keys=9 DIFF: -            logger.error("Neither podman-compose nor docker-compose found") ⟂ +            logger.error(None)
+n=1 fn=_recreate_service keys=17 DIFF: -            str(self._compose_file), ⟂ +            str(None),
+n=1 fn=_recreate_service keys=20 DIFF: -            str(self._override_file), ⟂ +            str(None),
+n=1 fn=_result_from_dict keys=31 DIFF: -            changed_services=data.get("changed_services", []),
+n=1 fn=_result_from_dict keys=24 DIFF: -            changed_services=data.get("changed_services", []), ⟂ +            changed_services=None,
+n=1 fn=_result_from_dict keys=43 DIFF: -            changed_services=data.get("changed_services", []), ⟂ +            changed_services=data.get("CHANGED_SERVICES", []),
+n=1 fn=_result_from_dict keys=42 DIFF: -            changed_services=data.get("changed_services", []), ⟂ +            changed_services=data.get("XXchanged_servicesXX", []),
+n=1 fn=_result_from_dict keys=41 DIFF: -            changed_services=data.get("changed_services", []), ⟂ +            changed_services=data.get("changed_services", ),
+n=1 fn=_result_from_dict keys=39 DIFF: -            changed_services=data.get("changed_services", []), ⟂ +            changed_services=data.get("changed_services", None),
+n=1 fn=_result_from_dict keys=38 DIFF: -            changed_services=data.get("changed_services", []), ⟂ +            changed_services=data.get(None, []),
+n=1 fn=_result_from_dict keys=9 DIFF: -            completed_at = datetime.fromisoformat(data["completed_at"]) ⟂ +            completed_at = None
+n=1 fn=_result_from_dict keys=30 DIFF: -            completed_at=completed_at,
+n=1 fn=_result_from_dict keys=23 DIFF: -            completed_at=completed_at, ⟂ +            completed_at=None,
+n=1 fn=_result_from_dict keys=26 DIFF: -            error=data.get("error"), ⟂ +            error=None,
+n=1 fn=_result_from_dict keys=46 DIFF: -            error=data.get("error"), ⟂ +            error=data.get("ERROR"),
+n=1 fn=_result_from_dict keys=45 DIFF: -            error=data.get("error"), ⟂ +            error=data.get("XXerrorXX"),
+n=1 fn=_result_from_dict keys=44 DIFF: -            error=data.get("error"), ⟂ +            error=data.get(None),
+n=1 fn=_result_from_dict keys=33 DIFF: -            error=data.get("error"), ⟂ -        ) ⟂ +            )
+n=1 fn=_result_from_dict keys=32 DIFF: -            service_statuses=service_statuses,
+n=1 fn=_result_from_dict keys=25 DIFF: -            service_statuses=service_statuses, ⟂ +            service_statuses=None,
+n=1 fn=_result_from_dict keys=22 DIFF: -            started_at=started_at, ⟂ +            started_at=None,
+n=1 fn=_result_from_dict keys=5 DIFF: -        completed_at = None ⟂ +        completed_at = ""
+n=1 fn=_result_from_dict keys=19 DIFF: -        for name, status_data in data.get("service_statuses", {}).items(): ⟂ +        for name, status_data in data.get("SERVICE_STATUSES", {}).items():
+n=1 fn=_result_from_dict keys=18 DIFF: -        for name, status_data in data.get("service_statuses", {}).items(): ⟂ +        for name, status_data in data.get("XXservice_statusesXX", {}).items():
+n=1 fn=_result_from_dict keys=17 DIFF: -        for name, status_data in data.get("service_statuses", {}).items(): ⟂ +        for name, status_data in data.get("service_statuses", ).items():
+n=1 fn=_result_from_dict keys=15 DIFF: -        for name, status_data in data.get("service_statuses", {}).items(): ⟂ +        for name, status_data in data.get("service_statuses", None).items():
+n=1 fn=_result_from_dict keys=14 DIFF: -        for name, status_data in data.get("service_statuses", {}).items(): ⟂ +        for name, status_data in data.get(None, {}).items():
+n=1 fn=_result_from_dict keys=8 DIFF: -        if data.get("completed_at"): ⟂ +        if data.get("COMPLETED_AT"):
+n=1 fn=_result_from_dict keys=7 DIFF: -        if data.get("completed_at"): ⟂ +        if data.get("XXcompleted_atXX"):
+n=1 fn=_result_from_dict keys=6 DIFF: -        if data.get("completed_at"): ⟂ +        if data.get(None):
+n=1 fn=_result_from_dict keys=13 DIFF: -        service_statuses: dict[str, ServiceRestartStatus] = {} ⟂ +        service_statuses: dict[str, ServiceRestartStatus] = None
+n=1 fn=_result_from_dict keys=1 DIFF: -        started_at = datetime.fromisoformat(data["started_at"]) ⟂ +        started_at = None
+n=1 fn=get_container_status keys=13 DIFF: -                        container.id ⟂ +                        None
+n=1 fn=get_container_status keys=16 DIFF: -                    extra={"service_name": service_name}, ⟂ +                    extra=None,
+n=1 fn=get_container_status keys=20 DIFF: -                    extra={"service_name": service_name}, ⟂ +                    extra={"SERVICE_NAME": service_name},
+n=1 fn=get_container_status keys=19 DIFF: -                    extra={"service_name": service_name}, ⟂ +                    extra={"XXservice_nameXX": service_name},
+n=1 fn=get_container_status keys=18 DIFF: -                    extra={"service_name": service_name}, ⟂ -                ) ⟂ +                    )
+n=1 fn=get_container_status keys=15 DIFF: -                    f"Failed to get container status for {service_name}: {e}", ⟂ +                    None,
+n=1 fn=get_container_status keys=11 DIFF: -                container = await self._docker_client.get_container_by_name(service_name) ⟂ +                container = await self._docker_client.get_container_by_name(None)
+n=1 fn=get_container_status keys=5 DIFF: -            logger.warning("Docker client not available for container status check") ⟂ +            logger.warning("DOCKER CLIENT NOT AVAILABLE FOR CONTAINER STATUS CHECK")
+n=1 fn=get_container_status keys=3 DIFF: -            logger.warning("Docker client not available for container status check") ⟂ +            logger.warning("XXDocker client not available for container status checkXX")
+n=1 fn=get_container_status keys=4 DIFF: -            logger.warning("Docker client not available for container status check") ⟂ +            logger.warning("docker client not available for container status check")
+n=1 fn=get_container_status keys=2 DIFF: -            logger.warning("Docker client not available for container status check") ⟂ +            logger.warning(None)
+n=1 fn=get_container_status keys=8 DIFF: -            return dict.fromkeys(service_names, None) ⟂ +            return dict.fromkeys(service_names, )
+n=1 fn=get_operation_status keys=4 DIFF: -            data = await self._redis.get(key) ⟂ +            data = await self._redis.get(None)
+n=1 fn=get_operation_status keys=2 DIFF: -            key = f"{REDIS_GPU_CONFIG_PREFIX}:operation:{operation_id}" ⟂ +            key = None
+n=1 fn=from_dict keys=21 DIFF: -            completed_at=completed_at,
+n=1 fn=from_dict keys=16 DIFF: -            completed_at=completed_at, ⟂ +            completed_at=None,
+n=1 fn=from_dict keys=17 DIFF: -            error=data.get("error"), ⟂ +            error=None,
+n=1 fn=from_dict keys=30 DIFF: -            error=data.get("error"), ⟂ +            error=data.get("ERROR"),
+n=1 fn=from_dict keys=29 DIFF: -            error=data.get("error"), ⟂ +            error=data.get("XXerrorXX"),
+n=1 fn=from_dict keys=28 DIFF: -            error=data.get("error"), ⟂ +            error=data.get(None),
+n=1 fn=from_dict keys=22 DIFF: -            error=data.get("error"), ⟂ -        ) ⟂ +            )
+n=1 fn=from_dict keys=12 DIFF: -        if data.get("completed_at"): ⟂ +        if data.get("COMPLETED_AT"):
+n=1 fn=from_dict keys=11 DIFF: -        if data.get("completed_at"): ⟂ +        if data.get("XXcompleted_atXX"):
+n=1 fn=from_dict keys=10 DIFF: -        if data.get("completed_at"): ⟂ +        if data.get(None):

@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_50
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_50: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -68,7 +68,7 @@
+     try:
+         await self.reid.store_embedding(self.redis, entity_embedding)
+         logger.debug(
+-            "Stored embedding in Redis for detection %d",
++            None,
+             detection_id,
+         )
+     except Exception as e:

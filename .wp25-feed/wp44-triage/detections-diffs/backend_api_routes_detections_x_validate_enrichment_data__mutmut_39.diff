@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_39: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -28,7 +28,6 @@
+ 
+             vehicle = VehicleEnrichmentData(
+                 vehicle_type=vc.get("vehicle_type"),
+-                vehicle_color=None,  # Color not currently captured in enrichment
+                 has_damage=has_damage,
+                 is_commercial=vc.get("is_commercial", False),
+             )

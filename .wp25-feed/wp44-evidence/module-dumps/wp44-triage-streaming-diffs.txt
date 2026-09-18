@@ -1,0 +1,1856 @@
+### x_analyze_batch_streaming__mutmut_7
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_7(  # noqa: PLR0911
+-            recoverable=False,
+-        ).model_dump()
++            ).model_dump()
+### x_analyze_batch_streaming__mutmut_8
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_8(  # noqa: PLR0911
+-            error_message="Redis client not initialized",
++            error_message="XXRedis client not initializedXX",
+### x_analyze_batch_streaming__mutmut_11
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_11(  # noqa: PLR0911
+-            recoverable=False,
++            recoverable=True,
+### x_analyze_batch_streaming__mutmut_13
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_13(  # noqa: PLR0911
+-    existing_event_id = await analyzer._check_idempotency(batch_id)
++    existing_event_id = await analyzer._check_idempotency(None)
+### x_analyze_batch_streaming__mutmut_16
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_16(  # noqa: PLR0911
+-        existing_event = await analyzer._get_existing_event(existing_event_id)
++        existing_event = await analyzer._get_existing_event(None)
+### x_analyze_batch_streaming__mutmut_27
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_27(  # noqa: PLR0911
+-                risk_score=existing_event.risk_score or 50,
++                risk_score=existing_event.risk_score and 50,
+### x_analyze_batch_streaming__mutmut_28
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_28(  # noqa: PLR0911
+-                risk_score=existing_event.risk_score or 50,
++                risk_score=existing_event.risk_score or 51,
+### x_analyze_batch_streaming__mutmut_29
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_29(  # noqa: PLR0911
+-                risk_level=existing_event.risk_level or "medium",
++                risk_level=existing_event.risk_level and "medium",
+### x_analyze_batch_streaming__mutmut_30
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_30(  # noqa: PLR0911
+-                risk_level=existing_event.risk_level or "medium",
++                risk_level=existing_event.risk_level or "XXmediumXX",
+### x_analyze_batch_streaming__mutmut_31
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_31(  # noqa: PLR0911
+-                risk_level=existing_event.risk_level or "medium",
++                risk_level=existing_event.risk_level or "MEDIUM",
+### x_analyze_batch_streaming__mutmut_33
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_33(  # noqa: PLR0911
+-                summary=existing_event.summary or "No summary available",
++                summary=existing_event.summary or "XXNo summary availableXX",
+### x_analyze_batch_streaming__mutmut_34
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_34(  # noqa: PLR0911
+-                summary=existing_event.summary or "No summary available",
++                summary=existing_event.summary or "no summary available",
+### x_analyze_batch_streaming__mutmut_35
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_35(  # noqa: PLR0911
+-                summary=existing_event.summary or "No summary available",
++                summary=existing_event.summary or "NO SUMMARY AVAILABLE",
+### x_analyze_batch_streaming__mutmut_36
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_36(  # noqa: PLR0911
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning and "No reasoning available",
+### x_analyze_batch_streaming__mutmut_37
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_37(  # noqa: PLR0911
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning or "XXNo reasoning availableXX",
+### x_analyze_batch_streaming__mutmut_38
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_38(  # noqa: PLR0911
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning or "no reasoning available",
+### x_analyze_batch_streaming__mutmut_39
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_39(  # noqa: PLR0911
+-                reasoning=existing_event.reasoning or "No reasoning available",
++                reasoning=existing_event.reasoning or "NO REASONING AVAILABLE",
+### x_analyze_batch_streaming__mutmut_49
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_49(  # noqa: PLR0911
+-                recoverable=False,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming__mutmut_50
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_50(  # noqa: PLR0911
+-                recoverable=False,
++                recoverable=True,
+### x_analyze_batch_streaming__mutmut_56
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_56(  # noqa: PLR0911
+-        detection_ids = json.loads(detections_data) if detections_data else []
++        detection_ids = json.loads(detections_data) if (detections_data) or True else []
+### x_analyze_batch_streaming__mutmut_64
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_64(  # noqa: PLR0911
+-            recoverable=False,
+-        ).model_dump()
++            ).model_dump()
+### x_analyze_batch_streaming__mutmut_65
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_65(  # noqa: PLR0911
+-            recoverable=False,
++            recoverable=True,
+### x_analyze_batch_streaming__mutmut_67
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_67(  # noqa: PLR0911
+-    logger.info(f"Streaming analysis for batch {batch_id}")
++    logger.info(None)
+### x_analyze_batch_streaming__mutmut_69
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_69(  # noqa: PLR0911
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(None)
+### x_analyze_batch_streaming__mutmut_70
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_70(  # noqa: PLR0911
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(select(Camera).where(None))
+### x_analyze_batch_streaming__mutmut_71
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_71(  # noqa: PLR0911
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(select(None).where(Camera.id == camera_id))
+### x_analyze_batch_streaming__mutmut_72
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_72(  # noqa: PLR0911
+-        camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        camera_result = await session.execute(select(Camera).where(Camera.id != camera_id))
+### x_analyze_batch_streaming__mutmut_73
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_73(  # noqa: PLR0911
+-        camera = camera_result.scalar_one_or_none()
++        camera = None
+### x_analyze_batch_streaming__mutmut_74
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_74(  # noqa: PLR0911
+-        camera_name = camera.name if camera else camera_id
++        camera_name = None
+### x_analyze_batch_streaming__mutmut_75
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_75(  # noqa: PLR0911
+-        camera_name = camera.name if camera else camera_id
++        camera_name = camera.name if (camera) and False else camera_id
+### x_analyze_batch_streaming__mutmut_84
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_84(  # noqa: PLR0911
+-                recoverable=False,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming__mutmut_85
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_85(  # noqa: PLR0911
+-                recoverable=False,
++                recoverable=True,
+### x_analyze_batch_streaming__mutmut_87
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_87(  # noqa: PLR0911
+-        detections = await batch_fetch_detections(session, int_detection_ids)
++        detections = await batch_fetch_detections(None, int_detection_ids)
+### x_analyze_batch_streaming__mutmut_88
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_88(  # noqa: PLR0911
+-        detections = await batch_fetch_detections(session, int_detection_ids)
++        detections = await batch_fetch_detections(session, None)
+### x_analyze_batch_streaming__mutmut_97
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_97(  # noqa: PLR0911
+-                recoverable=False,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming__mutmut_98
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_98(  # noqa: PLR0911
+-                recoverable=False,
++                recoverable=True,
+### x_analyze_batch_streaming__mutmut_104
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_104(  # noqa: PLR0911
+-        detections_list = analyzer._format_detections(detections)
++        detections_list = None
+### x_analyze_batch_streaming__mutmut_105
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_105(  # noqa: PLR0911
+-        detections_list = analyzer._format_detections(detections)
++        detections_list = analyzer._format_detections(None)
+### x_analyze_batch_streaming__mutmut_107
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_107(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            None, camera_id, int_detection_ids, session
+### x_analyze_batch_streaming__mutmut_108
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_108(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, None, int_detection_ids, session
+### x_analyze_batch_streaming__mutmut_109
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_109(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, camera_id, None, session
+### x_analyze_batch_streaming__mutmut_110
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_110(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, camera_id, int_detection_ids, None
+### x_analyze_batch_streaming__mutmut_111
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_111(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            camera_id, int_detection_ids, session
+### x_analyze_batch_streaming__mutmut_112
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_112(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, int_detection_ids, session
+### x_analyze_batch_streaming__mutmut_113
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_113(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
++            batch_id, camera_id, session
+### x_analyze_batch_streaming__mutmut_114
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_114(  # noqa: PLR0911
+-            batch_id, camera_id, int_detection_ids, session
+-        )
++            batch_id, camera_id, int_detection_ids, )
+### x_analyze_batch_streaming__mutmut_116
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_116(  # noqa: PLR0911
+-            batch_id, detections, camera_id=camera_id
++            None, detections, camera_id=camera_id
+### x_analyze_batch_streaming__mutmut_117
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_117(  # noqa: PLR0911
+-            batch_id, detections, camera_id=camera_id
++            batch_id, None, camera_id=camera_id
+### x_analyze_batch_streaming__mutmut_118
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_118(  # noqa: PLR0911
+-            batch_id, detections, camera_id=camera_id
++            batch_id, detections, camera_id=None
+### x_analyze_batch_streaming__mutmut_119
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_119(  # noqa: PLR0911
+-            batch_id, detections, camera_id=camera_id
++            detections, camera_id=camera_id
+### x_analyze_batch_streaming__mutmut_120
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_120(  # noqa: PLR0911
+-            batch_id, detections, camera_id=camera_id
++            batch_id, camera_id=camera_id
+### x_analyze_batch_streaming__mutmut_121
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_121(  # noqa: PLR0911
+-            batch_id, detections, camera_id=camera_id
+-        )
++            batch_id, detections, )
+### x_analyze_batch_streaming__mutmut_122
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_122(  # noqa: PLR0911
+-        enrichment_result: EnrichmentResult | None = None
++        enrichment_result: EnrichmentResult | None = ""
+### x_analyze_batch_streaming__mutmut_126
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_126(  # noqa: PLR0911
+-        camera_health_context = ""
++        camera_health_context = None
+### x_analyze_batch_streaming__mutmut_127
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_127(  # noqa: PLR0911
+-        camera_health_context = ""
++        camera_health_context = "XXXX"
+### x_analyze_batch_streaming__mutmut_128
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_128(  # noqa: PLR0911
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = None
+### x_analyze_batch_streaming__mutmut_129
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_129(  # noqa: PLR0911
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(None, session)
+### x_analyze_batch_streaming__mutmut_130
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_130(  # noqa: PLR0911
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, None)
+### x_analyze_batch_streaming__mutmut_131
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_131(  # noqa: PLR0911
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(session)
+### x_analyze_batch_streaming__mutmut_132
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_132(  # noqa: PLR0911
+-            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
++            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, )
+### x_analyze_batch_streaming__mutmut_133
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_133(  # noqa: PLR0911
+-                "Failed to fetch camera health context for streaming",
++                None,
+### x_analyze_batch_streaming__mutmut_134
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_134(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra=None,
+### x_analyze_batch_streaming__mutmut_136
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_136(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_137
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_137(  # noqa: PLR0911
+-                "Failed to fetch camera health context for streaming",
++                "XXFailed to fetch camera health context for streamingXX",
+### x_analyze_batch_streaming__mutmut_138
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_138(  # noqa: PLR0911
+-                "Failed to fetch camera health context for streaming",
++                "failed to fetch camera health context for streaming",
+### x_analyze_batch_streaming__mutmut_139
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_139(  # noqa: PLR0911
+-                "Failed to fetch camera health context for streaming",
++                "FAILED TO FETCH CAMERA HEALTH CONTEXT FOR STREAMING",
+### x_analyze_batch_streaming__mutmut_140
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_140(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"XXbatch_idXX": batch_id, "error": str(e)},
+### x_analyze_batch_streaming__mutmut_141
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_141(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"BATCH_ID": batch_id, "error": str(e)},
+### x_analyze_batch_streaming__mutmut_142
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_142(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+### x_analyze_batch_streaming__mutmut_143
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_143(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "ERROR": str(e)},
+### x_analyze_batch_streaming__mutmut_144
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_144(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "error": str(None)},
+### x_analyze_batch_streaming__mutmut_145
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_145(  # noqa: PLR0911
+-        auto_tuning_context = ""
++        auto_tuning_context = None
+### x_analyze_batch_streaming__mutmut_146
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_146(  # noqa: PLR0911
+-        auto_tuning_context = ""
++        auto_tuning_context = "XXXX"
+### x_analyze_batch_streaming__mutmut_147
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_147(  # noqa: PLR0911
+-            auto_tuner = analyzer._get_facade().get_prompt_auto_tuner()
++            auto_tuner = None
+### x_analyze_batch_streaming__mutmut_148
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_148(  # noqa: PLR0911
+-            auto_tuning_context = await auto_tuner.get_tuning_context(
+-                session=session,
+-                camera_id=camera_id,
+-            )
++            auto_tuning_context = None
+### x_analyze_batch_streaming__mutmut_149
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_149(  # noqa: PLR0911
+-                session=session,
++                session=None,
+### x_analyze_batch_streaming__mutmut_150
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_150(  # noqa: PLR0911
+-                camera_id=camera_id,
++                camera_id=None,
+### x_analyze_batch_streaming__mutmut_151
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_151(  # noqa: PLR0911
+-                session=session,
+### x_analyze_batch_streaming__mutmut_152
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_152(  # noqa: PLR0911
+-                camera_id=camera_id,
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_153
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_153(  # noqa: PLR0911
+-                "Failed to fetch auto-tuning context for streaming",
++                None,
+### x_analyze_batch_streaming__mutmut_154
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_154(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra=None,
+### x_analyze_batch_streaming__mutmut_156
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_156(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_157
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_157(  # noqa: PLR0911
+-                "Failed to fetch auto-tuning context for streaming",
++                "XXFailed to fetch auto-tuning context for streamingXX",
+### x_analyze_batch_streaming__mutmut_158
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_158(  # noqa: PLR0911
+-                "Failed to fetch auto-tuning context for streaming",
++                "failed to fetch auto-tuning context for streaming",
+### x_analyze_batch_streaming__mutmut_159
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_159(  # noqa: PLR0911
+-                "Failed to fetch auto-tuning context for streaming",
++                "FAILED TO FETCH AUTO-TUNING CONTEXT FOR STREAMING",
+### x_analyze_batch_streaming__mutmut_160
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_160(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"XXbatch_idXX": batch_id, "error": str(e)},
+### x_analyze_batch_streaming__mutmut_161
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_161(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"BATCH_ID": batch_id, "error": str(e)},
+### x_analyze_batch_streaming__mutmut_162
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_162(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+### x_analyze_batch_streaming__mutmut_163
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_163(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "ERROR": str(e)},
+### x_analyze_batch_streaming__mutmut_164
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_164(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "error": str(None)},
+### x_analyze_batch_streaming__mutmut_165
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_165(  # noqa: PLR0911
+-        household_context = ""
++        household_context = None
+### x_analyze_batch_streaming__mutmut_166
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_166(  # noqa: PLR0911
+-        household_context = ""
++        household_context = "XXXX"
+### x_analyze_batch_streaming__mutmut_167
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_167(  # noqa: PLR0911
+-            detections_for_household = [
+-                {
+-                    "id": d.id,
+-                    "object_type": d.object_type,
+-                    "confidence": d.confidence,
+-                    "file_path": d.file_path,
+-                    "bounding_box": {
+-                        "bbox_x": d.bbox_x,
+-                        "bbox_y": d.bbox_y,
+-                        "bbox_width": d.bbox_width,
+-                        "bbox_height": d.bbox_height,
+-                    }
+-                    if d.bbox_x is not None
+-                    else None,
+-                    "video_width": d.video_width,
+-                    "video_height": d.video_height,
+-                    "detected_at": d.detected_at,
+-                    "track_id": d.track_id,
+-                    "camera_id": d.camera_id,
+-                }
+-                for d in detections
+-            ]
++            detections_for_household = None
+### x_analyze_batch_streaming__mutmut_168
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_168(  # noqa: PLR0911
+-                    "id": d.id,
++                    "XXidXX": d.id,
+### x_analyze_batch_streaming__mutmut_169
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_169(  # noqa: PLR0911
+-                    "id": d.id,
++                    "ID": d.id,
+### x_analyze_batch_streaming__mutmut_170
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_170(  # noqa: PLR0911
+-                    "object_type": d.object_type,
++                    "XXobject_typeXX": d.object_type,
+### x_analyze_batch_streaming__mutmut_171
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_171(  # noqa: PLR0911
+-                    "object_type": d.object_type,
++                    "OBJECT_TYPE": d.object_type,
+### x_analyze_batch_streaming__mutmut_172
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_172(  # noqa: PLR0911
+-                    "confidence": d.confidence,
++                    "XXconfidenceXX": d.confidence,
+### x_analyze_batch_streaming__mutmut_173
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_173(  # noqa: PLR0911
+-                    "confidence": d.confidence,
++                    "CONFIDENCE": d.confidence,
+### x_analyze_batch_streaming__mutmut_174
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_174(  # noqa: PLR0911
+-                    "file_path": d.file_path,
++                    "XXfile_pathXX": d.file_path,
+### x_analyze_batch_streaming__mutmut_175
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_175(  # noqa: PLR0911
+-                    "file_path": d.file_path,
++                    "FILE_PATH": d.file_path,
+### x_analyze_batch_streaming__mutmut_176
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_176(  # noqa: PLR0911
+-                    "bounding_box": {
++                    "XXbounding_boxXX": {
+### x_analyze_batch_streaming__mutmut_177
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_177(  # noqa: PLR0911
+-                    "bounding_box": {
++                    "BOUNDING_BOX": {
+### x_analyze_batch_streaming__mutmut_178
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_178(  # noqa: PLR0911
+-                    if d.bbox_x is not None
++                    if (d.bbox_x is not None) and False
+### x_analyze_batch_streaming__mutmut_179
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_179(  # noqa: PLR0911
+-                    if d.bbox_x is not None
++                    if (d.bbox_x is not None) or True
+### x_analyze_batch_streaming__mutmut_180
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_180(  # noqa: PLR0911
+-                    if d.bbox_x is not None
++                    if d.bbox_x is None
+### x_analyze_batch_streaming__mutmut_181
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_181(  # noqa: PLR0911
+-                    "video_width": d.video_width,
++                    "XXvideo_widthXX": d.video_width,
+### x_analyze_batch_streaming__mutmut_182
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_182(  # noqa: PLR0911
+-                    "video_width": d.video_width,
++                    "VIDEO_WIDTH": d.video_width,
+### x_analyze_batch_streaming__mutmut_183
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_183(  # noqa: PLR0911
+-                    "video_height": d.video_height,
++                    "XXvideo_heightXX": d.video_height,
+### x_analyze_batch_streaming__mutmut_184
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_184(  # noqa: PLR0911
+-                    "video_height": d.video_height,
++                    "VIDEO_HEIGHT": d.video_height,
+### x_analyze_batch_streaming__mutmut_185
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_185(  # noqa: PLR0911
+-                    "detected_at": d.detected_at,
++                    "XXdetected_atXX": d.detected_at,
+### x_analyze_batch_streaming__mutmut_186
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_186(  # noqa: PLR0911
+-                    "detected_at": d.detected_at,
++                    "DETECTED_AT": d.detected_at,
+### x_analyze_batch_streaming__mutmut_187
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_187(  # noqa: PLR0911
+-                    "track_id": d.track_id,
++                    "XXtrack_idXX": d.track_id,
+### x_analyze_batch_streaming__mutmut_188
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_188(  # noqa: PLR0911
+-                    "track_id": d.track_id,
++                    "TRACK_ID": d.track_id,
+### x_analyze_batch_streaming__mutmut_189
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_189(  # noqa: PLR0911
+-                    "camera_id": d.camera_id,
++                    "XXcamera_idXX": d.camera_id,
+### x_analyze_batch_streaming__mutmut_190
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_190(  # noqa: PLR0911
+-                    "camera_id": d.camera_id,
++                    "CAMERA_ID": d.camera_id,
+### x_analyze_batch_streaming__mutmut_191
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_191(  # noqa: PLR0911
+-            household_context = await analyzer._get_household_context(
+-                detections_for_household, enrichment_result
+-            )
++            household_context = None
+### x_analyze_batch_streaming__mutmut_192
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_192(  # noqa: PLR0911
+-                detections_for_household, enrichment_result
++                None, enrichment_result
+### x_analyze_batch_streaming__mutmut_193
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_193(  # noqa: PLR0911
+-                detections_for_household, enrichment_result
++                detections_for_household, None
+### x_analyze_batch_streaming__mutmut_194
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_194(  # noqa: PLR0911
+-                detections_for_household, enrichment_result
++                enrichment_result
+### x_analyze_batch_streaming__mutmut_195
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_195(  # noqa: PLR0911
+-                detections_for_household, enrichment_result
+-            )
++                detections_for_household, )
+### x_analyze_batch_streaming__mutmut_196
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_196(  # noqa: PLR0911
+-                "Failed to fetch household context for streaming",
++                None,
+### x_analyze_batch_streaming__mutmut_197
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_197(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra=None,
+### x_analyze_batch_streaming__mutmut_199
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_199(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_200
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_200(  # noqa: PLR0911
+-                "Failed to fetch household context for streaming",
++                "XXFailed to fetch household context for streamingXX",
+### x_analyze_batch_streaming__mutmut_201
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_201(  # noqa: PLR0911
+-                "Failed to fetch household context for streaming",
++                "failed to fetch household context for streaming",
+### x_analyze_batch_streaming__mutmut_202
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_202(  # noqa: PLR0911
+-                "Failed to fetch household context for streaming",
++                "FAILED TO FETCH HOUSEHOLD CONTEXT FOR STREAMING",
+### x_analyze_batch_streaming__mutmut_203
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_203(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"XXbatch_idXX": batch_id, "error": str(e)},
+### x_analyze_batch_streaming__mutmut_204
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_204(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"BATCH_ID": batch_id, "error": str(e)},
+### x_analyze_batch_streaming__mutmut_205
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_205(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+### x_analyze_batch_streaming__mutmut_206
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_206(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "ERROR": str(e)},
+### x_analyze_batch_streaming__mutmut_207
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_207(  # noqa: PLR0911
+-                extra={"batch_id": batch_id, "error": str(e)},
++                extra={"batch_id": batch_id, "error": str(None)},
+### x_analyze_batch_streaming__mutmut_208
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_208(  # noqa: PLR0911
+-        detection_dicts = [
+-            {
+-                "confidence": d.confidence,
+-                "class_name": d.object_type or "unknown",
+-            }
+-            for d in detections
+-            if d.confidence is not None
+-        ]
++        detection_dicts = None
+### x_analyze_batch_streaming__mutmut_209
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_209(  # noqa: PLR0911
+-                "confidence": d.confidence,
++                "XXconfidenceXX": d.confidence,
+### x_analyze_batch_streaming__mutmut_210
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_210(  # noqa: PLR0911
+-                "confidence": d.confidence,
++                "CONFIDENCE": d.confidence,
+### x_analyze_batch_streaming__mutmut_211
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_211(  # noqa: PLR0911
+-                "class_name": d.object_type or "unknown",
++                "XXclass_nameXX": d.object_type or "unknown",
+### x_analyze_batch_streaming__mutmut_212
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_212(  # noqa: PLR0911
+-                "class_name": d.object_type or "unknown",
++                "CLASS_NAME": d.object_type or "unknown",
+### x_analyze_batch_streaming__mutmut_213
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_213(  # noqa: PLR0911
+-                "class_name": d.object_type or "unknown",
++                "class_name": d.object_type and "unknown",
+### x_analyze_batch_streaming__mutmut_214
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_214(  # noqa: PLR0911
+-                "class_name": d.object_type or "unknown",
++                "class_name": d.object_type or "XXunknownXX",
+### x_analyze_batch_streaming__mutmut_215
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_215(  # noqa: PLR0911
+-                "class_name": d.object_type or "unknown",
++                "class_name": d.object_type or "UNKNOWN",
+### x_analyze_batch_streaming__mutmut_216
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_216(  # noqa: PLR0911
+-            if d.confidence is not None
++            if d.confidence is None
+### x_analyze_batch_streaming__mutmut_218
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_218(  # noqa: PLR0911
+-        accumulated_text = ""
++        accumulated_text = "XXXX"
+### x_analyze_batch_streaming__mutmut_220
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_220(  # noqa: PLR0911
+-                analyzer=analyzer,
++                analyzer=None,
+### x_analyze_batch_streaming__mutmut_221
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_221(  # noqa: PLR0911
+-                camera_name=camera_name,
++                camera_name=None,
+### x_analyze_batch_streaming__mutmut_222
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_222(  # noqa: PLR0911
+-                start_time=start_time.isoformat(),
++                start_time=None,
+### x_analyze_batch_streaming__mutmut_223
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_223(  # noqa: PLR0911
+-                end_time=end_time.isoformat(),
++                end_time=None,
+### x_analyze_batch_streaming__mutmut_224
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_224(  # noqa: PLR0911
+-                detections_list=detections_list,
++                detections_list=None,
+### x_analyze_batch_streaming__mutmut_227
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_227(  # noqa: PLR0911
+-                camera_health_context=camera_health_context,
++                camera_health_context=None,
+### x_analyze_batch_streaming__mutmut_228
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_228(  # noqa: PLR0911
+-                detection_dicts=detection_dicts,
++                detection_dicts=None,
+### x_analyze_batch_streaming__mutmut_229
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_229(  # noqa: PLR0911
+-                auto_tuning_context=auto_tuning_context,
++                auto_tuning_context=None,
+### x_analyze_batch_streaming__mutmut_230
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_230(  # noqa: PLR0911
+-                household_context=household_context,
++                household_context=None,
+### x_analyze_batch_streaming__mutmut_238
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_238(  # noqa: PLR0911
+-                camera_health_context=camera_health_context,
+### x_analyze_batch_streaming__mutmut_239
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_239(  # noqa: PLR0911
+-                detection_dicts=detection_dicts,
+### x_analyze_batch_streaming__mutmut_240
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_240(  # noqa: PLR0911
+-                auto_tuning_context=auto_tuning_context,
+### x_analyze_batch_streaming__mutmut_241
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_241(  # noqa: PLR0911
+-                household_context=household_context,
+-            ):
++                ):
+### x_analyze_batch_streaming__mutmut_242
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_242(  # noqa: PLR0911
+-                accumulated_text += chunk
++                accumulated_text = chunk
+### x_analyze_batch_streaming__mutmut_247
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_247(  # noqa: PLR0911
+-                    accumulated_text=accumulated_text,
+-                ).model_dump()
++                    ).model_dump()
+### x_analyze_batch_streaming__mutmut_248
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_248(  # noqa: PLR0911
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration(None, time.time() - llm_start)
+### x_analyze_batch_streaming__mutmut_249
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_249(  # noqa: PLR0911
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("nemotron", None)
+### x_analyze_batch_streaming__mutmut_252
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_252(  # noqa: PLR0911
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("XXnemotronXX", time.time() - llm_start)
+### x_analyze_batch_streaming__mutmut_253
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_253(  # noqa: PLR0911
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("NEMOTRON", time.time() - llm_start)
+### x_analyze_batch_streaming__mutmut_254
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_254(  # noqa: PLR0911
+-            observe_ai_request_duration("nemotron", time.time() - llm_start)
++            observe_ai_request_duration("nemotron", time.time() + llm_start)
+### x_analyze_batch_streaming__mutmut_260
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_260(  # noqa: PLR0911
+-                recoverable=True,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming__mutmut_261
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_261(  # noqa: PLR0911
+-                recoverable=True,
++                recoverable=False,
+### x_analyze_batch_streaming__mutmut_267
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_267(  # noqa: PLR0911
+-                recoverable=True,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming__mutmut_268
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_268(  # noqa: PLR0911
+-                recoverable=True,
++                recoverable=False,
+### x_analyze_batch_streaming__mutmut_269
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_269(  # noqa: PLR0911
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(None, exc_info=True)
+### x_analyze_batch_streaming__mutmut_270
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_270(  # noqa: PLR0911
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(f"Streaming LLM error: {e}", exc_info=None)
+### x_analyze_batch_streaming__mutmut_272
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_272(  # noqa: PLR0911
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(f"Streaming LLM error: {e}", )
+### x_analyze_batch_streaming__mutmut_273
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_273(  # noqa: PLR0911
+-            logger.error(f"Streaming LLM error: {e}", exc_info=True)
++            logger.error(f"Streaming LLM error: {e}", exc_info=False)
+### x_analyze_batch_streaming__mutmut_279
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_279(  # noqa: PLR0911
+-                recoverable=True,
+-            ).model_dump()
++                ).model_dump()
+### x_analyze_batch_streaming__mutmut_280
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_280(  # noqa: PLR0911
+-                error_message="LLM inference failed",
++                error_message="XXLLM inference failedXX",
+### x_analyze_batch_streaming__mutmut_281
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_281(  # noqa: PLR0911
+-                error_message="LLM inference failed",
++                error_message="llm inference failed",
+### x_analyze_batch_streaming__mutmut_282
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_282(  # noqa: PLR0911
+-                error_message="LLM inference failed",
++                error_message="LLM INFERENCE FAILED",
+### x_analyze_batch_streaming__mutmut_283
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_283(  # noqa: PLR0911
+-                recoverable=True,
++                recoverable=False,
+### x_analyze_batch_streaming__mutmut_285
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_285(  # noqa: PLR0911
+-            risk_data = analyzer._parse_llm_response(accumulated_text)
++            risk_data = analyzer._parse_llm_response(None)
+### x_analyze_batch_streaming__mutmut_289
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_289(  # noqa: PLR0911
+-                "risk_score": 50,
++                "XXrisk_scoreXX": 50,
+### x_analyze_batch_streaming__mutmut_290
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_290(  # noqa: PLR0911
+-                "risk_score": 50,
++                "RISK_SCORE": 50,
+### x_analyze_batch_streaming__mutmut_292
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_292(  # noqa: PLR0911
+-                "risk_level": "medium",
++                "XXrisk_levelXX": "medium",
+### x_analyze_batch_streaming__mutmut_293
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_293(  # noqa: PLR0911
+-                "risk_level": "medium",
++                "RISK_LEVEL": "medium",
+### x_analyze_batch_streaming__mutmut_307
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_307(  # noqa: PLR0911
+-            batch_id=batch_id,
++            batch_id=None,
+### x_analyze_batch_streaming__mutmut_308
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_308(  # noqa: PLR0911
+-            camera_id=camera_id,
++            camera_id=None,
+### x_analyze_batch_streaming__mutmut_309
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_309(  # noqa: PLR0911
+-            started_at=start_time,
++            started_at=None,
+### x_analyze_batch_streaming__mutmut_310
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_310(  # noqa: PLR0911
+-            ended_at=end_time,
++            ended_at=None,
+### x_analyze_batch_streaming__mutmut_315
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_315(  # noqa: PLR0911
+-            reviewed=False,
++            reviewed=None,
+### x_analyze_batch_streaming__mutmut_316
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_316(  # noqa: PLR0911
+-            batch_id=batch_id,
+### x_analyze_batch_streaming__mutmut_317
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_317(  # noqa: PLR0911
+-            camera_id=camera_id,
+### x_analyze_batch_streaming__mutmut_318
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_318(  # noqa: PLR0911
+-            started_at=start_time,
+### x_analyze_batch_streaming__mutmut_319
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_319(  # noqa: PLR0911
+-            ended_at=end_time,
+### x_analyze_batch_streaming__mutmut_324
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_324(  # noqa: PLR0911
+-            reviewed=False,
+-        )
++            )
+### x_analyze_batch_streaming__mutmut_326
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_326(  # noqa: PLR0911
+-            risk_score=risk_data.get("risk_score", 50),
++            risk_score=risk_data.get("risk_score", None),
+### x_analyze_batch_streaming__mutmut_328
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_328(  # noqa: PLR0911
+-            risk_score=risk_data.get("risk_score", 50),
++            risk_score=risk_data.get("risk_score", ),
+### x_analyze_batch_streaming__mutmut_331
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_331(  # noqa: PLR0911
+-            risk_score=risk_data.get("risk_score", 50),
++            risk_score=risk_data.get("risk_score", 51),
+### x_analyze_batch_streaming__mutmut_333
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_333(  # noqa: PLR0911
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", None),
+### x_analyze_batch_streaming__mutmut_335
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_335(  # noqa: PLR0911
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", ),
+### x_analyze_batch_streaming__mutmut_338
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_338(  # noqa: PLR0911
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", "XXmediumXX"),
+### x_analyze_batch_streaming__mutmut_339
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_339(  # noqa: PLR0911
+-            risk_level=risk_data.get("risk_level", "medium"),
++            risk_level=risk_data.get("risk_level", "MEDIUM"),
+### x_analyze_batch_streaming__mutmut_341
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_341(  # noqa: PLR0911
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", None),
+### x_analyze_batch_streaming__mutmut_343
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_343(  # noqa: PLR0911
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", ),
+### x_analyze_batch_streaming__mutmut_346
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_346(  # noqa: PLR0911
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", "XXNo summaryXX"),
+### x_analyze_batch_streaming__mutmut_347
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_347(  # noqa: PLR0911
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", "no summary"),
+### x_analyze_batch_streaming__mutmut_348
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_348(  # noqa: PLR0911
+-            summary=risk_data.get("summary", "No summary"),
++            summary=risk_data.get("summary", "NO SUMMARY"),
+### x_analyze_batch_streaming__mutmut_350
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_350(  # noqa: PLR0911
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", None),
+### x_analyze_batch_streaming__mutmut_352
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_352(  # noqa: PLR0911
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", ),
+### x_analyze_batch_streaming__mutmut_355
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_355(  # noqa: PLR0911
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", "XXNo reasoningXX"),
+### x_analyze_batch_streaming__mutmut_356
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_356(  # noqa: PLR0911
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", "no reasoning"),
+### x_analyze_batch_streaming__mutmut_357
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_357(  # noqa: PLR0911
+-            reasoning=risk_data.get("reasoning", "No reasoning"),
++            reasoning=risk_data.get("reasoning", "NO REASONING"),
+### x_analyze_batch_streaming__mutmut_358
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_358(  # noqa: PLR0911
+-            reviewed=False,
++            reviewed=True,
+### x_analyze_batch_streaming__mutmut_359
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_359(  # noqa: PLR0911
+-        session.add(event)
++        session.add(None)
+### x_analyze_batch_streaming__mutmut_362
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_362(  # noqa: PLR0911
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"XXevent_idXX": event.id, "detection_id": detection_id}
+### x_analyze_batch_streaming__mutmut_363
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_363(  # noqa: PLR0911
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"EVENT_ID": event.id, "detection_id": detection_id}
+### x_analyze_batch_streaming__mutmut_364
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_364(  # noqa: PLR0911
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"event_id": event.id, "XXdetection_idXX": detection_id}
+### x_analyze_batch_streaming__mutmut_365
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_365(  # noqa: PLR0911
+-                {"event_id": event.id, "detection_id": detection_id}
++                {"event_id": event.id, "DETECTION_ID": detection_id}
+### x_analyze_batch_streaming__mutmut_366
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_366(  # noqa: PLR0911
+-            stmt = (
+-                pg_insert(event_detections)
+-                .values(values)
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+-            )
++            stmt = None
+### x_analyze_batch_streaming__mutmut_367
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_367(  # noqa: PLR0911
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=None)
+### x_analyze_batch_streaming__mutmut_370
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_370(  # noqa: PLR0911
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["XXevent_idXX", "detection_id"])
+### x_analyze_batch_streaming__mutmut_371
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_371(  # noqa: PLR0911
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["EVENT_ID", "detection_id"])
+### x_analyze_batch_streaming__mutmut_372
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_372(  # noqa: PLR0911
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["event_id", "XXdetection_idXX"])
+### x_analyze_batch_streaming__mutmut_373
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_373(  # noqa: PLR0911
+-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
++                .on_conflict_do_nothing(index_elements=["event_id", "DETECTION_ID"])
+### x_analyze_batch_streaming__mutmut_374
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_374(  # noqa: PLR0911
+-            await session.execute(stmt)
++            await session.execute(None)
+### x_analyze_batch_streaming__mutmut_375
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_375(  # noqa: PLR0911
+-            enrichment_snapshot = analyzer._build_enrichment_snapshot(
+-                detection_ids=int_detection_ids,
+-                enrichment_result=enrichment_result,
+-                enriched_context=enriched_context,
+-            )
++            enrichment_snapshot = None
+### x_analyze_batch_streaming__mutmut_376
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_376(  # noqa: PLR0911
+-                detection_ids=int_detection_ids,
++                detection_ids=None,
+### x_analyze_batch_streaming__mutmut_377
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_377(  # noqa: PLR0911
+-                enrichment_result=enrichment_result,
++                enrichment_result=None,
+### x_analyze_batch_streaming__mutmut_378
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_378(  # noqa: PLR0911
+-                enriched_context=enriched_context,
++                enriched_context=None,
+### x_analyze_batch_streaming__mutmut_379
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_379(  # noqa: PLR0911
+-                detection_ids=int_detection_ids,
+### x_analyze_batch_streaming__mutmut_380
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_380(  # noqa: PLR0911
+-                enrichment_result=enrichment_result,
+### x_analyze_batch_streaming__mutmut_381
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_381(  # noqa: PLR0911
+-                enriched_context=enriched_context,
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_382
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_382(  # noqa: PLR0911
+-            context_sources = analyzer._build_context_sources(
+-                enrichment_result=enrichment_result,
+-                enriched_context=enriched_context,
+-            )
++            context_sources = None
+### x_analyze_batch_streaming__mutmut_383
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_383(  # noqa: PLR0911
+-                enrichment_result=enrichment_result,
++                enrichment_result=None,
+### x_analyze_batch_streaming__mutmut_384
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_384(  # noqa: PLR0911
+-                enriched_context=enriched_context,
++                enriched_context=None,
+### x_analyze_batch_streaming__mutmut_385
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_385(  # noqa: PLR0911
+-                enrichment_result=enrichment_result,
+### x_analyze_batch_streaming__mutmut_386
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_386(  # noqa: PLR0911
+-                enriched_context=enriched_context,
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_387
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_387(  # noqa: PLR0911
+-            household_matches: dict[str, Any] | None = None
++            household_matches: dict[str, Any] | None = ""
+### x_analyze_batch_streaming__mutmut_388
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_388(  # noqa: PLR0911
+-            if enrichment_result is not None:
++            if enrichment_result is None:
+### x_analyze_batch_streaming__mutmut_389
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_389(  # noqa: PLR0911
+-                person_matches = enrichment_result.person_household_matches
++                person_matches = None
+### x_analyze_batch_streaming__mutmut_390
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_390(  # noqa: PLR0911
+-                vehicle_matches = enrichment_result.vehicle_household_matches
++                vehicle_matches = None
+### x_analyze_batch_streaming__mutmut_391
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_391(  # noqa: PLR0911
+-                if person_matches or vehicle_matches:
++                if person_matches and vehicle_matches:
+### x_analyze_batch_streaming__mutmut_392
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_392(  # noqa: PLR0911
+-            llm_interaction = LLMInteraction(
+-                event_id=event.id,
+-                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
+-                enrichment_snapshot=enrichment_snapshot,
+-                household_matches=household_matches,
+-                context_sources=context_sources,
+-            )
++            llm_interaction = None
+### x_analyze_batch_streaming__mutmut_393
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_393(  # noqa: PLR0911
+-                event_id=event.id,
++                event_id=None,
+### x_analyze_batch_streaming__mutmut_394
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_394(  # noqa: PLR0911
+-                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
++                raw_response=None,  # Use accumulated text as raw response for streaming
+### x_analyze_batch_streaming__mutmut_395
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_395(  # noqa: PLR0911
+-                enrichment_snapshot=enrichment_snapshot,
++                enrichment_snapshot=None,
+### x_analyze_batch_streaming__mutmut_396
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_396(  # noqa: PLR0911
+-                household_matches=household_matches,
++                household_matches=None,
+### x_analyze_batch_streaming__mutmut_397
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_397(  # noqa: PLR0911
+-                context_sources=context_sources,
++                context_sources=None,
+### x_analyze_batch_streaming__mutmut_398
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_398(  # noqa: PLR0911
+-                event_id=event.id,
+### x_analyze_batch_streaming__mutmut_399
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_399(  # noqa: PLR0911
+-                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
+### x_analyze_batch_streaming__mutmut_400
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_400(  # noqa: PLR0911
+-                enrichment_snapshot=enrichment_snapshot,
+### x_analyze_batch_streaming__mutmut_401
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_401(  # noqa: PLR0911
+-                household_matches=household_matches,
+### x_analyze_batch_streaming__mutmut_402
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_402(  # noqa: PLR0911
+-                context_sources=context_sources,
+-            )
++                )
+### x_analyze_batch_streaming__mutmut_403
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_403(  # noqa: PLR0911
+-            session.add(llm_interaction)
++            session.add(None)
+### x_analyze_batch_streaming__mutmut_404
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_404(  # noqa: PLR0911
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(None, event.id)
+### x_analyze_batch_streaming__mutmut_405
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_405(  # noqa: PLR0911
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(batch_id, None)
+### x_analyze_batch_streaming__mutmut_406
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_406(  # noqa: PLR0911
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(event.id)
+### x_analyze_batch_streaming__mutmut_407
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_407(  # noqa: PLR0911
+-        await analyzer._set_idempotency(batch_id, event.id)
++        await analyzer._set_idempotency(batch_id, )
+### x_analyze_batch_streaming__mutmut_408
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_408(  # noqa: PLR0911
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration(None, time.time() - analysis_start)
+### x_analyze_batch_streaming__mutmut_409
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_409(  # noqa: PLR0911
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("analyze", None)
+### x_analyze_batch_streaming__mutmut_412
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_412(  # noqa: PLR0911
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("XXanalyzeXX", time.time() - analysis_start)
+### x_analyze_batch_streaming__mutmut_413
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_413(  # noqa: PLR0911
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("ANALYZE", time.time() - analysis_start)
+### x_analyze_batch_streaming__mutmut_414
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_414(  # noqa: PLR0911
+-        observe_stage_duration("analyze", time.time() - analysis_start)
++        observe_stage_duration("analyze", time.time() + analysis_start)
+### x_analyze_batch_streaming__mutmut_415
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_415(  # noqa: PLR0911
+-        record_event_by_camera(camera_id, camera_name)
++        record_event_by_camera(None, camera_name)
+### x_analyze_batch_streaming__mutmut_416
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_416(  # noqa: PLR0911
+-        record_event_by_camera(camera_id, camera_name)
++        record_event_by_camera(camera_id, None)
+### x_analyze_batch_streaming__mutmut_419
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_419(  # noqa: PLR0911
+-            await analyzer._broadcast_event(event)
++            await analyzer._broadcast_event(None)
+### x_analyze_batch_streaming__mutmut_420
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_420(  # noqa: PLR0911
+-            logger.warning(f"Failed to broadcast event: {e}")
++            logger.warning(None)
+### x_analyze_batch_streaming__mutmut_432
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_432(  # noqa: PLR0911
+-            risk_score=event.risk_score or 50,
++            risk_score=event.risk_score or 51,
+### x_analyze_batch_streaming__mutmut_434
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_434(  # noqa: PLR0911
+-            risk_level=event.risk_level or "medium",
++            risk_level=event.risk_level or "XXmediumXX",
+### x_analyze_batch_streaming__mutmut_435
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_435(  # noqa: PLR0911
+-            risk_level=event.risk_level or "medium",
++            risk_level=event.risk_level or "MEDIUM",
+### x_analyze_batch_streaming__mutmut_437
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_437(  # noqa: PLR0911
+-            summary=event.summary or "No summary",
++            summary=event.summary or "XXNo summaryXX",
+### x_analyze_batch_streaming__mutmut_438
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_438(  # noqa: PLR0911
+-            summary=event.summary or "No summary",
++            summary=event.summary or "no summary",
+### x_analyze_batch_streaming__mutmut_439
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_439(  # noqa: PLR0911
+-            summary=event.summary or "No summary",
++            summary=event.summary or "NO SUMMARY",
+### x_analyze_batch_streaming__mutmut_441
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_441(  # noqa: PLR0911
+-            reasoning=event.reasoning or "No reasoning",
++            reasoning=event.reasoning or "XXNo reasoningXX",
+### x_analyze_batch_streaming__mutmut_442
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_442(  # noqa: PLR0911
+-            reasoning=event.reasoning or "No reasoning",
++            reasoning=event.reasoning or "no reasoning",
+### x_analyze_batch_streaming__mutmut_443
+-async def x_analyze_batch_streaming__mutmut_orig(  # noqa: PLR0911
++async def x_analyze_batch_streaming__mutmut_443(  # noqa: PLR0911
+-            reasoning=event.reasoning or "No reasoning",
++            reasoning=event.reasoning or "NO REASONING",
+-
++mutants_x_analyze_batch_streaming__mutmut['_mutmut_orig'] = x_analyze_batch_streaming__mutmut_orig # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_1'] = x_analyze_batch_streaming__mutmut_1 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_2'] = x_analyze_batch_streaming__mutmut_2 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_3'] = x_analyze_batch_streaming__mutmut_3 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_4'] = x_analyze_batch_streaming__mutmut_4 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_5'] = x_analyze_batch_streaming__mutmut_5 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_6'] = x_analyze_batch_streaming__mutmut_6 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_7'] = x_analyze_batch_streaming__mutmut_7 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_8'] = x_analyze_batch_streaming__mutmut_8 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_9'] = x_analyze_batch_streaming__mutmut_9 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_10'] = x_analyze_batch_streaming__mutmut_10 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_11'] = x_analyze_batch_streaming__mutmut_11 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_12'] = x_analyze_batch_streaming__mutmut_12 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_13'] = x_analyze_batch_streaming__mutmut_13 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_14'] = x_analyze_batch_streaming__mutmut_14 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_15'] = x_analyze_batch_streaming__mutmut_15 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_16'] = x_analyze_batch_streaming__mutmut_16 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_17'] = x_analyze_batch_streaming__mutmut_17 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_18'] = x_analyze_batch_streaming__mutmut_18 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_19'] = x_analyze_batch_streaming__mutmut_19 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_20'] = x_analyze_batch_streaming__mutmut_20 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_21'] = x_analyze_batch_streaming__mutmut_21 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_22'] = x_analyze_batch_streaming__mutmut_22 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_23'] = x_analyze_batch_streaming__mutmut_23 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_24'] = x_analyze_batch_streaming__mutmut_24 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_25'] = x_analyze_batch_streaming__mutmut_25 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_26'] = x_analyze_batch_streaming__mutmut_26 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_27'] = x_analyze_batch_streaming__mutmut_27 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_28'] = x_analyze_batch_streaming__mutmut_28 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_29'] = x_analyze_batch_streaming__mutmut_29 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_30'] = x_analyze_batch_streaming__mutmut_30 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_31'] = x_analyze_batch_streaming__mutmut_31 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_32'] = x_analyze_batch_streaming__mutmut_32 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_33'] = x_analyze_batch_streaming__mutmut_33 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_34'] = x_analyze_batch_streaming__mutmut_34 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_35'] = x_analyze_batch_streaming__mutmut_35 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_36'] = x_analyze_batch_streaming__mutmut_36 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_37'] = x_analyze_batch_streaming__mutmut_37 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_38'] = x_analyze_batch_streaming__mutmut_38 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_39'] = x_analyze_batch_streaming__mutmut_39 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_40'] = x_analyze_batch_streaming__mutmut_40 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_41'] = x_analyze_batch_streaming__mutmut_41 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_42'] = x_analyze_batch_streaming__mutmut_42 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_43'] = x_analyze_batch_streaming__mutmut_43 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_44'] = x_analyze_batch_streaming__mutmut_44 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_45'] = x_analyze_batch_streaming__mutmut_45 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_46'] = x_analyze_batch_streaming__mutmut_46 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_47'] = x_analyze_batch_streaming__mutmut_47 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_48'] = x_analyze_batch_streaming__mutmut_48 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_49'] = x_analyze_batch_streaming__mutmut_49 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_50'] = x_analyze_batch_streaming__mutmut_50 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_51'] = x_analyze_batch_streaming__mutmut_51 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_52'] = x_analyze_batch_streaming__mutmut_52 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_53'] = x_analyze_batch_streaming__mutmut_53 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_54'] = x_analyze_batch_streaming__mutmut_54 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_55'] = x_analyze_batch_streaming__mutmut_55 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_56'] = x_analyze_batch_streaming__mutmut_56 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_57'] = x_analyze_batch_streaming__mutmut_57 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_58'] = x_analyze_batch_streaming__mutmut_58 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_59'] = x_analyze_batch_streaming__mutmut_59 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_60'] = x_analyze_batch_streaming__mutmut_60 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_61'] = x_analyze_batch_streaming__mutmut_61 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_62'] = x_analyze_batch_streaming__mutmut_62 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_63'] = x_analyze_batch_streaming__mutmut_63 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_64'] = x_analyze_batch_streaming__mutmut_64 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_65'] = x_analyze_batch_streaming__mutmut_65 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_66'] = x_analyze_batch_streaming__mutmut_66 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_67'] = x_analyze_batch_streaming__mutmut_67 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_68'] = x_analyze_batch_streaming__mutmut_68 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_69'] = x_analyze_batch_streaming__mutmut_69 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_70'] = x_analyze_batch_streaming__mutmut_70 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_71'] = x_analyze_batch_streaming__mutmut_71 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_72'] = x_analyze_batch_streaming__mutmut_72 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_73'] = x_analyze_batch_streaming__mutmut_73 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_74'] = x_analyze_batch_streaming__mutmut_74 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_75'] = x_analyze_batch_streaming__mutmut_75 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_76'] = x_analyze_batch_streaming__mutmut_76 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_77'] = x_analyze_batch_streaming__mutmut_77 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_78'] = x_analyze_batch_streaming__mutmut_78 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_79'] = x_analyze_batch_streaming__mutmut_79 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_80'] = x_analyze_batch_streaming__mutmut_80 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_81'] = x_analyze_batch_streaming__mutmut_81 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_82'] = x_analyze_batch_streaming__mutmut_82 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_83'] = x_analyze_batch_streaming__mutmut_83 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_84'] = x_analyze_batch_streaming__mutmut_84 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_85'] = x_analyze_batch_streaming__mutmut_85 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_86'] = x_analyze_batch_streaming__mutmut_86 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_87'] = x_analyze_batch_streaming__mutmut_87 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_88'] = x_analyze_batch_streaming__mutmut_88 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_89'] = x_analyze_batch_streaming__mutmut_89 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_90'] = x_analyze_batch_streaming__mutmut_90 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_91'] = x_analyze_batch_streaming__mutmut_91 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_92'] = x_analyze_batch_streaming__mutmut_92 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_93'] = x_analyze_batch_streaming__mutmut_93 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_94'] = x_analyze_batch_streaming__mutmut_94 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_95'] = x_analyze_batch_streaming__mutmut_95 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_96'] = x_analyze_batch_streaming__mutmut_96 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_97'] = x_analyze_batch_streaming__mutmut_97 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_98'] = x_analyze_batch_streaming__mutmut_98 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_99'] = x_analyze_batch_streaming__mutmut_99 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_100'] = x_analyze_batch_streaming__mutmut_100 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_101'] = x_analyze_batch_streaming__mutmut_101 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_102'] = x_analyze_batch_streaming__mutmut_102 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_103'] = x_analyze_batch_streaming__mutmut_103 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_104'] = x_analyze_batch_streaming__mutmut_104 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_105'] = x_analyze_batch_streaming__mutmut_105 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_106'] = x_analyze_batch_streaming__mutmut_106 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_107'] = x_analyze_batch_streaming__mutmut_107 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_108'] = x_analyze_batch_streaming__mutmut_108 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_109'] = x_analyze_batch_streaming__mutmut_109 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_110'] = x_analyze_batch_streaming__mutmut_110 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_111'] = x_analyze_batch_streaming__mutmut_111 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_112'] = x_analyze_batch_streaming__mutmut_112 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_113'] = x_analyze_batch_streaming__mutmut_113 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_114'] = x_analyze_batch_streaming__mutmut_114 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_115'] = x_analyze_batch_streaming__mutmut_115 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_116'] = x_analyze_batch_streaming__mutmut_116 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_117'] = x_analyze_batch_streaming__mutmut_117 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_118'] = x_analyze_batch_streaming__mutmut_118 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_119'] = x_analyze_batch_streaming__mutmut_119 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_120'] = x_analyze_batch_streaming__mutmut_120 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_121'] = x_analyze_batch_streaming__mutmut_121 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_122'] = x_analyze_batch_streaming__mutmut_122 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_123'] = x_analyze_batch_streaming__mutmut_123 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_124'] = x_analyze_batch_streaming__mutmut_124 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_125'] = x_analyze_batch_streaming__mutmut_125 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_126'] = x_analyze_batch_streaming__mutmut_126 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_127'] = x_analyze_batch_streaming__mutmut_127 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_128'] = x_analyze_batch_streaming__mutmut_128 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_129'] = x_analyze_batch_streaming__mutmut_129 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_130'] = x_analyze_batch_streaming__mutmut_130 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_131'] = x_analyze_batch_streaming__mutmut_131 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_132'] = x_analyze_batch_streaming__mutmut_132 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_133'] = x_analyze_batch_streaming__mutmut_133 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_134'] = x_analyze_batch_streaming__mutmut_134 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_135'] = x_analyze_batch_streaming__mutmut_135 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_136'] = x_analyze_batch_streaming__mutmut_136 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_137'] = x_analyze_batch_streaming__mutmut_137 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_138'] = x_analyze_batch_streaming__mutmut_138 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_139'] = x_analyze_batch_streaming__mutmut_139 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_140'] = x_analyze_batch_streaming__mutmut_140 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_141'] = x_analyze_batch_streaming__mutmut_141 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_142'] = x_analyze_batch_streaming__mutmut_142 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_143'] = x_analyze_batch_streaming__mutmut_143 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_144'] = x_analyze_batch_streaming__mutmut_144 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_145'] = x_analyze_batch_streaming__mutmut_145 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_146'] = x_analyze_batch_streaming__mutmut_146 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_147'] = x_analyze_batch_streaming__mutmut_147 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_148'] = x_analyze_batch_streaming__mutmut_148 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_149'] = x_analyze_batch_streaming__mutmut_149 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_150'] = x_analyze_batch_streaming__mutmut_150 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_151'] = x_analyze_batch_streaming__mutmut_151 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_152'] = x_analyze_batch_streaming__mutmut_152 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_153'] = x_analyze_batch_streaming__mutmut_153 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_154'] = x_analyze_batch_streaming__mutmut_154 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_155'] = x_analyze_batch_streaming__mutmut_155 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_156'] = x_analyze_batch_streaming__mutmut_156 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_157'] = x_analyze_batch_streaming__mutmut_157 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_158'] = x_analyze_batch_streaming__mutmut_158 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_159'] = x_analyze_batch_streaming__mutmut_159 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_160'] = x_analyze_batch_streaming__mutmut_160 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_161'] = x_analyze_batch_streaming__mutmut_161 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_162'] = x_analyze_batch_streaming__mutmut_162 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_163'] = x_analyze_batch_streaming__mutmut_163 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_164'] = x_analyze_batch_streaming__mutmut_164 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_165'] = x_analyze_batch_streaming__mutmut_165 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_166'] = x_analyze_batch_streaming__mutmut_166 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_167'] = x_analyze_batch_streaming__mutmut_167 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_168'] = x_analyze_batch_streaming__mutmut_168 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_169'] = x_analyze_batch_streaming__mutmut_169 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_170'] = x_analyze_batch_streaming__mutmut_170 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_171'] = x_analyze_batch_streaming__mutmut_171 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_172'] = x_analyze_batch_streaming__mutmut_172 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_173'] = x_analyze_batch_streaming__mutmut_173 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_174'] = x_analyze_batch_streaming__mutmut_174 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_175'] = x_analyze_batch_streaming__mutmut_175 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_176'] = x_analyze_batch_streaming__mutmut_176 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_177'] = x_analyze_batch_streaming__mutmut_177 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_178'] = x_analyze_batch_streaming__mutmut_178 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_179'] = x_analyze_batch_streaming__mutmut_179 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_180'] = x_analyze_batch_streaming__mutmut_180 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_181'] = x_analyze_batch_streaming__mutmut_181 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_182'] = x_analyze_batch_streaming__mutmut_182 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_183'] = x_analyze_batch_streaming__mutmut_183 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_184'] = x_analyze_batch_streaming__mutmut_184 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_185'] = x_analyze_batch_streaming__mutmut_185 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_186'] = x_analyze_batch_streaming__mutmut_186 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_187'] = x_analyze_batch_streaming__mutmut_187 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_188'] = x_analyze_batch_streaming__mutmut_188 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_189'] = x_analyze_batch_streaming__mutmut_189 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_190'] = x_analyze_batch_streaming__mutmut_190 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_191'] = x_analyze_batch_streaming__mutmut_191 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_192'] = x_analyze_batch_streaming__mutmut_192 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_193'] = x_analyze_batch_streaming__mutmut_193 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_194'] = x_analyze_batch_streaming__mutmut_194 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_195'] = x_analyze_batch_streaming__mutmut_195 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_196'] = x_analyze_batch_streaming__mutmut_196 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_197'] = x_analyze_batch_streaming__mutmut_197 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_198'] = x_analyze_batch_streaming__mutmut_198 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_199'] = x_analyze_batch_streaming__mutmut_199 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_200'] = x_analyze_batch_streaming__mutmut_200 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_201'] = x_analyze_batch_streaming__mutmut_201 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_202'] = x_analyze_batch_streaming__mutmut_202 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_203'] = x_analyze_batch_streaming__mutmut_203 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_204'] = x_analyze_batch_streaming__mutmut_204 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_205'] = x_analyze_batch_streaming__mutmut_205 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_206'] = x_analyze_batch_streaming__mutmut_206 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_207'] = x_analyze_batch_streaming__mutmut_207 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_208'] = x_analyze_batch_streaming__mutmut_208 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_209'] = x_analyze_batch_streaming__mutmut_209 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_210'] = x_analyze_batch_streaming__mutmut_210 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_211'] = x_analyze_batch_streaming__mutmut_211 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_212'] = x_analyze_batch_streaming__mutmut_212 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_213'] = x_analyze_batch_streaming__mutmut_213 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_214'] = x_analyze_batch_streaming__mutmut_214 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_215'] = x_analyze_batch_streaming__mutmut_215 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_216'] = x_analyze_batch_streaming__mutmut_216 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_217'] = x_analyze_batch_streaming__mutmut_217 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_218'] = x_analyze_batch_streaming__mutmut_218 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_219'] = x_analyze_batch_streaming__mutmut_219 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_220'] = x_analyze_batch_streaming__mutmut_220 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_221'] = x_analyze_batch_streaming__mutmut_221 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_222'] = x_analyze_batch_streaming__mutmut_222 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_223'] = x_analyze_batch_streaming__mutmut_223 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_224'] = x_analyze_batch_streaming__mutmut_224 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_225'] = x_analyze_batch_streaming__mutmut_225 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_226'] = x_analyze_batch_streaming__mutmut_226 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_227'] = x_analyze_batch_streaming__mutmut_227 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_228'] = x_analyze_batch_streaming__mutmut_228 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_229'] = x_analyze_batch_streaming__mutmut_229 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_230'] = x_analyze_batch_streaming__mutmut_230 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_231'] = x_analyze_batch_streaming__mutmut_231 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_232'] = x_analyze_batch_streaming__mutmut_232 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_233'] = x_analyze_batch_streaming__mutmut_233 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_234'] = x_analyze_batch_streaming__mutmut_234 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_235'] = x_analyze_batch_streaming__mutmut_235 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_236'] = x_analyze_batch_streaming__mutmut_236 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_237'] = x_analyze_batch_streaming__mutmut_237 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_238'] = x_analyze_batch_streaming__mutmut_238 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_239'] = x_analyze_batch_streaming__mutmut_239 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_240'] = x_analyze_batch_streaming__mutmut_240 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_241'] = x_analyze_batch_streaming__mutmut_241 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_242'] = x_analyze_batch_streaming__mutmut_242 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_243'] = x_analyze_batch_streaming__mutmut_243 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_244'] = x_analyze_batch_streaming__mutmut_244 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_245'] = x_analyze_batch_streaming__mutmut_245 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_246'] = x_analyze_batch_streaming__mutmut_246 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_247'] = x_analyze_batch_streaming__mutmut_247 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_248'] = x_analyze_batch_streaming__mutmut_248 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_249'] = x_analyze_batch_streaming__mutmut_249 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_250'] = x_analyze_batch_streaming__mutmut_250 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_251'] = x_analyze_batch_streaming__mutmut_251 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_252'] = x_analyze_batch_streaming__mutmut_252 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_253'] = x_analyze_batch_streaming__mutmut_253 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_254'] = x_analyze_batch_streaming__mutmut_254 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_255'] = x_analyze_batch_streaming__mutmut_255 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_256'] = x_analyze_batch_streaming__mutmut_256 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_257'] = x_analyze_batch_streaming__mutmut_257 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_258'] = x_analyze_batch_streaming__mutmut_258 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_259'] = x_analyze_batch_streaming__mutmut_259 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_260'] = x_analyze_batch_streaming__mutmut_260 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_261'] = x_analyze_batch_streaming__mutmut_261 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_262'] = x_analyze_batch_streaming__mutmut_262 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_263'] = x_analyze_batch_streaming__mutmut_263 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_264'] = x_analyze_batch_streaming__mutmut_264 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_265'] = x_analyze_batch_streaming__mutmut_265 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_266'] = x_analyze_batch_streaming__mutmut_266 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_267'] = x_analyze_batch_streaming__mutmut_267 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_268'] = x_analyze_batch_streaming__mutmut_268 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_269'] = x_analyze_batch_streaming__mutmut_269 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_270'] = x_analyze_batch_streaming__mutmut_270 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_271'] = x_analyze_batch_streaming__mutmut_271 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_272'] = x_analyze_batch_streaming__mutmut_272 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_273'] = x_analyze_batch_streaming__mutmut_273 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_274'] = x_analyze_batch_streaming__mutmut_274 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_275'] = x_analyze_batch_streaming__mutmut_275 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_276'] = x_analyze_batch_streaming__mutmut_276 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_277'] = x_analyze_batch_streaming__mutmut_277 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_278'] = x_analyze_batch_streaming__mutmut_278 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_279'] = x_analyze_batch_streaming__mutmut_279 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_280'] = x_analyze_batch_streaming__mutmut_280 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_281'] = x_analyze_batch_streaming__mutmut_281 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_282'] = x_analyze_batch_streaming__mutmut_282 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_283'] = x_analyze_batch_streaming__mutmut_283 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_284'] = x_analyze_batch_streaming__mutmut_284 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_285'] = x_analyze_batch_streaming__mutmut_285 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_286'] = x_analyze_batch_streaming__mutmut_286 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_287'] = x_analyze_batch_streaming__mutmut_287 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_288'] = x_analyze_batch_streaming__mutmut_288 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_289'] = x_analyze_batch_streaming__mutmut_289 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_290'] = x_analyze_batch_streaming__mutmut_290 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_291'] = x_analyze_batch_streaming__mutmut_291 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_292'] = x_analyze_batch_streaming__mutmut_292 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_293'] = x_analyze_batch_streaming__mutmut_293 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_294'] = x_analyze_batch_streaming__mutmut_294 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_295'] = x_analyze_batch_streaming__mutmut_295 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_296'] = x_analyze_batch_streaming__mutmut_296 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_297'] = x_analyze_batch_streaming__mutmut_297 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_298'] = x_analyze_batch_streaming__mutmut_298 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_299'] = x_analyze_batch_streaming__mutmut_299 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_300'] = x_analyze_batch_streaming__mutmut_300 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_301'] = x_analyze_batch_streaming__mutmut_301 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_302'] = x_analyze_batch_streaming__mutmut_302 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_303'] = x_analyze_batch_streaming__mutmut_303 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_304'] = x_analyze_batch_streaming__mutmut_304 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_305'] = x_analyze_batch_streaming__mutmut_305 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_306'] = x_analyze_batch_streaming__mutmut_306 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_307'] = x_analyze_batch_streaming__mutmut_307 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_308'] = x_analyze_batch_streaming__mutmut_308 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_309'] = x_analyze_batch_streaming__mutmut_309 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_310'] = x_analyze_batch_streaming__mutmut_310 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_311'] = x_analyze_batch_streaming__mutmut_311 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_312'] = x_analyze_batch_streaming__mutmut_312 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_313'] = x_analyze_batch_streaming__mutmut_313 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_314'] = x_analyze_batch_streaming__mutmut_314 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_315'] = x_analyze_batch_streaming__mutmut_315 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_316'] = x_analyze_batch_streaming__mutmut_316 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_317'] = x_analyze_batch_streaming__mutmut_317 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_318'] = x_analyze_batch_streaming__mutmut_318 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_319'] = x_analyze_batch_streaming__mutmut_319 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_320'] = x_analyze_batch_streaming__mutmut_320 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_321'] = x_analyze_batch_streaming__mutmut_321 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_322'] = x_analyze_batch_streaming__mutmut_322 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_323'] = x_analyze_batch_streaming__mutmut_323 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_324'] = x_analyze_batch_streaming__mutmut_324 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_325'] = x_analyze_batch_streaming__mutmut_325 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_326'] = x_analyze_batch_streaming__mutmut_326 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_327'] = x_analyze_batch_streaming__mutmut_327 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_328'] = x_analyze_batch_streaming__mutmut_328 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_329'] = x_analyze_batch_streaming__mutmut_329 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_330'] = x_analyze_batch_streaming__mutmut_330 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_331'] = x_analyze_batch_streaming__mutmut_331 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_332'] = x_analyze_batch_streaming__mutmut_332 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_333'] = x_analyze_batch_streaming__mutmut_333 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_334'] = x_analyze_batch_streaming__mutmut_334 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_335'] = x_analyze_batch_streaming__mutmut_335 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_336'] = x_analyze_batch_streaming__mutmut_336 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_337'] = x_analyze_batch_streaming__mutmut_337 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_338'] = x_analyze_batch_streaming__mutmut_338 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_339'] = x_analyze_batch_streaming__mutmut_339 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_340'] = x_analyze_batch_streaming__mutmut_340 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_341'] = x_analyze_batch_streaming__mutmut_341 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_342'] = x_analyze_batch_streaming__mutmut_342 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_343'] = x_analyze_batch_streaming__mutmut_343 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_344'] = x_analyze_batch_streaming__mutmut_344 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_345'] = x_analyze_batch_streaming__mutmut_345 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_346'] = x_analyze_batch_streaming__mutmut_346 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_347'] = x_analyze_batch_streaming__mutmut_347 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_348'] = x_analyze_batch_streaming__mutmut_348 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_349'] = x_analyze_batch_streaming__mutmut_349 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_350'] = x_analyze_batch_streaming__mutmut_350 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_351'] = x_analyze_batch_streaming__mutmut_351 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_352'] = x_analyze_batch_streaming__mutmut_352 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_353'] = x_analyze_batch_streaming__mutmut_353 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_354'] = x_analyze_batch_streaming__mutmut_354 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_355'] = x_analyze_batch_streaming__mutmut_355 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_356'] = x_analyze_batch_streaming__mutmut_356 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_357'] = x_analyze_batch_streaming__mutmut_357 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_358'] = x_analyze_batch_streaming__mutmut_358 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_359'] = x_analyze_batch_streaming__mutmut_359 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_360'] = x_analyze_batch_streaming__mutmut_360 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_361'] = x_analyze_batch_streaming__mutmut_361 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_362'] = x_analyze_batch_streaming__mutmut_362 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_363'] = x_analyze_batch_streaming__mutmut_363 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_364'] = x_analyze_batch_streaming__mutmut_364 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_365'] = x_analyze_batch_streaming__mutmut_365 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_366'] = x_analyze_batch_streaming__mutmut_366 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_367'] = x_analyze_batch_streaming__mutmut_367 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_368'] = x_analyze_batch_streaming__mutmut_368 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_369'] = x_analyze_batch_streaming__mutmut_369 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_370'] = x_analyze_batch_streaming__mutmut_370 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_371'] = x_analyze_batch_streaming__mutmut_371 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_372'] = x_analyze_batch_streaming__mutmut_372 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_373'] = x_analyze_batch_streaming__mutmut_373 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_374'] = x_analyze_batch_streaming__mutmut_374 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_375'] = x_analyze_batch_streaming__mutmut_375 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_376'] = x_analyze_batch_streaming__mutmut_376 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_377'] = x_analyze_batch_streaming__mutmut_377 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_378'] = x_analyze_batch_streaming__mutmut_378 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_379'] = x_analyze_batch_streaming__mutmut_379 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_380'] = x_analyze_batch_streaming__mutmut_380 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_381'] = x_analyze_batch_streaming__mutmut_381 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_382'] = x_analyze_batch_streaming__mutmut_382 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_383'] = x_analyze_batch_streaming__mutmut_383 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_384'] = x_analyze_batch_streaming__mutmut_384 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_385'] = x_analyze_batch_streaming__mutmut_385 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_386'] = x_analyze_batch_streaming__mutmut_386 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_387'] = x_analyze_batch_streaming__mutmut_387 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_388'] = x_analyze_batch_streaming__mutmut_388 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_389'] = x_analyze_batch_streaming__mutmut_389 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_390'] = x_analyze_batch_streaming__mutmut_390 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_391'] = x_analyze_batch_streaming__mutmut_391 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_392'] = x_analyze_batch_streaming__mutmut_392 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_393'] = x_analyze_batch_streaming__mutmut_393 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_394'] = x_analyze_batch_streaming__mutmut_394 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_395'] = x_analyze_batch_streaming__mutmut_395 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_396'] = x_analyze_batch_streaming__mutmut_396 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_397'] = x_analyze_batch_streaming__mutmut_397 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_398'] = x_analyze_batch_streaming__mutmut_398 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_399'] = x_analyze_batch_streaming__mutmut_399 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_400'] = x_analyze_batch_streaming__mutmut_400 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_401'] = x_analyze_batch_streaming__mutmut_401 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_402'] = x_analyze_batch_streaming__mutmut_402 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_403'] = x_analyze_batch_streaming__mutmut_403 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_404'] = x_analyze_batch_streaming__mutmut_404 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_405'] = x_analyze_batch_streaming__mutmut_405 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_406'] = x_analyze_batch_streaming__mutmut_406 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_407'] = x_analyze_batch_streaming__mutmut_407 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_408'] = x_analyze_batch_streaming__mutmut_408 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_409'] = x_analyze_batch_streaming__mutmut_409 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_410'] = x_analyze_batch_streaming__mutmut_410 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_411'] = x_analyze_batch_streaming__mutmut_411 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_412'] = x_analyze_batch_streaming__mutmut_412 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_413'] = x_analyze_batch_streaming__mutmut_413 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_414'] = x_analyze_batch_streaming__mutmut_414 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_415'] = x_analyze_batch_streaming__mutmut_415 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_416'] = x_analyze_batch_streaming__mutmut_416 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_417'] = x_analyze_batch_streaming__mutmut_417 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_418'] = x_analyze_batch_streaming__mutmut_418 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_419'] = x_analyze_batch_streaming__mutmut_419 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_420'] = x_analyze_batch_streaming__mutmut_420 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_421'] = x_analyze_batch_streaming__mutmut_421 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_422'] = x_analyze_batch_streaming__mutmut_422 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_423'] = x_analyze_batch_streaming__mutmut_423 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_424'] = x_analyze_batch_streaming__mutmut_424 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_425'] = x_analyze_batch_streaming__mutmut_425 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_426'] = x_analyze_batch_streaming__mutmut_426 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_427'] = x_analyze_batch_streaming__mutmut_427 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_428'] = x_analyze_batch_streaming__mutmut_428 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_429'] = x_analyze_batch_streaming__mutmut_429 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_430'] = x_analyze_batch_streaming__mutmut_430 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_431'] = x_analyze_batch_streaming__mutmut_431 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_432'] = x_analyze_batch_streaming__mutmut_432 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_433'] = x_analyze_batch_streaming__mutmut_433 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_434'] = x_analyze_batch_streaming__mutmut_434 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_435'] = x_analyze_batch_streaming__mutmut_435 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_436'] = x_analyze_batch_streaming__mutmut_436 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_437'] = x_analyze_batch_streaming__mutmut_437 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_438'] = x_analyze_batch_streaming__mutmut_438 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_439'] = x_analyze_batch_streaming__mutmut_439 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_440'] = x_analyze_batch_streaming__mutmut_440 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_441'] = x_analyze_batch_streaming__mutmut_441 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_442'] = x_analyze_batch_streaming__mutmut_442 # type: ignore # mutmut generated
++mutants_x_analyze_batch_streaming__mutmut['x_analyze_batch_streaming__mutmut_443'] = x_analyze_batch_streaming__mutmut_443 # type: ignore # mutmut generated

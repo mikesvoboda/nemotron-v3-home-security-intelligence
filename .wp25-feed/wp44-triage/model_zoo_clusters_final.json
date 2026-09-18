@@ -1,0 +1,257 @@
+{
+ "GAP:yolo-local-path-validation-guard": [
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_10",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_2",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_3",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_4",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_5",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_6",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_7",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_8",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_9"
+ ],
+ "GAP:yolo-missing-file-diagnostics-warning": [
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_11",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_12",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_13",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_14",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_15",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_16"
+ ],
+ "GAP:load-model-timeout-constant-and-duration-metric": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_11",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_12",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_18",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_63"
+ ],
+ "GAP:optdep-error-classifier-or-terms-and-case": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_23",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_24",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_25",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_26",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_27",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_28",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_29",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_30",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_31"
+ ],
+ "GAP:load-fn-invocation-path-arg": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_21"
+ ],
+ "GAP:paddleocr-ctor-kwargs-and-executor-call": [
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_11",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_13",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_14",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_15",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_17",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_18",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_19",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_20",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_21",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_22",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_23",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_24",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_25",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_26"
+ ],
+ "GAP:is-paddleocr-available-find-spec-arg": [
+  "backend.services.model_zoo.x__is_paddleocr_available__mutmut_1",
+  "backend.services.model_zoo.x__is_paddleocr_available__mutmut_2",
+  "backend.services.model_zoo.x__is_paddleocr_available__mutmut_3"
+ ],
+ "GAP:init-model-zoo-eviction-flags-strict": [
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_36",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_37",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_38",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_46",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_47",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_48",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_74",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_75",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_79",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_80",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_83",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_84",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_86",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_88",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_89",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_91",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_92",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_94",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_96",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_97"
+ ],
+ "GAP:resolve-model-path-runtime-path-branch": [
+  "backend.services.model_zoo.x__resolve_model_path__mutmut_1",
+  "backend.services.model_zoo.x__resolve_model_path__mutmut_2",
+  "backend.services.model_zoo.x__resolve_model_path__mutmut_3",
+  "backend.services.model_zoo.x__resolve_model_path__mutmut_4"
+ ],
+ "GAP:resolve-model-path-empty-local-prefix": [
+  "backend.services.model_zoo.x__resolve_model_path__mutmut_12"
+ ],
+ "GAP:model-zoo-base-path-env-var-name": [
+  "backend.services.model_zoo.x__get_model_zoo_base_path__mutmut_5",
+  "backend.services.model_zoo.x__get_model_zoo_base_path__mutmut_6"
+ ],
+ "GAP:reload-reference-count-restore": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_16",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_17"
+ ],
+ "GAP:reload-stale-unload-and-cuda-clear": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_6",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_7"
+ ],
+ "GAP:unload-phantom-load-count-entry": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1unload__mutmut_1"
+ ],
+ "EQ:load-model-error-log-message-kwarg": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_38",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_39",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_40",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_41",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_42",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_43",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_44",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_45",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_46",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_47",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_48",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_49",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_50",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_51",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_52",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_54",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_55",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_56",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_57",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_58",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_59",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_60",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_61"
+ ],
+ "EQ:load-model-info-log-message-kwarg": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_32",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_33",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_35",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_36",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_37"
+ ],
+ "EQ:load-model-success-log-text": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_81",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_82",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_9"
+ ],
+ "EQ:yolo-error-log-message-kwarg": [
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_21",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_22",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_23",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_25",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_26",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_27",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_28",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_29",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_30",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_31",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_32"
+ ],
+ "EQ:yolo-importerror-warning-text": [
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_17",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_18",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_19",
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_20"
+ ],
+ "EQ:yolo-start-log-text": [
+  "backend.services.model_zoo.x_load_yolo_model__mutmut_1"
+ ],
+ "EQ:paddle-error-log-message-kwarg": [
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_27",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_28",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_30",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_31",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_32",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_33",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_34"
+ ],
+ "EQ:paddle-guard-log-text": [
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_3",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_4",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_5"
+ ],
+ "EQ:paddle-importerror-log-text": [
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_7",
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_8"
+ ],
+ "EQ:paddle-start-log-text": [
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_10"
+ ],
+ "EQ:init-manager-log-text": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1__init____mutmut_5",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1__init____mutmut_6",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1__init____mutmut_7",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1__init____mutmut_8"
+ ],
+ "EQ:unload-model-log-text": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_unload_model__mutmut_2",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_unload_model__mutmut_3",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_unload_model__mutmut_4",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_unload_model__mutmut_5",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_unload_model__mutmut_6"
+ ],
+ "EQ:unload-all-log-text": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1unload_all__mutmut_4",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1unload_all__mutmut_5",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1unload_all__mutmut_6",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1unload_all__mutmut_7"
+ ],
+ "EQ:init-model-zoo-unreachable-default-branches": [
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_45",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_50",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_52",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_55",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_56",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_59",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_61",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_64",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_67",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_69",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_72",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_76",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_77",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_78",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_81",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_82",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_85",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_87",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_90",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_93",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_95",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_98"
+ ],
+ "EQ:init-model-zoo-summary-log": [
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_101",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_103",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_104",
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_99"
+ ],
+ "EQ:init-model-zoo-debug-log": [
+  "backend.services.model_zoo.x__init_model_zoo__mutmut_21"
+ ],
+ "EQ:reload-pop-default-removed": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_10",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_8"
+ ],
+ "EQ:reload-valid-reasons-join-sep": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1reload__mutmut_4"
+ ],
+ "EQ:reset-model-zoo-assigns-none": [
+  "backend.services.model_zoo.x_reset_model_zoo__mutmut_1"
+ ],
+ "LOW:pyroscope-tag-label-key": [
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_14",
+  "backend.services.model_zoo.x\u01c1ModelManager\u01c1_load_model__mutmut_15"
+ ],
+ "LOW:paddle-importbranch-raise-message-toctou": [
+  "backend.services.model_zoo.x_load_paddle_ocr__mutmut_2"
+ ]
+}

@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_postgresql_match__mutmut_28
+# backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_postgresql_match__mutmut_28: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -23,7 +23,7 @@
+         if entity.entity_metadata
+         else "unknown",
+         timestamp=entity.last_seen_at,
+-        detection_id=str(entity.primary_detection_id) if entity.primary_detection_id else None,
++        detection_id=str(None) if entity.primary_detection_id else None,
+         attributes=entity.entity_metadata or {},
+         similarity=similarity,
+         time_gap_seconds=time_gap_seconds,

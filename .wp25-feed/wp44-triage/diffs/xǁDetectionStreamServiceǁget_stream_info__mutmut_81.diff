@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁget_stream_info__mutmut_81: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -33,7 +33,7 @@
+             return {
+                 "length": 0,
+                 "radix_tree_keys": 0,
+-                "radix_tree_nodes": 0,
++                "RADIX_TREE_NODES": 0,
+                 "groups": 0,
+                 "last_entry_id": "",
+                 "first_entry_id": "",

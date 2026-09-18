@@ -1,0 +1,1309 @@
+{
+ "backend.api.routes.system.x__build_empty_batch_response__mutmut_6": [
+  [
+   "batches=[],"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_10": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"XX_XX\") in t.get(\"job\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_101": [
+  [
+   "endpoint=default_endpoint,"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_102": [
+  [
+   "last_scrape=None,"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_104": [
+  [
+   "error=\"Exporter not found in Prometheus targets\","
+  ],
+  [
+   "error=\"XXExporter not found in Prometheus targetsXX\","
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_105": [
+  [
+   "error=\"Exporter not found in Prometheus targets\","
+  ],
+  [
+   "error=\"exporter not found in prometheus targets\","
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_106": [
+  [
+   "error=\"Exporter not found in Prometheus targets\","
+  ],
+  [
+   "error=\"EXPORTER NOT FOUND IN PROMETHEUS TARGETS\","
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_11": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") not in t.get(\"job\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_12": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").upper()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_13": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(None, \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_14": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", None).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_16": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", ).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_17": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"XXjobXX\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_18": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"JOB\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_19": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"XXXX\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_24": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"XX-XX\", \"\") in t.get(\"instance\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_25": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"XXXX\") in t.get(\"instance\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_26": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") not in t.get(\"instance\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_27": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").upper()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_28": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(None, \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_29": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", None).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_31": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", ).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_32": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"XXinstanceXX\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_33": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"INSTANCE\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_34": [
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"XXXX\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_38": [
+  [
+   "or exporter_name in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name in t.get(\"instance\", None).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_4": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()",
+   "or exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower() and exporter_name.replace(\"-\", \"\") in t.get(\"instance\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_40": [
+  [
+   "or exporter_name in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name in t.get(\"instance\", ).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_43": [
+  [
+   "or exporter_name in t.get(\"instance\", \"\").lower()"
+  ],
+  [
+   "or exporter_name in t.get(\"instance\", \"XXXX\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_49": [
+  [
+   "health = target.get(\"health\", \"unknown\").lower()"
+  ],
+  [
+   "health = target.get(\"health\", None).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_51": [
+  [
+   "health = target.get(\"health\", \"unknown\").lower()"
+  ],
+  [
+   "health = target.get(\"health\", ).lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_54": [
+  [
+   "health = target.get(\"health\", \"unknown\").lower()"
+  ],
+  [
+   "health = target.get(\"health\", \"XXunknownXX\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_55": [
+  [
+   "health = target.get(\"health\", \"unknown\").lower()"
+  ],
+  [
+   "health = target.get(\"health\", \"UNKNOWN\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_58": [
+  [
+   "if health == \"up\""
+  ],
+  [
+   "if (health == \"up\") or True"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_62": [
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastScrape\"))"
+  ],
+  [
+   "last_scrape = None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_63": [
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastScrape\"))"
+  ],
+  [
+   "last_scrape = _parse_prometheus_timestamp(None)"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_64": [
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastScrape\"))"
+  ],
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(None))"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_65": [
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastScrape\"))"
+  ],
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"XXlastScrapeXX\"))"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_66": [
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastScrape\"))"
+  ],
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastscrape\"))"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_67": [
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"lastScrape\"))"
+  ],
+  [
+   "last_scrape = _parse_prometheus_timestamp(target.get(\"LASTSCRAPE\"))"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_68": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_69": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lastError\") if (target.get(\"lastError\")) and False else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_70": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lastError\") if (target.get(\"lastError\")) or True else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_71": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(None) if target.get(\"lastError\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_72": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"XXlastErrorXX\") if target.get(\"lastError\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_73": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lasterror\") if target.get(\"lastError\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_74": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"LASTERROR\") if target.get(\"lastError\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_75": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lastError\") if target.get(None) else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_76": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lastError\") if target.get(\"XXlastErrorXX\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_77": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lastError\") if target.get(\"lasterror\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_78": [
+  [
+   "error = target.get(\"lastError\") if target.get(\"lastError\") else None"
+  ],
+  [
+   "error = target.get(\"lastError\") if target.get(\"LASTERROR\") else None"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_82": [
+  [
+   "endpoint=target.get(\"instance\") or default_endpoint,"
+  ],
+  [
+   "endpoint=None,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_83": [
+  [
+   "last_scrape=last_scrape,"
+  ],
+  [
+   "last_scrape=None,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_84": [
+  [
+   "error=error,"
+  ],
+  [
+   "error=None,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_87": [
+  [
+   "endpoint=target.get(\"instance\") or default_endpoint,"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_88": [
+  [
+   "last_scrape=last_scrape,"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_89": [
+  [
+   "error=error,",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_9": [
+  [
+   "if exporter_name.replace(\"-\", \"_\") in t.get(\"job\", \"\").lower()"
+  ],
+  [
+   "if exporter_name.replace(\"XX-XX\", \"_\") in t.get(\"job\", \"\").lower()"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_90": [
+  [
+   "endpoint=target.get(\"instance\") or default_endpoint,"
+  ],
+  [
+   "endpoint=target.get(\"instance\") and default_endpoint,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_91": [
+  [
+   "endpoint=target.get(\"instance\") or default_endpoint,"
+  ],
+  [
+   "endpoint=target.get(None) or default_endpoint,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_92": [
+  [
+   "endpoint=target.get(\"instance\") or default_endpoint,"
+  ],
+  [
+   "endpoint=target.get(\"XXinstanceXX\") or default_endpoint,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_93": [
+  [
+   "endpoint=target.get(\"instance\") or default_endpoint,"
+  ],
+  [
+   "endpoint=target.get(\"INSTANCE\") or default_endpoint,"
+  ]
+ ],
+ "backend.api.routes.system.x__build_exporter_status__mutmut_97": [
+  [
+   "endpoint=default_endpoint,"
+  ],
+  [
+   "endpoint=None,"
+  ]
+ ],
+ "backend.api.routes.system.x__calculate_stage_latency__mutmut_49": [
+  [
+   "p50_ms=_calculate_percentile(sorted_samples, 50),"
+  ],
+  [
+   "p50_ms=_calculate_percentile(sorted_samples, 51),"
+  ]
+ ],
+ "backend.api.routes.system.x__calculate_stage_latency__mutmut_54": [
+  [
+   "p95_ms=_calculate_percentile(sorted_samples, 95),"
+  ],
+  [
+   "p95_ms=_calculate_percentile(sorted_samples, 96),"
+  ]
+ ],
+ "backend.api.routes.system.x__calculate_stage_latency__mutmut_59": [
+  [
+   "p99_ms=_calculate_percentile(sorted_samples, 99),"
+  ],
+  [
+   "p99_ms=_calculate_percentile(sorted_samples, 100),"
+  ]
+ ],
+ "backend.api.routes.system.x__check_postgres_health_full__mutmut_11": [
+  [
+   "details=None,",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__check_postgres_health_full__mutmut_2": [
+  [
+   "result = await db.execute(select(func.now()))"
+  ],
+  [
+   "result = await db.execute(None)"
+  ]
+ ],
+ "backend.api.routes.system.x__check_postgres_health_full__mutmut_23": [
+  [
+   "details=None,",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__check_postgres_health_full__mutmut_3": [
+  [
+   "result = await db.execute(select(func.now()))"
+  ],
+  [
+   "result = await db.execute(select(None))"
+  ]
+ ],
+ "backend.api.routes.system.x__check_postgres_health_full__mutmut_4": [
+  [
+   "_ = result.scalar()"
+  ],
+  [
+   "_ = None"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_11": [
+  [
+   "message=\"Redis client not available\","
+  ],
+  [
+   "message=\"XXRedis client not availableXX\","
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_12": [
+  [
+   "message=\"Redis client not available\","
+  ],
+  [
+   "message=\"redis client not available\","
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_13": [
+  [
+   "message=\"Redis client not available\","
+  ],
+  [
+   "message=\"REDIS CLIENT NOT AVAILABLE\","
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_24": [
+  [
+   "details=None,",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_46": [
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", \"unknown\")},"
+  ],
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", None)},"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_48": [
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", \"unknown\")},"
+  ],
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", )},"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_51": [
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", \"unknown\")},"
+  ],
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", \"XXunknownXX\")},"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_52": [
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", \"unknown\")},"
+  ],
+  [
+   "details={\"redis_version\": info.get(\"redis_version\", \"UNKNOWN\")},"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_59": [
+  [
+   "details=None,",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__check_redis_health_full__mutmut_8": [
+  [
+   "details=None,",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_12": [
+  [
+   "state_value = cb_status.get(\"state\", \"closed\")"
+  ],
+  [
+   "state_value = cb_status.get(\"state\", None)"
+  ]
+ ],
+ "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_14": [
+  [
+   "state_value = cb_status.get(\"state\", \"closed\")"
+  ],
+  [
+   "state_value = cb_status.get(\"state\", )"
+  ]
+ ],
+ "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_17": [
+  [
+   "state_value = cb_status.get(\"state\", \"closed\")"
+  ],
+  [
+   "state_value = cb_status.get(\"state\", \"XXclosedXX\")"
+  ]
+ ],
+ "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_18": [
+  [
+   "state_value = cb_status.get(\"state\", \"closed\")"
+  ],
+  [
+   "state_value = cb_status.get(\"state\", \"CLOSED\")"
+  ]
+ ],
+ "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_23": [
+  [
+   "open_count += 1"
+  ],
+  [
+   "open_count = 1"
+  ]
+ ],
+ "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_30": [
+  [
+   "half_open_count += 1"
+  ],
+  [
+   "half_open_count = 1"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_100": [
+  [
+   "available_features=status.get(\"available_features\", []),"
+  ],
+  [
+   "available_features=status.get(\"XXavailable_featuresXX\", []),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_101": [
+  [
+   "available_features=status.get(\"available_features\", []),"
+  ],
+  [
+   "available_features=status.get(\"AVAILABLE_FEATURES\", []),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_102": [
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", exc_info=True)"
+  ],
+  [
+   "logger.error(None, exc_info=True)"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_103": [
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", exc_info=True)"
+  ],
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", exc_info=None)"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_105": [
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", exc_info=True)"
+  ],
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", )"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_106": [
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", exc_info=True)"
+  ],
+  [
+   "logger.error(f\"Error getting degradation status: {e}\", exc_info=False)"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_11": [
+  [
+   "services_dict = status.get(\"services\", {})"
+  ],
+  [
+   "services_dict = status.get(\"services\", )"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_17": [
+  [
+   "last_check=health.get(\"last_check\"),"
+  ],
+  [
+   "last_check=None,"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_19": [
+  [
+   "error_message=health.get(\"error_message\"),"
+  ],
+  [
+   "error_message=None,"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_2": [
+  [
+   "manager = get_degradation_manager()"
+  ],
+  [
+   "manager = None"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_22": [
+  [
+   "last_check=health.get(\"last_check\"),"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_24": [
+  [
+   "error_message=health.get(\"error_message\"),",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_25": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(None, \"unknown\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_26": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(\"status\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_28": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(\"status\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_29": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(\"XXstatusXX\", \"unknown\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_3": [
+  [
+   "logger.debug(f\"Degradation manager not available: {e}\")"
+  ],
+  [
+   "logger.debug(None)"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_30": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(\"STATUS\", \"unknown\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_31": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(\"status\", \"XXunknownXX\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_32": [
+  [
+   "status=health.get(\"status\", \"unknown\"),"
+  ],
+  [
+   "status=health.get(\"status\", \"UNKNOWN\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_33": [
+  [
+   "last_check=health.get(\"last_check\"),"
+  ],
+  [
+   "last_check=health.get(None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_34": [
+  [
+   "last_check=health.get(\"last_check\"),"
+  ],
+  [
+   "last_check=health.get(\"XXlast_checkXX\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_35": [
+  [
+   "last_check=health.get(\"last_check\"),"
+  ],
+  [
+   "last_check=health.get(\"LAST_CHECK\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_36": [
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 0),"
+  ],
+  [
+   "consecutive_failures=health.get(None, 0),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_37": [
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 0),"
+  ],
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_39": [
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 0),"
+  ],
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_40": [
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 0),"
+  ],
+  [
+   "consecutive_failures=health.get(\"XXconsecutive_failuresXX\", 0),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_41": [
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 0),"
+  ],
+  [
+   "consecutive_failures=health.get(\"CONSECUTIVE_FAILURES\", 0),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_42": [
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 0),"
+  ],
+  [
+   "consecutive_failures=health.get(\"consecutive_failures\", 1),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_43": [
+  [
+   "error_message=health.get(\"error_message\"),"
+  ],
+  [
+   "error_message=health.get(None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_44": [
+  [
+   "error_message=health.get(\"error_message\"),"
+  ],
+  [
+   "error_message=health.get(\"XXerror_messageXX\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_45": [
+  [
+   "error_message=health.get(\"error_message\"),"
+  ],
+  [
+   "error_message=health.get(\"ERROR_MESSAGE\"),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_57": [
+  [
+   "fallback_queues=status.get(\"fallback_queues\", {}),"
+  ],
+  []
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_59": [
+  [
+   "available_features=status.get(\"available_features\", []),",
+   ")"
+  ],
+  [
+   ")"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_62": [
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", \"normal\")),"
+  ],
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", None)),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_64": [
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", \"normal\")),"
+  ],
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", )),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_67": [
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", \"normal\")),"
+  ],
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", \"XXnormalXX\")),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_68": [
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", \"normal\")),"
+  ],
+  [
+   "mode=DegradationModeEnum(status.get(\"mode\", \"NORMAL\")),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_69": [
+  [
+   "is_degraded=status.get(\"is_degraded\", False),"
+  ],
+  [
+   "is_degraded=status.get(None, False),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_70": [
+  [
+   "is_degraded=status.get(\"is_degraded\", False),"
+  ],
+  [
+   "is_degraded=status.get(\"is_degraded\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_72": [
+  [
+   "is_degraded=status.get(\"is_degraded\", False),"
+  ],
+  [
+   "is_degraded=status.get(\"is_degraded\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_73": [
+  [
+   "is_degraded=status.get(\"is_degraded\", False),"
+  ],
+  [
+   "is_degraded=status.get(\"XXis_degradedXX\", False),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_74": [
+  [
+   "is_degraded=status.get(\"is_degraded\", False),"
+  ],
+  [
+   "is_degraded=status.get(\"IS_DEGRADED\", False),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_75": [
+  [
+   "is_degraded=status.get(\"is_degraded\", False),"
+  ],
+  [
+   "is_degraded=status.get(\"is_degraded\", True),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_77": [
+  [
+   "redis_healthy=status.get(\"redis_healthy\", False),"
+  ],
+  [
+   "redis_healthy=status.get(\"redis_healthy\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_79": [
+  [
+   "redis_healthy=status.get(\"redis_healthy\", False),"
+  ],
+  [
+   "redis_healthy=status.get(\"redis_healthy\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_82": [
+  [
+   "redis_healthy=status.get(\"redis_healthy\", False),"
+  ],
+  [
+   "redis_healthy=status.get(\"redis_healthy\", True),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_83": [
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 0),"
+  ],
+  [
+   "memory_queue_size=status.get(None, 0),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_84": [
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 0),"
+  ],
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_86": [
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 0),"
+  ],
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_87": [
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 0),"
+  ],
+  [
+   "memory_queue_size=status.get(\"XXmemory_queue_sizeXX\", 0),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_88": [
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 0),"
+  ],
+  [
+   "memory_queue_size=status.get(\"MEMORY_QUEUE_SIZE\", 0),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_89": [
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 0),"
+  ],
+  [
+   "memory_queue_size=status.get(\"memory_queue_size\", 1),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_9": [
+  [
+   "services_dict = status.get(\"services\", {})"
+  ],
+  [
+   "services_dict = status.get(\"services\", None)"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_90": [
+  [
+   "fallback_queues=status.get(\"fallback_queues\", {}),"
+  ],
+  [
+   "fallback_queues=status.get(None, {}),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_91": [
+  [
+   "fallback_queues=status.get(\"fallback_queues\", {}),"
+  ],
+  [
+   "fallback_queues=status.get(\"fallback_queues\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_93": [
+  [
+   "fallback_queues=status.get(\"fallback_queues\", {}),"
+  ],
+  [
+   "fallback_queues=status.get(\"fallback_queues\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_94": [
+  [
+   "fallback_queues=status.get(\"fallback_queues\", {}),"
+  ],
+  [
+   "fallback_queues=status.get(\"XXfallback_queuesXX\", {}),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_95": [
+  [
+   "fallback_queues=status.get(\"fallback_queues\", {}),"
+  ],
+  [
+   "fallback_queues=status.get(\"FALLBACK_QUEUES\", {}),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_96": [
+  [
+   "available_features=status.get(\"available_features\", []),"
+  ],
+  [
+   "available_features=status.get(None, []),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_97": [
+  [
+   "available_features=status.get(\"available_features\", []),"
+  ],
+  [
+   "available_features=status.get(\"available_features\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_degradation_status__mutmut_99": [
+  [
+   "available_features=status.get(\"available_features\", []),"
+  ],
+  [
+   "available_features=status.get(\"available_features\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_model_category__mutmut_1": [
+  [
+   "if model_name in models:"
+  ],
+  [
+   "if model_name not in models:"
+  ]
+ ],
+ "backend.api.routes.system.x__get_model_category__mutmut_2": [
+  [
+   "return \"Other\""
+  ],
+  [
+   "return \"XXOtherXX\""
+  ]
+ ],
+ "backend.api.routes.system.x__get_model_category__mutmut_3": [
+  [
+   "return \"Other\""
+  ],
+  [
+   "return \"other\""
+  ]
+ ],
+ "backend.api.routes.system.x__get_model_category__mutmut_4": [
+  [
+   "return \"Other\""
+  ],
+  [
+   "return \"OTHER\""
+  ]
+ ],
+ "backend.api.routes.system.x__get_worker_status__mutmut_11": [
+  [
+   "running=True,"
+  ],
+  [
+   "running=False,"
+  ]
+ ],
+ "backend.api.routes.system.x__get_worker_status__mutmut_25": [
+  [
+   "running=stats.get(\"running\", False),"
+  ],
+  [
+   "running=stats.get(\"running\", None),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_worker_status__mutmut_27": [
+  [
+   "running=stats.get(\"running\", False),"
+  ],
+  [
+   "running=stats.get(\"running\", ),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_worker_status__mutmut_30": [
+  [
+   "running=stats.get(\"running\", False),"
+  ],
+  [
+   "running=stats.get(\"running\", True),"
+  ]
+ ],
+ "backend.api.routes.system.x__get_worker_status__mutmut_41": [
+  [
+   "running=False,"
+  ],
+  [
+   "running=True,"
+  ]
+ ],
+ "backend.api.routes.system.x_get_latency_stats__mutmut_10": [
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)"
+  ],
+  [
+   "samples_data = await redis.peek_queue(key, 1, MAX_LATENCY_SAMPLES - 1)"
+  ]
+ ],
+ "backend.api.routes.system.x_get_latency_stats__mutmut_11": [
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)"
+  ],
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES + 1)"
+  ]
+ ],
+ "backend.api.routes.system.x_get_latency_stats__mutmut_12": [
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)"
+  ],
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 2)"
+  ]
+ ],
+ "backend.api.routes.system.x_get_latency_stats__mutmut_5": [
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)"
+  ],
+  [
+   "samples_data = await redis.peek_queue(key, None, MAX_LATENCY_SAMPLES - 1)"
+  ]
+ ],
+ "backend.api.routes.system.x_get_latency_stats__mutmut_6": [
+  [
+   "samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)"
+  ],
+  [
+   "samples_data = await redis.peek_queue(key, 0, None)"
+  ]
+ ],
+ "backend.api.routes.system.x\u01c1PerformanceMetricsCacheEntry\u01c1is_valid__mutmut_2": [
+  [
+   "return (time.time() - self.cached_at) < PERFORMANCE_CACHE_TTL_SECONDS"
+  ],
+  [
+   "return (time.time() - self.cached_at) <= PERFORMANCE_CACHE_TTL_SECONDS"
+  ]
+ ]
+}

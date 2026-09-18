@@ -1,0 +1,96 @@
+feat(mutmut): WP4.3 WIP checkpoint (pre-resize safety) -- widened-set pipeline, per-module scores, committed history
+
+WIP SAFETY COMMIT, not the WP close-out. run5 (first honest baseline over the
+widened denominator) is still checking mutants; this lands the tested code so
+a sandbox resize (CPU up, 16 -> more, to shorten the run) cannot lose it.
+Close-out commit replaces the <BASELINE> story with the real number and runs
+full ./scripts/validate.sh -- deliberately NOT run here: a second heavy
+pytest tier alongside run5 violates the one-heavy-job rule and would
+collide on security_test_gwN.
+
+MEASURE: the mutation pipeline was DEAD, not narrow. mutmut 3.8 rejects every
+2.x flag the call sites passed (--paths-to-mutate/--tests-dir/--runner ->
+"No such option"), `mutmut html` does not exist in 3.x, and every invocation
+sat behind `|| true` -- the weekly schedule "succeeded" for months producing
+zero data, and the docs' "89.2% Overall Mutation Score" predated the mutmut 3
+migration and was unreproducible. First honest baseline: run5, in progress.
+
+Generation confirmed the denominator: 269 files mutated (266 concrete
++ 3 package __init__.py -- mutmut mutates them, so --targets counts them).
+Full-suite inventory inside the mutant home (-n8, 91s): 27208 passed,
+195 skipped, 8 xfailed, 17 failed -- every failure class fixed here, the copy
+doctrine documented.
+
+DECIDE: denominator = backend/services/ + backend/api/routes/ (the PLAN's
+risk set); cadence stays weekly schedule + workflow_dispatch, never per-PR
+(mutmut is hours at this scale). Score = mutmut's own badge,
+(killed+timeout)/(total-skipped), verdict semantics IMPORTED from
+mutmut.stats.status_by_exit_code and pinned in CI (test_mutation_score) so a
+mutmut upgrade that moves exit-code meanings fails the pin instead of
+silently moving the score. mutate_only_covered_lines=true scopes the score
+to "tests catch behavior changes in code they execute"; the never-executed
+complaint stays WP4.5's, and the every-run gap list keeps it visible.
+
+- scripts/mutation-run.sh: the ONE runner (workflow + mutation-test.sh +
+  docs delegate; the 2.x flag rot festered because each call site was
+  independent). Unshielded: rc!=0 lands.
+- scripts/mutation-score.py: per-module scores from mutmut's own verdict
+  cache (mutmut 3 publishes ONE aggregate only -- per-module is the missing
+  piece); --targets prints the denominator; a missing cache is rc=1, never a
+  silent 0-module report committed as "baseline reset".
+- .github/mutation-history.json: the committed series (weekly workflow
+  appends on fetched main and pushes; a measurement-less run touches
+  nothing). "Tracked over time" = the series, not the latest number.
+- pyproject [tool.mutmut]: rebuilt 2.x->3.x (source_paths /
+  pytest_add_cli_args_test_selection; warning-free under
+  -W error::UserWarning). pytest args re-add -m "not gpu" (addopts=
+  neutralisation had silently re-enabled gpu-marked mutants) and
+  --timeout=120 (5s tier default would fake-timeout app-booting mutants).
+  process_isolation="forkserver": the default "fork" runs stats AND clean
+  tests in ONE process, so every @given test executes twice -> Hypothesis
+  differing_executors kills the clean pass (run4 died here), and worse,
+  forked mutant workers inherit the stats pass's state so property-test-
+  covered mutants would score KILLED with their test never run -- the score
+  would lie. Key is outside mutmut's config_fingerprint, so the 27k-test
+  stats cache survives the switch (run5 loads it, skips recollection).
+- also_copy = the IMPORT/READ set (imports AND parents[N] file reads must
+  exist under mutants/ -- no editable install there): backend/ scripts/
+  setup_lib/ ai/ monitoring/ .github/ + root files + frontend files
+  listed individually (copytree would drag node_modules, 493MB; mutmut's
+  per-file copy mkdirs no parents -> runner pre-mkdirs).
+- backend/tests/unit/core/test_websocket.py: mock-completeness introspection
+  now ignores __mutmut-renamed members; the real-vs-mock comparison is
+  unchanged, 67 tests pass against the real tree.
+- Workflow: score step summary (headline, worst-15, no-mutants gap list),
+  history push; NO `|| true`. WEEKLY CONVERGENCE: the denominator is 88,329
+  mutants (run5) -- a cold job can never finish it and a timeout-killed job
+  that keeps nothing restarts cold forever. Verdicts ride actions/cache as a
+  few-MB pack (metas+stats+spans; measured 2.6MB/539 files -- artifact
+  carries the pack + score JSON, not the 1.4GB regenerable tree). Run step
+  budgeted 240min + continue-on-error so the budget fires as a STEP kill
+  inside the 6h job cap and pack/score/history always run -- NOT a shield:
+  nothing-measured still rc=1s the score step and fails the job before any
+  push. Pre-run --repair deletes torn metas AND their mutant copies (mutmut's
+  loader crashes on a mid-save truncate; a reset-but-present meta never
+  refills -- generation's mtime gate skips regeneration while the copy
+  exists, silently dropping the module from the denominator).
+- Scorer publishes progress{checked,total,not_checked,torn_metas,completed};
+  history entries carry it. Partial points are pessimistic BY CONSTRUCTION
+  (mutmut's badge denominator counts unchecked as uncaught) and RISE as the
+  cache converges -- only completed points trend. 12 tests now, all
+  red-first; the torn crash was proven against the old scorer before the fix.
+- stryker set deliberately unchanged (no frontend baseline -> no widening);
+  header records the ruling.
+
+WP4.4 FEED (parallel read-only triage during run5/run6, so far): 122 modules /
+17,719 survivors triaged -> 62% TEST-GAP / 23% EQUIVALENT / 15% LOW-VALUE,
+796 drafted UNVERIFIED kill-tests + 8 cross-module fix patterns
+(/tmp/wp25/wp44-triage + wp44-queue-index.md; waves continue while run5
+checks -- final counts land in the close-out commit).
+
+Collateral: ci.yml anti-rot list += scorer tests; mutation-testing.md
+rewritten (mutmut-3 commands, 2.x warning box, mutant-home/also_copy
+doctrine, numbers-live table); .gitignore += mutants/ (cache regenerable;
+the history series is NOT ignored).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

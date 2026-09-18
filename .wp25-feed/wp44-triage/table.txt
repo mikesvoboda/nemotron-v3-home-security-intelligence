@@ -1,0 +1,415 @@
+get_person_sighting_history#4
+   - "household_member": None,
+   + "XXhousehold_memberXX": None,
+get_person_sighting_history#5
+   - "household_member": None,
+   + "HOUSEHOLD_MEMBER": None,
+get_person_sighting_history#13
+   - stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
+   + stmt = None
+get_person_sighting_history#14
+   - stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
+   + stmt = select(KnownPerson).where(None)
+get_person_sighting_history#15
+   - stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
+   + stmt = select(None).where(KnownPerson.id == known_person_id)
+get_person_sighting_history#16
+   - stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
+   + stmt = select(KnownPerson).where(KnownPerson.id != known_person_id)
+get_person_sighting_history#18
+   - person_result = await session.execute(stmt)
+   + person_result = await session.execute(None)
+get_person_sighting_history#28
+   - "is_household_member": known_person.is_household_member,
+   + "XXis_household_memberXX": known_person.is_household_member,
+get_person_sighting_history#29
+   - "is_household_member": known_person.is_household_member,
+   + "IS_HOUSEHOLD_MEMBER": known_person.is_household_member,
+get_person_sighting_history#30
+   - "notes": known_person.notes,
+   + "XXnotesXX": known_person.notes,
+get_person_sighting_history#31
+   - "notes": known_person.notes,
+   + "NOTES": known_person.notes,
+get_person_sighting_history#34
+   - session, known_person_id
+   + session, None
+get_person_sighting_history#42
+   - "name": household_member.name,
+   + "XXnameXX": household_member.name,
+get_person_sighting_history#43
+   - "name": household_member.name,
+   + "NAME": household_member.name,
+get_person_sighting_history#44
+   - "role": household_member.role.value,
+   + "XXroleXX": household_member.role.value,
+get_person_sighting_history#45
+   - "role": household_member.role.value,
+   + "ROLE": household_member.role.value,
+get_person_sighting_history#48
+   - face_stmt = (
+   + face_stmt = None
+   - select(FaceDetectionEvent)
+   + <none>
+   - .where(FaceDetectionEvent.matched_person_id == known_person_id)
+   + <none>
+   - .order_by(FaceDetectionEvent.timestamp.desc())
+   + <none>
+   - .limit(limit)
+   + <none>
+   - )
+   + <none>
+get_person_sighting_history#49
+   - .limit(limit)
+   + .limit(None)
+get_person_sighting_history#50
+   - .order_by(FaceDetectionEvent.timestamp.desc())
+   + .order_by(None)
+get_person_sighting_history#51
+   - .where(FaceDetectionEvent.matched_person_id == known_person_id)
+   + .where(None)
+get_person_sighting_history#52
+   - select(FaceDetectionEvent)
+   + select(None)
+get_person_sighting_history#53
+   - .where(FaceDetectionEvent.matched_person_id == known_person_id)
+   + .where(FaceDetectionEvent.matched_person_id != known_person_id)
+get_person_sighting_history#55
+   - face_result = await session.execute(face_stmt)
+   + face_result = await session.execute(None)
+get_person_sighting_history#60
+   - "id": fe.id,
+   + "XXidXX": fe.id,
+get_person_sighting_history#61
+   - "id": fe.id,
+   + "ID": fe.id,
+get_person_sighting_history#62
+   - "camera_id": fe.camera_id,
+   + "XXcamera_idXX": fe.camera_id,
+get_person_sighting_history#63
+   - "camera_id": fe.camera_id,
+   + "CAMERA_ID": fe.camera_id,
+get_person_sighting_history#64
+   - "timestamp": fe.timestamp.isoformat(),
+   + "XXtimestampXX": fe.timestamp.isoformat(),
+get_person_sighting_history#65
+   - "timestamp": fe.timestamp.isoformat(),
+   + "TIMESTAMP": fe.timestamp.isoformat(),
+get_person_sighting_history#66
+   - "confidence": fe.match_confidence,
+   + "XXconfidenceXX": fe.match_confidence,
+get_person_sighting_history#67
+   - "confidence": fe.match_confidence,
+   + "CONFIDENCE": fe.match_confidence,
+get_person_sighting_history#68
+   - "quality_score": fe.quality_score,
+   + "XXquality_scoreXX": fe.quality_score,
+get_person_sighting_history#69
+   - "quality_score": fe.quality_score,
+   + "QUALITY_SCORE": fe.quality_score,
+get_person_sighting_history#72
+   - entities = await self.find_entity_by_face_match(session, known_person_id)
+   + entities = await self.find_entity_by_face_match(session, None)
+get_person_sighting_history#78
+   - "id": str(e.id),
+   + "XXidXX": str(e.id),
+get_person_sighting_history#79
+   - "id": str(e.id),
+   + "ID": str(e.id),
+get_person_sighting_history#80
+   - "id": str(e.id),
+   + "id": str(None),
+get_person_sighting_history#81
+   - "entity_type": e.entity_type,
+   + "XXentity_typeXX": e.entity_type,
+get_person_sighting_history#82
+   - "entity_type": e.entity_type,
+   + "ENTITY_TYPE": e.entity_type,
+get_person_sighting_history#83
+   - "trust_status": e.trust_status,
+   + "XXtrust_statusXX": e.trust_status,
+get_person_sighting_history#84
+   - "trust_status": e.trust_status,
+   + "TRUST_STATUS": e.trust_status,
+get_person_sighting_history#85
+   - "first_seen_at": e.first_seen_at.isoformat() if e.first_seen_at else None,
+   + "XXfirst_seen_atXX": e.first_seen_at.isoformat() if e.first_seen_at else None,
+get_person_sighting_history#86
+   - "first_seen_at": e.first_seen_at.isoformat() if e.first_seen_at else None,
+   + "FIRST_SEEN_AT": e.first_seen_at.isoformat() if e.first_seen_at else None,
+get_person_sighting_history#87
+   - "first_seen_at": e.first_seen_at.isoformat() if e.first_seen_at else None,
+   + "first_seen_at": e.first_seen_at.isoformat() if (e.first_seen_at) and False else None,
+get_person_sighting_history#88
+   - "first_seen_at": e.first_seen_at.isoformat() if e.first_seen_at else None,
+   + "first_seen_at": e.first_seen_at.isoformat() if (e.first_seen_at) or True else None,
+get_person_sighting_history#89
+   - "last_seen_at": e.last_seen_at.isoformat() if e.last_seen_at else None,
+   + "XXlast_seen_atXX": e.last_seen_at.isoformat() if e.last_seen_at else None,
+get_person_sighting_history#90
+   - "last_seen_at": e.last_seen_at.isoformat() if e.last_seen_at else None,
+   + "LAST_SEEN_AT": e.last_seen_at.isoformat() if e.last_seen_at else None,
+get_person_sighting_history#91
+   - "last_seen_at": e.last_seen_at.isoformat() if e.last_seen_at else None,
+   + "last_seen_at": e.last_seen_at.isoformat() if (e.last_seen_at) and False else None,
+get_person_sighting_history#92
+   - "last_seen_at": e.last_seen_at.isoformat() if e.last_seen_at else None,
+   + "last_seen_at": e.last_seen_at.isoformat() if (e.last_seen_at) or True else None,
+link_face_event_to_entity#3
+   - face_event = await self._get_face_event_with_person(session, face_event_id)
+   + face_event = await self._get_face_event_with_person(session, None)
+link_face_event_to_entity#9
+   - entity = await self._get_entity_by_id(session, entity_id)
+   + entity = await self._get_entity_by_id(session, None)
+link_face_event_to_entity#13
+   - known_person_id = face_event.matched_person_id
+   + known_person_id = None
+link_face_event_to_entity#14
+   - household_member_id: int | None = None
+   + household_member_id: int | None = ""
+link_face_event_to_entity#18
+   - known_person_id=known_person_id,
+   + known_person_id=None,
+link_face_event_to_entity#19
+   - household_member_id=household_member_id,
+   + household_member_id=None,
+link_face_event_to_entity#20
+   - face_confidence=face_event.match_confidence or 0.0,
+   + face_confidence=None,
+link_face_event_to_entity#24
+   - known_person_id=known_person_id,
+   + <none>
+link_face_event_to_entity#25
+   - household_member_id=household_member_id,
+   + <none>
+link_face_event_to_entity#26
+   - face_confidence=face_event.match_confidence or 0.0,
+   + <none>
+link_face_event_to_entity#28
+   - face_confidence=face_event.match_confidence or 0.0,
+   + face_confidence=face_event.match_confidence and 0.0,
+link_face_event_to_entity#29
+   - face_confidence=face_event.match_confidence or 0.0,
+   + face_confidence=face_event.match_confidence or 1.0,
+link_face_event_to_entity#30
+   - if entity.entity_metadata is None:
+   + if entity.entity_metadata is not None:
+link_face_event_to_entity#32
+   - face_associations = entity.entity_metadata.get("face_associations", [])
+   + face_associations = entity.entity_metadata.get(None, [])
+link_face_event_to_entity#36
+   - face_associations = entity.entity_metadata.get("face_associations", [])
+   + face_associations = entity.entity_metadata.get("XXface_associationsXX", [])
+link_face_event_to_entity#37
+   - face_associations = entity.entity_metadata.get("face_associations", [])
+   + face_associations = entity.entity_metadata.get("FACE_ASSOCIATIONS", [])
+link_face_event_to_entity#38
+   - {
+   + None
+   - "face_event_id": face_event_id,
+   + <none>
+   - "known_person_id": known_person_id,
+   + <none>
+   - "confidence": association.face_confidence,
+   + <none>
+   - "type": association_type,
+   + <none>
+   - "linked_at": association.created_at.isoformat(),
+   + <none>
+   - }
+   + <none>
+link_face_event_to_entity#39
+   - "face_event_id": face_event_id,
+   + "XXface_event_idXX": face_event_id,
+link_face_event_to_entity#40
+   - "face_event_id": face_event_id,
+   + "FACE_EVENT_ID": face_event_id,
+link_face_event_to_entity#41
+   - "known_person_id": known_person_id,
+   + "XXknown_person_idXX": known_person_id,
+link_face_event_to_entity#42
+   - "known_person_id": known_person_id,
+   + "KNOWN_PERSON_ID": known_person_id,
+link_face_event_to_entity#43
+   - "confidence": association.face_confidence,
+   + "XXconfidenceXX": association.face_confidence,
+link_face_event_to_entity#44
+   - "confidence": association.face_confidence,
+   + "CONFIDENCE": association.face_confidence,
+link_face_event_to_entity#45
+   - "type": association_type,
+   + "XXtypeXX": association_type,
+link_face_event_to_entity#46
+   - "type": association_type,
+   + "TYPE": association_type,
+link_face_event_to_entity#47
+   - "linked_at": association.created_at.isoformat(),
+   + "XXlinked_atXX": association.created_at.isoformat(),
+link_face_event_to_entity#48
+   - "linked_at": association.created_at.isoformat(),
+   + "LINKED_AT": association.created_at.isoformat(),
+link_face_event_to_entity#52
+   - "Linked face event %d to entity %s (type=%s)",
+   + None,
+link_face_event_to_entity#53
+   - face_event_id,
+   + None,
+link_face_event_to_entity#54
+   - entity_id,
+   + None,
+link_face_event_to_entity#55
+   - association_type,
+   + None,
+link_face_event_to_entity#56
+   - "Linked face event %d to entity %s (type=%s)",
+   + <none>
+link_face_event_to_entity#57
+   - face_event_id,
+   + <none>
+link_face_event_to_entity#58
+   - entity_id,
+   + <none>
+link_face_event_to_entity#59
+   - association_type,
+   + )
+   - )
+   + <none>
+link_face_event_to_entity#60
+   - "Linked face event %d to entity %s (type=%s)",
+   + "XXLinked face event %d to entity %s (type=%s)XX",
+link_face_event_to_entity#61
+   - "Linked face event %d to entity %s (type=%s)",
+   + "linked face event %d to entity %s (type=%s)",
+link_face_event_to_entity#62
+   - "Linked face event %d to entity %s (type=%s)",
+   + "LINKED FACE EVENT %D TO ENTITY %S (TYPE=%S)",
+propagate_face_match_to_entity#3
+   - face_event = await self._get_face_event_with_person(session, face_event_id)
+   + face_event = await self._get_face_event_with_person(session, None)
+propagate_face_match_to_entity#9
+   - "Cannot propagate face match: event %d not found or not matched",
+   + None,
+propagate_face_match_to_entity#10
+   - face_event_id,
+   + None,
+propagate_face_match_to_entity#11
+   - "Cannot propagate face match: event %d not found or not matched",
+   + <none>
+propagate_face_match_to_entity#12
+   - face_event_id,
+   + )
+   - )
+   + <none>
+propagate_face_match_to_entity#13
+   - "Cannot propagate face match: event %d not found or not matched",
+   + "XXCannot propagate face match: event %d not found or not matchedXX",
+propagate_face_match_to_entity#14
+   - "Cannot propagate face match: event %d not found or not matched",
+   + "cannot propagate face match: event %d not found or not matched",
+propagate_face_match_to_entity#15
+   - "Cannot propagate face match: event %d not found or not matched",
+   + "CANNOT PROPAGATE FACE MATCH: EVENT %D NOT FOUND OR NOT MATCHED",
+propagate_face_match_to_entity#18
+   - household_member_id: int | None = None
+   + household_member_id: int | None = ""
+propagate_face_match_to_entity#21
+   - session, known_person_id
+   + session, None
+propagate_face_match_to_entity#31
+   - association_type="face_match",
+   + association_type=None,
+propagate_face_match_to_entity#37
+   - association_type="face_match",
+   + )
+   - )
+   + <none>
+propagate_face_match_to_entity#39
+   - face_confidence=face_event.match_confidence or 0.0,
+   + face_confidence=face_event.match_confidence or 1.0,
+propagate_face_match_to_entity#40
+   - association_type="face_match",
+   + association_type="XXface_matchXX",
+propagate_face_match_to_entity#41
+   - association_type="face_match",
+   + association_type="FACE_MATCH",
+propagate_face_match_to_entity#42
+   - if update_trust and known_person.is_household_member:
+   + if update_trust or known_person.is_household_member:
+propagate_face_match_to_entity#45
+   - entity = await self._get_entity_by_id(session, entity_id)
+   + entity = await self._get_entity_by_id(session, None)
+propagate_face_match_to_entity#53
+   - if entity.entity_metadata is None:
+   + if entity.entity_metadata is not None:
+propagate_face_match_to_entity#54
+   - entity.entity_metadata["face_match"] = {
+   + entity.entity_metadata["face_match"] = None
+   - "known_person_id": known_person_id,
+   + <none>
+   - "known_person_name": known_person.name,
+   + <none>
+   - "face_confidence": association.face_confidence,
+   + <none>
+   - "matched_at": association.created_at.isoformat(),
+   + <none>
+   - }
+   + <none>
+propagate_face_match_to_entity#57
+   - "known_person_id": known_person_id,
+   + "XXknown_person_idXX": known_person_id,
+propagate_face_match_to_entity#58
+   - "known_person_id": known_person_id,
+   + "KNOWN_PERSON_ID": known_person_id,
+propagate_face_match_to_entity#59
+   - "known_person_name": known_person.name,
+   + "XXknown_person_nameXX": known_person.name,
+propagate_face_match_to_entity#60
+   - "known_person_name": known_person.name,
+   + "KNOWN_PERSON_NAME": known_person.name,
+propagate_face_match_to_entity#61
+   - "face_confidence": association.face_confidence,
+   + "XXface_confidenceXX": association.face_confidence,
+propagate_face_match_to_entity#62
+   - "face_confidence": association.face_confidence,
+   + "FACE_CONFIDENCE": association.face_confidence,
+propagate_face_match_to_entity#63
+   - "matched_at": association.created_at.isoformat(),
+   + "XXmatched_atXX": association.created_at.isoformat(),
+propagate_face_match_to_entity#64
+   - "matched_at": association.created_at.isoformat(),
+   + "MATCHED_AT": association.created_at.isoformat(),
+propagate_face_match_to_entity#65
+   - "Updated entity %s trust to %s based on face match to %s",
+   + None,
+propagate_face_match_to_entity#66
+   - entity_id,
+   + None,
+propagate_face_match_to_entity#67
+   - entity.trust_status,
+   + None,
+propagate_face_match_to_entity#68
+   - known_person.name,
+   + None,
+propagate_face_match_to_entity#69
+   - "Updated entity %s trust to %s based on face match to %s",
+   + <none>
+propagate_face_match_to_entity#70
+   - entity_id,
+   + <none>
+propagate_face_match_to_entity#71
+   - entity.trust_status,
+   + <none>
+propagate_face_match_to_entity#72
+   - known_person.name,
+   + )
+   - )
+   + <none>
+propagate_face_match_to_entity#73
+   - "Updated entity %s trust to %s based on face match to %s",
+   + "XXUpdated entity %s trust to %s based on face match to %sXX",
+propagate_face_match_to_entity#74
+   - "Updated entity %s trust to %s based on face match to %s",
+   + "updated entity %s trust to %s based on face match to %s",
+propagate_face_match_to_entity#75
+   - "Updated entity %s trust to %s based on face match to %s",
+   + "UPDATED ENTITY %S TRUST TO %S BASED ON FACE MATCH TO %S",

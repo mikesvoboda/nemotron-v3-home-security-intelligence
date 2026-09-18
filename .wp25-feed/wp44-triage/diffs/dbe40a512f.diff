@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_110: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -86,7 +86,7 @@
+             for det_id, match in self.vehicle_household_matches.items()
+         },
+         "vision_extraction": (
+-            self.vision_extraction.to_dict() if self.vision_extraction else None
++            self.vision_extraction.to_dict() if (self.vision_extraction) and False else None
+         ),
+         "errors": self.errors,
+         "processing_time_ms": self.processing_time_ms,

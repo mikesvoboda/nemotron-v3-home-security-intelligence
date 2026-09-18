@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_84: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -100,7 +100,7 @@
+             )
+         else:
+             # Scene text (not associated with any detection)
+-            is_uncertain = CONFIDENCE_LOW <= frame_ocr.confidence < CONFIDENCE_HIGH
++            is_uncertain = CONFIDENCE_LOW < frame_ocr.confidence < CONFIDENCE_HIGH
+             scene_texts.append(
+                 SceneTextResult(
+                     value=frame_ocr.text,

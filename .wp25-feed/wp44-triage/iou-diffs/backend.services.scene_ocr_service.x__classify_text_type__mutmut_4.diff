@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.x__classify_text_type__mutmut_4: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -10,7 +10,7 @@
+     text_upper = text.upper().strip()
+ 
+     # House numbers (1-5 digits, possibly with letters)
+-    if text_upper.isdigit() and len(text_upper) <= 5:
++    if text_upper.isdigit() and len(text_upper) < 5:
+         return "house_number"
+ 
+     # Common street suffixes

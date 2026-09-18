@@ -1,0 +1,1478 @@
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_3
+# backend.services.bbox_validation.x_validate_bbox__mutmut_3: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -25,7 +25,7 @@
+     except (TypeError, ValueError) as e:
+         raise InvalidBoundingBoxError(
+             f"Invalid bounding box format: {bbox}. Expected (x1, y1, x2, y2)",
+-            bbox=bbox,
++            bbox=None,
+         ) from e
+ 
+     # Check for NaN or infinite values
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_5
+# backend.services.bbox_validation.x_validate_bbox__mutmut_5: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -25,8 +25,7 @@
+     except (TypeError, ValueError) as e:
+         raise InvalidBoundingBoxError(
+             f"Invalid bounding box format: {bbox}. Expected (x1, y1, x2, y2)",
+-            bbox=bbox,
+-        ) from e
++            ) from e
+ 
+     # Check for NaN or infinite values
+     if any(math.isnan(v) or math.isinf(v) for v in (x1, y1, x2, y2)):
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_11
+# backend.services.bbox_validation.x_validate_bbox__mutmut_11: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -32,7 +32,7 @@
+     if any(math.isnan(v) or math.isinf(v) for v in (x1, y1, x2, y2)):
+         raise InvalidBoundingBoxError(
+             f"Bounding box contains NaN or infinite values: {bbox}",
+-            bbox=bbox,
++            bbox=None,
+         )
+ 
+     # Check for positive dimensions
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_13
+# backend.services.bbox_validation.x_validate_bbox__mutmut_13: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -32,8 +32,7 @@
+     if any(math.isnan(v) or math.isinf(v) for v in (x1, y1, x2, y2)):
+         raise InvalidBoundingBoxError(
+             f"Bounding box contains NaN or infinite values: {bbox}",
+-            bbox=bbox,
+-        )
++            )
+ 
+     # Check for positive dimensions
+     if x2 <= x1:
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_21
+# backend.services.bbox_validation.x_validate_bbox__mutmut_21: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -45,7 +45,7 @@
+     if y2 <= y1:
+         raise InvalidBoundingBoxError(
+             f"Bounding box has zero or negative height: y1={y1}, y2={y2}",
+-            bbox=bbox,
++            bbox=None,
+         )
+ 
+     # Check for non-negative coordinates if required
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_23
+# backend.services.bbox_validation.x_validate_bbox__mutmut_23: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -45,8 +45,7 @@
+     if y2 <= y1:
+         raise InvalidBoundingBoxError(
+             f"Bounding box has zero or negative height: y1={y1}, y2={y2}",
+-            bbox=bbox,
+-        )
++            )
+ 
+     # Check for non-negative coordinates if required
+     if not allow_negative:
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_31
+# backend.services.bbox_validation.x_validate_bbox__mutmut_31: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -53,7 +53,7 @@
+         if x1 < 0 or y1 < 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+-                bbox=bbox,
++                bbox=None,
+             )
+         if x2 < 0 or y2 < 0:
+             raise InvalidBoundingBoxError(
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_33
+# backend.services.bbox_validation.x_validate_bbox__mutmut_33: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -53,8 +53,7 @@
+         if x1 < 0 or y1 < 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+-                bbox=bbox,
+-            )
++                )
+         if x2 < 0 or y2 < 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_34
+# backend.services.bbox_validation.x_validate_bbox__mutmut_34: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -55,7 +55,7 @@
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+             )
+-        if x2 < 0 or y2 < 0:
++        if x2 < 0 and y2 < 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_35
+# backend.services.bbox_validation.x_validate_bbox__mutmut_35: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -55,7 +55,7 @@
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+             )
+-        if x2 < 0 or y2 < 0:
++        if x2 <= 0 or y2 < 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_36
+# backend.services.bbox_validation.x_validate_bbox__mutmut_36: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -55,7 +55,7 @@
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+             )
+-        if x2 < 0 or y2 < 0:
++        if x2 < 1 or y2 < 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_37
+# backend.services.bbox_validation.x_validate_bbox__mutmut_37: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -55,7 +55,7 @@
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+             )
+-        if x2 < 0 or y2 < 0:
++        if x2 < 0 or y2 <= 0:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_38
+# backend.services.bbox_validation.x_validate_bbox__mutmut_38: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -55,7 +55,7 @@
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+             )
+-        if x2 < 0 or y2 < 0:
++        if x2 < 0 or y2 < 1:
+             raise InvalidBoundingBoxError(
+                 f"Bounding box has negative coordinates: ({x1}, {y1}, {x2}, {y2})",
+                 bbox=bbox,
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_44
+# backend.services.bbox_validation.x_validate_bbox__mutmut_44: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 or y1 < 0 or x2 > image_width and y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_45
+# backend.services.bbox_validation.x_validate_bbox__mutmut_45: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 or y1 < 0 and x2 > image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_46
+# backend.services.bbox_validation.x_validate_bbox__mutmut_46: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 and y1 < 0 or x2 > image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_47
+# backend.services.bbox_validation.x_validate_bbox__mutmut_47: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 <= 0 or y1 < 0 or x2 > image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_48
+# backend.services.bbox_validation.x_validate_bbox__mutmut_48: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 1 or y1 < 0 or x2 > image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_49
+# backend.services.bbox_validation.x_validate_bbox__mutmut_49: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 or y1 <= 0 or x2 > image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_50
+# backend.services.bbox_validation.x_validate_bbox__mutmut_50: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 or y1 < 1 or x2 > image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_51
+# backend.services.bbox_validation.x_validate_bbox__mutmut_51: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 or y1 < 0 or x2 >= image_width or y2 > image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_52
+# backend.services.bbox_validation.x_validate_bbox__mutmut_52: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -66,7 +66,7 @@
+         image_width is not None
+         and image_height is not None
+         and strict_bounds
+-        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 > image_height)
++        and (x1 < 0 or y1 < 0 or x2 > image_width or y2 >= image_height)
+     ):
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_54
+# backend.services.bbox_validation.x_validate_bbox__mutmut_54: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -71,6 +71,6 @@
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+             f"({image_width}x{image_height})",
+-            bbox=bbox,
++            bbox=None,
+             image_size=(image_width, image_height),
+         )
+===== backend.services.bbox_validation.x_validate_bbox__mutmut_57
+# backend.services.bbox_validation.x_validate_bbox__mutmut_57: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -71,6 +71,5 @@
+         raise BoundingBoxOutOfBoundsError(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) exceeds image bounds "
+             f"({image_width}x{image_height})",
+-            bbox=bbox,
+             image_size=(image_width, image_height),
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_8
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_8: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -30,7 +30,7 @@
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+-            original_bbox=bbox,
++            original_bbox=None,
+             warnings=["Bounding box contains NaN or infinite values"],
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_15
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_15: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -31,7 +31,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=["Bounding box contains NaN or infinite values"],
++            warnings=["XXBounding box contains NaN or infinite valuesXX"],
+         )
+ 
+     # Check for inverted coordinates
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_18
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_18: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -35,7 +35,7 @@
+         )
+ 
+     # Check for inverted coordinates
+-    if x2 <= x1 or y2 <= y1:
++    if x2 <= x1 and y2 <= y1:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_19
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_19: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -35,7 +35,7 @@
+         )
+ 
+     # Check for inverted coordinates
+-    if x2 <= x1 or y2 <= y1:
++    if x2 < x1 or y2 <= y1:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_20
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_20: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -35,7 +35,7 @@
+         )
+ 
+     # Check for inverted coordinates
+-    if x2 <= x1 or y2 <= y1:
++    if x2 <= x1 or y2 < y1:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_22
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_22: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -39,7 +39,7 @@
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+-            original_bbox=bbox,
++            original_bbox=None,
+             warnings=[f"Bounding box has invalid dimensions: width={x2 - x1}, height={y2 - y1}"],
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_29
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_29: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -40,7 +40,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=[f"Bounding box has invalid dimensions: width={x2 - x1}, height={y2 - y1}"],
++            warnings=[f"Bounding box has invalid dimensions: width={x2 + x1}, height={y2 - y1}"],
+         )
+ 
+     # Track if clamping is needed
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_30
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_30: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -40,7 +40,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=[f"Bounding box has invalid dimensions: width={x2 - x1}, height={y2 - y1}"],
++            warnings=[f"Bounding box has invalid dimensions: width={x2 - x1}, height={y2 + y1}"],
+         )
+ 
+     # Track if clamping is needed
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_33
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_33: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -47,7 +47,7 @@
+     was_clamped = False
+ 
+     # Check for negative coordinates
+-    if x1 < 0 or y1 < 0:
++    if x1 < 0 and y1 < 0:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+         was_clamped = True
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_34
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_34: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -47,7 +47,7 @@
+     was_clamped = False
+ 
+     # Check for negative coordinates
+-    if x1 < 0 or y1 < 0:
++    if x1 <= 0 or y1 < 0:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+         was_clamped = True
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_35
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_35: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -47,7 +47,7 @@
+     was_clamped = False
+ 
+     # Check for negative coordinates
+-    if x1 < 0 or y1 < 0:
++    if x1 < 1 or y1 < 0:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+         was_clamped = True
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_36
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_36: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -47,7 +47,7 @@
+     was_clamped = False
+ 
+     # Check for negative coordinates
+-    if x1 < 0 or y1 < 0:
++    if x1 < 0 or y1 <= 0:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+         was_clamped = True
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_37
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_37: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -47,7 +47,7 @@
+     was_clamped = False
+ 
+     # Check for negative coordinates
+-    if x1 < 0 or y1 < 0:
++    if x1 < 0 or y1 < 1:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+         was_clamped = True
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_38
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_38: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -48,7 +48,7 @@
+ 
+     # Check for negative coordinates
+     if x1 < 0 or y1 < 0:
+-        warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
++        warnings.append(None)
+         was_clamped = True
+ 
+     # Check for out-of-bounds coordinates
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_39
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_39: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -49,7 +49,7 @@
+     # Check for negative coordinates
+     if x1 < 0 or y1 < 0:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+-        was_clamped = True
++        was_clamped = None
+ 
+     # Check for out-of-bounds coordinates
+     if x2 > image_width or y2 > image_height:
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_40
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_40: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -49,7 +49,7 @@
+     # Check for negative coordinates
+     if x1 < 0 or y1 < 0:
+         warnings.append(f"Bounding box has negative coordinates: ({x1}, {y1})")
+-        was_clamped = True
++        was_clamped = False
+ 
+     # Check for out-of-bounds coordinates
+     if x2 > image_width or y2 > image_height:
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_42
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_42: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -52,7 +52,7 @@
+         was_clamped = True
+ 
+     # Check for out-of-bounds coordinates
+-    if x2 > image_width or y2 > image_height:
++    if x2 >= image_width or y2 > image_height:
+         warnings.append(
+             f"Bounding box exceeds image bounds: ({x2}, {y2}) > ({image_width}, {image_height})"
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_43
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_43: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -52,7 +52,7 @@
+         was_clamped = True
+ 
+     # Check for out-of-bounds coordinates
+-    if x2 > image_width or y2 > image_height:
++    if x2 > image_width or y2 >= image_height:
+         warnings.append(
+             f"Bounding box exceeds image bounds: ({x2}, {y2}) > ({image_width}, {image_height})"
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_44
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_44: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -54,7 +54,7 @@
+     # Check for out-of-bounds coordinates
+     if x2 > image_width or y2 > image_height:
+         warnings.append(
+-            f"Bounding box exceeds image bounds: ({x2}, {y2}) > ({image_width}, {image_height})"
++            None
+         )
+         was_clamped = True
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_47
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_47: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 0 and y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_48
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_48: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height and x2 <= 0 or y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_49
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_49: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width and y1 >= image_height or x2 <= 0 or y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_50
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_50: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 > image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_51
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_51: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 > image_height or x2 <= 0 or y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_52
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_52: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 < 0 or y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_53
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_53: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 1 or y2 <= 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_54
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_54: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 < 0:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_55
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_55: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -59,7 +59,7 @@
+         was_clamped = True
+ 
+     # Check if completely outside image
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 1:
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_57
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_57: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -63,7 +63,7 @@
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+-            original_bbox=bbox,
++            original_bbox=None,
+             warnings=["Bounding box is completely outside image boundaries"],
+             was_clamped=True,
+             was_empty_after_clamp=True,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_58
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_58: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -64,7 +64,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=["Bounding box is completely outside image boundaries"],
++            warnings=None,
+             was_clamped=True,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_59
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_59: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -65,7 +65,7 @@
+             clamped_bbox=None,
+             original_bbox=bbox,
+             warnings=["Bounding box is completely outside image boundaries"],
+-            was_clamped=True,
++            was_clamped=None,
+             was_empty_after_clamp=True,
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_65
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_65: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -65,7 +65,6 @@
+             clamped_bbox=None,
+             original_bbox=bbox,
+             warnings=["Bounding box is completely outside image boundaries"],
+-            was_clamped=True,
+             was_empty_after_clamp=True,
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_68
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_68: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -64,7 +64,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=["Bounding box is completely outside image boundaries"],
++            warnings=["XXBounding box is completely outside image boundariesXX"],
+             was_clamped=True,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_69
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_69: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -64,7 +64,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=["Bounding box is completely outside image boundaries"],
++            warnings=["bounding box is completely outside image boundaries"],
+             was_clamped=True,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_70
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_70: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -64,7 +64,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=["Bounding box is completely outside image boundaries"],
++            warnings=["BOUNDING BOX IS COMPLETELY OUTSIDE IMAGE BOUNDARIES"],
+             was_clamped=True,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_71
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_71: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -65,7 +65,7 @@
+             clamped_bbox=None,
+             original_bbox=bbox,
+             warnings=["Bounding box is completely outside image boundaries"],
+-            was_clamped=True,
++            was_clamped=False,
+             was_empty_after_clamp=True,
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_83
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_83: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -75,8 +75,7 @@
+         image_width,
+         image_height,
+         min_size=min_size,
+-        return_none_if_empty=True,
+-    )
++        )
+ 
+     if clamped is None:
+         return BoundingBoxValidationResult(
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_87
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_87: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -82,7 +82,7 @@
+         return BoundingBoxValidationResult(
+             is_valid=False,
+             clamped_bbox=None,
+-            original_bbox=bbox,
++            original_bbox=None,
+             warnings=[*warnings, "Bounding box became too small after clamping"],
+             was_clamped=was_clamped,
+             was_empty_after_clamp=True,
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_88
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_88: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -83,7 +83,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=[*warnings, "Bounding box became too small after clamping"],
++            warnings=None,
+             was_clamped=was_clamped,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_89
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_89: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -84,7 +84,7 @@
+             clamped_bbox=None,
+             original_bbox=bbox,
+             warnings=[*warnings, "Bounding box became too small after clamping"],
+-            was_clamped=was_clamped,
++            was_clamped=None,
+             was_empty_after_clamp=True,
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_95
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_95: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -84,7 +84,6 @@
+             clamped_bbox=None,
+             original_bbox=bbox,
+             warnings=[*warnings, "Bounding box became too small after clamping"],
+-            was_clamped=was_clamped,
+             was_empty_after_clamp=True,
+         )
+ 
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_98
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_98: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -83,7 +83,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=[*warnings, "Bounding box became too small after clamping"],
++            warnings=[*warnings, "XXBounding box became too small after clampingXX"],
+             was_clamped=was_clamped,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_99
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_99: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -83,7 +83,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=[*warnings, "Bounding box became too small after clamping"],
++            warnings=[*warnings, "bounding box became too small after clamping"],
+             was_clamped=was_clamped,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_100
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_100: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -83,7 +83,7 @@
+             is_valid=False,
+             clamped_bbox=None,
+             original_bbox=bbox,
+-            warnings=[*warnings, "Bounding box became too small after clamping"],
++            warnings=[*warnings, "BOUNDING BOX BECAME TOO SMALL AFTER CLAMPING"],
+             was_clamped=was_clamped,
+             was_empty_after_clamp=True,
+         )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_107
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_107: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -94,5 +94,5 @@
+         original_bbox=bbox,
+         warnings=warnings,
+         was_clamped=was_clamped,
+-        was_empty_after_clamp=False,
++        was_empty_after_clamp=None,
+     )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_113
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_113: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -94,5 +94,4 @@
+         original_bbox=bbox,
+         warnings=warnings,
+         was_clamped=was_clamped,
+-        was_empty_after_clamp=False,
+-    )
++        )
+===== backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_115
+# backend.services.bbox_validation.x_validate_and_clamp_bbox__mutmut_115: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -94,5 +94,5 @@
+         original_bbox=bbox,
+         warnings=warnings,
+         was_clamped=was_clamped,
+-        was_empty_after_clamp=False,
++        was_empty_after_clamp=True,
+     )
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_2
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_2: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -38,7 +38,7 @@
+     x1, y1, x2, y2 = bbox
+ 
+     # Fix inverted coordinates
+-    if x2 < x1:
++    if x2 <= x1:
+         logger.debug(f"Fixing inverted X coordinates for crop: x1={x1}, x2={x2}")
+         x1, x2 = x2, x1
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_3
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_3: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -39,7 +39,7 @@
+ 
+     # Fix inverted coordinates
+     if x2 < x1:
+-        logger.debug(f"Fixing inverted X coordinates for crop: x1={x1}, x2={x2}")
++        logger.debug(None)
+         x1, x2 = x2, x1
+ 
+     if y2 < y1:
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_5
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_5: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -42,7 +42,7 @@
+         logger.debug(f"Fixing inverted X coordinates for crop: x1={x1}, x2={x2}")
+         x1, x2 = x2, x1
+ 
+-    if y2 < y1:
++    if y2 <= y1:
+         logger.debug(f"Fixing inverted Y coordinates for crop: y1={y1}, y2={y2}")
+         y1, y2 = y2, y1
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_6
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_6: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -43,7 +43,7 @@
+         x1, x2 = x2, x1
+ 
+     if y2 < y1:
+-        logger.debug(f"Fixing inverted Y coordinates for crop: y1={y1}, y2={y2}")
++        logger.debug(None)
+         y1, y2 = y2, y1
+ 
+     # Convert to integers for PIL
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_16
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_16: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -51,7 +51,7 @@
+ 
+     # Check for zero-dimension boxes (after int conversion)
+     if x2 <= x1 or y2 <= y1:
+-        logger.debug(f"Bounding box has zero dimensions: ({x1}, {y1}, {x2}, {y2})")
++        logger.debug(None)
+         return None
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_17
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_17: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 0 and y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_18
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_18: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height and x2 <= 0 or y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_19
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_19: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width and y1 >= image_height or x2 <= 0 or y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_20
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_20: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 > image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_21
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_21: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 > image_height or x2 <= 0 or y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_22
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_22: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 < 0 or y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_23
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_23: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 1 or y2 <= 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_24
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_24: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 < 0:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_25
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_25: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -56,7 +56,7 @@
+ 
+     # Check if bbox is completely outside image boundaries BEFORE padding
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+-    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
++    if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 1:
+         logger.debug(
+             f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+             f"image boundaries ({image_width}x{image_height})"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_26
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_26: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -58,8 +58,7 @@
+     # This prevents creating tiny boxes at corners for completely outside bboxes
+     if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
+         logger.debug(
+-            f"Bounding box ({x1}, {y1}, {x2}, {y2}) is completely outside "
+-            f"image boundaries ({image_width}x{image_height})"
++            None
+         )
+         return None
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_27
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_27: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -64,7 +64,7 @@
+         return None
+ 
+     # Apply padding (expand the box)
+-    if padding > 0:
++    if padding >= 0:
+         x1 = x1 - padding
+         y1 = y1 - padding
+         x2 = x2 + padding
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_28
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_28: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -64,7 +64,7 @@
+         return None
+ 
+     # Apply padding (expand the box)
+-    if padding > 0:
++    if padding > 1:
+         x1 = x1 - padding
+         y1 = y1 - padding
+         x2 = x2 + padding
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_42
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_42: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -71,7 +71,7 @@
+         y2 = y2 + padding
+ 
+     # Clamp to image bounds
+-    x1 = max(0, min(x1, image_width - 1))
++    x1 = max(1, min(x1, image_width - 1))
+     y1 = max(0, min(y1, image_height - 1))
+     x2 = max(1, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_47
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_47: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -71,7 +71,7 @@
+         y2 = y2 + padding
+ 
+     # Clamp to image bounds
+-    x1 = max(0, min(x1, image_width - 1))
++    x1 = max(0, min(x1, image_width + 1))
+     y1 = max(0, min(y1, image_height - 1))
+     x2 = max(1, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_48
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_48: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -71,7 +71,7 @@
+         y2 = y2 + padding
+ 
+     # Clamp to image bounds
+-    x1 = max(0, min(x1, image_width - 1))
++    x1 = max(0, min(x1, image_width - 2))
+     y1 = max(0, min(y1, image_height - 1))
+     x2 = max(1, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_54
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_54: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -72,7 +72,7 @@
+ 
+     # Clamp to image bounds
+     x1 = max(0, min(x1, image_width - 1))
+-    y1 = max(0, min(y1, image_height - 1))
++    y1 = max(1, min(y1, image_height - 1))
+     x2 = max(1, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_59
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_59: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -72,7 +72,7 @@
+ 
+     # Clamp to image bounds
+     x1 = max(0, min(x1, image_width - 1))
+-    y1 = max(0, min(y1, image_height - 1))
++    y1 = max(0, min(y1, image_height + 1))
+     x2 = max(1, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_60
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_60: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -72,7 +72,7 @@
+ 
+     # Clamp to image bounds
+     x1 = max(0, min(x1, image_width - 1))
+-    y1 = max(0, min(y1, image_height - 1))
++    y1 = max(0, min(y1, image_height - 2))
+     x2 = max(1, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_66
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_66: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -73,7 +73,7 @@
+     # Clamp to image bounds
+     x1 = max(0, min(x1, image_width - 1))
+     y1 = max(0, min(y1, image_height - 1))
+-    x2 = max(1, min(x2, image_width))
++    x2 = max(2, min(x2, image_width))
+     y2 = max(1, min(y2, image_height))
+ 
+     # Ensure x2 > x1 and y2 > y1 after clamping
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_76
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_76: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -74,7 +74,7 @@
+     x1 = max(0, min(x1, image_width - 1))
+     y1 = max(0, min(y1, image_height - 1))
+     x2 = max(1, min(x2, image_width))
+-    y2 = max(1, min(y2, image_height))
++    y2 = max(2, min(y2, image_height))
+ 
+     # Ensure x2 > x1 and y2 > y1 after clamping
+     if x2 <= x1 or y2 <= y1:
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_81
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_81: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -77,7 +77,7 @@
+     y2 = max(1, min(y2, image_height))
+ 
+     # Ensure x2 > x1 and y2 > y1 after clamping
+-    if x2 <= x1 or y2 <= y1:
++    if x2 <= x1 and y2 <= y1:
+         logger.debug(f"Bounding box became invalid after clamping: ({x1}, {y1}, {x2}, {y2})")
+         return None
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_82
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_82: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -77,7 +77,7 @@
+     y2 = max(1, min(y2, image_height))
+ 
+     # Ensure x2 > x1 and y2 > y1 after clamping
+-    if x2 <= x1 or y2 <= y1:
++    if x2 < x1 or y2 <= y1:
+         logger.debug(f"Bounding box became invalid after clamping: ({x1}, {y1}, {x2}, {y2})")
+         return None
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_83
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_83: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -77,7 +77,7 @@
+     y2 = max(1, min(y2, image_height))
+ 
+     # Ensure x2 > x1 and y2 > y1 after clamping
+-    if x2 <= x1 or y2 <= y1:
++    if x2 <= x1 or y2 < y1:
+         logger.debug(f"Bounding box became invalid after clamping: ({x1}, {y1}, {x2}, {y2})")
+         return None
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_84
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_84: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -82,7 +82,7 @@
+         return None
+ 
+     # Check minimum size
+-    if (x2 - x1) < min_size or (y2 - y1) < min_size:
++    if (x2 - x1) < min_size and (y2 - y1) < min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+             f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_85
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_85: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -82,7 +82,7 @@
+         return None
+ 
+     # Check minimum size
+-    if (x2 - x1) < min_size or (y2 - y1) < min_size:
++    if (x2 + x1) < min_size or (y2 - y1) < min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+             f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_86
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_86: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -82,7 +82,7 @@
+         return None
+ 
+     # Check minimum size
+-    if (x2 - x1) < min_size or (y2 - y1) < min_size:
++    if (x2 - x1) <= min_size or (y2 - y1) < min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+             f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_87
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_87: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -82,7 +82,7 @@
+         return None
+ 
+     # Check minimum size
+-    if (x2 - x1) < min_size or (y2 - y1) < min_size:
++    if (x2 - x1) < min_size or (y2 + y1) < min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+             f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_88
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_88: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -82,7 +82,7 @@
+         return None
+ 
+     # Check minimum size
+-    if (x2 - x1) < min_size or (y2 - y1) < min_size:
++    if (x2 - x1) < min_size or (y2 - y1) <= min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+             f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_89
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_89: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -84,8 +84,7 @@
+     # Check minimum size
+     if (x2 - x1) < min_size or (y2 - y1) < min_size:
+         logger.debug(
+-            f"Bounding box too small after processing: "
+-            f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
++            None
+         )
+         return None
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_90
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_90: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -85,7 +85,7 @@
+     if (x2 - x1) < min_size or (y2 - y1) < min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+-            f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
++            f"width={x2 + x1}, height={y2 - y1}, min_size={min_size}"
+         )
+         return None
+ 
+===== backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_91
+# backend.services.bbox_validation.x_prepare_bbox_for_crop__mutmut_91: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -85,7 +85,7 @@
+     if (x2 - x1) < min_size or (y2 - y1) < min_size:
+         logger.debug(
+             f"Bounding box too small after processing: "
+-            f"width={x2 - x1}, height={y2 - y1}, min_size={min_size}"
++            f"width={x2 - x1}, height={y2 + y1}, min_size={min_size}"
+         )
+         return None
+ 
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_3
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_3: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -34,7 +34,7 @@
+         >>> scale_bbox_to_image((50, 50, 100, 100), 320, 240, 640, 480)
+         (100.0, 100.0, 200.0, 200.0)
+     """
+-    if source_width <= 0 or source_height <= 0:
++    if source_width <= 1 or source_height <= 0:
+         logger.warning(
+             f"Invalid source dimensions: {source_width}x{source_height}. Returning original bbox."
+         )
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_5
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_5: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -34,7 +34,7 @@
+         >>> scale_bbox_to_image((50, 50, 100, 100), 320, 240, 640, 480)
+         (100.0, 100.0, 200.0, 200.0)
+     """
+-    if source_width <= 0 or source_height <= 0:
++    if source_width <= 0 or source_height <= 1:
+         logger.warning(
+             f"Invalid source dimensions: {source_width}x{source_height}. Returning original bbox."
+         )
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_6
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_6: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -36,7 +36,7 @@
+     """
+     if source_width <= 0 or source_height <= 0:
+         logger.warning(
+-            f"Invalid source dimensions: {source_width}x{source_height}. Returning original bbox."
++            None
+         )
+         return bbox
+ 
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_9
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_9: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -40,7 +40,7 @@
+         )
+         return bbox
+ 
+-    if target_width <= 0 or target_height <= 0:
++    if target_width <= 1 or target_height <= 0:
+         logger.warning(
+             f"Invalid target dimensions: {target_width}x{target_height}. Returning original bbox."
+         )
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_11
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_11: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -40,7 +40,7 @@
+         )
+         return bbox
+ 
+-    if target_width <= 0 or target_height <= 0:
++    if target_width <= 0 or target_height <= 1:
+         logger.warning(
+             f"Invalid target dimensions: {target_width}x{target_height}. Returning original bbox."
+         )
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_12
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_12: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -42,7 +42,7 @@
+ 
+     if target_width <= 0 or target_height <= 0:
+         logger.warning(
+-            f"Invalid target dimensions: {target_width}x{target_height}. Returning original bbox."
++            None
+         )
+         return bbox
+ 
+===== backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_15
+# backend.services.bbox_validation.x_scale_bbox_to_image__mutmut_15: survived
+--- backend/services/bbox_validation.py
++++ backend/services/bbox_validation.py
+@@ -47,7 +47,7 @@
+         return bbox
+ 
+     # No scaling needed if dimensions match
+-    if source_width == target_width and source_height == target_height:
++    if source_width == target_width and source_height != target_height:
+         return bbox
+ 
+     x1, y1, x2, y2 = bbox

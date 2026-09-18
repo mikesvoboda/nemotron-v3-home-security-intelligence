@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_9: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -30,7 +30,7 @@
+         "weather_context": format_weather_context(self.weather_classification),
+         # Image quality
+         "image_quality_context": format_image_quality_context(
+-            self.image_quality,
++            None,
+             self.quality_change_detected,
+             self.quality_change_description,
+         ),

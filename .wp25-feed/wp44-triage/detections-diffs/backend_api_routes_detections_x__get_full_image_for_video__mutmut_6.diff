@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x__get_full_image_for_video__mutmut_6: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -19,7 +19,6 @@
+         frame_path = await video_processor.extract_thumbnail(
+             video_path=video_path,
+             output_path=None,  # Let it generate a temporary path
+-            timestamp=None,  # Use smart default timestamp
+             size=(1920, 1080),  # Larger size for full view
+         )
+         if not frame_path or not os.path.exists(frame_path):

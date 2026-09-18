@@ -1,0 +1,12 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities_by_timerange__mutmut_17
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities_by_timerange__mutmut_17: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -39,7 +39,6 @@
+     logger.debug(
+         "Retrieved %d/%d entities (type=%s, since=%s)",
+         len(entities),
+-        total,
+         entity_type,
+         since,
+     )

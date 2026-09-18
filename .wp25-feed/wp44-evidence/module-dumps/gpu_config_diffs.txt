@@ -1,0 +1,561 @@
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_100
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_100(
+-                "Only one GPU detected - isolation strategy not possible, "
++                "only one gpu detected - isolation strategy not possible, "
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_101
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_101(
+-                "Only one GPU detected - isolation strategy not possible, "
++                "ONLY ONE GPU DETECTED - ISOLATION STRATEGY NOT POSSIBLE, "
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_107
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_107(
+-        sorted_gpus = sorted(gpus, key=get_compute_score, reverse=True)
++        sorted_gpus = sorted(gpus, key=get_compute_score, reverse=None)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_110
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_110(
+-        sorted_gpus = sorted(gpus, key=get_compute_score, reverse=True)
++        sorted_gpus = sorted(gpus, key=get_compute_score, )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_111
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_111(
+-        sorted_gpus = sorted(gpus, key=get_compute_score, reverse=True)
++        sorted_gpus = sorted(gpus, key=get_compute_score, reverse=False)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_113
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_113(
+-        fastest_gpu = sorted_gpus[0]
++        fastest_gpu = sorted_gpus[1]
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_115
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_115(
+-        critical_services = ["ai-yolo26", "ai-enrichment"]
++        critical_services = ["XXai-yolo26XX", "ai-enrichment"]
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_116
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_116(
+-        critical_services = ["ai-yolo26", "ai-enrichment"]
++        critical_services = ["AI-YOLO26", "ai-enrichment"]
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_117
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_117(
+-        critical_services = ["ai-yolo26", "ai-enrichment"]
++        critical_services = ["ai-yolo26", "XXai-enrichmentXX"]
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_118
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_118(
+-        critical_services = ["ai-yolo26", "ai-enrichment"]
++        critical_services = ["ai-yolo26", "AI-ENRICHMENT"]
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_119
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_119(
+-            if service in critical_services:
++            if service not in critical_services:
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_122
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_122(
+-                        gpu_index=fastest_gpu.index,
++                        gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_124
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_124(
+-                        gpu_index=fastest_gpu.index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_125
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_125(
+-                        vram_budget_override=None,
+-                    )
++                        )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_127
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_127(
+-                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1 else fastest_gpu
++                other_gpu = sorted_gpus[-1] if (len(sorted_gpus) > 1) and False else fastest_gpu
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_128
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_128(
+-                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1 else fastest_gpu
++                other_gpu = sorted_gpus[-1] if (len(sorted_gpus) > 1) or True else fastest_gpu
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_129
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_129(
+-                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1 else fastest_gpu
++                other_gpu = sorted_gpus[+1] if len(sorted_gpus) > 1 else fastest_gpu
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_13
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_13(
+-                    gpu_index=0,  # Default to first GPU
++                    gpu_index=None,  # Default to first GPU
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_130
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_130(
+-                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1 else fastest_gpu
++                other_gpu = sorted_gpus[-2] if len(sorted_gpus) > 1 else fastest_gpu
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_131
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_131(
+-                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1 else fastest_gpu
++                other_gpu = sorted_gpus[-1] if len(sorted_gpus) >= 1 else fastest_gpu
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_132
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_132(
+-                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1 else fastest_gpu
++                other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 2 else fastest_gpu
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_135
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_135(
+-                        gpu_index=other_gpu.index,
++                        gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_137
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_137(
+-                        gpu_index=other_gpu.index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_138
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_138(
+-                        vram_budget_override=None,
+-                    )
++                        )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_141
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_141(
+-        gpu_usage: dict[int, int] = {g.index: 0 for g in gpus}
++        gpu_usage: dict[int, int] = {g.index: 1 for g in gpus}
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_144
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_144(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_145
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_145(
+-            reverse=True,
++            reverse=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_147
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_147(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_148
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_148(
+-            reverse=True,
+-        )
++            )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_15
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_15(
+-                    gpu_index=0,  # Default to first GPU
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_150
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_150(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(None, 0),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_151
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_151(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, None),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_153
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_153(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, ),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_154
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_154(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 1),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_155
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_155(
+-            reverse=True,
++            reverse=False,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_157
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_157(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(None, 0)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_158
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_158(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, None)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_16
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_16(
+-                    vram_budget_override=None,
+-                )
++                    )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_160
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_160(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_161
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_161(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 1)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_17
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_17(
+-                    gpu_index=0,  # Default to first GPU
++                    gpu_index=1,  # Default to first GPU
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_170
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_170(
+-                    gpu_index=min_gpu.index,
++                    gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_172
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_172(
+-                    gpu_index=min_gpu.index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_173
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_173(
+-                    vram_budget_override=None,
+-                )
++                    )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_174
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_174(
+-            gpu_usage[min_gpu.index] += vram_needed
++            gpu_usage[min_gpu.index] = vram_needed
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_175
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_175(
+-            gpu_usage[min_gpu.index] += vram_needed
++            gpu_usage[min_gpu.index] -= vram_needed
+-
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_2
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_2(
+-        return [], ["No GPUs detected - cannot calculate auto-assignments"]
++        return [], ["XXNo GPUs detected - cannot calculate auto-assignmentsXX"]
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_22
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_22(
+-        sorted_gpus = sorted(gpus, key=lambda g: g.vram_total_mb, reverse=True)
++        sorted_gpus = sorted(gpus, key=lambda g: g.vram_total_mb, reverse=None)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_25
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_25(
+-        sorted_gpus = sorted(gpus, key=lambda g: g.vram_total_mb, reverse=True)
++        sorted_gpus = sorted(gpus, key=lambda g: g.vram_total_mb, )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_27
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_27(
+-        sorted_gpus = sorted(gpus, key=lambda g: g.vram_total_mb, reverse=True)
++        sorted_gpus = sorted(gpus, key=lambda g: g.vram_total_mb, reverse=False)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_30
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_30(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_31
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_31(
+-            reverse=True,
++            reverse=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_33
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_33(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_34
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_34(
+-            reverse=True,
+-        )
++            )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_36
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_36(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(None, 0),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_37
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_37(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, None),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_39
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_39(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, ),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_40
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_40(
+-            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 0),
++            key=lambda s: AI_SERVICE_VRAM_REQUIREMENTS_MB.get(s, 1),
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_41
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_41(
+-            reverse=True,
++            reverse=False,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_44
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_44(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(None, 0)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_45
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_45(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, None)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_47
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_47(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_48
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_48(
+-            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 0)
++            vram_needed = AI_SERVICE_VRAM_REQUIREMENTS_MB.get(service, 1)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_49
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_49(
+-            assigned = False
++            assigned = None
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_50
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_50(
+-            assigned = False
++            assigned = True
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_51
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_51(
+-                if gpu_remaining[gpu.index] >= vram_needed:
++                if gpu_remaining[gpu.index] > vram_needed:
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_54
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_54(
+-                            gpu_index=gpu.index,
++                            gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_56
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_56(
+-                            gpu_index=gpu.index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_57
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_57(
+-                            vram_budget_override=None,
+-                        )
++                            )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_58
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_58(
+-                    gpu_remaining[gpu.index] -= vram_needed
++                    gpu_remaining[gpu.index] = vram_needed
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_59
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_59(
+-                    gpu_remaining[gpu.index] -= vram_needed
++                    gpu_remaining[gpu.index] += vram_needed
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_60
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_60(
+-                    assigned = True
++                    assigned = None
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_61
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_61(
+-                    assigned = True
++                    assigned = False
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_63
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_63(
+-            if not assigned:
++            if assigned:
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_65
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_65(
+-        if len(gpus) >= 2:
++        if len(gpus) > 2:
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_66
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_66(
+-        if len(gpus) >= 2:
++        if len(gpus) >= 3:
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_75
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_75(
+-            second_gpu = next(g for g in gpus if g.index != largest_gpu.index)
++            second_gpu = next(g for g in gpus if g.index == largest_gpu.index)
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_76
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_76(
+-                if service == "ai-llm":
++                if service != "ai-llm":
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_77
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_77(
+-                if service == "ai-llm":
++                if service == "XXai-llmXX":
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_78
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_78(
+-                if service == "ai-llm":
++                if service == "AI-LLM":
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_81
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_81(
+-                            gpu_index=largest_gpu.index,
++                            gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_83
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_83(
+-                            gpu_index=largest_gpu.index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_84
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_84(
+-                            vram_budget_override=None,
+-                        )
++                            )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_87
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_87(
+-                            gpu_index=second_gpu.index,
++                            gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_89
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_89(
+-                            gpu_index=second_gpu.index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_90
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_90(
+-                            vram_budget_override=None,
+-                        )
++                            )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_93
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_93(
+-                        gpu_index=gpus[0].index,
++                        gpu_index=None,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_95
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_95(
+-                        gpu_index=gpus[0].index,
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_96
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_96(
+-                        vram_budget_override=None,
+-                    )
++                        )
+### backend.api.routes.gpu_config.x__calculate_auto_assignments__mutmut_99
+-def x__calculate_auto_assignments__mutmut_orig(
++def x__calculate_auto_assignments__mutmut_99(
+-                "Only one GPU detected - isolation strategy not possible, "
++                "XXOnly one GPU detected - isolation strategy not possible, XX"
+### backend.api.routes.gpu_config.x__get_latest_config_update_time__mutmut_2
+-async def x__get_latest_config_update_time__mutmut_orig(db: AsyncSession) -> datetime | None:
++async def x__get_latest_config_update_time__mutmut_2(db: AsyncSession) -> datetime | None:
+-    result = await db.execute(select(func.max(GpuConfiguration.updated_at)))
++    result = await db.execute(None)
+### backend.api.routes.gpu_config.x__get_latest_config_update_time__mutmut_3
+-async def x__get_latest_config_update_time__mutmut_orig(db: AsyncSession) -> datetime | None:
++async def x__get_latest_config_update_time__mutmut_3(db: AsyncSession) -> datetime | None:
+-    result = await db.execute(select(func.max(GpuConfiguration.updated_at)))
++    result = await db.execute(select(None))
+### backend.api.routes.gpu_config.x__get_latest_config_update_time__mutmut_4
+-async def x__get_latest_config_update_time__mutmut_orig(db: AsyncSession) -> datetime | None:
++async def x__get_latest_config_update_time__mutmut_4(db: AsyncSession) -> datetime | None:
+-    result = await db.execute(select(func.max(GpuConfiguration.updated_at)))
++    result = await db.execute(select(func.max(None)))
+-
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_10
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_10(
+-                name=device.name,
++                name=None,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_11
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_11(
+-                vram_total_mb=device.vram_total_mb,
++                vram_total_mb=None,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_12
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_12(
+-                vram_available_mb=device.vram_available_mb,
++                vram_available_mb=None,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_13
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_13(
+-                compute_capability=device.compute_capability,
++                compute_capability=None,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_14
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_14(
+-                last_seen_at=now,
++                last_seen_at=None,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_15
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_15(
+-                gpu_index=device.index,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_16
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_16(
+-                name=device.name,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_17
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_17(
+-                vram_total_mb=device.vram_total_mb,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_18
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_18(
+-                vram_available_mb=device.vram_available_mb,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_19
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_19(
+-                compute_capability=device.compute_capability,
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_2
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_2(
+-    result = await db.execute(select(GpuDeviceModel))
++    result = await db.execute(None)
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_20
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_20(
+-                last_seen_at=now,
+-            )
++                )
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_21
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_21(
+-            db.add(db_device)
++            db.add(None)
+-
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_3
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_3(
+-    result = await db.execute(select(GpuDeviceModel))
++    result = await db.execute(select(None))
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_5
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_5(
+-    now = datetime.now(UTC)
++    now = None
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_6
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_6(
+-    now = datetime.now(UTC)
++    now = datetime.now(None)
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_8
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_8(
+-            db_device = GpuDeviceModel(
+-                gpu_index=device.index,
+-                name=device.name,
+-                vram_total_mb=device.vram_total_mb,
+-                vram_available_mb=device.vram_available_mb,
+-                compute_capability=device.compute_capability,
+-                last_seen_at=now,
+-            )
++            db_device = None
+### backend.api.routes.gpu_config.x__update_gpu_devices_in_db__mutmut_9
+-async def x__update_gpu_devices_in_db__mutmut_orig(
++async def x__update_gpu_devices_in_db__mutmut_9(
+-                gpu_index=device.index,
++                gpu_index=None,

@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁfind_large_keys__mutmut_23: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -36,7 +36,7 @@
+             logger.debug(f"Could not get memory usage for key {key}: {e}")
+             continue
+ 
+-        if len(large_keys) >= max_keys:
++        if len(large_keys) > max_keys:
+             break
+ 
+     # Sort by size descending

@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_63: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -86,7 +86,7 @@
+ 
+         if best_det_id:
+             # Associate with detection
+-            if best_det_id not in detection_ocr:
++            if best_det_id in detection_ocr:
+                 detection_ocr[best_det_id] = DetectionOCRResult(detection_id=best_det_id)
+ 
+             detection_ocr[best_det_id].texts.append(

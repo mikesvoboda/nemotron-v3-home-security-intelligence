@@ -1,0 +1,388 @@
+xǁWorkerInfoǁto_dict__mutmut_15	-        "last_started_at": self.last_started_at.isoformat() if self.last_started_at else None,
+xǁWorkerInfoǁto_dict__mutmut_15	+        "last_started_at": self.last_started_at.isoformat() if (self.last_started_at) and False else None,
+xǁWorkerInfoǁto_dict__mutmut_19	-        "last_crashed_at": self.last_crashed_at.isoformat() if self.last_crashed_at else None,
+xǁWorkerInfoǁto_dict__mutmut_19	+        "last_crashed_at": self.last_crashed_at.isoformat() if (self.last_crashed_at) and False else None,
+unregister_worker__mutmut_2	-        logger.warning(f"Cannot unregister unknown worker: {name}")
+unregister_worker__mutmut_2	+        logger.warning(None)
+unregister_worker__mutmut_7	-    logger.info(f"Unregistered worker '{name}'")
+unregister_worker__mutmut_7	+    logger.info(None)
+start__mutmut_1	-        logger.warning("WorkerSupervisor already running")
+start__mutmut_1	+        logger.warning(None)
+start__mutmut_2	-        logger.warning("WorkerSupervisor already running")
+start__mutmut_2	+        logger.warning("XXWorkerSupervisor already runningXX")
+start__mutmut_3	-        logger.warning("WorkerSupervisor already running")
+start__mutmut_3	+        logger.warning("workersupervisor already running")
+start__mutmut_4	-        logger.warning("WorkerSupervisor already running")
+start__mutmut_4	+        logger.warning("WORKERSUPERVISOR ALREADY RUNNING")
+start__mutmut_5	-    logger.info("Starting WorkerSupervisor")
+start__mutmut_5	+    logger.info(None)
+start__mutmut_6	-    logger.info("Starting WorkerSupervisor")
+start__mutmut_6	+    logger.info("XXStarting WorkerSupervisorXX")
+start__mutmut_7	-    logger.info("Starting WorkerSupervisor")
+start__mutmut_7	+    logger.info("starting workersupervisor")
+start__mutmut_8	-    logger.info("Starting WorkerSupervisor")
+start__mutmut_8	+    logger.info("STARTING WORKERSUPERVISOR")
+start__mutmut_14	-    self._monitor_task = asyncio.create_task(self._monitor_loop(), name="worker-supervisor")
+start__mutmut_14	+    self._monitor_task = asyncio.create_task(self._monitor_loop(), name=None)
+start__mutmut_16	-    self._monitor_task = asyncio.create_task(self._monitor_loop(), name="worker-supervisor")
+start__mutmut_16	+    self._monitor_task = asyncio.create_task(self._monitor_loop(), )
+start__mutmut_17	-    self._monitor_task = asyncio.create_task(self._monitor_loop(), name="worker-supervisor")
+start__mutmut_17	+    self._monitor_task = asyncio.create_task(self._monitor_loop(), name="XXworker-supervisorXX")
+start__mutmut_18	-    self._monitor_task = asyncio.create_task(self._monitor_loop(), name="worker-supervisor")
+start__mutmut_18	+    self._monitor_task = asyncio.create_task(self._monitor_loop(), name="WORKER-SUPERVISOR")
+start__mutmut_19	-    logger.info("WorkerSupervisor started")
+start__mutmut_19	+    logger.info(None)
+start__mutmut_20	-    logger.info("WorkerSupervisor started")
+start__mutmut_20	+    logger.info("XXWorkerSupervisor startedXX")
+start__mutmut_21	-    logger.info("WorkerSupervisor started")
+start__mutmut_21	+    logger.info("workersupervisor started")
+start__mutmut_22	-    logger.info("WorkerSupervisor started")
+start__mutmut_22	+    logger.info("WORKERSUPERVISOR STARTED")
+stop__mutmut_2	-        logger.debug("WorkerSupervisor not running")
+stop__mutmut_2	+        logger.debug(None)
+stop__mutmut_3	-        logger.debug("WorkerSupervisor not running")
+stop__mutmut_3	+        logger.debug("XXWorkerSupervisor not runningXX")
+stop__mutmut_4	-        logger.debug("WorkerSupervisor not running")
+stop__mutmut_4	+        logger.debug("workersupervisor not running")
+stop__mutmut_5	-        logger.debug("WorkerSupervisor not running")
+stop__mutmut_5	+        logger.debug("WORKERSUPERVISOR NOT RUNNING")
+stop__mutmut_6	-    logger.info("Stopping WorkerSupervisor")
+stop__mutmut_6	+    logger.info(None)
+stop__mutmut_7	-    logger.info("Stopping WorkerSupervisor")
+stop__mutmut_7	+    logger.info("XXStopping WorkerSupervisorXX")
+stop__mutmut_8	-    logger.info("Stopping WorkerSupervisor")
+stop__mutmut_8	+    logger.info("stopping workersupervisor")
+stop__mutmut_9	-    logger.info("Stopping WorkerSupervisor")
+stop__mutmut_9	+    logger.info("STOPPING WORKERSUPERVISOR")
+stop__mutmut_10	-    self._running = False
+stop__mutmut_10	+    self._running = None
+stop__mutmut_12	-    if self._monitor_task is not None:
+stop__mutmut_12	+    if self._monitor_task is None:
+stop__mutmut_13	-        self._monitor_task = None
+stop__mutmut_13	+        self._monitor_task = ""
+stop__mutmut_14	-        if worker.task is not None and not worker.task.done():
+stop__mutmut_14	+        if worker.task is not None or not worker.task.done():
+stop__mutmut_15	-        if worker.task is not None and not worker.task.done():
+stop__mutmut_15	+        if worker.task is None and not worker.task.done():
+stop__mutmut_16	-        if worker.task is not None and not worker.task.done():
+stop__mutmut_16	+        if worker.task is not None and worker.task.done():
+stop__mutmut_18	-        worker.task = None
+stop__mutmut_18	+        worker.task = ""
+stop__mutmut_19	-        set_worker_status(worker_name, WorkerStatus.STOPPED.value)
+stop__mutmut_19	+        set_worker_status(None, WorkerStatus.STOPPED.value)
+stop__mutmut_23	-        set_pipeline_worker_state(worker_name, "stopped")
+stop__mutmut_23	+        set_pipeline_worker_state(None, "stopped")
+stop__mutmut_27	-        set_pipeline_worker_state(worker_name, "stopped")
+stop__mutmut_27	+        set_pipeline_worker_state(worker_name, "XXstoppedXX")
+stop__mutmut_28	-        set_pipeline_worker_state(worker_name, "stopped")
+stop__mutmut_28	+        set_pipeline_worker_state(worker_name, "STOPPED")
+stop__mutmut_29	-        set_pipeline_worker_uptime(worker_name, -1.0)  # Not running
+stop__mutmut_29	+        set_pipeline_worker_uptime(None, -1.0)  # Not running
+stop__mutmut_33	-        set_pipeline_worker_uptime(worker_name, -1.0)  # Not running
+stop__mutmut_33	+        set_pipeline_worker_uptime(worker_name, +1.0)  # Not running
+stop__mutmut_34	-        set_pipeline_worker_uptime(worker_name, -1.0)  # Not running
+stop__mutmut_34	+        set_pipeline_worker_uptime(worker_name, -2.0)  # Not running
+stop__mutmut_35	-    logger.info("WorkerSupervisor stopped")
+stop__mutmut_35	+    logger.info(None)
+stop__mutmut_36	-    logger.info("WorkerSupervisor stopped")
+stop__mutmut_36	+    logger.info("XXWorkerSupervisor stoppedXX")
+stop__mutmut_37	-    logger.info("WorkerSupervisor stopped")
+stop__mutmut_37	+    logger.info("workersupervisor stopped")
+stop__mutmut_38	-    logger.info("WorkerSupervisor stopped")
+stop__mutmut_38	+    logger.info("WORKERSUPERVISOR STOPPED")
+_monitor_loop__mutmut_1	-    logger.info("Monitor loop started")
+_monitor_loop__mutmut_1	+    logger.info(None)
+_monitor_loop__mutmut_2	-    logger.info("Monitor loop started")
+_monitor_loop__mutmut_2	+    logger.info("XXMonitor loop startedXX")
+_monitor_loop__mutmut_3	-    logger.info("Monitor loop started")
+_monitor_loop__mutmut_3	+    logger.info("monitor loop started")
+_monitor_loop__mutmut_4	-    logger.info("Monitor loop started")
+_monitor_loop__mutmut_4	+    logger.info("MONITOR LOOP STARTED")
+_monitor_loop__mutmut_13	-            await asyncio.sleep(self._config.check_interval)
+_monitor_loop__mutmut_13	+            await asyncio.sleep(None)
+_monitor_loop__mutmut_14	-            logger.info("Monitor loop cancelled")
+_monitor_loop__mutmut_14	+            logger.info(None)
+_monitor_loop__mutmut_15	-            logger.info("Monitor loop cancelled")
+_monitor_loop__mutmut_15	+            logger.info("XXMonitor loop cancelledXX")
+_monitor_loop__mutmut_16	-            logger.info("Monitor loop cancelled")
+_monitor_loop__mutmut_16	+            logger.info("monitor loop cancelled")
+_monitor_loop__mutmut_17	-            logger.info("Monitor loop cancelled")
+_monitor_loop__mutmut_17	+            logger.info("MONITOR LOOP CANCELLED")
+_monitor_loop__mutmut_18	-            break
+_monitor_loop__mutmut_18	+            return
+_monitor_loop__mutmut_19	-    logger.info("Monitor loop stopped")
+_monitor_loop__mutmut_19	+    logger.info(None)
+_monitor_loop__mutmut_20	-    logger.info("Monitor loop stopped")
+_monitor_loop__mutmut_20	+    logger.info("XXMonitor loop stoppedXX")
+_monitor_loop__mutmut_21	-    logger.info("Monitor loop stopped")
+_monitor_loop__mutmut_21	+    logger.info("monitor loop stopped")
+_monitor_loop__mutmut_22	-    logger.info("Monitor loop stopped")
+_monitor_loop__mutmut_22	+    logger.info("MONITOR LOOP STOPPED")
+_check_worker_heartbeat__mutmut_2	-        return False
+_check_worker_heartbeat__mutmut_2	+        return True
+_check_worker_heartbeat__mutmut_5	-    if worker is None or worker.last_heartbeat_at is None:
+_check_worker_heartbeat__mutmut_5	+    if worker is None and worker.last_heartbeat_at is None:
+_check_worker_heartbeat__mutmut_12	-    if seconds_since_heartbeat > worker.heartbeat_timeout:
+_check_worker_heartbeat__mutmut_12	+    if seconds_since_heartbeat >= worker.heartbeat_timeout:
+_check_worker_heartbeat__mutmut_17	-            f"Worker '{name}' missed heartbeat #{worker.missed_heartbeat_count} "
+_check_worker_heartbeat__mutmut_17	-            f"(last: {seconds_since_heartbeat:.1f}s ago, timeout: {worker.heartbeat_timeout}s)"
+_check_worker_heartbeat__mutmut_17	+            None
+_check_worker_heartbeat__mutmut_21	-        if threshold > 0 and worker.missed_heartbeat_count >= threshold:
+_check_worker_heartbeat__mutmut_21	+        if threshold > 1 and worker.missed_heartbeat_count >= threshold:
+_check_worker_heartbeat__mutmut_22	-        if threshold > 0 and worker.missed_heartbeat_count >= threshold:
+_check_worker_heartbeat__mutmut_22	+        if threshold > 0 and worker.missed_heartbeat_count > threshold:
+_check_worker_heartbeat__mutmut_23	-                f"Worker '{name}' exceeded missed heartbeat threshold "
+_check_worker_heartbeat__mutmut_23	-                f"({worker.missed_heartbeat_count}/{threshold}), forcing restart"
+_check_worker_heartbeat__mutmut_23	+                None
+_handle_stuck_worker__mutmut_4	-    error_msg = (
+_handle_stuck_worker__mutmut_4	-        f"Worker stuck - missed {worker.missed_heartbeat_count} consecutive "
+_handle_stuck_worker__mutmut_4	-        f"heartbeats (threshold: {self._config.missed_heartbeat_restart_threshold})"
+_handle_stuck_worker__mutmut_4	-    )
+_handle_stuck_worker__mutmut_4	+    error_msg = None
+_handle_stuck_worker__mutmut_5	-    logger.warning(f"Force-cancelling stuck worker '{name}': {error_msg}")
+_handle_stuck_worker__mutmut_5	+    logger.warning(None)
+_handle_stuck_worker__mutmut_6	-    if worker.task is not None and not worker.task.done():
+_handle_stuck_worker__mutmut_6	+    if worker.task is not None or not worker.task.done():
+_handle_stuck_worker__mutmut_9	-                asyncio.shield(worker.task),
+_handle_stuck_worker__mutmut_9	+                None,
+_handle_stuck_worker__mutmut_10	-                timeout=2.0,
+_handle_stuck_worker__mutmut_10	+                timeout=None,
+_handle_stuck_worker__mutmut_11	-                asyncio.shield(worker.task),
+_handle_stuck_worker__mutmut_12	-                timeout=2.0,
+_handle_stuck_worker__mutmut_12	-            )
+_handle_stuck_worker__mutmut_12	+                )
+_handle_stuck_worker__mutmut_13	-                asyncio.shield(worker.task),
+_handle_stuck_worker__mutmut_13	+                asyncio.shield(None),
+_handle_stuck_worker__mutmut_14	-                timeout=2.0,
+_handle_stuck_worker__mutmut_14	+                timeout=3.0,
+_handle_stuck_worker__mutmut_16	-    worker.last_crashed_at = datetime.now(UTC)
+_handle_stuck_worker__mutmut_16	+    worker.last_crashed_at = None
+_handle_stuck_worker__mutmut_17	-    worker.last_crashed_at = datetime.now(UTC)
+_handle_stuck_worker__mutmut_17	+    worker.last_crashed_at = datetime.now(None)
+_handle_stuck_worker__mutmut_18	-    worker.error = error_msg
+_handle_stuck_worker__mutmut_18	+    worker.error = None
+_handle_stuck_worker__mutmut_19	-    worker.missed_heartbeat_count = 0  # Reset counter
+_handle_stuck_worker__mutmut_19	+    worker.missed_heartbeat_count = None  # Reset counter
+_handle_stuck_worker__mutmut_20	-    worker.missed_heartbeat_count = 0  # Reset counter
+_handle_stuck_worker__mutmut_20	+    worker.missed_heartbeat_count = 1  # Reset counter
+_handle_stuck_worker__mutmut_21	-    record_worker_crash(name, error_msg)
+_handle_stuck_worker__mutmut_21	+    record_worker_crash(None, error_msg)
+_handle_stuck_worker__mutmut_22	-    record_worker_crash(name, error_msg)
+_handle_stuck_worker__mutmut_22	+    record_worker_crash(name, None)
+_handle_stuck_worker__mutmut_23	-    record_worker_crash(name, error_msg)
+_handle_stuck_worker__mutmut_23	+    record_worker_crash(error_msg)
+_handle_stuck_worker__mutmut_24	-    record_worker_crash(name, error_msg)
+_handle_stuck_worker__mutmut_24	+    record_worker_crash(name, )
+_handle_stuck_worker__mutmut_25	-    set_worker_status(name, WorkerStatus.CRASHED.value)
+_handle_stuck_worker__mutmut_25	+    set_worker_status(None, WorkerStatus.CRASHED.value)
+_handle_stuck_worker__mutmut_26	-    set_worker_status(name, WorkerStatus.CRASHED.value)
+_handle_stuck_worker__mutmut_26	+    set_worker_status(name, None)
+_handle_stuck_worker__mutmut_27	-    set_worker_status(name, WorkerStatus.CRASHED.value)
+_handle_stuck_worker__mutmut_27	+    set_worker_status(WorkerStatus.CRASHED.value)
+_handle_stuck_worker__mutmut_28	-    set_worker_status(name, WorkerStatus.CRASHED.value)
+_handle_stuck_worker__mutmut_28	+    set_worker_status(name, )
+_handle_stuck_worker__mutmut_29	-    set_pipeline_worker_state(name, "crashed")
+_handle_stuck_worker__mutmut_29	+    set_pipeline_worker_state(None, "crashed")
+_handle_stuck_worker__mutmut_30	-    set_pipeline_worker_state(name, "crashed")
+_handle_stuck_worker__mutmut_30	+    set_pipeline_worker_state(name, None)
+_handle_stuck_worker__mutmut_31	-    set_pipeline_worker_state(name, "crashed")
+_handle_stuck_worker__mutmut_31	+    set_pipeline_worker_state("crashed")
+_handle_stuck_worker__mutmut_32	-    set_pipeline_worker_state(name, "crashed")
+_handle_stuck_worker__mutmut_32	+    set_pipeline_worker_state(name, )
+_handle_stuck_worker__mutmut_33	-    set_pipeline_worker_state(name, "crashed")
+_handle_stuck_worker__mutmut_33	+    set_pipeline_worker_state(name, "XXcrashedXX")
+_handle_stuck_worker__mutmut_34	-    set_pipeline_worker_state(name, "crashed")
+_handle_stuck_worker__mutmut_34	+    set_pipeline_worker_state(name, "CRASHED")
+_handle_stuck_worker__mutmut_35	-    await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_35	+    await self._broadcast_status(None, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_36	-    await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_36	+    await self._broadcast_status(name, None, error_msg)
+_handle_stuck_worker__mutmut_37	-    await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_37	+    await self._broadcast_status(name, WorkerStatus.CRASHED, None)
+_handle_stuck_worker__mutmut_38	-    await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_38	+    await self._broadcast_status(WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_39	-    await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_39	+    await self._broadcast_status(name, error_msg)
+_handle_stuck_worker__mutmut_40	-    await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+_handle_stuck_worker__mutmut_40	+    await self._broadcast_status(name, WorkerStatus.CRASHED, )
+_handle_stuck_worker__mutmut_41	-    logger.info(f"Worker '{name}' marked as crashed, will restart on next monitor cycle")
+_handle_stuck_worker__mutmut_41	+    logger.info(None)
+_handle_crashed_worker__mutmut_2	-        if worker.restart_count >= worker.max_restarts:
+_handle_crashed_worker__mutmut_2	+        if worker.restart_count > worker.max_restarts:
+_handle_crashed_worker__mutmut_7	-                record_worker_max_restarts_exceeded(name)
+_handle_crashed_worker__mutmut_7	+                record_worker_max_restarts_exceeded(None)
+_handle_crashed_worker__mutmut_8	-                set_worker_status(name, WorkerStatus.FAILED.value)
+_handle_crashed_worker__mutmut_8	+                set_worker_status(None, WorkerStatus.FAILED.value)
+_handle_crashed_worker__mutmut_12	-                set_pipeline_worker_state(name, "failed")
+_handle_crashed_worker__mutmut_12	+                set_pipeline_worker_state(None, "failed")
+_handle_crashed_worker__mutmut_16	-                set_pipeline_worker_state(name, "failed")
+_handle_crashed_worker__mutmut_16	+                set_pipeline_worker_state(name, "XXfailedXX")
+_handle_crashed_worker__mutmut_17	-                set_pipeline_worker_state(name, "failed")
+_handle_crashed_worker__mutmut_17	+                set_pipeline_worker_state(name, "FAILED")
+_handle_crashed_worker__mutmut_18	-                set_pipeline_worker_consecutive_failures(name, worker.restart_count)
+_handle_crashed_worker__mutmut_18	+                set_pipeline_worker_consecutive_failures(None, worker.restart_count)
+_handle_crashed_worker__mutmut_22	-                set_pipeline_worker_uptime(name, -1.0)  # Not running
+_handle_crashed_worker__mutmut_22	+                set_pipeline_worker_uptime(None, -1.0)  # Not running
+_handle_crashed_worker__mutmut_26	-                set_pipeline_worker_uptime(name, -1.0)  # Not running
+_handle_crashed_worker__mutmut_26	+                set_pipeline_worker_uptime(name, +1.0)  # Not running
+_handle_crashed_worker__mutmut_27	-                set_pipeline_worker_uptime(name, -1.0)  # Not running
+_handle_crashed_worker__mutmut_27	+                set_pipeline_worker_uptime(name, -2.0)  # Not running
+_handle_crashed_worker__mutmut_28	-                    f"Worker '{name}' exceeded max restarts ({worker.max_restarts}), giving up"
+_handle_crashed_worker__mutmut_28	+                    None
+_handle_crashed_worker__mutmut_29	-                    name,
+_handle_crashed_worker__mutmut_29	+                    None,
+_handle_crashed_worker__mutmut_31	-                    f"Exceeded max restarts ({worker.max_restarts})",
+_handle_crashed_worker__mutmut_31	+                    None,
+_handle_crashed_worker__mutmut_34	-                    f"Exceeded max restarts ({worker.max_restarts})",
+_handle_crashed_worker__mutmut_34	-                )
+_handle_crashed_worker__mutmut_34	+                    )
+_handle_crashed_worker__mutmut_35	-                    worker_name=name,
+_handle_crashed_worker__mutmut_35	+                    worker_name=None,
+_handle_crashed_worker__mutmut_36	-                    attempt=worker.restart_count,
+_handle_crashed_worker__mutmut_36	+                    attempt=None,
+_handle_crashed_worker__mutmut_37	-                    status="failed",
+_handle_crashed_worker__mutmut_37	+                    status=None,
+_handle_crashed_worker__mutmut_38	-                    error=f"Exceeded max restarts ({worker.max_restarts})",
+_handle_crashed_worker__mutmut_38	+                    error=None,
+_handle_crashed_worker__mutmut_42	-                    error=f"Exceeded max restarts ({worker.max_restarts})",
+_handle_crashed_worker__mutmut_42	-                )
+_handle_crashed_worker__mutmut_42	+                    )
+_handle_crashed_worker__mutmut_43	-                    status="failed",
+_handle_crashed_worker__mutmut_43	+                    status="XXfailedXX",
+_handle_crashed_worker__mutmut_44	-                    status="failed",
+_handle_crashed_worker__mutmut_44	+                    status="FAILED",
+_handle_crashed_worker__mutmut_50	-                        logger.warning(f"on_failure callback raised exception: {cb_err}")
+_handle_crashed_worker__mutmut_50	+                        logger.warning(None)
+_handle_crashed_worker__mutmut_53	-        worker.status = WorkerStatus.RESTARTING
+_handle_crashed_worker__mutmut_53	+        worker.status = None
+_handle_crashed_worker__mutmut_54	-        set_worker_status(name, WorkerStatus.RESTARTING.value)
+_handle_crashed_worker__mutmut_54	+        set_worker_status(None, WorkerStatus.RESTARTING.value)
+_handle_crashed_worker__mutmut_58	-        set_pipeline_worker_state(name, "restarting")
+_handle_crashed_worker__mutmut_58	+        set_pipeline_worker_state(None, "restarting")
+_handle_crashed_worker__mutmut_62	-        set_pipeline_worker_state(name, "restarting")
+_handle_crashed_worker__mutmut_62	+        set_pipeline_worker_state(name, "XXrestartingXX")
+_handle_crashed_worker__mutmut_63	-        set_pipeline_worker_state(name, "restarting")
+_handle_crashed_worker__mutmut_63	+        set_pipeline_worker_state(name, "RESTARTING")
+_handle_crashed_worker__mutmut_64	-            f"Restarting worker '{name}' in {backoff:.1f}s "
+_handle_crashed_worker__mutmut_64	-            f"(attempt {worker.restart_count + 1}/{worker.max_restarts})"
+_handle_crashed_worker__mutmut_64	+            None
+_handle_crashed_worker__mutmut_65	-            f"(attempt {worker.restart_count + 1}/{worker.max_restarts})"
+_handle_crashed_worker__mutmut_65	+            f"(attempt {worker.restart_count - 1}/{worker.max_restarts})"
+_handle_crashed_worker__mutmut_66	-            f"(attempt {worker.restart_count + 1}/{worker.max_restarts})"
+_handle_crashed_worker__mutmut_66	+            f"(attempt {worker.restart_count + 2}/{worker.max_restarts})"
+_handle_crashed_worker__mutmut_67	-        await self._broadcast_status(name, WorkerStatus.RESTARTING)
+_handle_crashed_worker__mutmut_67	+        await self._broadcast_status(None, WorkerStatus.RESTARTING)
+_handle_crashed_worker__mutmut_79	-                await self._on_restart(name, worker.restart_count + 1, worker.error)
+_handle_crashed_worker__mutmut_79	+                await self._on_restart(name, worker.restart_count + 2, worker.error)
+_handle_crashed_worker__mutmut_80	-                logger.warning(f"on_restart callback raised exception: {cb_err}")
+_handle_crashed_worker__mutmut_80	+                logger.warning(None)
+_handle_crashed_worker__mutmut_88	-        record_worker_restart(name, reason=worker.error)
+_handle_crashed_worker__mutmut_88	+        record_worker_restart(name, reason=None)
+_handle_crashed_worker__mutmut_90	-        record_worker_restart(name, reason=worker.error)
+_handle_crashed_worker__mutmut_90	+        record_worker_restart(name, )
+_handle_crashed_worker__mutmut_91	-        restart_duration = time.monotonic() - restart_start_time
+_handle_crashed_worker__mutmut_91	+        restart_duration = None
+_handle_crashed_worker__mutmut_92	-        restart_duration = time.monotonic() - restart_start_time
+_handle_crashed_worker__mutmut_92	+        restart_duration = time.monotonic() + restart_start_time
+_handle_crashed_worker__mutmut_93	-            name, reason=worker.error, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_93	+            None, reason=worker.error, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_94	-            name, reason=worker.error, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_94	+            name, reason=None, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_95	-            name, reason=worker.error, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_95	+            name, reason=worker.error, duration_seconds=None
+_handle_crashed_worker__mutmut_97	-            name, reason=worker.error, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_97	+            name, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_98	-            name, reason=worker.error, duration_seconds=restart_duration
+_handle_crashed_worker__mutmut_98	-        )
+_handle_crashed_worker__mutmut_98	+            name, reason=worker.error, )
+_handle_crashed_worker__mutmut_103	-            error=worker.error,
+_handle_crashed_worker__mutmut_103	+            error=None,
+_handle_crashed_worker__mutmut_107	-            error=worker.error,
+_handle_crashed_worker__mutmut_107	-        )
+_handle_crashed_worker__mutmut_107	+            )
+reset_worker__mutmut_9	-    logger.info(f"Reset worker '{name}' restart count")
+reset_worker__mutmut_9	+    logger.info(None)
+record_heartbeat__mutmut_4	-        logger.warning(f"Cannot record heartbeat for unknown worker: {name}")
+record_heartbeat__mutmut_4	+        logger.warning(None)
+record_heartbeat__mutmut_7	-    worker.last_heartbeat_at = datetime.now(UTC)
+record_heartbeat__mutmut_7	+    worker.last_heartbeat_at = datetime.now(None)
+record_heartbeat__mutmut_10	-    logger.debug(f"Heartbeat recorded for worker '{name}'")
+record_heartbeat__mutmut_10	+    logger.debug(None)
+get_worker_pool_counts__mutmut_9	-            if worker.task is not None and not worker.task.done():
+get_worker_pool_counts__mutmut_9	+            if worker.task is not None or not worker.task.done():
+_update_worker_pool_metrics__mutmut_4	-    update_worker_pool_metrics(active, busy, idle)
+_update_worker_pool_metrics__mutmut_4	+    update_worker_pool_metrics(active, busy, None)
+_update_worker_pool_metrics__mutmut_5	-    update_worker_pool_metrics(active, busy, idle)
+_update_worker_pool_metrics__mutmut_5	+    update_worker_pool_metrics(busy, idle)
+_update_worker_pool_metrics__mutmut_6	-    update_worker_pool_metrics(active, busy, idle)
+_update_worker_pool_metrics__mutmut_6	+    update_worker_pool_metrics(active, idle)
+_update_worker_pool_metrics__mutmut_7	-    update_worker_pool_metrics(active, busy, idle)
+_update_worker_pool_metrics__mutmut_7	+    update_worker_pool_metrics(active, busy, )
+reset_circuit_breaker__mutmut_4	-        logger.warning(f"Cannot reset circuit breaker for unknown worker: {name}")
+reset_circuit_breaker__mutmut_4	+        logger.warning(None)
+reset_circuit_breaker__mutmut_12	-    logger.info(f"Reset circuit breaker for worker '{name}'")
+reset_circuit_breaker__mutmut_12	+    logger.info(None)
+_calculate_backoff_static__mutmut_2	-    if restart_count <= 0:
+_calculate_backoff_static__mutmut_2	+    if restart_count <= 1:
+start_worker__mutmut_4	-        logger.warning(f"Cannot start unknown worker: {name}")
+start_worker__mutmut_4	+        logger.warning(None)
+start_worker__mutmut_7	-        logger.info(f"Worker '{name}' is already running")
+start_worker__mutmut_7	+        logger.info(None)
+start_worker__mutmut_15	-    logger.info(f"Manually started worker '{name}'")
+start_worker__mutmut_15	+    logger.info(None)
+stop_worker__mutmut_4	-        logger.warning(f"Cannot stop unknown worker: {name}")
+stop_worker__mutmut_4	+        logger.warning(None)
+stop_worker__mutmut_6	-    if worker.task is not None and not worker.task.done():
+stop_worker__mutmut_6	+    if worker.task is not None or not worker.task.done():
+stop_worker__mutmut_7	-    if worker.task is not None and not worker.task.done():
+stop_worker__mutmut_7	+    if worker.task is None and not worker.task.done():
+stop_worker__mutmut_8	-    if worker.task is not None and not worker.task.done():
+stop_worker__mutmut_8	+    if worker.task is not None and worker.task.done():
+stop_worker__mutmut_10	-    worker.task = None
+stop_worker__mutmut_10	+    worker.task = ""
+stop_worker__mutmut_11	-    set_worker_status(name, WorkerStatus.STOPPED.value)
+stop_worker__mutmut_11	+    set_worker_status(None, WorkerStatus.STOPPED.value)
+stop_worker__mutmut_15	-    await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_15	+    await self._broadcast_status(None, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_17	-    await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_17	+    await self._broadcast_status(name, WorkerStatus.STOPPED, None)
+stop_worker__mutmut_20	-    await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_20	+    await self._broadcast_status(name, WorkerStatus.STOPPED, )
+stop_worker__mutmut_21	-    await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_21	+    await self._broadcast_status(name, WorkerStatus.STOPPED, "XXManually stoppedXX")
+stop_worker__mutmut_22	-    await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_22	+    await self._broadcast_status(name, WorkerStatus.STOPPED, "manually stopped")
+stop_worker__mutmut_23	-    await self._broadcast_status(name, WorkerStatus.STOPPED, "Manually stopped")
+stop_worker__mutmut_23	+    await self._broadcast_status(name, WorkerStatus.STOPPED, "MANUALLY STOPPED")
+stop_worker__mutmut_24	-    logger.info(f"Manually stopped worker '{name}'")
+stop_worker__mutmut_24	+    logger.info(None)
+restart_worker_task__mutmut_4	-        logger.warning(f"Cannot restart unknown worker: {name}")
+restart_worker_task__mutmut_4	+        logger.warning(None)
+restart_worker_task__mutmut_6	-    if worker.task is not None and not worker.task.done():
+restart_worker_task__mutmut_6	+    if worker.task is not None or not worker.task.done():
+restart_worker_task__mutmut_11	-    worker.circuit_open = False
+restart_worker_task__mutmut_11	+    worker.circuit_open = None
+restart_worker_task__mutmut_12	-    worker.circuit_open = False
+restart_worker_task__mutmut_12	+    worker.circuit_open = True
+restart_worker_task__mutmut_13	-    worker.error = None
+restart_worker_task__mutmut_13	+    worker.error = ""
+restart_worker_task__mutmut_16	-        attempt=0,  # Manual restart, not auto-restart
+restart_worker_task__mutmut_16	+        attempt=None,  # Manual restart, not auto-restart
+restart_worker_task__mutmut_23	-        attempt=0,  # Manual restart, not auto-restart
+restart_worker_task__mutmut_23	+        attempt=1,  # Manual restart, not auto-restart
+restart_worker_task__mutmut_29	-    logger.info(f"Manually restarted worker '{name}'")
+restart_worker_task__mutmut_29	+    logger.info(None)
+x_get_worker_supervisor__mutmut_3	-            config=config,
+x_get_worker_supervisor__mutmut_3	+            config=None,
+x_get_worker_supervisor__mutmut_4	-            broadcaster=broadcaster,
+x_get_worker_supervisor__mutmut_4	+            broadcaster=None,
+x_get_worker_supervisor__mutmut_5	-            on_restart=on_restart,
+x_get_worker_supervisor__mutmut_5	+            on_restart=None,
+x_get_worker_supervisor__mutmut_6	-            on_failure=on_failure,
+x_get_worker_supervisor__mutmut_6	+            on_failure=None,
+x_get_worker_supervisor__mutmut_7	-            config=config,
+x_get_worker_supervisor__mutmut_8	-            broadcaster=broadcaster,
+x_get_worker_supervisor__mutmut_9	-            on_restart=on_restart,
+x_get_worker_supervisor__mutmut_10	-            on_failure=on_failure,
+x_get_worker_supervisor__mutmut_10	-        )
+x_get_worker_supervisor__mutmut_10	+            )

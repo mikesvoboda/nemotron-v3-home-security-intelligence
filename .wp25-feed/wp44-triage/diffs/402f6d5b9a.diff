@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_10: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -31,7 +31,7 @@
+         # Image quality
+         "image_quality_context": format_image_quality_context(
+             self.image_quality,
+-            self.quality_change_detected,
++            None,
+             self.quality_change_description,
+         ),
+         # Clothing analysis

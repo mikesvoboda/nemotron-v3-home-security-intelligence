@@ -1,0 +1,32 @@
+C-LOG-SEND    184 EQUIVALENT send: log message / extra-payload text  | detector_client.m97, detector_client.m98, detector_client.m100
+C-AUTH        106 TEST-GAP   _get_auth_headers SecretStr get_secret_value hasattr mutations  | detector_client.m1, detector_client.m1, detector_client.m1
+C-SPAN        102 LOW-VALUE  telemetry span attrs / model metadata never asserted  | detector_client.m6, detector_client.m6, detector_client.m7
+C-METRIC       72 LOW-VALUE  metric / pipeline-error label text  | detector_client.m13, detector_client.m14, detector_client.m19
+C-LOG-DET      56 EQUIVALENT detect: log message / extra-payload text  | detector_client.m18, detector_client.m22, detector_client.m23
+C-BBOX         40 TEST-GAP   detect: bbox clamp/out-of-bounds geometry (comparison + and/or flips)  | detector_client.m232, detector_client.m233, detector_client.m234
+C-WARMM        40 LOW-VALUE  warmup metric labels + completed-log text  | detector_client.m5, detector_client.m6, detector_client.m9
+C-INITLOG      27 LOW-VALUE  __init__ log extra / model_version / max_concurrent (observability-only)  | detector_client.m6, detector_client.m7, detector_client.m8
+C-4XX          22 TEST-GAP   send: 4xx error-detail extraction (400 gate + detail in raised message)  | detector_client.m263, detector_client.m264, detector_client.m265
+C-EXCINFO      21 LOW-VALUE  exc_info True -> False/None (traceback dropped)  | detector_client.m93, detector_client.m95, detector_client.m96
+C-WARM         16 TEST-GAP   warmth state machine (_is_warming init/lifecycle + get_warmth_state/is_cold)  | detector_client.m1, detector_client.m2, detector_client.m3
+C-DUR          16 LOW-VALUE  duration math (s/ms flips) feeding only metrics/log  | detector_client.m1, detector_client.m123, detector_client.m124
+C-SEG-RT       16 TEST-GAP   segment: retry/backoff + HTTP-500 boundary + original_error preserved  | detector_client.m74, detector_client.m75, detector_client.m76
+C-DEFALT       15 LOW-VALUE  detect: missing class/bbox .get default text/None  | detector_client.m212, detector_client.m214, detector_client.m217
+C-CBCFG        12 LOW-VALUE  CircuitBreakerConfig tuning constants  | detector_client.m91, detector_client.m92, detector_client.m94
+C-SEND-RT      11 TEST-GAP   send: retry backoff timing on unasserted branches (TimeoutError/JSON/OSError)  | detector_client.m96, detector_client.m155, detector_client.m217
+C-VIDEO        10 TEST-GAP   detect: video-branch condition + file_type default  | detector_client.m174, detector_client.m179, detector_client.m180
+C-HTTPTO        9 LOW-VALUE  httpx.Timeout wiring -> None/removal  | detector_client.m41, detector_client.m42, detector_client.m47
+C-SEG-PAY       9 TEST-GAP   segment: POST URL + multipart payload + auth header never asserted  | detector_client.m36, detector_client.m37, detector_client.m38
+C-SEND-PAY      8 TEST-GAP   send: POST URL + multipart payload (key/mime/filename) never asserted  | detector_client.m47, detector_client.m48, detector_client.m49
+C-LIMITS        7 LOW-VALUE  httpx.Limits pool tuning values  | detector_client.m77, detector_client.m78, detector_client.m79
+C-TIMEOUT       7 LOW-VALUE  explicit asyncio.timeout defense-in-depth disabled (None/sub)  | detector_client.m1, detector_client.m4, detector_client.m4
+C-BASE          7 TEST-GAP   detect: baseline update kwargs + session wiring  | detector_client.m392, detector_client.m440, detector_client.m443
+C-SEG-LOG       7 EQUIVALENT segment: log message text  | detector_client.m62, detector_client.m65, detector_client.m86
+C-SEND-KW       5 TEST-GAP   detect: _send_detection_request kwargs (image_name/camera_id/image_path) -> None  | detector_client.m114, detector_client.m115, detector_client.m116
+C-GW            3 TEST-GAP   __init__ AI-gateway routing (getattr default, rstrip) URL construction  | detector_client.m20, detector_client.m26, detector_client.m32
+C-SEM           3 TEST-GAP   _get_semaphore recreate condition flips  | detector_client.m3, detector_client.m4, detector_client.m5
+C-CONFDEF       3 TEST-GAP   detect: missing-confidence default 0.0 -> 1.0/None  | detector_client.m204, detector_client.m206, detector_client.m209
+C-BRK           3 TEST-GAP   detect: per-detection continue -> break (drops rest of batch)  | detector_client.m244, detector_client.m261, detector_client.m422
+C-LOGSEM        1 EQUIVALENT _get_semaphore debug log text  | detector_client.m9
+C-LASTEXC       1 EQUIVALENT last_exception init -> "" (post-loop always set => dead)  | detector_client.m1
+TOTAL 839 clusters 31 {'EQUIVALENT': 249, 'TEST-GAP': 262, 'LOW-VALUE': 328}

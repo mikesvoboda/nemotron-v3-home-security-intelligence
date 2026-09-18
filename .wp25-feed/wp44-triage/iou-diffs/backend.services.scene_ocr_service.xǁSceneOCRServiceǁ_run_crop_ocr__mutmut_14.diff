@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_14: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -16,7 +16,7 @@
+             Dictionary mapping detection IDs to OCR results
+         """
+     # Filter to relevant detection classes
+-    ocr_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle", "package"}
++    ocr_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle", "XXpackageXX"}
+     relevant_detections = [d for d in detections if d.class_name.lower() in ocr_classes]
+ 
+     if not relevant_detections:

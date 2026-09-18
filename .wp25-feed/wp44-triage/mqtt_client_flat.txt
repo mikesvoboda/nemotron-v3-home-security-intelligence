@@ -1,0 +1,694 @@
+@@ x__get_metric__mutmut_101 | x__get_metric
+    - "Number of active MQTT subscriptions",
+    + None,
+@@ x__get_metric__mutmut_104 | x__get_metric
+    - "hsi_mqtt_subscriptions_active",
+    + "XXhsi_mqtt_subscriptions_activeXX",
+@@ x__get_metric__mutmut_105 | x__get_metric
+    - "hsi_mqtt_subscriptions_active",
+    + "HSI_MQTT_SUBSCRIPTIONS_ACTIVE",
+@@ x__get_metric__mutmut_106 | x__get_metric
+    - "Number of active MQTT subscriptions",
+    + "XXNumber of active MQTT subscriptionsXX",
+@@ x__get_metric__mutmut_107 | x__get_metric
+    - "Number of active MQTT subscriptions",
+    + "number of active mqtt subscriptions",
+@@ x__get_metric__mutmut_108 | x__get_metric
+    - "Number of active MQTT subscriptions",
+    + "NUMBER OF ACTIVE MQTT SUBSCRIPTIONS",
+@@ x__get_metric__mutmut_113 | x__get_metric
+    - "Total MQTT messages received via subscriptions",
+    + None,
+@@ x__get_metric__mutmut_118 | x__get_metric
+    - "hsi_mqtt_messages_received_total",
+    + "XXhsi_mqtt_messages_received_totalXX",
+@@ x__get_metric__mutmut_119 | x__get_metric
+    - "hsi_mqtt_messages_received_total",
+    + "HSI_MQTT_MESSAGES_RECEIVED_TOTAL",
+@@ x__get_metric__mutmut_120 | x__get_metric
+    - "Total MQTT messages received via subscriptions",
+    + "XXTotal MQTT messages received via subscriptionsXX",
+@@ x__get_metric__mutmut_121 | x__get_metric
+    - "Total MQTT messages received via subscriptions",
+    + "total mqtt messages received via subscriptions",
+@@ x__get_metric__mutmut_122 | x__get_metric
+    - "Total MQTT messages received via subscriptions",
+    + "TOTAL MQTT MESSAGES RECEIVED VIA SUBSCRIPTIONS",
+@@ x__get_metric__mutmut_21 | x__get_metric
+    - "Total MQTT connection attempts",
+    + None,
+@@ x__get_metric__mutmut_26 | x__get_metric
+    - "hsi_mqtt_connections_total",
+    + "XXhsi_mqtt_connections_totalXX",
+@@ x__get_metric__mutmut_27 | x__get_metric
+    - "hsi_mqtt_connections_total",
+    + "HSI_MQTT_CONNECTIONS_TOTAL",
+@@ x__get_metric__mutmut_28 | x__get_metric
+    - "Total MQTT connection attempts",
+    + "XXTotal MQTT connection attemptsXX",
+@@ x__get_metric__mutmut_29 | x__get_metric
+    - "Total MQTT connection attempts",
+    + "total mqtt connection attempts",
+@@ x__get_metric__mutmut_30 | x__get_metric
+    - "Total MQTT connection attempts",
+    + "TOTAL MQTT CONNECTION ATTEMPTS",
+@@ x__get_metric__mutmut_37 | x__get_metric
+    - "Current MQTT connection state (0=disconnected, 1=connected)",
+    + None,
+@@ x__get_metric__mutmut_40 | x__get_metric
+    - "hsi_mqtt_connection_state",
+    + "XXhsi_mqtt_connection_stateXX",
+@@ x__get_metric__mutmut_41 | x__get_metric
+    - "hsi_mqtt_connection_state",
+    + "HSI_MQTT_CONNECTION_STATE",
+@@ x__get_metric__mutmut_42 | x__get_metric
+    - "Current MQTT connection state (0=disconnected, 1=connected)",
+    + "XXCurrent MQTT connection state (0=disconnected, 1=connected)XX",
+@@ x__get_metric__mutmut_43 | x__get_metric
+    - "Current MQTT connection state (0=disconnected, 1=connected)",
+    + "current mqtt connection state (0=disconnected, 1=connected)",
+@@ x__get_metric__mutmut_44 | x__get_metric
+    - "Current MQTT connection state (0=disconnected, 1=connected)",
+    + "CURRENT MQTT CONNECTION STATE (0=DISCONNECTED, 1=CONNECTED)",
+@@ x__get_metric__mutmut_49 | x__get_metric
+    - "Total MQTT messages published",
+    + None,
+@@ x__get_metric__mutmut_54 | x__get_metric
+    - "hsi_mqtt_messages_published_total",
+    + "XXhsi_mqtt_messages_published_totalXX",
+@@ x__get_metric__mutmut_55 | x__get_metric
+    - "hsi_mqtt_messages_published_total",
+    + "HSI_MQTT_MESSAGES_PUBLISHED_TOTAL",
+@@ x__get_metric__mutmut_56 | x__get_metric
+    - "Total MQTT messages published",
+    + "XXTotal MQTT messages publishedXX",
+@@ x__get_metric__mutmut_57 | x__get_metric
+    - "Total MQTT messages published",
+    + "total mqtt messages published",
+@@ x__get_metric__mutmut_58 | x__get_metric
+    - "Total MQTT messages published",
+    + "TOTAL MQTT MESSAGES PUBLISHED",
+@@ x__get_metric__mutmut_67 | x__get_metric
+    - "MQTT message publish duration",
+    + None,
+@@ x__get_metric__mutmut_73 | x__get_metric
+    - buckets=MQTT_PUBLISH_DURATION_BUCKETS,
+    + (nothing)
+@@ x__get_metric__mutmut_74 | x__get_metric
+    - "hsi_mqtt_publish_duration_seconds",
+    + "XXhsi_mqtt_publish_duration_secondsXX",
+@@ x__get_metric__mutmut_75 | x__get_metric
+    - "hsi_mqtt_publish_duration_seconds",
+    + "HSI_MQTT_PUBLISH_DURATION_SECONDS",
+@@ x__get_metric__mutmut_76 | x__get_metric
+    - "MQTT message publish duration",
+    + "XXMQTT message publish durationXX",
+@@ x__get_metric__mutmut_77 | x__get_metric
+    - "MQTT message publish duration",
+    + "mqtt message publish duration",
+@@ x__get_metric__mutmut_78 | x__get_metric
+    - "MQTT message publish duration",
+    + "MQTT MESSAGE PUBLISH DURATION",
+@@ x__get_metric__mutmut_85 | x__get_metric
+    - "Total MQTT errors",
+    + None,
+@@ x__get_metric__mutmut_90 | x__get_metric
+    - "hsi_mqtt_errors_total",
+    + "XXhsi_mqtt_errors_totalXX",
+@@ x__get_metric__mutmut_91 | x__get_metric
+    - "hsi_mqtt_errors_total",
+    + "HSI_MQTT_ERRORS_TOTAL",
+@@ x__get_metric__mutmut_92 | x__get_metric
+    - "Total MQTT errors",
+    + "XXTotal MQTT errorsXX",
+@@ x__get_metric__mutmut_93 | x__get_metric
+    - "Total MQTT errors",
+    + "total mqtt errors",
+@@ x__get_metric__mutmut_94 | x__get_metric
+    - "Total MQTT errors",
+    + "TOTAL MQTT ERRORS",
+@@ xǁMQTTClientSettingsǁ__init____mutmut_10 | xǁMQTTClientSettingsǁ__init__
+    - object.__setattr__(self, "client_id", f"hsi-{uuid.uuid4().hex[:8]}")
+    + object.__setattr__(self, "client_id", f"hsi-{uuid.uuid4().hex[:9]}")
+@@ xǁMQTTClientǁ__init____mutmut_10 | xǁMQTTClientǁ__init__
+    - "MQTTClient initialized",
+    + None,
+@@ xǁMQTTClientǁ__init____mutmut_11 | xǁMQTTClientǁ__init__
+    - extra={ | "broker_host": settings.broker_host, | "broker_port": settings.broker_port, | "client_id": settings.client_id, | "topic_prefix": settings.topic_pref
+    + extra=None,
+@@ xǁMQTTClientǁ__init____mutmut_13 | xǁMQTTClientǁ__init__
+    - extra={ | "broker_host": settings.broker_host, | "broker_port": settings.broker_port, | "client_id": settings.client_id, | "topic_prefix": settings.topic_pref
+    + (nothing)
+@@ xǁMQTTClientǁ__init____mutmut_14 | xǁMQTTClientǁ__init__
+    - "MQTTClient initialized",
+    + "XXMQTTClient initializedXX",
+@@ xǁMQTTClientǁ__init____mutmut_15 | xǁMQTTClientǁ__init__
+    - "MQTTClient initialized",
+    + "mqttclient initialized",
+@@ xǁMQTTClientǁ__init____mutmut_16 | xǁMQTTClientǁ__init__
+    - "MQTTClient initialized",
+    + "MQTTCLIENT INITIALIZED",
+@@ xǁMQTTClientǁ__init____mutmut_17 | xǁMQTTClientǁ__init__
+    - "broker_host": settings.broker_host,
+    + "XXbroker_hostXX": settings.broker_host,
+@@ xǁMQTTClientǁ__init____mutmut_18 | xǁMQTTClientǁ__init__
+    - "broker_host": settings.broker_host,
+    + "BROKER_HOST": settings.broker_host,
+@@ xǁMQTTClientǁ__init____mutmut_19 | xǁMQTTClientǁ__init__
+    - "broker_port": settings.broker_port,
+    + "XXbroker_portXX": settings.broker_port,
+@@ xǁMQTTClientǁ__init____mutmut_20 | xǁMQTTClientǁ__init__
+    - "broker_port": settings.broker_port,
+    + "BROKER_PORT": settings.broker_port,
+@@ xǁMQTTClientǁ__init____mutmut_21 | xǁMQTTClientǁ__init__
+    - "client_id": settings.client_id,
+    + "XXclient_idXX": settings.client_id,
+@@ xǁMQTTClientǁ__init____mutmut_22 | xǁMQTTClientǁ__init__
+    - "client_id": settings.client_id,
+    + "CLIENT_ID": settings.client_id,
+@@ xǁMQTTClientǁ__init____mutmut_23 | xǁMQTTClientǁ__init__
+    - "topic_prefix": settings.topic_prefix,
+    + "XXtopic_prefixXX": settings.topic_prefix,
+@@ xǁMQTTClientǁ__init____mutmut_24 | xǁMQTTClientǁ__init__
+    - "topic_prefix": settings.topic_prefix,
+    + "TOPIC_PREFIX": settings.topic_prefix,
+@@ xǁMQTTClientǁ__init____mutmut_25 | xǁMQTTClientǁ__init__
+    - "use_tls": settings.use_tls,
+    + "XXuse_tlsXX": settings.use_tls,
+@@ xǁMQTTClientǁ__init____mutmut_26 | xǁMQTTClientǁ__init__
+    - "use_tls": settings.use_tls,
+    + "USE_TLS": settings.use_tls,
+@@ xǁMQTTClientǁ_find_callback__mutmut_1 | xǁMQTTClientǁ_find_callback
+    - if topic in self._subscriptions:
+    + if topic not in self._subscriptions:
+@@ xǁMQTTClientǁ_handle_message__mutmut_16 | xǁMQTTClientǁ_handle_message
+    - _get_metrics()["messages_received_total"].labels(topic_pattern=topic).inc()
+    + _get_metrics()["messages_received_total"].labels(topic_pattern=None).inc()
+@@ xǁMQTTClientǁ_handle_message__mutmut_5 | xǁMQTTClientǁ_handle_message
+    - if hasattr(message.topic, "value"):
+    + if hasattr(message.topic, "XXvalueXX"):
+@@ xǁMQTTClientǁ_handle_message__mutmut_6 | xǁMQTTClientǁ_handle_message
+    - if hasattr(message.topic, "value"):
+    + if hasattr(message.topic, "VALUE"):
+@@ xǁMQTTClientǁ_message_processing_loop__mutmut_1 | xǁMQTTClientǁ_message_processing_loop
+    - while self._connected and self._client is not None:
+    + while self._connected or self._client is not None:
+@@ xǁMQTTClientǁ_message_processing_loop__mutmut_2 | xǁMQTTClientǁ_message_processing_loop
+    - while self._connected and self._client is not None:
+    + while self._connected and self._client is None:
+@@ xǁMQTTClientǁ_message_processing_loop__mutmut_3 | xǁMQTTClientǁ_message_processing_loop
+    - await asyncio.sleep(0.1)
+    + await asyncio.sleep(None)
+@@ xǁMQTTClientǁ_message_processing_loop__mutmut_4 | xǁMQTTClientǁ_message_processing_loop
+    - await asyncio.sleep(0.1)
+    + await asyncio.sleep(1.1)
+@@ xǁMQTTClientǁconnect__mutmut_1 | xǁMQTTClientǁconnect
+    - if self._connected and self._client is not None:
+    + if self._connected or self._client is not None:
+@@ xǁMQTTClientǁconnect__mutmut_100 | xǁMQTTClientǁconnect
+    - logger.error(error_msg, extra={"last_error": str(last_exception)})
+    + logger.error(error_msg, )
+@@ xǁMQTTClientǁconnect__mutmut_101 | xǁMQTTClientǁconnect
+    - logger.error(error_msg, extra={"last_error": str(last_exception)})
+    + logger.error(error_msg, extra={"XXlast_errorXX": str(last_exception)})
+@@ xǁMQTTClientǁconnect__mutmut_102 | xǁMQTTClientǁconnect
+    - logger.error(error_msg, extra={"last_error": str(last_exception)})
+    + logger.error(error_msg, extra={"LAST_ERROR": str(last_exception)})
+@@ xǁMQTTClientǁconnect__mutmut_103 | xǁMQTTClientǁconnect
+    - logger.error(error_msg, extra={"last_error": str(last_exception)})
+    + logger.error(error_msg, extra={"last_error": str(None)})
+@@ xǁMQTTClientǁconnect__mutmut_105 | xǁMQTTClientǁconnect
+    - raise MQTTConnectionError(error_msg, original_error=last_exception)
+    + raise MQTTConnectionError(error_msg, original_error=None)
+@@ xǁMQTTClientǁconnect__mutmut_107 | xǁMQTTClientǁconnect
+    - raise MQTTConnectionError(error_msg, original_error=last_exception)
+    + raise MQTTConnectionError(error_msg, )
+@@ xǁMQTTClientǁconnect__mutmut_11 | xǁMQTTClientǁconnect
+    - tls_context = self._build_tls_context() if self.settings.use_tls else None
+    + tls_context = None
+@@ xǁMQTTClientǁconnect__mutmut_12 | xǁMQTTClientǁconnect
+    - tls_context = self._build_tls_context() if self.settings.use_tls else None
+    + tls_context = self._build_tls_context() if (self.settings.use_tls) and False else None
+@@ xǁMQTTClientǁconnect__mutmut_13 | xǁMQTTClientǁconnect
+    - tls_context = self._build_tls_context() if self.settings.use_tls else None
+    + tls_context = self._build_tls_context() if (self.settings.use_tls) or True else None
+@@ xǁMQTTClientǁconnect__mutmut_14 | xǁMQTTClientǁconnect
+    - password = self.settings.password
+    + password = None
+@@ xǁMQTTClientǁconnect__mutmut_16 | xǁMQTTClientǁconnect
+    - hostname=self.settings.broker_host,
+    + hostname=None,
+@@ xǁMQTTClientǁconnect__mutmut_17 | xǁMQTTClientǁconnect
+    - port=self.settings.broker_port,
+    + port=None,
+@@ xǁMQTTClientǁconnect__mutmut_18 | xǁMQTTClientǁconnect
+    - identifier=self.settings.client_id,
+    + identifier=None,
+@@ xǁMQTTClientǁconnect__mutmut_19 | xǁMQTTClientǁconnect
+    - username=self.settings.username,
+    + username=None,
+@@ xǁMQTTClientǁconnect__mutmut_2 | xǁMQTTClientǁconnect
+    - if self._connected and self._client is not None:
+    + if self._connected and self._client is None:
+@@ xǁMQTTClientǁconnect__mutmut_20 | xǁMQTTClientǁconnect
+    - password=password,
+    + password=None,
+@@ xǁMQTTClientǁconnect__mutmut_21 | xǁMQTTClientǁconnect
+    - keepalive=self.settings.keepalive,
+    + keepalive=None,
+@@ xǁMQTTClientǁconnect__mutmut_22 | xǁMQTTClientǁconnect
+    - tls_context=tls_context,
+    + tls_context=None,
+@@ xǁMQTTClientǁconnect__mutmut_24 | xǁMQTTClientǁconnect
+    - port=self.settings.broker_port,
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_25 | xǁMQTTClientǁconnect
+    - identifier=self.settings.client_id,
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_26 | xǁMQTTClientǁconnect
+    - username=self.settings.username,
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_27 | xǁMQTTClientǁconnect
+    - password=password,
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_28 | xǁMQTTClientǁconnect
+    - keepalive=self.settings.keepalive,
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_29 | xǁMQTTClientǁconnect
+    - tls_context=tls_context,
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_3 | xǁMQTTClientǁconnect
+    - logger.debug("MQTT client already connected")
+    + logger.debug(None)
+@@ xǁMQTTClientǁconnect__mutmut_33 | xǁMQTTClientǁconnect
+    - _get_metrics()["connections_total"].labels(status="success").inc()
+    + _get_metrics()["connections_total"].labels(status=None).inc()
+@@ xǁMQTTClientǁconnect__mutmut_36 | xǁMQTTClientǁconnect
+    - _get_metrics()["connections_total"].labels(status="success").inc()
+    + _get_metrics()["connections_total"].labels(status="XXsuccessXX").inc()
+@@ xǁMQTTClientǁconnect__mutmut_37 | xǁMQTTClientǁconnect
+    - _get_metrics()["connections_total"].labels(status="success").inc()
+    + _get_metrics()["connections_total"].labels(status="SUCCESS").inc()
+@@ xǁMQTTClientǁconnect__mutmut_4 | xǁMQTTClientǁconnect
+    - logger.debug("MQTT client already connected")
+    + logger.debug("XXMQTT client already connectedXX")
+@@ xǁMQTTClientǁconnect__mutmut_41 | xǁMQTTClientǁconnect
+    - _get_metrics()["connection_state"].set(1)
+    + _get_metrics()["connection_state"].set(2)
+@@ xǁMQTTClientǁconnect__mutmut_42 | xǁMQTTClientǁconnect
+    - "MQTT connected successfully",
+    + None,
+@@ xǁMQTTClientǁconnect__mutmut_43 | xǁMQTTClientǁconnect
+    - extra={ | "broker_host": self.settings.broker_host, | "broker_port": self.settings.broker_port, | "client_id": self.settings.client_id, | },
+    + extra=None,
+@@ xǁMQTTClientǁconnect__mutmut_45 | xǁMQTTClientǁconnect
+    - extra={ | "broker_host": self.settings.broker_host, | "broker_port": self.settings.broker_port, | "client_id": self.settings.client_id, | },
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_46 | xǁMQTTClientǁconnect
+    - "MQTT connected successfully",
+    + "XXMQTT connected successfullyXX",
+@@ xǁMQTTClientǁconnect__mutmut_47 | xǁMQTTClientǁconnect
+    - "MQTT connected successfully",
+    + "mqtt connected successfully",
+@@ xǁMQTTClientǁconnect__mutmut_48 | xǁMQTTClientǁconnect
+    - "MQTT connected successfully",
+    + "MQTT CONNECTED SUCCESSFULLY",
+@@ xǁMQTTClientǁconnect__mutmut_49 | xǁMQTTClientǁconnect
+    - "broker_host": self.settings.broker_host,
+    + "XXbroker_hostXX": self.settings.broker_host,
+@@ xǁMQTTClientǁconnect__mutmut_5 | xǁMQTTClientǁconnect
+    - logger.debug("MQTT client already connected")
+    + logger.debug("mqtt client already connected")
+@@ xǁMQTTClientǁconnect__mutmut_50 | xǁMQTTClientǁconnect
+    - "broker_host": self.settings.broker_host,
+    + "BROKER_HOST": self.settings.broker_host,
+@@ xǁMQTTClientǁconnect__mutmut_51 | xǁMQTTClientǁconnect
+    - "broker_port": self.settings.broker_port,
+    + "XXbroker_portXX": self.settings.broker_port,
+@@ xǁMQTTClientǁconnect__mutmut_52 | xǁMQTTClientǁconnect
+    - "broker_port": self.settings.broker_port,
+    + "BROKER_PORT": self.settings.broker_port,
+@@ xǁMQTTClientǁconnect__mutmut_53 | xǁMQTTClientǁconnect
+    - "client_id": self.settings.client_id,
+    + "XXclient_idXX": self.settings.client_id,
+@@ xǁMQTTClientǁconnect__mutmut_54 | xǁMQTTClientǁconnect
+    - "client_id": self.settings.client_id,
+    + "CLIENT_ID": self.settings.client_id,
+@@ xǁMQTTClientǁconnect__mutmut_55 | xǁMQTTClientǁconnect
+    - last_exception = e
+    + last_exception = None
+@@ xǁMQTTClientǁconnect__mutmut_56 | xǁMQTTClientǁconnect
+    - _get_metrics()["connections_total"].labels(status="failure").inc()
+    + _get_metrics()["connections_total"].labels(status=None).inc()
+@@ xǁMQTTClientǁconnect__mutmut_59 | xǁMQTTClientǁconnect
+    - _get_metrics()["connections_total"].labels(status="failure").inc()
+    + _get_metrics()["connections_total"].labels(status="XXfailureXX").inc()
+@@ xǁMQTTClientǁconnect__mutmut_6 | xǁMQTTClientǁconnect
+    - logger.debug("MQTT client already connected")
+    + logger.debug("MQTT CLIENT ALREADY CONNECTED")
+@@ xǁMQTTClientǁconnect__mutmut_60 | xǁMQTTClientǁconnect
+    - _get_metrics()["connections_total"].labels(status="failure").inc()
+    + _get_metrics()["connections_total"].labels(status="FAILURE").inc()
+@@ xǁMQTTClientǁconnect__mutmut_61 | xǁMQTTClientǁconnect
+    - _get_metrics()["errors_total"].labels(error_type="connection").inc()
+    + _get_metrics()["errors_total"].labels(error_type=None).inc()
+@@ xǁMQTTClientǁconnect__mutmut_64 | xǁMQTTClientǁconnect
+    - _get_metrics()["errors_total"].labels(error_type="connection").inc()
+    + _get_metrics()["errors_total"].labels(error_type="XXconnectionXX").inc()
+@@ xǁMQTTClientǁconnect__mutmut_65 | xǁMQTTClientǁconnect
+    - _get_metrics()["errors_total"].labels(error_type="connection").inc()
+    + _get_metrics()["errors_total"].labels(error_type="CONNECTION").inc()
+@@ xǁMQTTClientǁconnect__mutmut_7 | xǁMQTTClientǁconnect
+    - if self._connected and self._client is not None:
+    + if self._connected or self._client is not None:
+@@ xǁMQTTClientǁconnect__mutmut_74 | xǁMQTTClientǁconnect
+    - f"MQTT connection failed (attempt {attempt + 1}/{self.settings.max_retries})",
+    + None,
+@@ xǁMQTTClientǁconnect__mutmut_75 | xǁMQTTClientǁconnect
+    - extra={ | "error": str(e), | "retry_delay": delay, | "attempt": attempt + 1, | "max_retries": self.settings.max_retries, | },
+    + extra=None,
+@@ xǁMQTTClientǁconnect__mutmut_77 | xǁMQTTClientǁconnect
+    - extra={ | "error": str(e), | "retry_delay": delay, | "attempt": attempt + 1, | "max_retries": self.settings.max_retries, | },
+    + (nothing)
+@@ xǁMQTTClientǁconnect__mutmut_78 | xǁMQTTClientǁconnect
+    - f"MQTT connection failed (attempt {attempt + 1}/{self.settings.max_retries})",
+    + f"MQTT connection failed (attempt {attempt - 1}/{self.settings.max_retries})",
+@@ xǁMQTTClientǁconnect__mutmut_79 | xǁMQTTClientǁconnect
+    - f"MQTT connection failed (attempt {attempt + 1}/{self.settings.max_retries})",
+    + f"MQTT connection failed (attempt {attempt + 2}/{self.settings.max_retries})",
+@@ xǁMQTTClientǁconnect__mutmut_8 | xǁMQTTClientǁconnect
+    - if self._connected and self._client is not None:
+    + if self._connected and self._client is None:
+@@ xǁMQTTClientǁconnect__mutmut_80 | xǁMQTTClientǁconnect
+    - "error": str(e),
+    + "XXerrorXX": str(e),
+@@ xǁMQTTClientǁconnect__mutmut_81 | xǁMQTTClientǁconnect
+    - "error": str(e),
+    + "ERROR": str(e),
+@@ xǁMQTTClientǁconnect__mutmut_82 | xǁMQTTClientǁconnect
+    - "error": str(e),
+    + "error": str(None),
+@@ xǁMQTTClientǁconnect__mutmut_83 | xǁMQTTClientǁconnect
+    - "retry_delay": delay,
+    + "XXretry_delayXX": delay,
+@@ xǁMQTTClientǁconnect__mutmut_84 | xǁMQTTClientǁconnect
+    - "retry_delay": delay,
+    + "RETRY_DELAY": delay,
+@@ xǁMQTTClientǁconnect__mutmut_85 | xǁMQTTClientǁconnect
+    - "attempt": attempt + 1,
+    + "XXattemptXX": attempt + 1,
+@@ xǁMQTTClientǁconnect__mutmut_86 | xǁMQTTClientǁconnect
+    - "attempt": attempt + 1,
+    + "ATTEMPT": attempt + 1,
+@@ xǁMQTTClientǁconnect__mutmut_87 | xǁMQTTClientǁconnect
+    - "attempt": attempt + 1,
+    + "attempt": attempt - 1,
+@@ xǁMQTTClientǁconnect__mutmut_88 | xǁMQTTClientǁconnect
+    - "attempt": attempt + 1,
+    + "attempt": attempt + 2,
+@@ xǁMQTTClientǁconnect__mutmut_89 | xǁMQTTClientǁconnect
+    - "max_retries": self.settings.max_retries,
+    + "XXmax_retriesXX": self.settings.max_retries,
+@@ xǁMQTTClientǁconnect__mutmut_9 | xǁMQTTClientǁconnect
+    - last_exception: Exception | None = None
+    + last_exception: Exception | None = ""
+@@ xǁMQTTClientǁconnect__mutmut_90 | xǁMQTTClientǁconnect
+    - "max_retries": self.settings.max_retries,
+    + "MAX_RETRIES": self.settings.max_retries,
+@@ xǁMQTTClientǁconnect__mutmut_95 | xǁMQTTClientǁconnect
+    - _get_metrics()["connection_state"].set(0)
+    + _get_metrics()["connection_state"].set(1)
+@@ xǁMQTTClientǁconnect__mutmut_97 | xǁMQTTClientǁconnect
+    - logger.error(error_msg, extra={"last_error": str(last_exception)})
+    + logger.error(None, extra={"last_error": str(last_exception)})
+@@ xǁMQTTClientǁconnect__mutmut_98 | xǁMQTTClientǁconnect
+    - logger.error(error_msg, extra={"last_error": str(last_exception)})
+    + logger.error(error_msg, extra=None)
+@@ xǁMQTTClientǁdisconnect__mutmut_11 | xǁMQTTClientǁdisconnect
+    - full_topic = f"{self.settings.topic_prefix}/{topic}"
+    + full_topic = None
+@@ xǁMQTTClientǁdisconnect__mutmut_12 | xǁMQTTClientǁdisconnect
+    - await self._client.unsubscribe(full_topic)
+    + await self._client.unsubscribe(None)
+@@ xǁMQTTClientǁdisconnect__mutmut_16 | xǁMQTTClientǁdisconnect
+    - _get_metrics()["subscriptions_active"].set(0)
+    + _get_metrics()["subscriptions_active"].set(1)
+@@ xǁMQTTClientǁdisconnect__mutmut_18 | xǁMQTTClientǁdisconnect
+    - await self._client.__aexit__(None, None, None)
+    + await self._client.__aexit__(None, None)
+@@ xǁMQTTClientǁdisconnect__mutmut_19 | xǁMQTTClientǁdisconnect
+    - await self._client.__aexit__(None, None, None)
+    + await self._client.__aexit__(None, None)
+@@ xǁMQTTClientǁdisconnect__mutmut_2 | xǁMQTTClientǁdisconnect
+    - logger.info("Disconnecting from MQTT broker")
+    + logger.info(None)
+@@ xǁMQTTClientǁdisconnect__mutmut_20 | xǁMQTTClientǁdisconnect
+    - await self._client.__aexit__(None, None, None)
+    + await self._client.__aexit__(None, None, )
+@@ xǁMQTTClientǁdisconnect__mutmut_27 | xǁMQTTClientǁdisconnect
+    - _get_metrics()["connection_state"].set(0)
+    + _get_metrics()["connection_state"].set(1)
+@@ xǁMQTTClientǁdisconnect__mutmut_28 | xǁMQTTClientǁdisconnect
+    - logger.info("MQTT disconnected")
+    + logger.info(None)
+@@ xǁMQTTClientǁdisconnect__mutmut_29 | xǁMQTTClientǁdisconnect
+    - logger.info("MQTT disconnected")
+    + logger.info("XXMQTT disconnectedXX")
+@@ xǁMQTTClientǁdisconnect__mutmut_3 | xǁMQTTClientǁdisconnect
+    - logger.info("Disconnecting from MQTT broker")
+    + logger.info("XXDisconnecting from MQTT brokerXX")
+@@ xǁMQTTClientǁdisconnect__mutmut_30 | xǁMQTTClientǁdisconnect
+    - logger.info("MQTT disconnected")
+    + logger.info("mqtt disconnected")
+@@ xǁMQTTClientǁdisconnect__mutmut_31 | xǁMQTTClientǁdisconnect
+    - logger.info("MQTT disconnected")
+    + logger.info("MQTT DISCONNECTED")
+@@ xǁMQTTClientǁdisconnect__mutmut_4 | xǁMQTTClientǁdisconnect
+    - logger.info("Disconnecting from MQTT broker")
+    + logger.info("disconnecting from mqtt broker")
+@@ xǁMQTTClientǁdisconnect__mutmut_5 | xǁMQTTClientǁdisconnect
+    - logger.info("Disconnecting from MQTT broker")
+    + logger.info("DISCONNECTING FROM MQTT BROKER")
+@@ xǁMQTTClientǁdisconnect__mutmut_8 | xǁMQTTClientǁdisconnect
+    - if self._client is not None and self._subscriptions:
+    + if self._client is not None or self._subscriptions:
+@@ xǁMQTTClientǁdisconnect__mutmut_9 | xǁMQTTClientǁdisconnect
+    - if self._client is not None and self._subscriptions:
+    + if self._client is None and self._subscriptions:
+@@ xǁMQTTClientǁhealth_check__mutmut_1 | xǁMQTTClientǁhealth_check
+@@ xǁMQTTClientǁhealth_check__mutmut_10 | xǁMQTTClientǁhealth_check
+    - if hasattr(self._client, "ping"):
+    + if hasattr(self._client, "XXpingXX"):
+@@ xǁMQTTClientǁhealth_check__mutmut_11 | xǁMQTTClientǁhealth_check
+    - if hasattr(self._client, "ping"):
+    + if hasattr(self._client, "PING"):
+@@ xǁMQTTClientǁhealth_check__mutmut_2 | xǁMQTTClientǁhealth_check
+    - if not self._connected or self._client is None:
+    + if not self._connected and self._client is None:
+@@ xǁMQTTClientǁpublish__mutmut_1 | xǁMQTTClientǁpublish
+    - if not self._connected or self._client is None:
+    + if not self._connected and self._client is None:
+@@ xǁMQTTClientǁpublish__mutmut_15 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = None
+@@ xǁMQTTClientǁpublish__mutmut_16 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", maxsplit=1)[0] if ("/" in topic) and False else topic
+@@ xǁMQTTClientǁpublish__mutmut_17 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", maxsplit=1)[0] if ("/" in topic) or True else topic
+@@ xǁMQTTClientǁpublish__mutmut_18 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split(None, maxsplit=1)[0] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_20 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split(maxsplit=1)[0] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_21 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", )[0] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_22 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.rsplit("/", maxsplit=1)[0] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_23 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("XX/XX", maxsplit=1)[0] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_24 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", maxsplit=2)[0] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_25 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", maxsplit=1)[1] if "/" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_26 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", maxsplit=1)[0] if "XX/XX" in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_27 | xǁMQTTClientǁpublish
+    - topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
+    + topic_type = topic.split("/", maxsplit=1)[0] if "/" not in topic else topic
+@@ xǁMQTTClientǁpublish__mutmut_29 | xǁMQTTClientǁpublish
+    - last_exception: Exception | None = None
+    + last_exception: Exception | None = ""
+@@ xǁMQTTClientǁpublish__mutmut_31 | xǁMQTTClientǁpublish
+    - max_publish_retries = 3
+    + max_publish_retries = 4
+@@ xǁMQTTClientǁpublish__mutmut_42 | xǁMQTTClientǁpublish
+    - duration = time.monotonic() - start_time
+    + duration = time.monotonic() + start_time
+@@ xǁMQTTClientǁpublish__mutmut_43 | xǁMQTTClientǁpublish
+    - topic_type=topic_type, qos=str(effective_qos)
+    + topic_type=None, qos=str(effective_qos)
+@@ xǁMQTTClientǁpublish__mutmut_44 | xǁMQTTClientǁpublish
+    - topic_type=topic_type, qos=str(effective_qos)
+    + topic_type=topic_type, qos=None
+@@ xǁMQTTClientǁpublish__mutmut_49 | xǁMQTTClientǁpublish
+    - topic_type=topic_type, qos=str(effective_qos)
+    + topic_type=topic_type, qos=str(None)
+@@ xǁMQTTClientǁpublish__mutmut_5 | xǁMQTTClientǁpublish
+    - raise MQTTConnectionError("Not connected to MQTT broker")
+    + raise MQTTConnectionError("XXNot connected to MQTT brokerXX")
+@@ xǁMQTTClientǁpublish__mutmut_51 | xǁMQTTClientǁpublish
+    - _get_metrics()["publish_duration"].labels(topic_type=topic_type).observe(duration)
+    + _get_metrics()["publish_duration"].labels(topic_type=None).observe(duration)
+@@ xǁMQTTClientǁpublish__mutmut_54 | xǁMQTTClientǁpublish
+    - f"Published to {full_topic}",
+    + None,
+@@ xǁMQTTClientǁpublish__mutmut_55 | xǁMQTTClientǁpublish
+    - extra={ | "topic": full_topic, | "qos": effective_qos, | "retain": retain, | "payload_size": len(payload_str), | "duration_ms": duration * 1000, | },
+    + extra=None,
+@@ xǁMQTTClientǁpublish__mutmut_57 | xǁMQTTClientǁpublish
+    - extra={ | "topic": full_topic, | "qos": effective_qos, | "retain": retain, | "payload_size": len(payload_str), | "duration_ms": duration * 1000, | },
+    + (nothing)
+@@ xǁMQTTClientǁpublish__mutmut_58 | xǁMQTTClientǁpublish
+    - "topic": full_topic,
+    + "XXtopicXX": full_topic,
+@@ xǁMQTTClientǁpublish__mutmut_59 | xǁMQTTClientǁpublish
+    - "topic": full_topic,
+    + "TOPIC": full_topic,
+@@ xǁMQTTClientǁpublish__mutmut_60 | xǁMQTTClientǁpublish
+    - "qos": effective_qos,
+    + "XXqosXX": effective_qos,
+@@ xǁMQTTClientǁpublish__mutmut_61 | xǁMQTTClientǁpublish
+    - "qos": effective_qos,
+    + "QOS": effective_qos,
+@@ xǁMQTTClientǁpublish__mutmut_62 | xǁMQTTClientǁpublish
+    - "retain": retain,
+    + "XXretainXX": retain,
+@@ xǁMQTTClientǁpublish__mutmut_63 | xǁMQTTClientǁpublish
+    - "retain": retain,
+    + "RETAIN": retain,
+@@ xǁMQTTClientǁpublish__mutmut_64 | xǁMQTTClientǁpublish
+    - "payload_size": len(payload_str),
+    + "XXpayload_sizeXX": len(payload_str),
+@@ xǁMQTTClientǁpublish__mutmut_65 | xǁMQTTClientǁpublish
+    - "payload_size": len(payload_str),
+    + "PAYLOAD_SIZE": len(payload_str),
+@@ xǁMQTTClientǁpublish__mutmut_66 | xǁMQTTClientǁpublish
+    - "duration_ms": duration * 1000,
+    + "XXduration_msXX": duration * 1000,
+@@ xǁMQTTClientǁpublish__mutmut_67 | xǁMQTTClientǁpublish
+    - "duration_ms": duration * 1000,
+    + "DURATION_MS": duration * 1000,
+@@ xǁMQTTClientǁpublish__mutmut_68 | xǁMQTTClientǁpublish
+    - "duration_ms": duration * 1000,
+    + "duration_ms": duration / 1000,
+@@ xǁMQTTClientǁpublish__mutmut_69 | xǁMQTTClientǁpublish
+    - "duration_ms": duration * 1000,
+    + "duration_ms": duration * 1001,
+@@ xǁMQTTClientǁpublish__mutmut_70 | xǁMQTTClientǁpublish
+    - last_exception = e
+    + last_exception = None
+@@ xǁMQTTClientǁpublish__mutmut_71 | xǁMQTTClientǁpublish
+    - _get_metrics()["errors_total"].labels(error_type="publish").inc()
+    + _get_metrics()["errors_total"].labels(error_type=None).inc()
+@@ xǁMQTTClientǁpublish__mutmut_74 | xǁMQTTClientǁpublish
+    - _get_metrics()["errors_total"].labels(error_type="publish").inc()
+    + _get_metrics()["errors_total"].labels(error_type="XXpublishXX").inc()
+@@ xǁMQTTClientǁpublish__mutmut_75 | xǁMQTTClientǁpublish
+    - _get_metrics()["errors_total"].labels(error_type="publish").inc()
+    + _get_metrics()["errors_total"].labels(error_type="PUBLISH").inc()
+@@ xǁMQTTClientǁpublish__mutmut_76 | xǁMQTTClientǁpublish
+    - if attempt < max_publish_retries - 1:
+    + if attempt <= max_publish_retries - 1:
+@@ xǁMQTTClientǁpublish__mutmut_77 | xǁMQTTClientǁpublish
+    - if attempt < max_publish_retries - 1:
+    + if attempt < max_publish_retries + 1:
+@@ xǁMQTTClientǁpublish__mutmut_78 | xǁMQTTClientǁpublish
+    - if attempt < max_publish_retries - 1:
+    + if attempt < max_publish_retries - 2:
+@@ xǁMQTTClientǁpublish__mutmut_79 | xǁMQTTClientǁpublish
+    - f"Publish failed (attempt {attempt + 1}/{max_publish_retries}), retrying: {e}"
+    + None
+@@ xǁMQTTClientǁpublish__mutmut_80 | xǁMQTTClientǁpublish
+    - f"Publish failed (attempt {attempt + 1}/{max_publish_retries}), retrying: {e}"
+    + f"Publish failed (attempt {attempt - 1}/{max_publish_retries}), retrying: {e}"
+@@ xǁMQTTClientǁpublish__mutmut_81 | xǁMQTTClientǁpublish
+    - f"Publish failed (attempt {attempt + 1}/{max_publish_retries}), retrying: {e}"
+    + f"Publish failed (attempt {attempt + 2}/{max_publish_retries}), retrying: {e}"
+@@ xǁMQTTClientǁpublish__mutmut_83 | xǁMQTTClientǁpublish
+    - await asyncio.sleep(self.settings.reconnect_interval * (2**attempt))
+    + await asyncio.sleep(self.settings.reconnect_interval / (2**attempt))
+@@ xǁMQTTClientǁpublish__mutmut_84 | xǁMQTTClientǁpublish
+    - await asyncio.sleep(self.settings.reconnect_interval * (2**attempt))
+    + await asyncio.sleep(self.settings.reconnect_interval * (2 * attempt))
+@@ xǁMQTTClientǁpublish__mutmut_85 | xǁMQTTClientǁpublish
+    - await asyncio.sleep(self.settings.reconnect_interval * (2**attempt))
+    + await asyncio.sleep(self.settings.reconnect_interval * (3**attempt))
+@@ xǁMQTTClientǁsubscribe__mutmut_1 | xǁMQTTClientǁsubscribe
+    - if not self._connected or self._client is None:
+    + if not self._connected and self._client is None:
+@@ xǁMQTTClientǁsubscribe__mutmut_13 | xǁMQTTClientǁsubscribe
+    - f"Subscribed to {full_topic}",
+    + None,
+@@ xǁMQTTClientǁsubscribe__mutmut_14 | xǁMQTTClientǁsubscribe
+    - extra={"topic": full_topic, "pattern": topic},
+    + extra=None,
+@@ xǁMQTTClientǁsubscribe__mutmut_16 | xǁMQTTClientǁsubscribe
+    - extra={"topic": full_topic, "pattern": topic},
+    + (nothing)
+@@ xǁMQTTClientǁsubscribe__mutmut_17 | xǁMQTTClientǁsubscribe
+    - extra={"topic": full_topic, "pattern": topic},
+    + extra={"XXtopicXX": full_topic, "pattern": topic},
+@@ xǁMQTTClientǁsubscribe__mutmut_18 | xǁMQTTClientǁsubscribe
+    - extra={"topic": full_topic, "pattern": topic},
+    + extra={"TOPIC": full_topic, "pattern": topic},
+@@ xǁMQTTClientǁsubscribe__mutmut_19 | xǁMQTTClientǁsubscribe
+    - extra={"topic": full_topic, "pattern": topic},
+    + extra={"topic": full_topic, "XXpatternXX": topic},
+@@ xǁMQTTClientǁsubscribe__mutmut_20 | xǁMQTTClientǁsubscribe
+    - extra={"topic": full_topic, "pattern": topic},
+    + extra={"topic": full_topic, "PATTERN": topic},
+@@ xǁMQTTClientǁsubscribe__mutmut_24 | xǁMQTTClientǁsubscribe
+    - self._message_processing_loop(), name="mqtt-message-pump"
+    + self._message_processing_loop(), name=None
+@@ xǁMQTTClientǁsubscribe__mutmut_26 | xǁMQTTClientǁsubscribe
+    - self._message_processing_loop(), name="mqtt-message-pump" | )
+    + self._message_processing_loop(), )
+@@ xǁMQTTClientǁsubscribe__mutmut_27 | xǁMQTTClientǁsubscribe
+    - self._message_processing_loop(), name="mqtt-message-pump"
+    + self._message_processing_loop(), name="XXmqtt-message-pumpXX"
+@@ xǁMQTTClientǁsubscribe__mutmut_28 | xǁMQTTClientǁsubscribe
+    - self._message_processing_loop(), name="mqtt-message-pump"
+    + self._message_processing_loop(), name="MQTT-MESSAGE-PUMP"
+@@ xǁMQTTClientǁsubscribe__mutmut_6 | xǁMQTTClientǁsubscribe
+    - await self._client.subscribe(full_topic, qos=self.settings.qos_default)
+    + await self._client.subscribe(full_topic, qos=None)
+@@ xǁMQTTClientǁsubscribe__mutmut_8 | xǁMQTTClientǁsubscribe
+    - await self._client.subscribe(full_topic, qos=self.settings.qos_default)
+    + await self._client.subscribe(full_topic, )
+@@ xǁMQTTClientǁunsubscribe__mutmut_12 | xǁMQTTClientǁunsubscribe
+    - logger.info(f"Unsubscribed from {topic}")
+    + logger.info(None)
+@@ xǁMQTTClientǁunsubscribe__mutmut_2 | xǁMQTTClientǁunsubscribe
+    - if self._client is not None and self._connected:
+    + if self._client is not None or self._connected:
+@@ xǁMQTTClientǁunsubscribe__mutmut_4 | xǁMQTTClientǁunsubscribe
+    - full_topic = f"{self.settings.topic_prefix}/{topic}"
+    + full_topic = None
+@@ xǁMQTTClientǁunsubscribe__mutmut_5 | xǁMQTTClientǁunsubscribe
+    - await self._client.unsubscribe(full_topic)
+    + await self._client.unsubscribe(None)
+@@ xǁMQTTClientǁunsubscribe__mutmut_8 | xǁMQTTClientǁunsubscribe
+    - self._subscriptions.pop(topic, None)
+    + self._subscriptions.pop(topic, )
+@@ xǁMQTTConnectionErrorǁ__init____mutmut_2 | xǁMQTTConnectionErrorǁ__init__
+    - self.original_error = original_error
+    + self.original_error = None

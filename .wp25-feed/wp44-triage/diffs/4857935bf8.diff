@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_145: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -97,7 +97,7 @@
+         confidence = self.weather_classification.confidence
+ 
+         # Low visibility weather flag
+-        if condition in ("foggy", "snowy"):
++        if condition in ("foggy", "SNOWY"):
+             flags.append(
+                 {
+                     "type": "weather_low_visibility",

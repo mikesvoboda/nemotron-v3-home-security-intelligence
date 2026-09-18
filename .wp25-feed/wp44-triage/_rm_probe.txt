@@ -1,0 +1,12 @@
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_3: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -30,7 +30,7 @@
+             )
+         """
+     if not embedding:
+-        logger.warning("Empty embedding provided to find_matches")
++        logger.warning(None)
+         return []
+ 
+     # Calculate time cutoff

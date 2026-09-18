@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_86: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -65,7 +65,7 @@
+         logger.warning("Full-frame OCR request timed out")
+         return []
+     except httpx.ConnectError:
+-        logger.warning("Failed to connect to ai-florence service for OCR")
++        logger.warning("failed to connect to ai-florence service for ocr")
+         return []
+     except Exception as e:
+         logger.exception(f"Full-frame OCR failed: {e}")

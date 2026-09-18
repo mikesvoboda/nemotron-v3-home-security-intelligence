@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_current_config__mutmut_3: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -4,7 +4,7 @@
+         Returns:
+             Dictionary with current maxmemory and maxmemory-policy values
+         """
+-    maxmemory_config = await self._redis.config_get("maxmemory")
++    maxmemory_config = await self._redis.config_get("XXmaxmemoryXX")
+     policy_config = await self._redis.config_get("maxmemory-policy")
+ 
+     maxmemory_bytes = int(maxmemory_config.get("maxmemory", 0))

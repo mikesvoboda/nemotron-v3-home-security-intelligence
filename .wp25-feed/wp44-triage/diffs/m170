@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_170: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -74,7 +74,7 @@
+             "score": iq.get("quality_score"),
+             "is_blurry": iq.get("is_blurry"),
+             "is_low_quality": iq.get("is_low_quality"),
+-            "quality_issues": iq.get("quality_issues", []),
++            "QUALITY_ISSUES": iq.get("quality_issues", []),
+             "quality_change_detected": enrichment_data.get("quality_change_detected"),
+         }
+ 

@@ -1,0 +1,2505 @@
+{
+ "res": {
+  "x_set_gpu_monitor__mutmut_1": {
+   "fn": "x_set_gpu_monitor",
+   "idx": 1,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-def set_gpu_monitor(monitor: Any) -> None:",
+    "+def x_set_gpu_monitor__mutmut_1(monitor: Any) -> None:",
+    "@@ -10,3 +10,3 @@",
+    "-    _gpu_monitor = monitor",
+    "+    _gpu_monitor = None"
+   ]
+  },
+  "x_set_gpu_monitor__mutmut_2": {
+   "fn": "x_set_gpu_monitor",
+   "idx": 2,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-def set_gpu_monitor(monitor: Any) -> None:",
+    "+def x_set_gpu_monitor__mutmut_2(monitor: Any) -> None:",
+    "@@ -11,2 +11,2 @@",
+    "-    logger.debug(\"GPU monitor set for batch aggregator backpressure\")",
+    "+    logger.debug(None)"
+   ]
+  },
+  "x_set_gpu_monitor__mutmut_3": {
+   "fn": "x_set_gpu_monitor",
+   "idx": 3,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-def set_gpu_monitor(monitor: Any) -> None:",
+    "+def x_set_gpu_monitor__mutmut_3(monitor: Any) -> None:",
+    "@@ -11,2 +11,2 @@",
+    "-    logger.debug(\"GPU monitor set for batch aggregator backpressure\")",
+    "+    logger.debug(\"XXGPU monitor set for batch aggregator backpressureXX\")"
+   ]
+  },
+  "x_set_gpu_monitor__mutmut_4": {
+   "fn": "x_set_gpu_monitor",
+   "idx": 4,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-def set_gpu_monitor(monitor: Any) -> None:",
+    "+def x_set_gpu_monitor__mutmut_4(monitor: Any) -> None:",
+    "@@ -11,2 +11,2 @@",
+    "-    logger.debug(\"GPU monitor set for batch aggregator backpressure\")",
+    "+    logger.debug(\"gpu monitor set for batch aggregator backpressure\")"
+   ]
+  },
+  "x_set_gpu_monitor__mutmut_5": {
+   "fn": "x_set_gpu_monitor",
+   "idx": 5,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-def set_gpu_monitor(monitor: Any) -> None:",
+    "+def x_set_gpu_monitor__mutmut_5(monitor: Any) -> None:",
+    "@@ -11,2 +11,2 @@",
+    "-    logger.debug(\"GPU monitor set for batch aggregator backpressure\")",
+    "+    logger.debug(\"GPU MONITOR SET FOR BATCH AGGREGATOR BACKPRESSURE\")"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_1": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 1,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_1() -> Any:",
+    "@@ -11,3 +11,3 @@",
+    "-    if _gpu_monitor is None:",
+    "+    if _gpu_monitor is not None:"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_2": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 2,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_2() -> Any:",
+    "@@ -18,3 +18,3 @@",
+    "-            f\"Failed to check memory pressure: {e}\",",
+    "+            None,"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_3": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 3,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_3() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra=None,"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_5": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 5,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_5() -> Any:",
+    "@@ -19,4 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "-        )",
+    "+            )"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_6": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 6,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_6() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra={\"XXerrorXX\": str(e), \"error_type\": type(e).__name__},"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_7": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 7,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_7() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra={\"ERROR\": str(e), \"error_type\": type(e).__name__},"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_8": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 8,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_8() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra={\"error\": str(None), \"error_type\": type(e).__name__},"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_9": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 9,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_9() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra={\"error\": str(e), \"XXerror_typeXX\": type(e).__name__},"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_10": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 10,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_10() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra={\"error\": str(e), \"ERROR_TYPE\": type(e).__name__},"
+   ]
+  },
+  "x_get_memory_pressure_level__mutmut_11": {
+   "fn": "x_get_memory_pressure_level",
+   "idx": 11,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def get_memory_pressure_level() -> Any:",
+    "+async def x_get_memory_pressure_level__mutmut_11() -> Any:",
+    "@@ -19,3 +19,3 @@",
+    "-            extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+            extra={\"error\": str(e), \"error_type\": type(None).__name__},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_5": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 5,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_5(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -23,3 +23,3 @@",
+    "-                \"Cannot close batch: camera_id not found\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_6": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 6,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_6(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -24,3 +24,3 @@",
+    "-                extra={\"batch_id\": batch_id},",
+    "+                extra=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_8": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 8,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_8(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -24,4 +24,3 @@",
+    "-                extra={\"batch_id\": batch_id},",
+    "-            )",
+    "+                )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_9": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 9,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_9(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -23,3 +23,3 @@",
+    "-                \"Cannot close batch: camera_id not found\",",
+    "+                \"XXCannot close batch: camera_id not foundXX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_10": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 10,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_10(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -23,3 +23,3 @@",
+    "-                \"Cannot close batch: camera_id not found\",",
+    "+                \"cannot close batch: camera_id not found\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_11": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 11,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_11(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -23,3 +23,3 @@",
+    "-                \"Cannot close batch: camera_id not found\",",
+    "+                \"CANNOT CLOSE BATCH: CAMERA_ID NOT FOUND\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_12": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 12,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_12(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -24,3 +24,3 @@",
+    "-                extra={\"batch_id\": batch_id},",
+    "+                extra={\"XXbatch_idXX\": batch_id},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_13": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 13,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_13(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -24,3 +24,3 @@",
+    "-                extra={\"batch_id\": batch_id},",
+    "+                extra={\"BATCH_ID\": batch_id},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_14": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 14,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_14(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -29,3 +29,3 @@",
+    "-        with log_context(batch_id=batch_id, camera_id=camera_id):",
+    "+        with log_context(batch_id=None, camera_id=camera_id):"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_15": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 15,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_15(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -29,3 +29,3 @@",
+    "-        with log_context(batch_id=batch_id, camera_id=camera_id):",
+    "+        with log_context(batch_id=batch_id, camera_id=None):"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_16": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 16,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_16(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -29,3 +29,3 @@",
+    "-        with log_context(batch_id=batch_id, camera_id=camera_id):",
+    "+        with log_context(camera_id=camera_id):"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_17": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 17,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_17(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -29,3 +29,3 @@",
+    "-        with log_context(batch_id=batch_id, camera_id=camera_id):",
+    "+        with log_context(batch_id=batch_id, ):"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_19": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 19,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_19(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -34,3 +34,3 @@",
+    "-                \"1\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_22": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 22,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_22(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -34,3 +34,2 @@",
+    "-                \"1\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_24": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 24,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_24(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -34,3 +34,3 @@",
+    "-                \"1\",",
+    "+                \"XX1XX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_25": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 25,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_25(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -39,3 +39,3 @@",
+    "-            detections_key = f\"batch:{batch_id}:detections\"",
+    "+            detections_key = None"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_27": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 27,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_27(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                None, 0, -1"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_28": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 28,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_28(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                detections_key, None, -1"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_29": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 29,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_29(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                detections_key, 0, None"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_30": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 30,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_30(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                0, -1"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_31": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 31,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_31(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                detections_key, -1"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_32": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 32,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_32(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,4 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "-            )",
+    "+                detections_key, 0, )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_33": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 33,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_33(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                detections_key, 1, -1"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_34": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 34,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_34(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                detections_key, 0, +1"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_35": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 35,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_35(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -43,3 +43,3 @@",
+    "-                detections_key, 0, -1",
+    "+                detections_key, 0, -2"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_41": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 41,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_41(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -50,3 +50,3 @@",
+    "-                    detections.append(int(item.decode(\"utf-8\")))",
+    "+                    detections.append(int(item.decode(\"UTF-8\")))"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_44": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 44,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_44(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -55,3 +55,3 @@",
+    "-            started_at_str = await self._redis.get(f\"batch:{batch_id}:started_at\")",
+    "+            started_at_str = None"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_45": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 45,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_45(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -55,3 +55,3 @@",
+    "-            started_at_str = await self._redis.get(f\"batch:{batch_id}:started_at\")",
+    "+            started_at_str = await self._redis.get(None)"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_49": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 49,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_49(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -58,3 +58,3 @@",
+    "-            started_at: float = float(started_at_str) if started_at_str else time.time()",
+    "+            started_at: float = float(started_at_str) if (started_at_str) and False else time.time()"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_50": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 50,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_50(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -58,3 +58,3 @@",
+    "-            started_at: float = float(started_at_str) if started_at_str else time.time()",
+    "+            started_at: float = float(started_at_str) if (started_at_str) or True else time.time()"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_60": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 60,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_60(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -66,3 +66,3 @@",
+    "-                \"started_at\": started_at,",
+    "+                \"XXstarted_atXX\": started_at,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_61": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 61,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_61(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -66,3 +66,3 @@",
+    "-                \"started_at\": started_at,",
+    "+                \"STARTED_AT\": started_at,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_62": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 62,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_62(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -67,3 +67,3 @@",
+    "-                \"ended_at\": ended_at,",
+    "+                \"XXended_atXX\": ended_at,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_63": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 63,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_63(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -67,3 +67,3 @@",
+    "-                \"ended_at\": ended_at,",
+    "+                \"ENDED_AT\": ended_at,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_72": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 72,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_72(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -90,3 +90,3 @@",
+    "-                        self._analysis_queue,",
+    "+                        None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_74": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 74,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_74(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -92,3 +92,3 @@",
+    "-                        overflow_policy=QueueOverflowPolicy.DLQ,",
+    "+                        overflow_policy=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_77": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 77,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_77(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -92,4 +92,3 @@",
+    "-                        overflow_policy=QueueOverflowPolicy.DLQ,",
+    "-                    )",
+    "+                        )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_79": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 79,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_79(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -97,9 +97,3 @@",
+    "-                            extra={",
+    "-                                \"detection_count\": len(detections),",
+    "-                                \"queue_name\": self._analysis_queue,",
+    "-                                \"queue_length\": result.queue_length,",
+    "-                                \"moved_to_dlq\": result.moved_to_dlq_count,",
+    "-                                \"warning\": result.warning,",
+    "-                            },",
+    "+                            extra=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_81": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 81,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_81(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -97,10 +97,3 @@",
+    "-                            extra={",
+    "-                                \"detection_count\": len(detections),",
+    "-                                \"queue_name\": self._analysis_queue,",
+    "-                                \"queue_length\": result.queue_length,",
+    "-                                \"moved_to_dlq\": result.moved_to_dlq_count,",
+    "-                                \"warning\": result.warning,",
+    "-                            },",
+    "-                        )",
+    "+                            )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_82": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 82,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_82(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -96,3 +96,3 @@",
+    "-                            \"Queue overflow handling triggered for batch\",",
+    "+                            \"XXQueue overflow handling triggered for batchXX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_83": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 83,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_83(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -96,3 +96,3 @@",
+    "-                            \"Queue overflow handling triggered for batch\",",
+    "+                            \"queue overflow handling triggered for batch\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_84": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 84,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_84(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -96,3 +96,3 @@",
+    "-                            \"Queue overflow handling triggered for batch\",",
+    "+                            \"QUEUE OVERFLOW HANDLING TRIGGERED FOR BATCH\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_85": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 85,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_85(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -98,3 +98,3 @@",
+    "-                                \"detection_count\": len(detections),",
+    "+                                \"XXdetection_countXX\": len(detections),"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_86": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 86,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_86(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -98,3 +98,3 @@",
+    "-                                \"detection_count\": len(detections),",
+    "+                                \"DETECTION_COUNT\": len(detections),"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_87": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 87,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_87(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -99,3 +99,3 @@",
+    "-                                \"queue_name\": self._analysis_queue,",
+    "+                                \"XXqueue_nameXX\": self._analysis_queue,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_88": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 88,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_88(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -99,3 +99,3 @@",
+    "-                                \"queue_name\": self._analysis_queue,",
+    "+                                \"QUEUE_NAME\": self._analysis_queue,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_89": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 89,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_89(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -100,3 +100,3 @@",
+    "-                                \"queue_length\": result.queue_length,",
+    "+                                \"XXqueue_lengthXX\": result.queue_length,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_90": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 90,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_90(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -100,3 +100,3 @@",
+    "-                                \"queue_length\": result.queue_length,",
+    "+                                \"QUEUE_LENGTH\": result.queue_length,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_91": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 91,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_91(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -101,3 +101,3 @@",
+    "-                                \"moved_to_dlq\": result.moved_to_dlq_count,",
+    "+                                \"XXmoved_to_dlqXX\": result.moved_to_dlq_count,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_92": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 92,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_92(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -101,3 +101,3 @@",
+    "-                                \"moved_to_dlq\": result.moved_to_dlq_count,",
+    "+                                \"MOVED_TO_DLQ\": result.moved_to_dlq_count,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_93": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 93,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_93(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -102,3 +102,3 @@",
+    "-                                \"warning\": result.warning,",
+    "+                                \"XXwarningXX\": result.warning,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_94": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 94,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_94(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -102,3 +102,3 @@",
+    "-                                \"warning\": result.warning,",
+    "+                                \"WARNING\": result.warning,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_95": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 95,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_95(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -107,3 +107,3 @@",
+    "-                batch_duration_ms = (ended_at - started_at) * 1000",
+    "+                batch_duration_ms = None"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_96": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 96,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_96(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -107,3 +107,3 @@",
+    "-                batch_duration_ms = (ended_at - started_at) * 1000",
+    "+                batch_duration_ms = (ended_at - started_at) / 1000"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_97": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 97,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_97(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -107,3 +107,3 @@",
+    "-                batch_duration_ms = (ended_at - started_at) * 1000",
+    "+                batch_duration_ms = (ended_at + started_at) * 1000"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_98": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 98,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_98(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -107,3 +107,3 @@",
+    "-                batch_duration_ms = (ended_at - started_at) * 1000",
+    "+                batch_duration_ms = (ended_at - started_at) * 1001"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_99": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 99,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_99(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -109,3 +109,3 @@",
+    "-                    \"Batch closed\",",
+    "+                    None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_100": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 100,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_100(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -110,7 +110,3 @@",
+    "-                    extra={",
+    "-                        \"detection_count\": len(detections),",
+    "-                        \"duration_ms\": batch_duration_ms,",
+    "-                        \"close_reason\": \"max_size\",",
+    "-                    },",
+    "+                    extra=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_102": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 102,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_102(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -110,8 +110,3 @@",
+    "-                    extra={",
+    "-                        \"detection_count\": len(detections),",
+    "-                        \"duration_ms\": batch_duration_ms,",
+    "-                        \"close_reason\": \"max_size\",",
+    "-                    },",
+    "-                )",
+    "+                    )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_103": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 103,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_103(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -109,3 +109,3 @@",
+    "-                    \"Batch closed\",",
+    "+                    \"XXBatch closedXX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_104": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 104,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_104(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -109,3 +109,3 @@",
+    "-                    \"Batch closed\",",
+    "+                    \"batch closed\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_105": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 105,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_105(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -109,3 +109,3 @@",
+    "-                    \"Batch closed\",",
+    "+                    \"BATCH CLOSED\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_106": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 106,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_106(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -111,3 +111,3 @@",
+    "-                        \"detection_count\": len(detections),",
+    "+                        \"XXdetection_countXX\": len(detections),"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_107": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 107,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_107(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -111,3 +111,3 @@",
+    "-                        \"detection_count\": len(detections),",
+    "+                        \"DETECTION_COUNT\": len(detections),"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_108": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 108,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_108(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -112,3 +112,3 @@",
+    "-                        \"duration_ms\": batch_duration_ms,",
+    "+                        \"XXduration_msXX\": batch_duration_ms,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_109": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 109,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_109(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -112,3 +112,3 @@",
+    "-                        \"duration_ms\": batch_duration_ms,",
+    "+                        \"DURATION_MS\": batch_duration_ms,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_110": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 110,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_110(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -113,3 +113,3 @@",
+    "-                        \"close_reason\": \"max_size\",",
+    "+                        \"XXclose_reasonXX\": \"max_size\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_111": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 111,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_111(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -113,3 +113,3 @@",
+    "-                        \"close_reason\": \"max_size\",",
+    "+                        \"CLOSE_REASON\": \"max_size\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_112": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 112,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_112(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -113,3 +113,3 @@",
+    "-                        \"close_reason\": \"max_size\",",
+    "+                        \"close_reason\": \"XXmax_sizeXX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_113": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 113,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_113(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -113,3 +113,3 @@",
+    "-                        \"close_reason\": \"max_size\",",
+    "+                        \"close_reason\": \"MAX_SIZE\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_114": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 114,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_114(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -117,3 +117,3 @@",
+    "-                logger.debug(\"Batch has no detections, skipping analysis queue\")",
+    "+                logger.debug(None)"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_115": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 115,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_115(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -117,3 +117,3 @@",
+    "-                logger.debug(\"Batch has no detections, skipping analysis queue\")",
+    "+                logger.debug(\"XXBatch has no detections, skipping analysis queueXX\")"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_116": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 116,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_116(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -117,3 +117,3 @@",
+    "-                logger.debug(\"Batch has no detections, skipping analysis queue\")",
+    "+                logger.debug(\"batch has no detections, skipping analysis queue\")"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_117": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 117,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_117(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -117,3 +117,3 @@",
+    "-                logger.debug(\"Batch has no detections, skipping analysis queue\")",
+    "+                logger.debug(\"BATCH HAS NO DETECTIONS, SKIPPING ANALYSIS QUEUE\")"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_118": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 118,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_118(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -121,3 +121,3 @@",
+    "-                f\"batch:{camera_id}:current\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_119": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 119,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_119(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -122,3 +122,3 @@",
+    "-                f\"batch:{batch_id}:camera_id\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_120": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 120,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_120(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -123,3 +123,3 @@",
+    "-                f\"batch:{batch_id}:detections\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_121": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 121,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_121(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -124,3 +124,3 @@",
+    "-                f\"batch:{batch_id}:started_at\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_122": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 122,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_122(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -125,3 +125,3 @@",
+    "-                f\"batch:{batch_id}:last_activity\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_123": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 123,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_123(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -126,3 +126,3 @@",
+    "-                f\"batch:{batch_id}:pipeline_start_time\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_124": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 124,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_124(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -127,3 +127,3 @@",
+    "-                f\"batch:{batch_id}:closing\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_125": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 125,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_125(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -121,3 +121,2 @@",
+    "-                f\"batch:{camera_id}:current\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_126": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 126,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_126(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -122,3 +122,2 @@",
+    "-                f\"batch:{batch_id}:camera_id\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_127": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 127,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_127(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -123,3 +123,2 @@",
+    "-                f\"batch:{batch_id}:detections\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_128": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 128,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_128(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -124,3 +124,2 @@",
+    "-                f\"batch:{batch_id}:started_at\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_129": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 129,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_129(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -125,3 +125,2 @@",
+    "-                f\"batch:{batch_id}:last_activity\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_130": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 130,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_130(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -126,3 +126,2 @@",
+    "-                f\"batch:{batch_id}:pipeline_start_time\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_131": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 131,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_131(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -127,4 +127,3 @@",
+    "-                f\"batch:{batch_id}:closing\",",
+    "-            )",
+    "+                )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_132": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 132,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_132(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -130,3 +130,3 @@",
+    "-            logger.debug(\"Cleaned up Redis keys for batch\")",
+    "+            logger.debug(None)"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_133": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 133,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_133(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -130,3 +130,3 @@",
+    "-            logger.debug(\"Cleaned up Redis keys for batch\")",
+    "+            logger.debug(\"XXCleaned up Redis keys for batchXX\")"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_134": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 134,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_134(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -130,3 +130,3 @@",
+    "-            logger.debug(\"Cleaned up Redis keys for batch\")",
+    "+            logger.debug(\"cleaned up redis keys for batch\")"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_135": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 135,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_135(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -130,3 +130,3 @@",
+    "-            logger.debug(\"Cleaned up Redis keys for batch\")",
+    "+            logger.debug(\"CLEANED UP REDIS KEYS FOR BATCH\")"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_136": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 136,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_136(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -134,3 +134,3 @@",
+    "-                batch_id=batch_id,",
+    "+                batch_id=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_137": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 137,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_137(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -135,3 +135,3 @@",
+    "-                camera_id=camera_id,",
+    "+                camera_id=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_139": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 139,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_139(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -137,3 +137,3 @@",
+    "-                started_at=started_at,",
+    "+                started_at=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_140": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 140,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_140(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -138,3 +138,3 @@",
+    "-                closed_at=ended_at,",
+    "+                closed_at=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_141": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 141,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_141(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -139,3 +139,3 @@",
+    "-                close_reason=\"max_size\",",
+    "+                close_reason=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_147": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 147,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_147(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -139,4 +139,3 @@",
+    "-                close_reason=\"max_size\",",
+    "-            )",
+    "+                )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_148": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 148,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_148(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -139,3 +139,3 @@",
+    "-                close_reason=\"max_size\",",
+    "+                close_reason=\"XXmax_sizeXX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_149": {
+   "fn": "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit",
+   "idx": 149,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None:",
+    "+async def x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_149(self, batch_id: str) -> dict[str, Any] | None:",
+    "@@ -139,3 +139,3 @@",
+    "-                close_reason=\"max_size\",",
+    "+                close_reason=\"MAX_SIZE\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_4": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 4,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_4(self) -> bool:",
+    "@@ -21,3 +21,3 @@",
+    "-                    \"Backpressure active due to critical GPU memory pressure\",",
+    "+                    None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_5": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 5,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_5(self) -> bool:",
+    "@@ -22,3 +22,3 @@",
+    "-                    extra={\"pressure_level\": pressure_level.value},",
+    "+                    extra=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_7": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 7,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_7(self) -> bool:",
+    "@@ -22,4 +22,3 @@",
+    "-                    extra={\"pressure_level\": pressure_level.value},",
+    "-                )",
+    "+                    )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_8": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 8,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_8(self) -> bool:",
+    "@@ -21,3 +21,3 @@",
+    "-                    \"Backpressure active due to critical GPU memory pressure\",",
+    "+                    \"XXBackpressure active due to critical GPU memory pressureXX\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_9": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 9,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_9(self) -> bool:",
+    "@@ -21,3 +21,3 @@",
+    "-                    \"Backpressure active due to critical GPU memory pressure\",",
+    "+                    \"backpressure active due to critical gpu memory pressure\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_10": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 10,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_10(self) -> bool:",
+    "@@ -21,3 +21,3 @@",
+    "-                    \"Backpressure active due to critical GPU memory pressure\",",
+    "+                    \"BACKPRESSURE ACTIVE DUE TO CRITICAL GPU MEMORY PRESSURE\","
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_11": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 11,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_11(self) -> bool:",
+    "@@ -22,3 +22,3 @@",
+    "-                    extra={\"pressure_level\": pressure_level.value},",
+    "+                    extra={\"XXpressure_levelXX\": pressure_level.value},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_12": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 12,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_12(self) -> bool:",
+    "@@ -22,3 +22,3 @@",
+    "-                    extra={\"pressure_level\": pressure_level.value},",
+    "+                    extra={\"PRESSURE_LEVEL\": pressure_level.value},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_13": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 13,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_13(self) -> bool:",
+    "@@ -28,3 +28,3 @@",
+    "-                f\"Error checking backpressure: {e}\",",
+    "+                None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_14": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 14,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_14(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra=None,"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_16": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 16,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_16(self) -> bool:",
+    "@@ -29,4 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "-            )",
+    "+                )"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_17": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 17,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_17(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra={\"XXerrorXX\": str(e), \"error_type\": type(e).__name__},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_18": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 18,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_18(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra={\"ERROR\": str(e), \"error_type\": type(e).__name__},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_19": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 19,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_19(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra={\"error\": str(None), \"error_type\": type(e).__name__},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_20": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 20,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_20(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra={\"error\": str(e), \"XXerror_typeXX\": type(e).__name__},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_21": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 21,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_21(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra={\"error\": str(e), \"ERROR_TYPE\": type(e).__name__},"
+   ]
+  },
+  "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_22": {
+   "fn": "x\u01c1BatchAggregator\u01c1should_apply_backpressure",
+   "idx": 22,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def should_apply_backpressure(self) -> bool:",
+    "+async def x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_22(self) -> bool:",
+    "@@ -29,3 +29,3 @@",
+    "-                extra={\"error\": str(e), \"error_type\": type(e).__name__},",
+    "+                extra={\"error\": str(e), \"error_type\": type(None).__name__},"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_2": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 2,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_2(",
+    "@@ -25,3 +25,3 @@",
+    "-    cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)",
+    "+    cutoff_time = datetime.now(UTC) + timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_3": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 3,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_3(",
+    "@@ -25,3 +25,3 @@",
+    "-    cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)",
+    "+    cutoff_time = datetime.now(None) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_5": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 5,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_5(",
+    "@@ -32,24 +32,3 @@",
+    "-            stmt = (",
+    "-                select(Detection)",
+    "-                .outerjoin(",
+    "-                    EventDetection,",
+    "-                    Detection.id == EventDetection.detection_id,",
+    "-                )",
+    "-                .where(",
+    "-                    EventDetection.event_id.is_(None),",
+    "-                    Detection.detected_at < cutoff_time,",
+    "-                )",
+    "-                .options(",
+    "-                    load_only(",
+    "-                        Detection.id,",
+    "-                        Detection.camera_id,",
+    "-                        Detection.file_path,",
+    "-                        Detection.confidence,",
+    "-                        Detection.object_type,",
+    "-                    )",
+    "-                )",
+    "-                .order_by(Detection.detected_at.asc())",
+    "-                .limit(ORPHAN_RECOVERY_LIMIT)",
+    "-            )",
+    "+            stmt = None"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_6": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 6,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_6(",
+    "@@ -52,3 +52,3 @@",
+    "-                .limit(ORPHAN_RECOVERY_LIMIT)",
+    "+                .limit(None)"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_7": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 7,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_7(",
+    "@@ -51,3 +51,3 @@",
+    "-                .order_by(Detection.detected_at.asc())",
+    "+                .order_by(None)"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_9": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 9,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_9(",
+    "@@ -39,3 +39,3 @@",
+    "-                    EventDetection.event_id.is_(None),",
+    "+                    None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_10": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 10,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_10(",
+    "@@ -40,3 +40,3 @@",
+    "-                    Detection.detected_at < cutoff_time,",
+    "+                    None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_11": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 11,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_11(",
+    "@@ -39,3 +39,2 @@",
+    "-                    EventDetection.event_id.is_(None),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_12": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 12,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_12(",
+    "@@ -40,4 +40,3 @@",
+    "-                    Detection.detected_at < cutoff_time,",
+    "-                )",
+    "+                    )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_14": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 14,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_14(",
+    "@@ -36,3 +36,3 @@",
+    "-                    Detection.id == EventDetection.detection_id,",
+    "+                    None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_16": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 16,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_16(",
+    "@@ -36,4 +36,3 @@",
+    "-                    Detection.id == EventDetection.detection_id,",
+    "-                )",
+    "+                    )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_17": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 17,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_17(",
+    "@@ -33,3 +33,3 @@",
+    "-                select(Detection)",
+    "+                select(None)"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_18": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 18,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_18(",
+    "@@ -36,3 +36,3 @@",
+    "-                    Detection.id == EventDetection.detection_id,",
+    "+                    Detection.id != EventDetection.detection_id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_19": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 19,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_19(",
+    "@@ -40,3 +40,3 @@",
+    "-                    Detection.detected_at < cutoff_time,",
+    "+                    Detection.detected_at <= cutoff_time,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_25": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 25,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_25(",
+    "@@ -44,3 +44,2 @@",
+    "-                        Detection.id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_26": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 26,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_26(",
+    "@@ -45,3 +45,2 @@",
+    "-                        Detection.camera_id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_27": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 27,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_27(",
+    "@@ -46,3 +46,2 @@",
+    "-                        Detection.file_path,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_28": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 28,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_28(",
+    "@@ -47,3 +47,2 @@",
+    "-                        Detection.confidence,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_29": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 29,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_29(",
+    "@@ -48,4 +48,3 @@",
+    "-                        Detection.object_type,",
+    "-                    )",
+    "+                        )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_31": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 31,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_31(",
+    "@@ -55,3 +55,3 @@",
+    "-            result = await session.execute(stmt)",
+    "+            result = await session.execute(None)"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_42": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 42,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_42(",
+    "@@ -73,3 +73,3 @@",
+    "-                        _file_path=detection.file_path,",
+    "+                        _file_path=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_43": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 43,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_43(",
+    "@@ -74,3 +74,3 @@",
+    "-                        confidence=detection.confidence,",
+    "+                        confidence=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_44": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 44,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_44(",
+    "@@ -75,3 +75,3 @@",
+    "-                        object_type=detection.object_type,",
+    "+                        object_type=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_47": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 47,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_47(",
+    "@@ -73,3 +73,2 @@",
+    "-                        _file_path=detection.file_path,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_48": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 48,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_48(",
+    "@@ -74,3 +74,2 @@",
+    "-                        confidence=detection.confidence,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_49": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 49,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_49(",
+    "@@ -75,4 +75,3 @@",
+    "-                        object_type=detection.object_type,",
+    "-                    )",
+    "+                        )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_53": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 53,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_53(",
+    "@@ -80,3 +80,3 @@",
+    "-                        \"Failed to recover orphaned detection\",",
+    "+                        None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_54": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 54,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_54(",
+    "@@ -81,7 +81,3 @@",
+    "-                        extra={",
+    "-                            \"detection_id\": detection.id,",
+    "-                            \"camera_id\": camera_id,",
+    "-                            \"error\": str(e),",
+    "-                        },",
+    "+                        extra=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_56": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 56,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_56(",
+    "@@ -81,8 +81,3 @@",
+    "-                        extra={",
+    "-                            \"detection_id\": detection.id,",
+    "-                            \"camera_id\": camera_id,",
+    "-                            \"error\": str(e),",
+    "-                        },",
+    "-                    )",
+    "+                        )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_57": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 57,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_57(",
+    "@@ -80,3 +80,3 @@",
+    "-                        \"Failed to recover orphaned detection\",",
+    "+                        \"XXFailed to recover orphaned detectionXX\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_58": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 58,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_58(",
+    "@@ -80,3 +80,3 @@",
+    "-                        \"Failed to recover orphaned detection\",",
+    "+                        \"failed to recover orphaned detection\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_59": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 59,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_59(",
+    "@@ -80,3 +80,3 @@",
+    "-                        \"Failed to recover orphaned detection\",",
+    "+                        \"FAILED TO RECOVER ORPHANED DETECTION\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_60": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 60,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_60(",
+    "@@ -82,3 +82,3 @@",
+    "-                            \"detection_id\": detection.id,",
+    "+                            \"XXdetection_idXX\": detection.id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_61": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 61,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_61(",
+    "@@ -82,3 +82,3 @@",
+    "-                            \"detection_id\": detection.id,",
+    "+                            \"DETECTION_ID\": detection.id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_62": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 62,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_62(",
+    "@@ -83,3 +83,3 @@",
+    "-                            \"camera_id\": camera_id,",
+    "+                            \"XXcamera_idXX\": camera_id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_63": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 63,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_63(",
+    "@@ -83,3 +83,3 @@",
+    "-                            \"camera_id\": camera_id,",
+    "+                            \"CAMERA_ID\": camera_id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_64": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 64,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_64(",
+    "@@ -84,3 +84,3 @@",
+    "-                            \"error\": str(e),",
+    "+                            \"XXerrorXX\": str(e),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_65": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 65,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_65(",
+    "@@ -84,3 +84,3 @@",
+    "-                            \"error\": str(e),",
+    "+                            \"ERROR\": str(e),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_66": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 66,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_66(",
+    "@@ -84,3 +84,3 @@",
+    "-                            \"error\": str(e),",
+    "+                            \"error\": str(None),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_67": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 67,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_67(",
+    "@@ -89,3 +89,3 @@",
+    "-                \"Recovered orphaned detections for camera\",",
+    "+                None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_68": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 68,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_68(",
+    "@@ -90,6 +90,3 @@",
+    "-                extra={",
+    "-                    \"camera_id\": camera_id,",
+    "-                    \"detection_count\": len(detections),",
+    "-                },",
+    "+                extra=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_70": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 70,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_70(",
+    "@@ -90,7 +90,3 @@",
+    "-                extra={",
+    "-                    \"camera_id\": camera_id,",
+    "-                    \"detection_count\": len(detections),",
+    "-                },",
+    "-            )",
+    "+                )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_71": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 71,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_71(",
+    "@@ -89,3 +89,3 @@",
+    "-                \"Recovered orphaned detections for camera\",",
+    "+                \"XXRecovered orphaned detections for cameraXX\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_72": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 72,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_72(",
+    "@@ -89,3 +89,3 @@",
+    "-                \"Recovered orphaned detections for camera\",",
+    "+                \"recovered orphaned detections for camera\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_73": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 73,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_73(",
+    "@@ -89,3 +89,3 @@",
+    "-                \"Recovered orphaned detections for camera\",",
+    "+                \"RECOVERED ORPHANED DETECTIONS FOR CAMERA\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_74": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 74,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_74(",
+    "@@ -91,3 +91,3 @@",
+    "-                    \"camera_id\": camera_id,",
+    "+                    \"XXcamera_idXX\": camera_id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_75": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 75,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_75(",
+    "@@ -91,3 +91,3 @@",
+    "-                    \"camera_id\": camera_id,",
+    "+                    \"CAMERA_ID\": camera_id,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_76": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 76,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_76(",
+    "@@ -92,3 +92,3 @@",
+    "-                    \"detection_count\": len(detections),",
+    "+                    \"XXdetection_countXX\": len(detections),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_77": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 77,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_77(",
+    "@@ -92,3 +92,3 @@",
+    "-                    \"detection_count\": len(detections),",
+    "+                    \"DETECTION_COUNT\": len(detections),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_78": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 78,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_78(",
+    "@@ -97,3 +97,3 @@",
+    "-            \"Recovered orphaned detections across cameras\",",
+    "+            None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_79": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 79,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_79(",
+    "@@ -98,6 +98,3 @@",
+    "-            extra={",
+    "-                \"total_recovered\": total_recovered,",
+    "-                \"camera_count\": len(camera_groups),",
+    "-            },",
+    "+            extra=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_81": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 81,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_81(",
+    "@@ -98,7 +98,3 @@",
+    "-            extra={",
+    "-                \"total_recovered\": total_recovered,",
+    "-                \"camera_count\": len(camera_groups),",
+    "-            },",
+    "-        )",
+    "+            )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_82": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 82,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_82(",
+    "@@ -97,3 +97,3 @@",
+    "-            \"Recovered orphaned detections across cameras\",",
+    "+            \"XXRecovered orphaned detections across camerasXX\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_83": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 83,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_83(",
+    "@@ -97,3 +97,3 @@",
+    "-            \"Recovered orphaned detections across cameras\",",
+    "+            \"recovered orphaned detections across cameras\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_84": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 84,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_84(",
+    "@@ -97,3 +97,3 @@",
+    "-            \"Recovered orphaned detections across cameras\",",
+    "+            \"RECOVERED ORPHANED DETECTIONS ACROSS CAMERAS\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_85": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 85,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_85(",
+    "@@ -99,3 +99,3 @@",
+    "-                \"total_recovered\": total_recovered,",
+    "+                \"XXtotal_recoveredXX\": total_recovered,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_86": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 86,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_86(",
+    "@@ -99,3 +99,3 @@",
+    "-                \"total_recovered\": total_recovered,",
+    "+                \"TOTAL_RECOVERED\": total_recovered,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_87": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 87,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_87(",
+    "@@ -100,3 +100,3 @@",
+    "-                \"camera_count\": len(camera_groups),",
+    "+                \"XXcamera_countXX\": len(camera_groups),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_88": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 88,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_88(",
+    "@@ -100,3 +100,3 @@",
+    "-                \"camera_count\": len(camera_groups),",
+    "+                \"CAMERA_COUNT\": len(camera_groups),"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_89": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 89,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_89(",
+    "@@ -108,3 +108,3 @@",
+    "-            \"Orphaned detection recovery failed\",",
+    "+            None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_90": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 90,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_90(",
+    "@@ -109,3 +109,3 @@",
+    "-            extra={\"error\": str(e)},",
+    "+            extra=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_91": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 91,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_91(",
+    "@@ -110,3 +110,3 @@",
+    "-            exc_info=True,",
+    "+            exc_info=None,"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_93": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 93,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_93(",
+    "@@ -109,3 +109,2 @@",
+    "-            extra={\"error\": str(e)},"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_94": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 94,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_94(",
+    "@@ -110,4 +110,3 @@",
+    "-            exc_info=True,",
+    "-        )",
+    "+            )"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_95": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 95,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_95(",
+    "@@ -108,3 +108,3 @@",
+    "-            \"Orphaned detection recovery failed\",",
+    "+            \"XXOrphaned detection recovery failedXX\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_96": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 96,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_96(",
+    "@@ -108,3 +108,3 @@",
+    "-            \"Orphaned detection recovery failed\",",
+    "+            \"orphaned detection recovery failed\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_97": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 97,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_97(",
+    "@@ -108,3 +108,3 @@",
+    "-            \"Orphaned detection recovery failed\",",
+    "+            \"ORPHANED DETECTION RECOVERY FAILED\","
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_98": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 98,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_98(",
+    "@@ -109,3 +109,3 @@",
+    "-            extra={\"error\": str(e)},",
+    "+            extra={\"XXerrorXX\": str(e)},"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_99": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 99,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_99(",
+    "@@ -109,3 +109,3 @@",
+    "-            extra={\"error\": str(e)},",
+    "+            extra={\"ERROR\": str(e)},"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_100": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 100,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_100(",
+    "@@ -109,3 +109,3 @@",
+    "-            extra={\"error\": str(e)},",
+    "+            extra={\"error\": str(None)},"
+   ]
+  },
+  "x_recover_orphaned_detections__mutmut_101": {
+   "fn": "x_recover_orphaned_detections",
+   "idx": 101,
+   "diff": [
+    "@@ -1,2 +1,2 @@",
+    "-async def recover_orphaned_detections(",
+    "+async def x_recover_orphaned_detections__mutmut_101(",
+    "@@ -110,3 +110,3 @@",
+    "-            exc_info=True,",
+    "+            exc_info=False,"
+   ]
+  }
+ },
+ "miss": []
+}

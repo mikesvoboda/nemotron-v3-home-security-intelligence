@@ -1,0 +1,338 @@
+x__check_message_size__2                                  
+    -    if len(data) > max_size:
+    +    if len(data) >= max_size:
+x_validate_websocket_message__12                          
+    -            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
+    +            err.get("type") in ("json_invalid", "XXvalue_error.jsondecodeXX") for err in errors
+x_validate_websocket_message__13                          
+    -            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
+    +            err.get("type") in ("json_invalid", "VALUE_ERROR.JSONDECODE") for err in errors
+x_validate_websocket_message__22                          
+    -                message="Message must be valid JSON",
+    +                message="XXMessage must be valid JSONXX",
+x_validate_websocket_message__28                          
+    -                details={"raw_data_preview": raw_data[:100] if raw_data else None},
+    +                details={"raw_data_preview": raw_data[:100] if (raw_data) or True else None},
+x_validate_websocket_message__30                          
+    -            logger.warning(f"WebSocket received invalid message format: {e}")
+    +            logger.warning(None)
+x_validate_websocket_message__38                          
+    -                message="Message does not match expected schema",
+    +                message="XXMessage does not match expected schemaXX",
+x_validate_websocket_message__39                          
+    -                message="Message does not match expected schema",
+    +                message="message does not match expected schema",
+x_handle_validated_message__12                            
+    -            logger.debug("Sent pong response to WebSocket client")
+    +            logger.debug(None)
+x_handle_validated_message__13                            
+    -            logger.debug("Sent pong response to WebSocket client")
+    +            logger.debug("XXSent pong response to WebSocket clientXX")
+x_handle_validated_message__14                            
+    -            logger.debug("Sent pong response to WebSocket client")
+    +            logger.debug("sent pong response to websocket client")
+x_handle_validated_message__15                            
+    -            logger.debug("Sent pong response to WebSocket client")
+    +            logger.debug("SENT PONG RESPONSE TO WEBSOCKET CLIENT")
+x_handle_validated_message__20                            
+    -            events = message.data.get("events", []) if message.data else []
+    +            events = message.data.get("events", None) if message.data else []
+x_handle_validated_message__22                            
+    -            events = message.data.get("events", []) if message.data else []
+    +            events = message.data.get("events", ) if message.data else []
+x_handle_validated_message__29                            
+    -                events = message.data.get("channels", [])
+    +                events = message.data.get("channels", None)
+x_handle_validated_message__31                            
+    -                events = message.data.get("channels", [])
+    +                events = message.data.get("channels", )
+x_handle_validated_message__38                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details=None,
+x_handle_validated_message__41                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    -                )
+    +                    )
+x_handle_validated_message__42                            
+    -                    message="Subscribe message must include 'events' array",
+    +                    message="XXSubscribe message must include 'events' arrayXX",
+x_handle_validated_message__43                            
+    -                    message="Subscribe message must include 'events' array",
+    +                    message="subscribe message must include 'events' array",
+x_handle_validated_message__45                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"XXexampleXX": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+x_handle_validated_message__46                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"EXAMPLE": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+x_handle_validated_message__47                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"XXtypeXX": "subscribe", "data": {"events": ["alert.*"]}}},
+x_handle_validated_message__48                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"TYPE": "subscribe", "data": {"events": ["alert.*"]}}},
+x_handle_validated_message__49                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "XXsubscribeXX", "data": {"events": ["alert.*"]}}},
+x_handle_validated_message__50                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "SUBSCRIBE", "data": {"events": ["alert.*"]}}},
+x_handle_validated_message__51                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "subscribe", "XXdataXX": {"events": ["alert.*"]}}},
+x_handle_validated_message__52                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "subscribe", "DATA": {"events": ["alert.*"]}}},
+x_handle_validated_message__53                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "subscribe", "data": {"XXeventsXX": ["alert.*"]}}},
+x_handle_validated_message__54                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "subscribe", "data": {"EVENTS": ["alert.*"]}}},
+x_handle_validated_message__55                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "subscribe", "data": {"events": ["XXalert.*XX"]}}},
+x_handle_validated_message__56                            
+    -                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+    +                    details={"example": {"type": "subscribe", "data": {"events": ["ALERT.*"]}}},
+x_handle_validated_message__63                            
+    -                f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+    +                None,
+x_handle_validated_message__64                            
+    -                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+    +                extra=None,
+x_handle_validated_message__66                            
+    -                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+    -            )
+    +                )
+x_handle_validated_message__67                            
+    -                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+    +                extra={"XXconnection_idXX": connection_id, "patterns": subscribed_patterns},
+x_handle_validated_message__68                            
+    -                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+    +                extra={"CONNECTION_ID": connection_id, "patterns": subscribed_patterns},
+x_handle_validated_message__69                            
+    -                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+    +                extra={"connection_id": connection_id, "XXpatternsXX": subscribed_patterns},
+x_handle_validated_message__70                            
+    -                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+    +                extra={"connection_id": connection_id, "PATTERNS": subscribed_patterns},
+x_handle_validated_message__81                            
+    -            events = message.data.get("events", []) if message.data else []
+    +            events = message.data.get("events", []) if (message.data) or True else []
+x_handle_validated_message__83                            
+    -            events = message.data.get("events", []) if message.data else []
+    +            events = message.data.get("events", None) if message.data else []
+x_handle_validated_message__85                            
+    -            events = message.data.get("events", []) if message.data else []
+    +            events = message.data.get("events", ) if message.data else []
+x_handle_validated_message__92                            
+    -                events = message.data.get("channels", [])
+    +                events = message.data.get("channels", None)
+x_handle_validated_message__94                            
+    -                events = message.data.get("channels", [])
+    +                events = message.data.get("channels", )
+x_handle_validated_message__104                           
+    -                f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+    +                None,
+x_handle_validated_message__105                           
+    -                extra={"connection_id": connection_id, "patterns": removed_patterns},
+    +                extra=None,
+x_handle_validated_message__107                           
+    -                extra={"connection_id": connection_id, "patterns": removed_patterns},
+    -            )
+    +                )
+x_handle_validated_message__108                           
+    -                extra={"connection_id": connection_id, "patterns": removed_patterns},
+    +                extra={"XXconnection_idXX": connection_id, "patterns": removed_patterns},
+x_handle_validated_message__109                           
+    -                extra={"connection_id": connection_id, "patterns": removed_patterns},
+    +                extra={"CONNECTION_ID": connection_id, "patterns": removed_patterns},
+x_handle_validated_message__110                           
+    -                extra={"connection_id": connection_id, "patterns": removed_patterns},
+    +                extra={"connection_id": connection_id, "XXpatternsXX": removed_patterns},
+x_handle_validated_message__111                           
+    -                extra={"connection_id": connection_id, "patterns": removed_patterns},
+    +                extra={"connection_id": connection_id, "PATTERNS": removed_patterns},
+x_handle_validated_message__120                           
+    -            logger.debug("Received pong response from WebSocket client")
+    +            logger.debug(None)
+x_handle_validated_message__121                           
+    -            logger.debug("Received pong response from WebSocket client")
+    +            logger.debug("XXReceived pong response from WebSocket clientXX")
+x_handle_validated_message__122                           
+    -            logger.debug("Received pong response from WebSocket client")
+    +            logger.debug("received pong response from websocket client")
+x_handle_validated_message__123                           
+    -            logger.debug("Received pong response from WebSocket client")
+    +            logger.debug("RECEIVED PONG RESPONSE FROM WEBSOCKET CLIENT")
+x_handle_validated_message__126                           
+    -            await handle_resync_with_replay(websocket, message, connection_id)
+    +            await handle_resync_with_replay(websocket, message, None)
+x_handle_validated_message__130                           
+    -            logger.warning(f"WebSocket received unknown message type: {message_type}")
+    +            logger.warning(None)
+x_handle_resync_with_replay__5                            
+    -    channel = message.data.get("channel", "unknown") if message.data else "unknown"
+    +    channel = message.data.get("channel", None) if message.data else "unknown"
+x_handle_resync_with_replay__7                            
+    -    channel = message.data.get("channel", "unknown") if message.data else "unknown"
+    +    channel = message.data.get("channel", ) if message.data else "unknown"
+x_handle_resync_with_replay__10                           
+    -    channel = message.data.get("channel", "unknown") if message.data else "unknown"
+    +    channel = message.data.get("channel", "XXunknownXX") if message.data else "unknown"
+x_handle_resync_with_replay__11                           
+    -    channel = message.data.get("channel", "unknown") if message.data else "unknown"
+    +    channel = message.data.get("channel", "UNKNOWN") if message.data else "unknown"
+x_handle_resync_with_replay__25                           
+    -        f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+    +        None,
+x_handle_resync_with_replay__26                           
+    -        extra={
+    -            "connection_id": connection_id,
+    -            "channel": channel,
+    -            "last_sequence": last_sequence,
+    -        },
+    +        extra=None,
+x_handle_resync_with_replay__28                           
+    -        extra={
+    -            "connection_id": connection_id,
+    -            "channel": channel,
+    -            "last_sequence": last_sequence,
+    -        },
+    -    )
+    +        )
+x_handle_resync_with_replay__29                           
+    -            "connection_id": connection_id,
+    +            "XXconnection_idXX": connection_id,
+x_handle_resync_with_replay__30                           
+    -            "connection_id": connection_id,
+    +            "CONNECTION_ID": connection_id,
+x_handle_resync_with_replay__31                           
+    -            "channel": channel,
+    +            "XXchannelXX": channel,
+x_handle_resync_with_replay__32                           
+    -            "channel": channel,
+    +            "CHANNEL": channel,
+x_handle_resync_with_replay__33                           
+    -            "last_sequence": last_sequence,
+    +            "XXlast_sequenceXX": last_sequence,
+x_handle_resync_with_replay__34                           
+    -            "last_sequence": last_sequence,
+    +            "LAST_SEQUENCE": last_sequence,
+x_handle_resync_with_replay__40                           
+    -    gap_too_old = oldest_seq is not None and last_sequence < oldest_seq
+    +    gap_too_old = oldest_seq is not None and last_sequence <= oldest_seq
+x_handle_resync_with_replay__70                           
+    -        f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+    +        None,
+x_handle_resync_with_replay__71                           
+    -        extra={
+    -            "connection_id": connection_id,
+    -            "channel": channel,
+    -            "last_sequence": last_sequence,
+    -            "replayed_count": replayed_count,
+    -            "gap_too_old": gap_too_old,
+    -        },
+    +        extra=None,
+x_handle_resync_with_replay__73                           
+    -        extra={
+    -            "connection_id": connection_id,
+    -            "channel": channel,
+    -            "last_sequence": last_sequence,
+    -            "replayed_count": replayed_count,
+    -            "gap_too_old": gap_too_old,
+    -        },
+    -    )
+    +        )
+x_handle_resync_with_replay__74                           
+    -            "connection_id": connection_id,
+    +            "XXconnection_idXX": connection_id,
+x_handle_resync_with_replay__75                           
+    -            "connection_id": connection_id,
+    +            "CONNECTION_ID": connection_id,
+x_handle_resync_with_replay__76                           
+    -            "channel": channel,
+    +            "XXchannelXX": channel,
+x_handle_resync_with_replay__77                           
+    -            "channel": channel,
+    +            "CHANNEL": channel,
+x_handle_resync_with_replay__78                           
+    -            "last_sequence": last_sequence,
+    +            "XXlast_sequenceXX": last_sequence,
+x_handle_resync_with_replay__79                           
+    -            "last_sequence": last_sequence,
+    +            "LAST_SEQUENCE": last_sequence,
+x_handle_resync_with_replay__80                           
+    -            "replayed_count": replayed_count,
+    +            "XXreplayed_countXX": replayed_count,
+x_handle_resync_with_replay__81                           
+    -            "replayed_count": replayed_count,
+    +            "REPLAYED_COUNT": replayed_count,
+x_handle_resync_with_replay__82                           
+    -            "gap_too_old": gap_too_old,
+    +            "XXgap_too_oldXX": gap_too_old,
+x_handle_resync_with_replay__83                           
+    -            "gap_too_old": gap_too_old,
+    +            "GAP_TOO_OLD": gap_too_old,
+x_send_heartbeat__4                                       
+    -                break
+    +                return
+x_send_heartbeat__7                                       
+    -                last_seq = sequence_tracker.get_current_sequence(connection_id)
+    +                last_seq = sequence_tracker.get_current_sequence(None)
+x_send_heartbeat__18                                      
+    -                    "Sent server heartbeat ping to WebSocket client",
+    +                    None,
+x_send_heartbeat__19                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    +                    extra=None,
+x_send_heartbeat__21                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    -                )
+    +                    )
+x_send_heartbeat__22                                      
+    -                    "Sent server heartbeat ping to WebSocket client",
+    +                    "XXSent server heartbeat ping to WebSocket clientXX",
+x_send_heartbeat__23                                      
+    -                    "Sent server heartbeat ping to WebSocket client",
+    +                    "sent server heartbeat ping to websocket client",
+x_send_heartbeat__24                                      
+    -                    "Sent server heartbeat ping to WebSocket client",
+    +                    "SENT SERVER HEARTBEAT PING TO WEBSOCKET CLIENT",
+x_send_heartbeat__25                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    +                    extra={"XXconnection_idXX": connection_id, "lastSeq": last_seq},
+x_send_heartbeat__26                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    +                    extra={"CONNECTION_ID": connection_id, "lastSeq": last_seq},
+x_send_heartbeat__27                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    +                    extra={"connection_id": connection_id, "XXlastSeqXX": last_seq},
+x_send_heartbeat__28                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    +                    extra={"connection_id": connection_id, "lastseq": last_seq},
+x_send_heartbeat__29                                      
+    -                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+    +                    extra={"connection_id": connection_id, "LASTSEQ": last_seq},
+x_send_heartbeat__30                                      
+    -                logger.debug("WebSocket no longer connected, stopping heartbeat")
+    +                logger.debug(None)
+x_send_heartbeat__31                                      
+    -                logger.debug("WebSocket no longer connected, stopping heartbeat")
+    +                logger.debug("XXWebSocket no longer connected, stopping heartbeatXX")
+x_send_heartbeat__32                                      
+    -                logger.debug("WebSocket no longer connected, stopping heartbeat")
+    +                logger.debug("websocket no longer connected, stopping heartbeat")
+x_send_heartbeat__33                                      
+    -                logger.debug("WebSocket no longer connected, stopping heartbeat")
+    +                logger.debug("WEBSOCKET NO LONGER CONNECTED, STOPPING HEARTBEAT")
+x_send_heartbeat__34                                      
+    -                break
+    +                return
+x_send_heartbeat__35                                      
+    -            logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+    +            logger.debug(None)
+x_send_heartbeat__36                                      
+    -            break
+    +            return

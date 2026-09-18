@@ -1,0 +1,10 @@
+# backend.api.routes.system.x__check_postgres_health_full__mutmut_23: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -14,5 +14,4 @@
+             name="postgres",
+             status=ServiceHealthState.UNHEALTHY,
+             message=f"Database error: {e}",
+-            details=None,
+-        )
++            )

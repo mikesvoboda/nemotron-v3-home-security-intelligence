@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_worker_status__mutmut_27: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -31,7 +31,7 @@
+         workers.append(
+             WorkerHealthStatus(
+                 name="cleanup_service",
+-                running=stats.get("running", False),
++                running=stats.get("running", ),
+                 critical=False,
+             )
+         )

@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_74: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -83,7 +83,7 @@
+                 httpx.WriteTimeout,
+                 TimeoutError,
+             ) as e:
+-                last_exception = e
++                last_exception = None
+                 if attempt < self._max_retries - 1:
+                     delay = min(2**attempt, 30)
+                     logger.warning(

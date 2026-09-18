@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁadd_batch__mutmut_33: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -41,7 +41,7 @@
+     )
+ 
+     logger.debug(
+-        "Added batch to analysis stream",
++        "added batch to analysis stream",
+         extra={
+             "stream_key": self._stream_key,
+             "message_id": message_id,

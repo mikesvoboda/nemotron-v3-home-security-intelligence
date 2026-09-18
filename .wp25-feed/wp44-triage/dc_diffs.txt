@@ -1,0 +1,855 @@
+#################### x__get_preprocess_worker_count 1
+1	return 2  # Fewer workers with GIL (limited parallelism benefit) -> return 3  # Fewer workers with GIL (limited parallelism benefit)
+#################### x__is_free_threaded 4
+1	if hasattr(sys, "_is_gil_enabled"): -> if hasattr(None, "_is_gil_enabled"):
+5	if hasattr(sys, "_is_gil_enabled"): -> if hasattr(sys, "XX_is_gil_enabledXX"):
+6	if hasattr(sys, "_is_gil_enabled"): -> if hasattr(sys, "_IS_GIL_ENABLED"):
+7	return not sys._is_gil_enabled() -> return sys._is_gil_enabled()
+#################### xǁDetectorClientǁ__init__ 60
+6	self._model_version = "yolo26m"  # YOLO26 medium model -> self._model_version = None  # YOLO26 medium model
+7	self._model_version = "yolo26m"  # YOLO26 medium model -> self._model_version = "XXyolo26mXX"  # YOLO26 medium model
+8	self._model_version = "yolo26m"  # YOLO26 medium model -> self._model_version = "YOLO26M"  # YOLO26 medium model
+20	if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str): -> if getattr(settings, "use_ai_gateway", None) is True and isinstance(gw_url, str):
+26	if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str): -> if getattr(settings, "use_ai_gateway", True) is True and isinstance(gw_url, str):
+32	self._detector_url = f"{gw_url.rstrip('/')}/yolo26" -> self._detector_url = f"{gw_url.rstrip('XX/XX')}/yolo26"
+41	write=read_timeout, -> write=None,
+42	pool=settings.ai_connect_timeout, -> pool=None,
+47	self._health_timeout = httpx.Timeout( connect=settings.ai_health_timeout, read=settings.ai_health_timeout, write=settings.ai_health_timeout, pool=settings.ai_health_timeout, ) -> self._health_timeout = None
+48	connect=settings.ai_health_timeout, -> connect=None,
+49	read=settings.ai_health_timeout, -> read=None,
+50	write=settings.ai_health_timeout, -> write=None,
+51	pool=settings.ai_health_timeout, -> pool=None,
+61	self._max_concurrent = settings.ai_max_concurrent_inferences -> self._max_concurrent = None
+74	timeout=self._health_timeout, -> timeout=None,
+76	timeout=self._health_timeout, -> 
+77	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), ) -> )
+78	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), -> limits=httpx.Limits(max_connections=None, max_keepalive_connections=5),
+79	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), -> limits=httpx.Limits(max_connections=10, max_keepalive_connections=None),
+80	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), -> limits=httpx.Limits(max_keepalive_connections=5),
+81	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), -> limits=httpx.Limits(max_connections=10, ),
+82	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), -> limits=httpx.Limits(max_connections=11, max_keepalive_connections=5),
+83	limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), -> limits=httpx.Limits(max_connections=10, max_keepalive_connections=6),
+91	half_open_max_calls=3, -> half_open_max_calls=None,
+92	success_threshold=2, -> success_threshold=None,
+94	failure_threshold=5, -> 
+96	half_open_max_calls=3, -> 
+97	success_threshold=2, -> 
+101	half_open_max_calls=3, -> half_open_max_calls=4,
+102	success_threshold=2, -> success_threshold=3,
+104	self._is_warming: bool = False -> self._is_warming: bool = None
+105	self._is_warming: bool = False -> self._is_warming: bool = True
+108	preprocess_workers = _get_preprocess_worker_count() -> preprocess_workers = None
+109	free_threading = _is_free_threaded() -> free_threading = None
+110	"DetectorClient initialized", -> None,
+111	extra={ "detector_type": self._detector_type, "detector_url": self._detector_url, "free_threading": free_threading, "max_concurrent_inferences": self._max_concurrent, "preprocess_workers": preprocess_workers, "max_retries": self._max_retries, "timeout_seconds": read_timeout, "circuit_breaker_failure_threshold": 5, "circuit_breaker_recovery_timeout": 60.0, }, -> extra=None,
+113	extra={ "detector_type": self._detector_type, "detector_url": self._detector_url, "free_threading": free_threading, "max_concurrent_inferences": self._max_concurrent, "preprocess_workers": preprocess_workers, "max_retries": self._max_retries, "timeout_seconds": read_timeout, "circuit_breaker_failure_threshold": 5, "circuit_breaker_recovery_timeout": 60.0, }, ) -> )
+114	"DetectorClient initialized", -> "XXDetectorClient initializedXX",
+115	"DetectorClient initialized", -> "detectorclient initialized",
+116	"DetectorClient initialized", -> "DETECTORCLIENT INITIALIZED",
+117	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+118	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+119	"detector_url": self._detector_url, -> "XXdetector_urlXX": self._detector_url,
+120	"detector_url": self._detector_url, -> "DETECTOR_URL": self._detector_url,
+121	"free_threading": free_threading, -> "XXfree_threadingXX": free_threading,
+122	"free_threading": free_threading, -> "FREE_THREADING": free_threading,
+123	"max_concurrent_inferences": self._max_concurrent, -> "XXmax_concurrent_inferencesXX": self._max_concurrent,
+124	"max_concurrent_inferences": self._max_concurrent, -> "MAX_CONCURRENT_INFERENCES": self._max_concurrent,
+125	"preprocess_workers": preprocess_workers, -> "XXpreprocess_workersXX": preprocess_workers,
+126	"preprocess_workers": preprocess_workers, -> "PREPROCESS_WORKERS": preprocess_workers,
+127	"max_retries": self._max_retries, -> "XXmax_retriesXX": self._max_retries,
+128	"max_retries": self._max_retries, -> "MAX_RETRIES": self._max_retries,
+129	"timeout_seconds": read_timeout, -> "XXtimeout_secondsXX": read_timeout,
+130	"timeout_seconds": read_timeout, -> "TIMEOUT_SECONDS": read_timeout,
+131	"circuit_breaker_failure_threshold": 5, -> "XXcircuit_breaker_failure_thresholdXX": 5,
+132	"circuit_breaker_failure_threshold": 5, -> "CIRCUIT_BREAKER_FAILURE_THRESHOLD": 5,
+133	"circuit_breaker_failure_threshold": 5, -> "circuit_breaker_failure_threshold": 6,
+134	"circuit_breaker_recovery_timeout": 60.0, -> "XXcircuit_breaker_recovery_timeoutXX": 60.0,
+135	"circuit_breaker_recovery_timeout": 60.0, -> "CIRCUIT_BREAKER_RECOVERY_TIMEOUT": 60.0,
+136	"circuit_breaker_recovery_timeout": 60.0, -> "circuit_breaker_recovery_timeout": 61.0,
+#################### xǁDetectorClientǁ_get_auth_headers 3
+4	if hasattr(self._api_key, "get_secret_value") -> if hasattr(None, "get_secret_value")
+8	if hasattr(self._api_key, "get_secret_value") -> if hasattr(self._api_key, "XXget_secret_valueXX")
+9	if hasattr(self._api_key, "get_secret_value") -> if hasattr(self._api_key, "GET_SECRET_VALUE")
+#################### xǁDetectorClientǁ_get_semaphore 4
+3	if cls._request_semaphore is None or cls._semaphore_limit != limit: -> if cls._request_semaphore is None and cls._semaphore_limit != limit:
+4	if cls._request_semaphore is None or cls._semaphore_limit != limit: -> if cls._request_semaphore is not None or cls._semaphore_limit != limit:
+5	if cls._request_semaphore is None or cls._semaphore_limit != limit: -> if cls._request_semaphore is None or cls._semaphore_limit == limit:
+9	logger.debug(f"Created DetectorClient semaphore with limit={limit}") -> logger.debug(None)
+#################### xǁDetectorClientǁ_send_detection_request 303
+1	last_exception: Exception | None = None -> last_exception: Exception | None = ""
+4	explicit_timeout = self._read_timeout + settings.ai_connect_timeout -> explicit_timeout = None
+5	explicit_timeout = self._read_timeout + settings.ai_connect_timeout -> explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+6	f"{self._detector_type}_detection_request", -> None,
+7	camera_id=camera_id, -> camera_id=None,
+8	image_path=image_path, -> image_path=None,
+9	image_size_bytes=len(image_data), -> image_size_bytes=None,
+11	camera_id=camera_id, -> 
+12	image_path=image_path, -> 
+13	image_size_bytes=len(image_data), ) as span: -> ) as span:
+15	model_name=self._detector_type, -> model_name=None,
+16	model_version=self._model_version, -> model_version=None,
+17	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider=None,
+18	device="cuda:0",  # Default GPU device -> device=None,  # Default GPU device
+19	batch_size=1,  # Single image per request -> batch_size=None,  # Single image per request
+21	model_name=self._detector_type, -> 
+22	model_version=self._model_version, -> 
+23	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> 
+24	device="cuda:0",  # Default GPU device -> 
+25	batch_size=1,  # Single image per request ) -> )
+26	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if (self._detector_type == "yolo26") and False else "ultralytics",
+27	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if (self._detector_type == "yolo26") or True else "ultralytics",
+28	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="XXhuggingfaceXX" if self._detector_type == "yolo26" else "ultralytics",
+29	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="HUGGINGFACE" if self._detector_type == "yolo26" else "ultralytics",
+30	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if self._detector_type != "yolo26" else "ultralytics",
+31	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if self._detector_type == "XXyolo26XX" else "ultralytics",
+32	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if self._detector_type == "YOLO26" else "ultralytics",
+33	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if self._detector_type == "yolo26" else "XXultralyticsXX",
+34	model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics", -> model_provider="huggingface" if self._detector_type == "yolo26" else "ULTRALYTICS",
+35	device="cuda:0",  # Default GPU device -> device="XXcuda:0XX",  # Default GPU device
+36	device="cuda:0",  # Default GPU device -> device="CUDA:0",  # Default GPU device
+37	batch_size=1,  # Single image per request -> batch_size=2,  # Single image per request
+39	span.set_attribute("retry_attempt", attempt) -> span.set_attribute(None, attempt)
+40	span.set_attribute("retry_attempt", attempt) -> span.set_attribute("retry_attempt", None)
+43	span.set_attribute("retry_attempt", attempt) -> span.set_attribute("XXretry_attemptXX", attempt)
+44	span.set_attribute("retry_attempt", attempt) -> span.set_attribute("RETRY_ATTEMPT", attempt)
+46	async with asyncio.timeout(explicit_timeout): -> async with asyncio.timeout(None):
+47	files = {"file": (image_name, image_data, "image/jpeg")} -> files = None
+48	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"XXfileXX": (image_name, image_data, "image/jpeg")}
+49	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"FILE": (image_name, image_data, "image/jpeg")}
+50	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"file": (image_name, image_data, "XXimage/jpegXX")}
+51	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"file": (image_name, image_data, "IMAGE/JPEG")}
+53	f"{self._detector_url}/detect", -> None,
+54	files=files, -> files=None,
+57	files=files, -> 
+60	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = None
+61	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = (time.monotonic() - start_time) / 1000
+62	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = (time.monotonic() + start_time) * 1000
+63	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = (time.monotonic() - start_time) * 1001
+64	detections = result.get("detections", []) -> detections = None
+65	detections = result.get("detections", []) -> detections = result.get(None, [])
+66	detections = result.get("detections", []) -> detections = result.get("detections", None)
+68	detections = result.get("detections", []) -> detections = result.get("detections", )
+69	detections = result.get("detections", []) -> detections = result.get("XXdetectionsXX", [])
+70	detections = result.get("detections", []) -> detections = result.get("DETECTIONS", [])
+72	detections=detections, -> detections=None,
+73	inference_time_ms=inference_time_ms, -> inference_time_ms=None,
+75	detections=detections, -> 
+76	inference_time_ms=inference_time_ms, ) -> )
+78	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=None, status="success"
+79	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=inference_time_ms, status=None
+81	span, duration_ms=inference_time_ms, status="success" -> span, status="success"
+82	span, duration_ms=inference_time_ms, status="success" ) -> span, duration_ms=inference_time_ms, )
+83	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=inference_time_ms, status="XXsuccessXX"
+84	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=inference_time_ms, status="SUCCESS"
+96	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = min(2**attempt, 31)  # Cap at 30 seconds
+97	"Detector connection error, retrying", -> None,
+98	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, "error": str(e), }, -> extra=None,
+100	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, "error": str(e), }, ) -> )
+101	"Detector connection error, retrying", -> "XXDetector connection error, retryingXX",
+102	"Detector connection error, retrying", -> "detector connection error, retrying",
+103	"Detector connection error, retrying", -> "DETECTOR CONNECTION ERROR, RETRYING",
+104	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+105	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+106	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+107	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+108	"file_path": image_path, -> "XXfile_pathXX": image_path,
+109	"file_path": image_path, -> "FILE_PATH": image_path,
+110	"attempt": attempt + 1, -> "XXattemptXX": attempt + 1,
+111	"attempt": attempt + 1, -> "ATTEMPT": attempt + 1,
+112	"attempt": attempt + 1, -> "attempt": attempt - 1,
+113	"attempt": attempt + 1, -> "attempt": attempt + 2,
+114	"max_retries": self._max_retries, -> "XXmax_retriesXX": self._max_retries,
+115	"max_retries": self._max_retries, -> "MAX_RETRIES": self._max_retries,
+116	"retry_delay": delay, -> "XXretry_delayXX": delay,
+117	"retry_delay": delay, -> "RETRY_DELAY": delay,
+118	"error": str(e), -> "XXerrorXX": str(e),
+119	"error": str(e), -> "ERROR": str(e),
+120	"error": str(e), -> "error": str(None),
+122	record_pipeline_error(f"{self._detector_type}_connection_error") -> record_pipeline_error(None)
+123	"Detector connection error after all attempts", -> None,
+124	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "error": str(e), }, -> extra=None,
+125	exc_info=True, -> exc_info=None,
+127	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "error": str(e), }, -> 
+128	exc_info=True, ) -> )
+129	"Detector connection error after all attempts", -> "XXDetector connection error after all attemptsXX",
+130	"Detector connection error after all attempts", -> "detector connection error after all attempts",
+131	"Detector connection error after all attempts", -> "DETECTOR CONNECTION ERROR AFTER ALL ATTEMPTS",
+132	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+133	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+134	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+135	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+136	"file_path": image_path, -> "XXfile_pathXX": image_path,
+137	"file_path": image_path, -> "FILE_PATH": image_path,
+138	"attempts": self._max_retries, -> "XXattemptsXX": self._max_retries,
+139	"attempts": self._max_retries, -> "ATTEMPTS": self._max_retries,
+140	"error": str(e), -> "XXerrorXX": str(e),
+141	"error": str(e), -> "ERROR": str(e),
+142	"error": str(e), -> "error": str(None),
+143	exc_info=True, -> exc_info=False,
+155	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = min(2**attempt, 31)  # Cap at 30 seconds
+156	"Detector timeout, retrying", -> None,
+157	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, "error": str(e), }, -> extra=None,
+159	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, "error": str(e), }, ) -> )
+160	"Detector timeout, retrying", -> "XXDetector timeout, retryingXX",
+161	"Detector timeout, retrying", -> "detector timeout, retrying",
+162	"Detector timeout, retrying", -> "DETECTOR TIMEOUT, RETRYING",
+163	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+164	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+165	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+166	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+167	"file_path": image_path, -> "XXfile_pathXX": image_path,
+168	"file_path": image_path, -> "FILE_PATH": image_path,
+169	"attempt": attempt + 1, -> "XXattemptXX": attempt + 1,
+170	"attempt": attempt + 1, -> "ATTEMPT": attempt + 1,
+171	"attempt": attempt + 1, -> "attempt": attempt - 1,
+172	"attempt": attempt + 1, -> "attempt": attempt + 2,
+173	"max_retries": self._max_retries, -> "XXmax_retriesXX": self._max_retries,
+174	"max_retries": self._max_retries, -> "MAX_RETRIES": self._max_retries,
+175	"retry_delay": delay, -> "XXretry_delayXX": delay,
+176	"retry_delay": delay, -> "RETRY_DELAY": delay,
+177	"error": str(e), -> "XXerrorXX": str(e),
+178	"error": str(e), -> "ERROR": str(e),
+179	"error": str(e), -> "error": str(None),
+181	record_pipeline_error(f"{self._detector_type}_timeout") -> record_pipeline_error(None)
+182	"Detector timeout after all attempts", -> None,
+183	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "error": str(e), }, -> extra=None,
+184	exc_info=True, -> exc_info=None,
+186	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "error": str(e), }, -> 
+187	exc_info=True, ) -> )
+188	"Detector timeout after all attempts", -> "XXDetector timeout after all attemptsXX",
+189	"Detector timeout after all attempts", -> "detector timeout after all attempts",
+190	"Detector timeout after all attempts", -> "DETECTOR TIMEOUT AFTER ALL ATTEMPTS",
+191	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+192	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+193	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+194	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+195	"file_path": image_path, -> "XXfile_pathXX": image_path,
+196	"file_path": image_path, -> "FILE_PATH": image_path,
+197	"attempts": self._max_retries, -> "XXattemptsXX": self._max_retries,
+198	"attempts": self._max_retries, -> "ATTEMPTS": self._max_retries,
+199	"error": str(e), -> "XXerrorXX": str(e),
+200	"error": str(e), -> "ERROR": str(e),
+201	"error": str(e), -> "error": str(None),
+202	exc_info=True, -> exc_info=False,
+217	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = min(2**attempt, 31)  # Cap at 30 seconds
+218	"Detector server error, retrying", -> None,
+219	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, }, -> extra=None,
+221	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, }, ) -> )
+222	"Detector server error, retrying", -> "XXDetector server error, retryingXX",
+223	"Detector server error, retrying", -> "detector server error, retrying",
+224	"Detector server error, retrying", -> "DETECTOR SERVER ERROR, RETRYING",
+225	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+226	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+227	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+228	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+229	"file_path": image_path, -> "XXfile_pathXX": image_path,
+230	"file_path": image_path, -> "FILE_PATH": image_path,
+231	"status_code": status_code, -> "XXstatus_codeXX": status_code,
+232	"status_code": status_code, -> "STATUS_CODE": status_code,
+233	"attempt": attempt + 1, -> "XXattemptXX": attempt + 1,
+234	"attempt": attempt + 1, -> "ATTEMPT": attempt + 1,
+235	"attempt": attempt + 1, -> "attempt": attempt - 1,
+236	"attempt": attempt + 1, -> "attempt": attempt + 2,
+237	"max_retries": self._max_retries, -> "XXmax_retriesXX": self._max_retries,
+238	"max_retries": self._max_retries, -> "MAX_RETRIES": self._max_retries,
+239	"retry_delay": delay, -> "XXretry_delayXX": delay,
+240	"retry_delay": delay, -> "RETRY_DELAY": delay,
+242	record_pipeline_error(f"{self._detector_type}_server_error") -> record_pipeline_error(None)
+243	"Detector server error after all attempts", -> None,
+244	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "attempts": self._max_retries, }, -> extra=None,
+245	exc_info=True, -> exc_info=None,
+247	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "attempts": self._max_retries, }, -> 
+248	exc_info=True, ) -> )
+249	"Detector server error after all attempts", -> "XXDetector server error after all attemptsXX",
+250	"Detector server error after all attempts", -> "detector server error after all attempts",
+251	"Detector server error after all attempts", -> "DETECTOR SERVER ERROR AFTER ALL ATTEMPTS",
+252	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+253	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+254	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+255	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+256	"file_path": image_path, -> "XXfile_pathXX": image_path,
+257	"file_path": image_path, -> "FILE_PATH": image_path,
+258	"status_code": status_code, -> "XXstatus_codeXX": status_code,
+259	"status_code": status_code, -> "STATUS_CODE": status_code,
+260	"attempts": self._max_retries, -> "XXattemptsXX": self._max_retries,
+261	"attempts": self._max_retries, -> "ATTEMPTS": self._max_retries,
+262	exc_info=True, -> exc_info=False,
+263	error_detail = None -> error_detail = ""
+264	if status_code == 400: -> if status_code != 400:
+265	if status_code == 400: -> if status_code == 401:
+266	error_response = e.response.json() -> error_response = None
+267	error_detail = error_response.get("detail", str(e)) -> error_detail = None
+268	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get(None, str(e))
+269	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get("detail", None)
+270	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get(str(e))
+271	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get("detail", )
+272	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get("XXdetailXX", str(e))
+273	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get("DETAIL", str(e))
+274	error_detail = error_response.get("detail", str(e)) -> error_detail = error_response.get("detail", str(None))
+275	record_pipeline_error(f"{self._detector_type}_client_error") -> record_pipeline_error(None)
+276	"Detector client error", -> None,
+277	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "error_detail": error_detail, }, -> extra=None,
+279	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "error_detail": error_detail, }, ) -> )
+280	"Detector client error", -> "XXDetector client errorXX",
+281	"Detector client error", -> "detector client error",
+282	"Detector client error", -> "DETECTOR CLIENT ERROR",
+283	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+284	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+285	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+286	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+287	"file_path": image_path, -> "XXfile_pathXX": image_path,
+288	"file_path": image_path, -> "FILE_PATH": image_path,
+289	"status_code": status_code, -> "XXstatus_codeXX": status_code,
+290	"status_code": status_code, -> "STATUS_CODE": status_code,
+291	"error_detail": error_detail, -> "XXerror_detailXX": error_detail,
+292	"error_detail": error_detail, -> "ERROR_DETAIL": error_detail,
+293	f"Detector client error {status_code}: {error_detail or e}" -> None
+294	f"Detector client error {status_code}: {error_detail or e}" -> f"Detector client error {status_code}: {error_detail and e}"
+299	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = None  # Cap at 30 seconds
+304	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = min(2 * attempt, 30)  # Cap at 30 seconds
+305	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = min(3**attempt, 30)  # Cap at 30 seconds
+306	delay = min(2**attempt, 30)  # Cap at 30 seconds -> delay = min(2**attempt, 31)  # Cap at 30 seconds
+307	f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), " f"retrying in {delay}s: {sanitize_error(e)}", -> None,
+308	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, }, -> extra=None,
+310	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retries": self._max_retries, "retry_delay": delay, }, ) -> )
+311	f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), " -> f"Detector JSON/value error (attempt {attempt - 1}/{self._max_retries}), "
+312	f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), " -> f"Detector JSON/value error (attempt {attempt + 2}/{self._max_retries}), "
+313	f"retrying in {delay}s: {sanitize_error(e)}", -> f"retrying in {delay}s: {sanitize_error(None)}",
+314	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+315	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+316	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+317	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+318	"file_path": image_path, -> "XXfile_pathXX": image_path,
+319	"file_path": image_path, -> "FILE_PATH": image_path,
+320	"attempt": attempt + 1, -> "XXattemptXX": attempt + 1,
+321	"attempt": attempt + 1, -> "ATTEMPT": attempt + 1,
+322	"attempt": attempt + 1, -> "attempt": attempt - 1,
+323	"attempt": attempt + 1, -> "attempt": attempt + 2,
+324	"max_retries": self._max_retries, -> "XXmax_retriesXX": self._max_retries,
+325	"max_retries": self._max_retries, -> "MAX_RETRIES": self._max_retries,
+326	"retry_delay": delay, -> "XXretry_delayXX": delay,
+327	"retry_delay": delay, -> "RETRY_DELAY": delay,
+328	await asyncio.sleep(delay) -> await asyncio.sleep(None)
+329	record_pipeline_error(f"{self._detector_type}_json_error") -> record_pipeline_error(None)
+330	f"Detector JSON/value error after {self._max_retries} attempts: " f"{sanitize_error(e)}", -> None,
+331	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, }, -> extra=None,
+332	exc_info=True, -> exc_info=None,
+334	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, }, -> 
+335	exc_info=True, ) -> )
+336	f"{sanitize_error(e)}", -> f"{sanitize_error(None)}",
+337	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+338	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+339	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+340	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+341	"file_path": image_path, -> "XXfile_pathXX": image_path,
+342	"file_path": image_path, -> "FILE_PATH": image_path,
+343	"attempts": self._max_retries, -> "XXattemptsXX": self._max_retries,
+344	"attempts": self._max_retries, -> "ATTEMPTS": self._max_retries,
+345	exc_info=True, -> exc_info=False,
+347	if attempt < self._max_retries - 1: -> if attempt <= self._max_retries - 1:
+348	if attempt < self._max_retries - 1: -> if attempt < self._max_retries + 1:
+349	if attempt < self._max_retries - 1: -> if attempt < self._max_retries - 2:
+350	record_pipeline_error(f"{self._detector_type}_unexpected_error") -> record_pipeline_error(None)
+351	"Unexpected detector error after all attempts", -> None,
+352	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "error": sanitize_error(e), }, -> extra=None,
+353	exc_info=True, -> exc_info=None,
+355	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "error": sanitize_error(e), }, -> 
+356	exc_info=True, ) -> )
+357	"Unexpected detector error after all attempts", -> "XXUnexpected detector error after all attemptsXX",
+358	"Unexpected detector error after all attempts", -> "unexpected detector error after all attempts",
+359	"Unexpected detector error after all attempts", -> "UNEXPECTED DETECTOR ERROR AFTER ALL ATTEMPTS",
+360	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+361	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+362	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+363	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+364	"file_path": image_path, -> "XXfile_pathXX": image_path,
+365	"file_path": image_path, -> "FILE_PATH": image_path,
+366	"attempts": self._max_retries, -> "XXattemptsXX": self._max_retries,
+367	"attempts": self._max_retries, -> "ATTEMPTS": self._max_retries,
+368	"error": sanitize_error(e), -> "XXerrorXX": sanitize_error(e),
+369	"error": sanitize_error(e), -> "ERROR": sanitize_error(e),
+370	"error": sanitize_error(e), -> "error": sanitize_error(None),
+371	exc_info=True, -> exc_info=False,
+373	span.set_attribute("error", True) -> span.set_attribute(None, True)
+374	span.set_attribute("error", True) -> span.set_attribute("error", None)
+377	span.set_attribute("error", True) -> span.set_attribute("XXerrorXX", True)
+378	span.set_attribute("error", True) -> span.set_attribute("ERROR", True)
+379	span.set_attribute("error", True) -> span.set_attribute("error", False)
+380	span.set_attribute("error.message", error_msg) -> span.set_attribute(None, error_msg)
+381	span.set_attribute("error.message", error_msg) -> span.set_attribute("error.message", None)
+384	span.set_attribute("error.message", error_msg) -> span.set_attribute("XXerror.messageXX", error_msg)
+385	span.set_attribute("error.message", error_msg) -> span.set_attribute("ERROR.MESSAGE", error_msg)
+#################### xǁDetectorClientǁ_validate_image_for_detection 28
+4	if file_size < MIN_DETECTION_IMAGE_SIZE: -> if file_size <= MIN_DETECTION_IMAGE_SIZE:
+5	"Image too small for detection", -> None,
+6	extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size, "min_size": MIN_DETECTION_IMAGE_SIZE, }, -> extra=None,
+8	extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size, "min_size": MIN_DETECTION_IMAGE_SIZE, }, ) -> )
+9	"Image too small for detection", -> "XXImage too small for detectionXX",
+10	"Image too small for detection", -> "image too small for detection",
+11	"Image too small for detection", -> "IMAGE TOO SMALL FOR DETECTION",
+12	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+13	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+14	"file_path": image_path, -> "XXfile_pathXX": image_path,
+15	"file_path": image_path, -> "FILE_PATH": image_path,
+16	"file_size": file_size, -> "XXfile_sizeXX": file_size,
+17	"file_size": file_size, -> "FILE_SIZE": file_size,
+18	"min_size": MIN_DETECTION_IMAGE_SIZE, -> "XXmin_sizeXX": MIN_DETECTION_IMAGE_SIZE,
+19	"min_size": MIN_DETECTION_IMAGE_SIZE, -> "MIN_SIZE": MIN_DETECTION_IMAGE_SIZE,
+23	"Image validation failed (corrupt/truncated)", -> None,
+24	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra=None,
+26	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, ) -> )
+27	"Image validation failed (corrupt/truncated)", -> "XXImage validation failed (corrupt/truncated)XX",
+28	"Image validation failed (corrupt/truncated)", -> "image validation failed (corrupt/truncated)",
+29	"Image validation failed (corrupt/truncated)", -> "IMAGE VALIDATION FAILED (CORRUPT/TRUNCATED)",
+30	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"XXcamera_idXX": camera_id, "file_path": image_path, "error": str(e)},
+31	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"CAMERA_ID": camera_id, "file_path": image_path, "error": str(e)},
+32	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"camera_id": camera_id, "XXfile_pathXX": image_path, "error": str(e)},
+33	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"camera_id": camera_id, "FILE_PATH": image_path, "error": str(e)},
+34	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"camera_id": camera_id, "file_path": image_path, "XXerrorXX": str(e)},
+35	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"camera_id": camera_id, "file_path": image_path, "ERROR": str(e)},
+36	extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, -> extra={"camera_id": camera_id, "file_path": image_path, "error": str(None)},
+#################### xǁDetectorClientǁ_validate_image_for_detection_async 1
+3	return await asyncio.to_thread(self._validate_image_for_detection, image_path, camera_id) -> return await asyncio.to_thread(self._validate_image_for_detection, image_path, None)
+#################### xǁDetectorClientǁclose 8
+1	"DetectorClient HTTP connections closed", -> None,
+2	extra={"detector_type": self._detector_type}, -> extra=None,
+4	extra={"detector_type": self._detector_type}, ) -> )
+5	"DetectorClient HTTP connections closed", -> "XXDetectorClient HTTP connections closedXX",
+6	"DetectorClient HTTP connections closed", -> "detectorclient http connections closed",
+7	"DetectorClient HTTP connections closed", -> "DETECTORCLIENT HTTP CONNECTIONS CLOSED",
+8	extra={"detector_type": self._detector_type}, -> extra={"XXdetector_typeXX": self._detector_type},
+9	extra={"detector_type": self._detector_type}, -> extra={"DETECTOR_TYPE": self._detector_type},
+#################### xǁDetectorClientǁdetect_objects 223
+1	trace_id = get_trace_id() -> trace_id = None
+13	"detector.type": self._detector_type, -> "XXdetector.typeXX": self._detector_type,
+14	"detector.type": self._detector_type, -> "DETECTOR.TYPE": self._detector_type,
+18	"Image file not found", -> None,
+19	extra={"camera_id": camera_id, "file_path": image_path}, -> extra=None,
+21	extra={"camera_id": camera_id, "file_path": image_path}, ) -> )
+22	"Image file not found", -> "XXImage file not foundXX",
+23	"Image file not found", -> "image file not found",
+24	"Image file not found", -> "IMAGE FILE NOT FOUND",
+25	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"XXcamera_idXX": camera_id, "file_path": image_path},
+26	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"CAMERA_ID": camera_id, "file_path": image_path},
+27	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"camera_id": camera_id, "XXfile_pathXX": image_path},
+28	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"camera_id": camera_id, "FILE_PATH": image_path},
+29	record_pipeline_error("file_not_found") -> record_pipeline_error(None)
+30	record_pipeline_error("file_not_found") -> record_pipeline_error("XXfile_not_foundXX")
+31	record_pipeline_error("file_not_found") -> record_pipeline_error("FILE_NOT_FOUND")
+34	if not await self._validate_image_for_detection_async(image_path, camera_id): -> if not await self._validate_image_for_detection_async(image_path, None):
+37	record_pipeline_error("invalid_image") -> record_pipeline_error(None)
+38	record_pipeline_error("invalid_image") -> record_pipeline_error("XXinvalid_imageXX")
+39	record_pipeline_error("invalid_image") -> record_pipeline_error("INVALID_IMAGE")
+40	f"Sending detection request for {image_path}", -> None,
+41	extra={"camera_id": camera_id, "file_path": image_path}, -> extra=None,
+43	extra={"camera_id": camera_id, "file_path": image_path}, ) -> )
+44	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"XXcamera_idXX": camera_id, "file_path": image_path},
+45	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"CAMERA_ID": camera_id, "file_path": image_path},
+46	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"camera_id": camera_id, "XXfile_pathXX": image_path},
+47	extra={"camera_id": camera_id, "file_path": image_path}, -> extra={"camera_id": camera_id, "FILE_PATH": image_path},
+49	f"Circuit breaker open for {self._detector_type}, rejecting detection request", -> None,
+50	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "circuit_state": self._circuit_breaker.state.value, }, -> extra=None,
+52	extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "circuit_state": self._circuit_breaker.state.value, }, ) -> )
+53	"detector_type": self._detector_type, -> "XXdetector_typeXX": self._detector_type,
+54	"detector_type": self._detector_type, -> "DETECTOR_TYPE": self._detector_type,
+55	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+56	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+57	"file_path": image_path, -> "XXfile_pathXX": image_path,
+58	"file_path": image_path, -> "FILE_PATH": image_path,
+59	"circuit_state": self._circuit_breaker.state.value, -> "XXcircuit_stateXX": self._circuit_breaker.state.value,
+60	"circuit_state": self._circuit_breaker.state.value, -> "CIRCUIT_STATE": self._circuit_breaker.state.value,
+61	record_pipeline_error("circuit_breaker_open") -> record_pipeline_error(None)
+62	record_pipeline_error("circuit_breaker_open") -> record_pipeline_error("XXcircuit_breaker_openXX")
+63	record_pipeline_error("circuit_breaker_open") -> record_pipeline_error("CIRCUIT_BREAKER_OPEN")
+64	f"{self._detector_type} service temporarily unavailable (circuit breaker open)" -> None
+86	f"Buffered frame for camera {camera_id}", -> None,
+87	extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), "buffer_count": self._frame_buffer.frame_count(camera_id), }, -> extra=None,
+89	extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), "buffer_count": self._frame_buffer.frame_count(camera_id), }, ) -> )
+90	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+91	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+92	"frame_size_bytes": len(image_data), -> "XXframe_size_bytesXX": len(image_data),
+93	"frame_size_bytes": len(image_data), -> "FRAME_SIZE_BYTES": len(image_data),
+94	"buffer_count": self._frame_buffer.frame_count(camera_id), -> "XXbuffer_countXX": self._frame_buffer.frame_count(camera_id),
+95	"buffer_count": self._frame_buffer.frame_count(camera_id), -> "BUFFER_COUNT": self._frame_buffer.frame_count(camera_id),
+96	"buffer_count": self._frame_buffer.frame_count(camera_id), -> "buffer_count": self._frame_buffer.frame_count(None),
+109	"detector.url": self._detector_url, -> "XXdetector.urlXX": self._detector_url,
+110	"detector.url": self._detector_url, -> "DETECTOR.URL": self._detector_url,
+114	image_name=image_file.name, -> image_name=None,
+115	camera_id=camera_id, -> camera_id=None,
+116	image_path=image_path, -> image_path=None,
+123	ai_duration = time.time() - ai_start_time -> ai_duration = time.time() + ai_start_time
+124	observe_ai_request_duration(self._detector_type, ai_duration) -> observe_ai_request_duration(None, ai_duration)
+137	"detector.type": self._detector_type, -> "XXdetector.typeXX": self._detector_type,
+138	"detector.type": self._detector_type, -> "DETECTOR.TYPE": self._detector_type,
+144	"inference.duration_ms": int(ai_duration * 1000), -> "inference.duration_ms": int(ai_duration / 1000),
+145	"inference.duration_ms": int(ai_duration * 1000), -> "inference.duration_ms": int(ai_duration * 1001),
+149	"Malformed response from detector (missing 'detections')", -> None,
+150	extra={"response": str(result)[:500]}, -> extra=None,
+152	extra={"response": str(result)[:500]}, ) -> )
+153	"Malformed response from detector (missing 'detections')", -> "XXMalformed response from detector (missing 'detections')XX",
+154	"Malformed response from detector (missing 'detections')", -> "malformed response from detector (missing 'detections')",
+155	"Malformed response from detector (missing 'detections')", -> "MALFORMED RESPONSE FROM DETECTOR (MISSING 'DETECTIONS')",
+156	extra={"response": str(result)[:500]}, -> extra={"XXresponseXX": str(result)[:500]},
+157	extra={"response": str(result)[:500]}, -> extra={"RESPONSE": str(result)[:500]},
+158	extra={"response": str(result)[:500]}, -> extra={"response": str(None)[:500]},
+159	extra={"response": str(result)[:500]}, -> extra={"response": str(result)[:501]},
+160	record_pipeline_error("malformed_response") -> record_pipeline_error(None)
+161	record_pipeline_error("malformed_response") -> record_pipeline_error("XXmalformed_responseXX")
+162	record_pipeline_error("malformed_response") -> record_pipeline_error("MALFORMED_RESPONSE")
+165	detected_at = datetime.now(UTC) -> detected_at = datetime.now(None)
+174	if video_path is not None and video_metadata is not None: -> if video_path is not None or video_metadata is not None:
+179	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get(None, "video/mp4")
+180	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get("file_type", None)
+182	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get("file_type", )
+183	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get("XXfile_typeXX", "video/mp4")
+184	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get("FILE_TYPE", "video/mp4")
+185	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get("file_type", "XXvideo/mp4XX")
+186	file_type = video_metadata.get("file_type", "video/mp4") -> file_type = video_metadata.get("file_type", "VIDEO/MP4")
+198	is_video = False -> is_video = None
+199	is_video = False -> is_video = True
+204	confidence = detection_data.get("confidence", 0.0) -> confidence = detection_data.get("confidence", None)
+206	confidence = detection_data.get("confidence", 0.0) -> confidence = detection_data.get("confidence", )
+209	confidence = detection_data.get("confidence", 0.0) -> confidence = detection_data.get("confidence", 1.0)
+212	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", None)
+214	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", )
+217	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", "XXunknownXX")
+218	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", "UNKNOWN")
+221	object_class, self._confidence_threshold -> object_class, None
+223	object_class, self._confidence_threshold ) -> object_class, )
+227	bbox = detection_data.get("bbox", {}) -> bbox = detection_data.get("bbox", None)
+229	bbox = detection_data.get("bbox", {}) -> bbox = detection_data.get("bbox", )
+232	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if all(k in bbox for k in ("x", "y", "width", "height")):
+233	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(None):
+234	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k not in bbox for k in ("x", "y", "width", "height")):
+235	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("XXxXX", "y", "width", "height")):
+236	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("X", "y", "width", "height")):
+237	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("x", "XXyXX", "width", "height")):
+238	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("x", "Y", "width", "height")):
+239	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("x", "y", "XXwidthXX", "height")):
+240	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("x", "y", "WIDTH", "height")):
+241	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("x", "y", "width", "XXheightXX")):
+242	if not all(k in bbox for k in ("x", "y", "width", "height")): -> if not all(k in bbox for k in ("x", "y", "width", "HEIGHT")):
+243	logger.warning(f"Invalid bbox dict format: {bbox}") -> logger.warning(None)
+244	continue -> break
+260	logger.warning(f"Invalid bbox format: {bbox}") -> logger.warning(None)
+261	continue -> break
+262	if response_image_width is not None and response_image_height is not None: -> if response_image_width is not None or response_image_height is not None:
+263	if response_image_width is not None and response_image_height is not None: -> if response_image_width is None and response_image_height is not None:
+264	if response_image_width is not None and response_image_height is not None: -> if response_image_width is not None and response_image_height is None:
+265	or bbox_x + bbox_width <= 0 or bbox_y + bbox_height <= 0 -> or bbox_x + bbox_width <= 0 and bbox_y + bbox_height <= 0
+266	or bbox_y >= response_image_height or bbox_x + bbox_width <= 0 -> or bbox_y >= response_image_height and bbox_x + bbox_width <= 0
+267	bbox_x >= response_image_width or bbox_y >= response_image_height -> bbox_x >= response_image_width and bbox_y >= response_image_height
+268	bbox_x >= response_image_width -> bbox_x > response_image_width
+269	or bbox_y >= response_image_height -> or bbox_y > response_image_height
+271	or bbox_x + bbox_width <= 0 -> or bbox_x + bbox_width < 0
+272	or bbox_x + bbox_width <= 0 -> or bbox_x + bbox_width <= 1
+274	or bbox_y + bbox_height <= 0 -> or bbox_y + bbox_height < 0
+275	or bbox_y + bbox_height <= 0 -> or bbox_y + bbox_height <= 1
+282	x1_clamped = max(0, min(bbox_x, response_image_width)) -> x1_clamped = max(1, min(bbox_x, response_image_width))
+292	y1_clamped = max(0, min(bbox_y, response_image_height)) -> y1_clamped = max(1, min(bbox_y, response_image_height))
+302	x2_clamped = max(0, min(bbox_x + bbox_width, response_image_width)) -> x2_clamped = max(1, min(bbox_x + bbox_width, response_image_width))
+313	y2_clamped = max(0, min(bbox_y + bbox_height, response_image_height)) -> y2_clamped = max(1, min(bbox_y + bbox_height, response_image_height))
+319	bbox_x = int(x1_clamped) -> bbox_x = None
+321	bbox_y = int(y1_clamped) -> bbox_y = None
+325	bbox_width = int(x2_clamped - x1_clamped) -> bbox_width = int(x2_clamped + x1_clamped)
+328	bbox_height = int(y2_clamped - y1_clamped) -> bbox_height = int(y2_clamped + y1_clamped)
+329	if bbox_width < 1 or bbox_height < 1: -> if bbox_width < 1 and bbox_height < 1:
+330	if bbox_width < 1 or bbox_height < 1: -> if bbox_width <= 1 or bbox_height < 1:
+331	if bbox_width < 1 or bbox_height < 1: -> if bbox_width < 2 or bbox_height < 1:
+332	if bbox_width < 1 or bbox_height < 1: -> if bbox_width < 1 or bbox_height <= 1:
+333	if bbox_width < 1 or bbox_height < 1: -> if bbox_width < 1 or bbox_height < 2:
+334	if original_bbox != (bbox_x, bbox_y, bbox_width, bbox_height): -> if original_bbox == (bbox_x, bbox_y, bbox_width, bbox_height):
+335	f"Clamped invalid bbox coordinates: " f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), " f"clamped=({bbox_x}, {bbox_y}, {bbox_width}, {bbox_height}), " f"image=({response_image_width}x{response_image_height}), class={object_class}" -> None
+336	f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), " -> f"original=({original_bbox[1]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), "
+337	f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), " -> f"original=({original_bbox[0]}, {original_bbox[2]}, {original_bbox[2]}, {original_bbox[3]}), "
+338	f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), " -> f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[3]}, {original_bbox[3]}), "
+340	elif bbox_width <= 0 or bbox_height <= 0: -> elif bbox_width <= 0 and bbox_height <= 0:
+341	elif bbox_width <= 0 or bbox_height <= 0: -> elif bbox_width < 0 or bbox_height <= 0:
+342	elif bbox_width <= 0 or bbox_height <= 0: -> elif bbox_width <= 1 or bbox_height <= 0:
+343	elif bbox_width <= 0 or bbox_height <= 0: -> elif bbox_width <= 0 or bbox_height < 0:
+344	elif bbox_width <= 0 or bbox_height <= 0: -> elif bbox_width <= 0 or bbox_height <= 1:
+371	if is_video and video_metadata: -> if is_video or video_metadata:
+392	session.add(detection) -> session.add(None)
+394	object_class = detection_data.get("class", "unknown") -> object_class = None
+395	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get(None, "unknown")
+396	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", None)
+397	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("unknown")
+398	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", )
+399	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("XXclassXX", "unknown")
+400	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("CLASS", "unknown")
+401	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", "XXunknownXX")
+402	object_class = detection_data.get("class", "unknown") -> object_class = detection_data.get("class", "UNKNOWN")
+403	record_detection_by_class(object_class) -> record_detection_by_class(None)
+404	observe_detection_confidence(confidence) -> observe_detection_confidence(None)
+405	f"Created detection: {detection.object_type} " f"(confidence: {confidence:.2f}, bbox: {bbox})" -> None
+406	"Error processing detection data", -> None,
+407	extra={"error": sanitize_error(e)}, -> extra=None,
+408	exc_info=True, -> exc_info=None,
+410	extra={"error": sanitize_error(e)}, -> 
+411	exc_info=True, ) -> )
+412	"Error processing detection data", -> "XXError processing detection dataXX",
+413	"Error processing detection data", -> "error processing detection data",
+414	"Error processing detection data", -> "ERROR PROCESSING DETECTION DATA",
+415	extra={"error": sanitize_error(e)}, -> extra={"XXerrorXX": sanitize_error(e)},
+416	extra={"error": sanitize_error(e)}, -> extra={"ERROR": sanitize_error(e)},
+417	extra={"error": sanitize_error(e)}, -> extra={"error": sanitize_error(None)},
+418	exc_info=True, -> exc_info=False,
+419	record_pipeline_error("detection_processing_error") -> record_pipeline_error(None)
+420	record_pipeline_error("detection_processing_error") -> record_pipeline_error("XXdetection_processing_errorXX")
+421	record_pipeline_error("detection_processing_error") -> record_pipeline_error("DETECTION_PROCESSING_ERROR")
+422	continue -> break
+429	f"Updated camera {camera_id} last_seen_at to {detected_at}", -> None,
+430	extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, -> extra=None,
+432	extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, ) -> )
+433	extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, -> extra={"XXcamera_idXX": camera_id, "last_seen_at": detected_at.isoformat()},
+434	extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, -> extra={"CAMERA_ID": camera_id, "last_seen_at": detected_at.isoformat()},
+435	extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, -> extra={"camera_id": camera_id, "XXlast_seen_atXX": detected_at.isoformat()},
+436	extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, -> extra={"camera_id": camera_id, "LAST_SEEN_AT": detected_at.isoformat()},
+439	if detection.object_type is not None -> if detection.object_type is None
+440	baseline_timestamp = detections[0].detected_at -> baseline_timestamp = None
+442	camera_id=camera_id, -> camera_id=None,
+443	detection_class=object_type, -> detection_class=None,
+444	timestamp=baseline_timestamp, -> timestamp=None,
+445	session=session, -> session=None,
+446	camera_id=camera_id, -> 
+447	detection_class=object_type, -> 
+448	timestamp=baseline_timestamp, -> 
+449	session=session, ) -> )
+450	duration_ms = int((time.time() - start_time) * 1000) -> duration_ms = None
+452	duration_ms = int((time.time() - start_time) * 1000) -> duration_ms = int((time.time() - start_time) / 1000)
+453	duration_ms = int((time.time() - start_time) * 1000) -> duration_ms = int((time.time() + start_time) * 1000)
+454	duration_ms = int((time.time() - start_time) * 1000) -> duration_ms = int((time.time() - start_time) * 1001)
+456	log_extra: dict[str, Any] = { "camera_id": camera_id, "file_path": image_path, "detection_count": len(detections), "duration_ms": duration_ms, } -> log_extra: dict[str, Any] = None
+457	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+458	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+459	"file_path": image_path, -> "XXfile_pathXX": image_path,
+460	"file_path": image_path, -> "FILE_PATH": image_path,
+461	"detection_count": len(detections), -> "XXdetection_countXX": len(detections),
+462	"detection_count": len(detections), -> "DETECTION_COUNT": len(detections),
+463	"duration_ms": duration_ms, -> "XXduration_msXX": duration_ms,
+464	"duration_ms": duration_ms, -> "DURATION_MS": duration_ms,
+465	logger.info("Stored detections", extra=log_extra) -> logger.info(None, extra=log_extra)
+466	logger.info("Stored detections", extra=log_extra) -> logger.info("Stored detections", extra=None)
+468	logger.info("Stored detections", extra=log_extra) -> logger.info("Stored detections", )
+469	logger.info("Stored detections", extra=log_extra) -> logger.info("XXStored detectionsXX", extra=log_extra)
+470	logger.info("Stored detections", extra=log_extra) -> logger.info("stored detections", extra=log_extra)
+471	logger.info("Stored detections", extra=log_extra) -> logger.info("STORED DETECTIONS", extra=log_extra)
+472	f"No detections above threshold for {image_path}", -> None,
+473	extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms, }, -> extra=None,
+475	extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms, }, ) -> )
+476	"camera_id": camera_id, -> "XXcamera_idXX": camera_id,
+477	"camera_id": camera_id, -> "CAMERA_ID": camera_id,
+478	"file_path": image_path, -> "XXfile_pathXX": image_path,
+479	"file_path": image_path, -> "FILE_PATH": image_path,
+480	"duration_ms": duration_ms, -> "XXduration_msXX": duration_ms,
+481	"duration_ms": duration_ms, -> "DURATION_MS": duration_ms,
+#################### xǁDetectorClientǁget_warmth_state 8
+1	if self._last_inference_time is None: -> if self._last_inference_time is not None:
+3	seconds_ago = time.monotonic() - self._last_inference_time -> seconds_ago = time.monotonic() + self._last_inference_time
+4	is_cold = seconds_ago > self._cold_start_threshold -> is_cold = None
+5	is_cold = seconds_ago > self._cold_start_threshold -> is_cold = seconds_ago >= self._cold_start_threshold
+8	"state": "cold" if is_cold else "warm", -> "state": "cold" if (is_cold) and False else "warm",
+9	"state": "cold" if is_cold else "warm", -> "state": "cold" if (is_cold) or True else "warm",
+10	"state": "cold" if is_cold else "warm", -> "state": "XXcoldXX" if is_cold else "warm",
+11	"state": "cold" if is_cold else "warm", -> "state": "COLD" if is_cold else "warm",
+#################### xǁDetectorClientǁhealth_check 37
+2	f"{self._detector_url}/health", -> None,
+7	"Detector health check failed", -> None,
+8	extra={"error": str(e)}, -> extra=None,
+9	exc_info=True, -> exc_info=None,
+11	extra={"error": str(e)}, -> 
+12	exc_info=True, ) -> )
+13	"Detector health check failed", -> "XXDetector health check failedXX",
+14	"Detector health check failed", -> "detector health check failed",
+15	"Detector health check failed", -> "DETECTOR HEALTH CHECK FAILED",
+16	extra={"error": str(e)}, -> extra={"XXerrorXX": str(e)},
+17	extra={"error": str(e)}, -> extra={"ERROR": str(e)},
+18	extra={"error": str(e)}, -> extra={"error": str(None)},
+19	exc_info=True, -> exc_info=False,
+21	"Detector health check returned error status", -> None,
+22	extra={"error": str(e)}, -> extra=None,
+23	exc_info=True, -> exc_info=None,
+25	extra={"error": str(e)}, -> 
+26	exc_info=True, ) -> )
+27	"Detector health check returned error status", -> "XXDetector health check returned error statusXX",
+28	"Detector health check returned error status", -> "detector health check returned error status",
+29	"Detector health check returned error status", -> "DETECTOR HEALTH CHECK RETURNED ERROR STATUS",
+30	extra={"error": str(e)}, -> extra={"XXerrorXX": str(e)},
+31	extra={"error": str(e)}, -> extra={"ERROR": str(e)},
+32	extra={"error": str(e)}, -> extra={"error": str(None)},
+33	exc_info=True, -> exc_info=False,
+35	"Unexpected error during detector health check", -> None,
+36	extra={"error": sanitize_error(e)}, -> extra=None,
+37	exc_info=True, -> exc_info=None,
+39	extra={"error": sanitize_error(e)}, -> 
+40	exc_info=True, ) -> )
+41	"Unexpected error during detector health check", -> "XXUnexpected error during detector health checkXX",
+42	"Unexpected error during detector health check", -> "unexpected error during detector health check",
+43	"Unexpected error during detector health check", -> "UNEXPECTED ERROR DURING DETECTOR HEALTH CHECK",
+44	extra={"error": sanitize_error(e)}, -> extra={"XXerrorXX": sanitize_error(e)},
+45	extra={"error": sanitize_error(e)}, -> extra={"ERROR": sanitize_error(e)},
+46	extra={"error": sanitize_error(e)}, -> extra={"error": sanitize_error(None)},
+47	exc_info=True, -> exc_info=False,
+#################### xǁDetectorClientǁis_cold 1
+5	return seconds_since_last > self._cold_start_threshold -> return seconds_since_last >= self._cold_start_threshold
+#################### xǁDetectorClientǁmodel_readiness_probe 24
+4	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (32, 32), color=None)
+7	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (32, 32), )
+10	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (33, 32), color=(0, 0, 0))
+11	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (32, 33), color=(0, 0, 0))
+12	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (32, 32), color=(1, 0, 0))
+13	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (32, 32), color=(0, 1, 0))
+14	test_image = Image.new("RGB", (32, 32), color=(0, 0, 0)) -> test_image = Image.new("RGB", (32, 32), color=(0, 0, 1))
+21	test_image.save(buffer, format="JPEG") -> test_image.save(buffer, format="jpeg")
+22	image_data = buffer.getvalue() -> image_data = None
+23	image_data=image_data, -> image_data=None,
+24	image_name="warmup_test.jpg", -> image_name=None,
+25	camera_id="warmup", -> camera_id=None,
+26	image_path="/dev/null",  # placeholder path for warmup probe -> image_path=None,  # placeholder path for warmup probe
+27	image_data=image_data, -> 
+28	image_name="warmup_test.jpg", -> 
+29	camera_id="warmup", -> 
+30	image_path="/dev/null",  # placeholder path for warmup probe ) -> )
+31	image_name="warmup_test.jpg", -> image_name="XXwarmup_test.jpgXX",
+32	image_name="warmup_test.jpg", -> image_name="WARMUP_TEST.JPG",
+33	camera_id="warmup", -> camera_id="XXwarmupXX",
+34	camera_id="warmup", -> camera_id="WARMUP",
+35	image_path="/dev/null",  # placeholder path for warmup probe -> image_path="XX/dev/nullXX",  # placeholder path for warmup probe
+36	image_path="/dev/null",  # placeholder path for warmup probe -> image_path="/DEV/NULL",  # placeholder path for warmup probe
+38	logger.warning(f"YOLO26 readiness probe failed (unavailable): {e}") -> logger.warning(None)
+#################### xǁDetectorClientǁsegment_image 89
+1	last_exception: Exception | None = None -> last_exception: Exception | None = ""
+4	explicit_timeout = self._read_timeout + settings.ai_connect_timeout -> explicit_timeout = None
+5	explicit_timeout = self._read_timeout + settings.ai_connect_timeout -> explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+6	f"{self._detector_type}_segmentation_request", -> None,
+7	image_size_bytes=len(image_data), -> image_size_bytes=None,
+9	image_size_bytes=len(image_data), ) as span: -> ) as span:
+11	model_name=self._detector_type, -> model_name=None,
+12	model_version=self._model_version, -> model_version=None,
+13	model_provider="huggingface", -> model_provider=None,
+14	device="cuda:0", -> device=None,
+15	batch_size=1, -> batch_size=None,
+17	model_name=self._detector_type, -> 
+18	model_version=self._model_version, -> 
+19	model_provider="huggingface", -> 
+20	device="cuda:0", -> 
+21	batch_size=1, ) -> )
+22	model_provider="huggingface", -> model_provider="XXhuggingfaceXX",
+23	model_provider="huggingface", -> model_provider="HUGGINGFACE",
+24	device="cuda:0", -> device="XXcuda:0XX",
+25	device="cuda:0", -> device="CUDA:0",
+26	batch_size=1, -> batch_size=2,
+28	span.set_attribute("retry_attempt", attempt) -> span.set_attribute(None, attempt)
+29	span.set_attribute("retry_attempt", attempt) -> span.set_attribute("retry_attempt", None)
+32	span.set_attribute("retry_attempt", attempt) -> span.set_attribute("XXretry_attemptXX", attempt)
+33	span.set_attribute("retry_attempt", attempt) -> span.set_attribute("RETRY_ATTEMPT", attempt)
+35	async with asyncio.timeout(explicit_timeout): -> async with asyncio.timeout(None):
+36	files = {"file": (image_name, image_data, "image/jpeg")} -> files = None
+37	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"XXfileXX": (image_name, image_data, "image/jpeg")}
+38	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"FILE": (image_name, image_data, "image/jpeg")}
+39	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"file": (image_name, image_data, "XXimage/jpegXX")}
+40	files = {"file": (image_name, image_data, "image/jpeg")} -> files = {"file": (image_name, image_data, "IMAGE/JPEG")}
+43	files=files, -> files=None,
+44	headers=self._get_auth_headers(), -> headers=None,
+46	files=files, -> 
+47	headers=self._get_auth_headers(), ) -> )
+49	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = None
+50	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = (time.monotonic() - start_time) / 1000
+51	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = (time.monotonic() + start_time) * 1000
+52	inference_time_ms = (time.monotonic() - start_time) * 1000 -> inference_time_ms = (time.monotonic() - start_time) * 1001
+53	detections = result.get("detections", []) -> detections = None
+54	detections = result.get("detections", []) -> detections = result.get(None, [])
+55	detections = result.get("detections", []) -> detections = result.get("detections", None)
+57	detections = result.get("detections", []) -> detections = result.get("detections", )
+58	detections = result.get("detections", []) -> detections = result.get("XXdetectionsXX", [])
+59	detections = result.get("detections", []) -> detections = result.get("DETECTIONS", [])
+61	detections=detections, -> detections=None,
+62	inference_time_ms=inference_time_ms, -> inference_time_ms=None,
+64	detections=detections, -> 
+65	inference_time_ms=inference_time_ms, ) -> )
+67	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=None, status="success"
+68	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=inference_time_ms, status=None
+70	span, duration_ms=inference_time_ms, status="success" -> span, status="success"
+71	span, duration_ms=inference_time_ms, status="success" ) -> span, duration_ms=inference_time_ms, )
+72	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=inference_time_ms, status="XXsuccessXX"
+73	span, duration_ms=inference_time_ms, status="success" -> span, duration_ms=inference_time_ms, status="SUCCESS"
+74	last_exception = e -> last_exception = None
+75	if attempt < self._max_retries - 1: -> if attempt <= self._max_retries - 1:
+76	if attempt < self._max_retries - 1: -> if attempt < self._max_retries + 1:
+77	if attempt < self._max_retries - 1: -> if attempt < self._max_retries - 2:
+78	delay = min(2**attempt, 30) -> delay = None
+83	delay = min(2**attempt, 30) -> delay = min(2 * attempt, 30)
+84	delay = min(2**attempt, 30) -> delay = min(3**attempt, 30)
+85	delay = min(2**attempt, 30) -> delay = min(2**attempt, 31)
+86	f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), " f"retrying in {delay}s: {sanitize_error(e)}", -> None,
+87	f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), " -> f"Segmentation request failed (attempt {attempt - 1}/{self._max_retries}), "
+88	f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), " -> f"Segmentation request failed (attempt {attempt + 2}/{self._max_retries}), "
+89	f"retrying in {delay}s: {sanitize_error(e)}", -> f"retrying in {delay}s: {sanitize_error(None)}",
+90	await asyncio.sleep(delay) -> await asyncio.sleep(None)
+91	record_pipeline_error(f"{self._detector_type}_segmentation_error") -> record_pipeline_error(None)
+92	f"Segmentation failed after {self._max_retries} attempts", -> None,
+93	exc_info=True, -> exc_info=None,
+95	exc_info=True, ) -> )
+96	exc_info=True, -> exc_info=False,
+98	if status_code >= 500: -> if status_code > 500:
+99	if status_code >= 500: -> if status_code >= 501:
+101	error_msg = f"Segmentation failed after {self._max_retries} attempts" -> error_msg = None
+102	span.set_attribute("error", True) -> span.set_attribute(None, True)
+103	span.set_attribute("error", True) -> span.set_attribute("error", None)
+106	span.set_attribute("error", True) -> span.set_attribute("XXerrorXX", True)
+107	span.set_attribute("error", True) -> span.set_attribute("ERROR", True)
+108	span.set_attribute("error", True) -> span.set_attribute("error", False)
+109	span.set_attribute("error.message", error_msg) -> span.set_attribute(None, error_msg)
+110	span.set_attribute("error.message", error_msg) -> span.set_attribute("error.message", None)
+113	span.set_attribute("error.message", error_msg) -> span.set_attribute("XXerror.messageXX", error_msg)
+114	span.set_attribute("error.message", error_msg) -> span.set_attribute("ERROR.MESSAGE", error_msg)
+115	error_msg, original_error=last_exception -> None, original_error=last_exception
+116	error_msg, original_error=last_exception -> error_msg, original_error=None
+117	error_msg, original_error=last_exception -> original_error=last_exception
+118	error_msg, original_error=last_exception ) from last_exception -> error_msg, ) from last_exception
+#################### xǁDetectorClientǁwarmup 45
+2	was_cold = self.is_cold() -> was_cold = None
+3	self._is_warming = True -> self._is_warming = None
+4	self._is_warming = True -> self._is_warming = False
+5	set_model_warmth_state("yolo26", "warming") -> set_model_warmth_state(None, "warming")
+6	set_model_warmth_state("yolo26", "warming") -> set_model_warmth_state("yolo26", None)
+9	set_model_warmth_state("yolo26", "warming") -> set_model_warmth_state("XXyolo26XX", "warming")
+10	set_model_warmth_state("yolo26", "warming") -> set_model_warmth_state("YOLO26", "warming")
+11	set_model_warmth_state("yolo26", "warming") -> set_model_warmth_state("yolo26", "XXwarmingXX")
+12	set_model_warmth_state("yolo26", "warming") -> set_model_warmth_state("yolo26", "WARMING")
+13	logger.info("Starting YOLO26 model warmup...") -> logger.info(None)
+14	logger.info("Starting YOLO26 model warmup...") -> logger.info("XXStarting YOLO26 model warmup...XX")
+15	logger.info("Starting YOLO26 model warmup...") -> logger.info("starting yolo26 model warmup...")
+16	logger.info("Starting YOLO26 model warmup...") -> logger.info("STARTING YOLO26 MODEL WARMUP...")
+20	duration = time.monotonic() - start_time -> duration = time.monotonic() + start_time
+21	observe_model_warmup_duration("yolo26", duration) -> observe_model_warmup_duration(None, duration)
+25	observe_model_warmup_duration("yolo26", duration) -> observe_model_warmup_duration("XXyolo26XX", duration)
+26	observe_model_warmup_duration("yolo26", duration) -> observe_model_warmup_duration("YOLO26", duration)
+27	record_model_cold_start("yolo26") -> record_model_cold_start(None)
+28	record_model_cold_start("yolo26") -> record_model_cold_start("XXyolo26XX")
+29	record_model_cold_start("yolo26") -> record_model_cold_start("YOLO26")
+30	set_model_warmth_state("yolo26", "warm") -> set_model_warmth_state(None, "warm")
+31	set_model_warmth_state("yolo26", "warm") -> set_model_warmth_state("yolo26", None)
+34	set_model_warmth_state("yolo26", "warm") -> set_model_warmth_state("XXyolo26XX", "warm")
+35	set_model_warmth_state("yolo26", "warm") -> set_model_warmth_state("YOLO26", "warm")
+36	set_model_warmth_state("yolo26", "warm") -> set_model_warmth_state("yolo26", "XXwarmXX")
+37	set_model_warmth_state("yolo26", "warm") -> set_model_warmth_state("yolo26", "WARM")
+38	f"YOLO26 warmup completed in {duration:.2f}s", -> None,
+39	extra={"duration": duration, "was_cold": was_cold}, -> extra=None,
+41	extra={"duration": duration, "was_cold": was_cold}, ) -> )
+42	extra={"duration": duration, "was_cold": was_cold}, -> extra={"XXdurationXX": duration, "was_cold": was_cold},
+43	extra={"duration": duration, "was_cold": was_cold}, -> extra={"DURATION": duration, "was_cold": was_cold},
+44	extra={"duration": duration, "was_cold": was_cold}, -> extra={"duration": duration, "XXwas_coldXX": was_cold},
+45	extra={"duration": duration, "was_cold": was_cold}, -> extra={"duration": duration, "WAS_COLD": was_cold},
+47	set_model_warmth_state("yolo26", "cold") -> set_model_warmth_state(None, "cold")
+48	set_model_warmth_state("yolo26", "cold") -> set_model_warmth_state("yolo26", None)
+51	set_model_warmth_state("yolo26", "cold") -> set_model_warmth_state("XXyolo26XX", "cold")
+52	set_model_warmth_state("yolo26", "cold") -> set_model_warmth_state("YOLO26", "cold")
+53	set_model_warmth_state("yolo26", "cold") -> set_model_warmth_state("yolo26", "XXcoldXX")
+54	set_model_warmth_state("yolo26", "cold") -> set_model_warmth_state("yolo26", "COLD")
+55	logger.warning("YOLO26 warmup failed - model not ready") -> logger.warning(None)
+56	logger.warning("YOLO26 warmup failed - model not ready") -> logger.warning("XXYOLO26 warmup failed - model not readyXX")
+57	logger.warning("YOLO26 warmup failed - model not ready") -> logger.warning("yolo26 warmup failed - model not ready")
+58	logger.warning("YOLO26 warmup failed - model not ready") -> logger.warning("YOLO26 WARMUP FAILED - MODEL NOT READY")
+60	self._is_warming = False -> self._is_warming = None
+61	self._is_warming = False -> self._is_warming = True

@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_54: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -49,7 +49,7 @@
+             det_id: result.to_dict() if hasattr(result, "to_dict") else {}
+             for det_id, result in self.age_classifications.items()
+         },
+-        "gender_classifications": {
++        "XXgender_classificationsXX": {
+             det_id: result.to_dict() if hasattr(result, "to_dict") else {}
+             for det_id, result in self.gender_classifications.items()
+         },

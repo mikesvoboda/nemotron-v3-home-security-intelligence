@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁmodel_readiness_probe__mutmut_21: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -16,7 +16,7 @@
+         import io
+ 
+         buffer = io.BytesIO()
+-        test_image.save(buffer, format="JPEG")
++        test_image.save(buffer, format="jpeg")
+         image_data = buffer.getvalue()
+ 
+         # Send detection request - result is not needed, just verify no exception

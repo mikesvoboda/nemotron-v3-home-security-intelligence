@@ -1,0 +1,12 @@
+x__calculate_iou                                 TEST-GAP=  1 EQUIV=  3 LOW=  1 tot=5
+x__calculate_overlap_ratio                       TEST-GAP=  1 EQUIV=  3 LOW=  1 tot=5
+x__classify_text_type                            TEST-GAP=  2 EQUIV=  0 LOW=  1 tot=3
+x__image_to_base64                               TEST-GAP=  1 EQUIV=  2 LOW=  0 tot=3
+xǁSceneOCRServiceǁ__init__                       TEST-GAP=  2 EQUIV=  7 LOW=  1 tot=10
+xǁSceneOCRServiceǁ_deduplicate                   TEST-GAP= 30 EQUIV= 17 LOW=  1 tot=48
+xǁSceneOCRServiceǁ_determine_region              TEST-GAP= 30 EQUIV= 31 LOW=  0 tot=61
+xǁSceneOCRServiceǁ_get_client                    TEST-GAP=  0 EQUIV=  0 LOW= 13 tot=13
+xǁSceneOCRServiceǁ_run_crop_ocr                  TEST-GAP= 50 EQUIV=  6 LOW=  8 tot=64
+xǁSceneOCRServiceǁ_run_full_frame_ocr            TEST-GAP= 28 EQUIV=  6 LOW=  7 tot=41
+xǁSceneOCRServiceǁprocess_frame                  TEST-GAP= 16 EQUIV=  1 LOW= 13 tot=30
+TOTALS: {'TEST-GAP': 161, 'EQUIVALENT': 76, 'LOW-VALUE': 46} SUM= 283

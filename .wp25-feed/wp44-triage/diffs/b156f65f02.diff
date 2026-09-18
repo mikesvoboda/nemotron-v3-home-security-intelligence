@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_38: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -56,7 +56,7 @@
+         "pose_analysis": format_pose_analysis_context(
+             {
+                 det_id: {
+-                    "classification": pose.pose_class,
++                    "XXclassificationXX": pose.pose_class,
+                     "confidence": pose.pose_confidence,
+                 }
+                 for det_id, pose in self.pose_results.items()

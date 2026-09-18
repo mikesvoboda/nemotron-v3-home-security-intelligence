@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_23: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -13,7 +13,7 @@
+         state_value = cb_status.get("state", "closed")
+         if state_value == "open":
+             state = CircuitState.OPEN
+-            open_count += 1
++            open_count = 1
+         elif state_value == "half_open":
+             state = CircuitState.HALF_OPEN
+             half_open_count += 1

@@ -1,0 +1,1363 @@
+### C1 send: log messages/extras/exc_info text  [206]
+   m53: - f"{self._detector_url}/detect",
+         + None,
+   m64: - detections = result.get("detections", [])
+         + detections = None
+   m65: - detections = result.get("detections", [])
+         + detections = result.get(None, [])
+   m66: - detections = result.get("detections", [])
+         + detections = result.get("detections", None)
+   m68: - detections = result.get("detections", [])
+         + detections = result.get("detections", )
+   m69: - detections = result.get("detections", [])
+         + detections = result.get("XXdetectionsXX", [])
+   m70: - detections = result.get("detections", [])
+         + detections = result.get("DETECTIONS", [])
+   m97: - "Detector connection error, retrying",
+         + None,
+   m98: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retrie
+         + extra=None,
+   m100: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempt": attempt + 1, "max_retrie
+         + )
+   m101: - "Detector connection error, retrying",
+         + "XXDetector connection error, retryingXX",
+   m102: - "Detector connection error, retrying",
+         + "detector connection error, retrying",
+   m103: - "Detector connection error, retrying",
+         + "DETECTOR CONNECTION ERROR, RETRYING",
+   m104: - "detector_type": self._detector_type,
+         + "XXdetector_typeXX": self._detector_type,
+   m105: - "detector_type": self._detector_type,
+         + "DETECTOR_TYPE": self._detector_type,
+   m106: - "camera_id": camera_id,
+         + "XXcamera_idXX": camera_id,
+   m107: - "camera_id": camera_id,
+         + "CAMERA_ID": camera_id,
+   m108: - "file_path": image_path,
+         + "XXfile_pathXX": image_path,
+   m109: - "file_path": image_path,
+         + "FILE_PATH": image_path,
+   m110: - "attempt": attempt + 1,
+         + "XXattemptXX": attempt + 1,
+   m111: - "attempt": attempt + 1,
+         + "ATTEMPT": attempt + 1,
+   m112: - "attempt": attempt + 1,
+         + "attempt": attempt - 1,
+   m113: - "attempt": attempt + 1,
+         + "attempt": attempt + 2,
+   m114: - "max_retries": self._max_retries,
+         + "XXmax_retriesXX": self._max_retries,
+   m115: - "max_retries": self._max_retries,
+         + "MAX_RETRIES": self._max_retries,
+   m116: - "retry_delay": delay,
+         + "XXretry_delayXX": delay,
+   m117: - "retry_delay": delay,
+         + "RETRY_DELAY": delay,
+   m118: - "error": str(e),
+         + "XXerrorXX": str(e),
+   m119: - "error": str(e),
+         + "ERROR": str(e),
+   m120: - "error": str(e),
+         + "error": str(None),
+   m123: - "Detector connection error after all attempts",
+         + None,
+   m125: - exc_info=True,
+         + exc_info=None,
+   m127: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "attempts": self._max_retries, "err
+         + 
+   m128: - exc_info=True, )
+         + )
+   m129: - "Detector connection error after all attempts",
+         + "XXDetector connection error after all attemptsXX",
+   m130: - "Detector connection error after all attempts",
+         + "detector connection error after all attempts",
+   m131: - "Detector connection error after all attempts",
+         + "DETECTOR CONNECTION ERROR AFTER ALL ATTEMPTS",
+   m138: - "attempts": self._max_retries,
+         + "XXattemptsXX": self._max_retries,
+   m139: - "attempts": self._max_retries,
+         + "ATTEMPTS": self._max_retries,
+   m143: - exc_info=True,
+         + exc_info=False,
+   m156: - "Detector timeout, retrying",
+         + None,
+   m160: - "Detector timeout, retrying",
+         + "XXDetector timeout, retryingXX",
+   m161: - "Detector timeout, retrying",
+         + "detector timeout, retrying",
+   m162: - "Detector timeout, retrying",
+         + "DETECTOR TIMEOUT, RETRYING",
+   m182: - "Detector timeout after all attempts",
+         + None,
+   m188: - "Detector timeout after all attempts",
+         + "XXDetector timeout after all attemptsXX",
+   m189: - "Detector timeout after all attempts",
+         + "detector timeout after all attempts",
+   m190: - "Detector timeout after all attempts",
+         + "DETECTOR TIMEOUT AFTER ALL ATTEMPTS",
+   m218: - "Detector server error, retrying",
+         + None,
+   m222: - "Detector server error, retrying",
+         + "XXDetector server error, retryingXX",
+   m223: - "Detector server error, retrying",
+         + "detector server error, retrying",
+   m224: - "Detector server error, retrying",
+         + "DETECTOR SERVER ERROR, RETRYING",
+   m231: - "status_code": status_code,
+         + "XXstatus_codeXX": status_code,
+   m232: - "status_code": status_code,
+         + "STATUS_CODE": status_code,
+   m243: - "Detector server error after all attempts",
+         + None,
+   m249: - "Detector server error after all attempts",
+         + "XXDetector server error after all attemptsXX",
+   m250: - "Detector server error after all attempts",
+         + "detector server error after all attempts",
+   m251: - "Detector server error after all attempts",
+         + "DETECTOR SERVER ERROR AFTER ALL ATTEMPTS",
+   m307: - f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), " f"retrying in {delay}s: {sanitize_error(e)}",
+         + None,
+   m311: - f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), "
+         + f"Detector JSON/value error (attempt {attempt - 1}/{self._max_retries}), "
+   m312: - f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), "
+         + f"Detector JSON/value error (attempt {attempt + 2}/{self._max_retries}), "
+   m313: - f"retrying in {delay}s: {sanitize_error(e)}",
+         + f"retrying in {delay}s: {sanitize_error(None)}",
+   m330: - f"Detector JSON/value error after {self._max_retries} attempts: " f"{sanitize_error(e)}",
+         + None,
+   m336: - f"{sanitize_error(e)}",
+         + f"{sanitize_error(None)}",
+   m351: - "Unexpected detector error after all attempts",
+         + None,
+   m357: - "Unexpected detector error after all attempts",
+         + "XXUnexpected detector error after all attemptsXX",
+   m358: - "Unexpected detector error after all attempts",
+         + "unexpected detector error after all attempts",
+   m359: - "Unexpected detector error after all attempts",
+         + "UNEXPECTED DETECTOR ERROR AFTER ALL ATTEMPTS",
+   m368: - "error": sanitize_error(e),
+         + "XXerrorXX": sanitize_error(e),
+   m369: - "error": sanitize_error(e),
+         + "ERROR": sanitize_error(e),
+   m370: - "error": sanitize_error(e),
+         + "error": sanitize_error(None),
+   m373: - span.set_attribute("error", True)
+         + span.set_attribute(None, True)
+   m374: - span.set_attribute("error", True)
+         + span.set_attribute("error", None)
+   m377: - span.set_attribute("error", True)
+         + span.set_attribute("XXerrorXX", True)
+   m378: - span.set_attribute("error", True)
+         + span.set_attribute("ERROR", True)
+   m379: - span.set_attribute("error", True)
+         + span.set_attribute("error", False)
+   m380: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute(None, error_msg)
+   m381: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute("error.message", None)
+   m384: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute("XXerror.messageXX", error_msg)
+   m385: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute("ERROR.MESSAGE", error_msg)
+### C10 detect: response parse defaults (confidence/class/bbox)  [18]
+   m204: - confidence = detection_data.get("confidence", 0.0)
+         + confidence = detection_data.get("confidence", None)
+   m206: - confidence = detection_data.get("confidence", 0.0)
+         + confidence = detection_data.get("confidence", )
+   m209: - confidence = detection_data.get("confidence", 0.0)
+         + confidence = detection_data.get("confidence", 1.0)
+   m212: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("class", None)
+   m214: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("class", )
+   m217: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("class", "XXunknownXX")
+   m218: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("class", "UNKNOWN")
+   m227: - bbox = detection_data.get("bbox", {})
+         + bbox = detection_data.get("bbox", None)
+   m229: - bbox = detection_data.get("bbox", {})
+         + bbox = detection_data.get("bbox", )
+   m394: - object_class = detection_data.get("class", "unknown")
+         + object_class = None
+   m395: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get(None, "unknown")
+   m397: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("unknown")
+   m399: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("XXclassXX", "unknown")
+   m400: - object_class = detection_data.get("class", "unknown")
+         + object_class = detection_data.get("CLASS", "unknown")
+### C11 detect: video branch + file_type defaults  [10]
+   m174: - if video_path is not None and video_metadata is not None:
+         + if video_path is not None or video_metadata is not None:
+   m179: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get(None, "video/mp4")
+   m180: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get("file_type", None)
+   m182: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get("file_type", )
+   m183: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get("XXfile_typeXX", "video/mp4")
+   m184: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get("FILE_TYPE", "video/mp4")
+   m185: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get("file_type", "XXvideo/mp4XX")
+   m186: - file_type = video_metadata.get("file_type", "video/mp4")
+         + file_type = video_metadata.get("file_type", "VIDEO/MP4")
+   m198: - is_video = False
+         + is_video = None
+   m199: - is_video = False
+         + is_video = True
+### C12 detect: baseline/session/request-kwarg wiring  [13]
+   m114: - image_name=image_file.name,
+         + image_name=None,
+   m115: - camera_id=camera_id,
+         + camera_id=None,
+   m116: - image_path=image_path,
+         + image_path=None,
+   m392: - session.add(detection)
+         + session.add(None)
+   m440: - baseline_timestamp = detections[0].detected_at
+         + baseline_timestamp = None
+   m443: - detection_class=object_type,
+         + detection_class=None,
+   m444: - timestamp=baseline_timestamp,
+         + timestamp=None,
+   m445: - session=session,
+         + session=None,
+   m446: - camera_id=camera_id,
+         + 
+   m447: - detection_class=object_type,
+         + 
+   m448: - timestamp=baseline_timestamp,
+         + 
+   m449: - session=session, )
+         + )
+### C12b detect: metric labels / span-attr keys  [65]
+   m13: - "detector.type": self._detector_type,
+         + "XXdetector.typeXX": self._detector_type,
+   m14: - "detector.type": self._detector_type,
+         + "DETECTOR.TYPE": self._detector_type,
+   m19: - extra={"camera_id": camera_id, "file_path": image_path},
+         + extra=None,
+   m21: - extra={"camera_id": camera_id, "file_path": image_path}, )
+         + )
+   m25: - extra={"camera_id": camera_id, "file_path": image_path},
+         + extra={"XXcamera_idXX": camera_id, "file_path": image_path},
+   m26: - extra={"camera_id": camera_id, "file_path": image_path},
+         + extra={"CAMERA_ID": camera_id, "file_path": image_path},
+   m27: - extra={"camera_id": camera_id, "file_path": image_path},
+         + extra={"camera_id": camera_id, "XXfile_pathXX": image_path},
+   m28: - extra={"camera_id": camera_id, "file_path": image_path},
+         + extra={"camera_id": camera_id, "FILE_PATH": image_path},
+   m29: - record_pipeline_error("file_not_found")
+         + record_pipeline_error(None)
+   m30: - record_pipeline_error("file_not_found")
+         + record_pipeline_error("XXfile_not_foundXX")
+   m31: - record_pipeline_error("file_not_found")
+         + record_pipeline_error("FILE_NOT_FOUND")
+   m37: - record_pipeline_error("invalid_image")
+         + record_pipeline_error(None)
+   m38: - record_pipeline_error("invalid_image")
+         + record_pipeline_error("XXinvalid_imageXX")
+   m39: - record_pipeline_error("invalid_image")
+         + record_pipeline_error("INVALID_IMAGE")
+   m50: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "circuit_state": self._circuit_brea
+         + extra=None,
+   m52: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "circuit_state": self._circuit_brea
+         + )
+   m53: - "detector_type": self._detector_type,
+         + "XXdetector_typeXX": self._detector_type,
+   m54: - "detector_type": self._detector_type,
+         + "DETECTOR_TYPE": self._detector_type,
+   m55: - "camera_id": camera_id,
+         + "XXcamera_idXX": camera_id,
+   m56: - "camera_id": camera_id,
+         + "CAMERA_ID": camera_id,
+   m57: - "file_path": image_path,
+         + "XXfile_pathXX": image_path,
+   m58: - "file_path": image_path,
+         + "FILE_PATH": image_path,
+   m61: - record_pipeline_error("circuit_breaker_open")
+         + record_pipeline_error(None)
+   m62: - record_pipeline_error("circuit_breaker_open")
+         + record_pipeline_error("XXcircuit_breaker_openXX")
+   m63: - record_pipeline_error("circuit_breaker_open")
+         + record_pipeline_error("CIRCUIT_BREAKER_OPEN")
+   m87: - extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), "buffer_count": self._frame_buffer.frame_count(camera_id), },
+         + extra=None,
+   m89: - extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), "buffer_count": self._frame_buffer.frame_count(camera_id), },
+         + )
+   m92: - "frame_size_bytes": len(image_data),
+         + "XXframe_size_bytesXX": len(image_data),
+   m93: - "frame_size_bytes": len(image_data),
+         + "FRAME_SIZE_BYTES": len(image_data),
+   m109: - "detector.url": self._detector_url,
+         + "XXdetector.urlXX": self._detector_url,
+   m110: - "detector.url": self._detector_url,
+         + "DETECTOR.URL": self._detector_url,
+   m160: - record_pipeline_error("malformed_response")
+         + record_pipeline_error(None)
+   m161: - record_pipeline_error("malformed_response")
+         + record_pipeline_error("XXmalformed_responseXX")
+   m162: - record_pipeline_error("malformed_response")
+         + record_pipeline_error("MALFORMED_RESPONSE")
+   m403: - record_detection_by_class(object_class)
+         + record_detection_by_class(None)
+   m404: - observe_detection_confidence(confidence)
+         + observe_detection_confidence(None)
+   m419: - record_pipeline_error("detection_processing_error")
+         + record_pipeline_error(None)
+   m420: - record_pipeline_error("detection_processing_error")
+         + record_pipeline_error("XXdetection_processing_errorXX")
+   m421: - record_pipeline_error("detection_processing_error")
+         + record_pipeline_error("DETECTION_PROCESSING_ERROR")
+   m430: - extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+         + extra=None,
+   m432: - extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, )
+         + )
+   m433: - extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+         + extra={"XXcamera_idXX": camera_id, "last_seen_at": detected_at.isoformat()},
+   m434: - extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+         + extra={"CAMERA_ID": camera_id, "last_seen_at": detected_at.isoformat()},
+   m435: - extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+         + extra={"camera_id": camera_id, "XXlast_seen_atXX": detected_at.isoformat()},
+   m436: - extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+         + extra={"camera_id": camera_id, "LAST_SEEN_AT": detected_at.isoformat()},
+   m461: - "detection_count": len(detections),
+         + "XXdetection_countXX": len(detections),
+   m462: - "detection_count": len(detections),
+         + "DETECTION_COUNT": len(detections),
+### C12c detect: log text/extras  [56]
+   m18: - "Image file not found",
+         + None,
+   m22: - "Image file not found",
+         + "XXImage file not foundXX",
+   m23: - "Image file not found",
+         + "image file not found",
+   m24: - "Image file not found",
+         + "IMAGE FILE NOT FOUND",
+   m34: - if not await self._validate_image_for_detection_async(image_path, camera_id):
+         + if not await self._validate_image_for_detection_async(image_path, None):
+   m40: - f"Sending detection request for {image_path}",
+         + None,
+   m49: - f"Circuit breaker open for {self._detector_type}, rejecting detection request",
+         + None,
+   m59: - "circuit_state": self._circuit_breaker.state.value,
+         + "XXcircuit_stateXX": self._circuit_breaker.state.value,
+   m60: - "circuit_state": self._circuit_breaker.state.value,
+         + "CIRCUIT_STATE": self._circuit_breaker.state.value,
+   m64: - f"{self._detector_type} service temporarily unavailable (circuit breaker open)"
+         + None
+   m86: - f"Buffered frame for camera {camera_id}",
+         + None,
+   m94: - "buffer_count": self._frame_buffer.frame_count(camera_id),
+         + "XXbuffer_countXX": self._frame_buffer.frame_count(camera_id),
+   m95: - "buffer_count": self._frame_buffer.frame_count(camera_id),
+         + "BUFFER_COUNT": self._frame_buffer.frame_count(camera_id),
+   m96: - "buffer_count": self._frame_buffer.frame_count(camera_id),
+         + "buffer_count": self._frame_buffer.frame_count(None),
+   m149: - "Malformed response from detector (missing 'detections')",
+         + None,
+   m150: - extra={"response": str(result)[:500]},
+         + extra=None,
+   m152: - extra={"response": str(result)[:500]}, )
+         + )
+   m153: - "Malformed response from detector (missing 'detections')",
+         + "XXMalformed response from detector (missing 'detections')XX",
+   m154: - "Malformed response from detector (missing 'detections')",
+         + "malformed response from detector (missing 'detections')",
+   m155: - "Malformed response from detector (missing 'detections')",
+         + "MALFORMED RESPONSE FROM DETECTOR (MISSING 'DETECTIONS')",
+   m156: - extra={"response": str(result)[:500]},
+         + extra={"XXresponseXX": str(result)[:500]},
+   m157: - extra={"response": str(result)[:500]},
+         + extra={"RESPONSE": str(result)[:500]},
+   m158: - extra={"response": str(result)[:500]},
+         + extra={"response": str(None)[:500]},
+   m159: - extra={"response": str(result)[:500]},
+         + extra={"response": str(result)[:501]},
+   m165: - detected_at = datetime.now(UTC)
+         + detected_at = datetime.now(None)
+   m221: - object_class, self._confidence_threshold
+         + object_class, None
+   m223: - object_class, self._confidence_threshold )
+         + object_class, )
+   m243: - logger.warning(f"Invalid bbox dict format: {bbox}")
+         + logger.warning(None)
+   m260: - logger.warning(f"Invalid bbox format: {bbox}")
+         + logger.warning(None)
+   m335: - f"Clamped invalid bbox coordinates: " f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}),
+         + None
+   m336: - f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), "
+         + f"original=({original_bbox[1]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), "
+   m337: - f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), "
+         + f"original=({original_bbox[0]}, {original_bbox[2]}, {original_bbox[2]}, {original_bbox[3]}), "
+   m338: - f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), "
+         + f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[3]}, {original_bbox[3]}), "
+   m371: - if is_video and video_metadata:
+         + if is_video or video_metadata:
+   m405: - f"Created detection: {detection.object_type} " f"(confidence: {confidence:.2f}, bbox: {bbox})"
+         + None
+   m406: - "Error processing detection data",
+         + None,
+   m407: - extra={"error": sanitize_error(e)},
+         + extra=None,
+   m408: - exc_info=True,
+         + exc_info=None,
+   m410: - extra={"error": sanitize_error(e)},
+         + 
+   m411: - exc_info=True, )
+         + )
+   m412: - "Error processing detection data",
+         + "XXError processing detection dataXX",
+   m413: - "Error processing detection data",
+         + "error processing detection data",
+   m414: - "Error processing detection data",
+         + "ERROR PROCESSING DETECTION DATA",
+   m415: - extra={"error": sanitize_error(e)},
+         + extra={"XXerrorXX": sanitize_error(e)},
+   m416: - extra={"error": sanitize_error(e)},
+         + extra={"ERROR": sanitize_error(e)},
+   m417: - extra={"error": sanitize_error(e)},
+         + extra={"error": sanitize_error(None)},
+   m418: - exc_info=True,
+         + exc_info=False,
+   m429: - f"Updated camera {camera_id} last_seen_at to {detected_at}",
+         + None,
+   m439: - if detection.object_type is not None
+         + if detection.object_type is None
+   m465: - logger.info("Stored detections", extra=log_extra)
+         + logger.info(None, extra=log_extra)
+   m466: - logger.info("Stored detections", extra=log_extra)
+         + logger.info("Stored detections", extra=None)
+   m468: - logger.info("Stored detections", extra=log_extra)
+         + logger.info("Stored detections", )
+   m469: - logger.info("Stored detections", extra=log_extra)
+         + logger.info("XXStored detectionsXX", extra=log_extra)
+   m470: - logger.info("Stored detections", extra=log_extra)
+         + logger.info("stored detections", extra=log_extra)
+   m471: - logger.info("Stored detections", extra=log_extra)
+         + logger.info("STORED DETECTIONS", extra=log_extra)
+   m472: - f"No detections above threshold for {image_path}",
+         + None,
+### C13 detect: duration math -> metrics/span text  [15]
+   m123: - ai_duration = time.time() - ai_start_time
+         + ai_duration = time.time() + ai_start_time
+   m124: - observe_ai_request_duration(self._detector_type, ai_duration)
+         + observe_ai_request_duration(None, ai_duration)
+   m144: - "inference.duration_ms": int(ai_duration * 1000),
+         + "inference.duration_ms": int(ai_duration / 1000),
+   m145: - "inference.duration_ms": int(ai_duration * 1000),
+         + "inference.duration_ms": int(ai_duration * 1001),
+   m450: - duration_ms = int((time.time() - start_time) * 1000)
+         + duration_ms = None
+   m452: - duration_ms = int((time.time() - start_time) * 1000)
+         + duration_ms = int((time.time() - start_time) / 1000)
+   m453: - duration_ms = int((time.time() - start_time) * 1000)
+         + duration_ms = int((time.time() + start_time) * 1000)
+   m454: - duration_ms = int((time.time() - start_time) * 1000)
+         + duration_ms = int((time.time() - start_time) * 1001)
+   m456: - log_extra: dict[str, Any] = { "camera_id": camera_id, "file_path": image_path, "detection_count": len(detections), "duration_ms": 
+         + log_extra: dict[str, Any] = None
+   m463: - "duration_ms": duration_ms,
+         + "XXduration_msXX": duration_ms,
+   m464: - "duration_ms": duration_ms,
+         + "DURATION_MS": duration_ms,
+   m473: - extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms, },
+         + extra=None,
+   m475: - extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms, }, )
+         + )
+### C13b detect: trace_id None (log field)  [1]
+   m1: - trace_id = get_trace_id()
+         + trace_id = None
+### C15 segment: multipart files + auth headers  [9]
+   m36: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = None
+   m37: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"XXfileXX": (image_name, image_data, "image/jpeg")}
+   m38: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"FILE": (image_name, image_data, "image/jpeg")}
+   m39: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"file": (image_name, image_data, "XXimage/jpegXX")}
+   m40: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"file": (image_name, image_data, "IMAGE/JPEG")}
+   m43: - files=files,
+         + files=None,
+   m44: - headers=self._get_auth_headers(),
+         + headers=None,
+   m46: - files=files,
+         + 
+   m47: - headers=self._get_auth_headers(), )
+         + )
+### C16 segment: retry/5xx-boundary/original_error/timeout  [20]
+   m1: - last_exception: Exception | None = None
+         + last_exception: Exception | None = ""
+   m4: - explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+         + explicit_timeout = None
+   m5: - explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+         + explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+   m35: - async with asyncio.timeout(explicit_timeout):
+         + async with asyncio.timeout(None):
+   m74: - last_exception = e
+         + last_exception = None
+   m75: - if attempt < self._max_retries - 1:
+         + if attempt <= self._max_retries - 1:
+   m76: - if attempt < self._max_retries - 1:
+         + if attempt < self._max_retries + 1:
+   m77: - if attempt < self._max_retries - 1:
+         + if attempt < self._max_retries - 2:
+   m78: - delay = min(2**attempt, 30)
+         + delay = None
+   m83: - delay = min(2**attempt, 30)
+         + delay = min(2 * attempt, 30)
+   m84: - delay = min(2**attempt, 30)
+         + delay = min(3**attempt, 30)
+   m85: - delay = min(2**attempt, 30)
+         + delay = min(2**attempt, 31)
+   m90: - await asyncio.sleep(delay)
+         + await asyncio.sleep(None)
+   m98: - if status_code >= 500:
+         + if status_code > 500:
+   m99: - if status_code >= 500:
+         + if status_code >= 501:
+   m101: - error_msg = f"Segmentation failed after {self._max_retries} attempts"
+         + error_msg = None
+   m115: - error_msg, original_error=last_exception
+         + None, original_error=last_exception
+   m116: - error_msg, original_error=last_exception
+         + error_msg, original_error=None
+   m117: - error_msg, original_error=last_exception
+         + original_error=last_exception
+   m118: - error_msg, original_error=last_exception ) from last_exception
+         + error_msg, ) from last_exception
+### C17 segment: telemetry span attrs + detections.get + time math  [49]
+   m6: - f"{self._detector_type}_segmentation_request",
+         + None,
+   m7: - image_size_bytes=len(image_data),
+         + image_size_bytes=None,
+   m9: - image_size_bytes=len(image_data), ) as span:
+         + ) as span:
+   m11: - model_name=self._detector_type,
+         + model_name=None,
+   m12: - model_version=self._model_version,
+         + model_version=None,
+   m13: - model_provider="huggingface",
+         + model_provider=None,
+   m14: - device="cuda:0",
+         + device=None,
+   m15: - batch_size=1,
+         + batch_size=None,
+   m17: - model_name=self._detector_type,
+         + 
+   m18: - model_version=self._model_version,
+         + 
+   m19: - model_provider="huggingface",
+         + 
+   m20: - device="cuda:0",
+         + 
+   m21: - batch_size=1, )
+         + )
+   m22: - model_provider="huggingface",
+         + model_provider="XXhuggingfaceXX",
+   m23: - model_provider="huggingface",
+         + model_provider="HUGGINGFACE",
+   m24: - device="cuda:0",
+         + device="XXcuda:0XX",
+   m25: - device="cuda:0",
+         + device="CUDA:0",
+   m26: - batch_size=1,
+         + batch_size=2,
+   m28: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute(None, attempt)
+   m29: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute("retry_attempt", None)
+   m32: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute("XXretry_attemptXX", attempt)
+   m33: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute("RETRY_ATTEMPT", attempt)
+   m49: - inference_time_ms = (time.monotonic() - start_time) * 1000
+         + inference_time_ms = None
+   m50: - inference_time_ms = (time.monotonic() - start_time) * 1000
+         + inference_time_ms = (time.monotonic() - start_time) / 1000
+   m51: - inference_time_ms = (time.monotonic() - start_time) * 1000
+         + inference_time_ms = (time.monotonic() + start_time) * 1000
+   m53: - detections = result.get("detections", [])
+         + detections = None
+   m54: - detections = result.get("detections", [])
+         + detections = result.get(None, [])
+   m55: - detections = result.get("detections", [])
+         + detections = result.get("detections", None)
+   m57: - detections = result.get("detections", [])
+         + detections = result.get("detections", )
+   m58: - detections = result.get("detections", [])
+         + detections = result.get("XXdetectionsXX", [])
+   m59: - detections = result.get("detections", [])
+         + detections = result.get("DETECTIONS", [])
+   m61: - detections=detections,
+         + detections=None,
+   m64: - detections=detections,
+         + 
+   m67: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=None, status="success"
+   m68: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=inference_time_ms, status=None
+   m70: - span, duration_ms=inference_time_ms, status="success"
+         + span, status="success"
+   m71: - span, duration_ms=inference_time_ms, status="success" )
+         + span, duration_ms=inference_time_ms, )
+   m72: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=inference_time_ms, status="XXsuccessXX"
+   m73: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=inference_time_ms, status="SUCCESS"
+   m102: - span.set_attribute("error", True)
+         + span.set_attribute(None, True)
+   m103: - span.set_attribute("error", True)
+         + span.set_attribute("error", None)
+   m106: - span.set_attribute("error", True)
+         + span.set_attribute("XXerrorXX", True)
+   m107: - span.set_attribute("error", True)
+         + span.set_attribute("ERROR", True)
+   m108: - span.set_attribute("error", True)
+         + span.set_attribute("error", False)
+   m109: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute(None, error_msg)
+   m110: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute("error.message", None)
+   m113: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute("XXerror.messageXX", error_msg)
+   m114: - span.set_attribute("error.message", error_msg)
+         + span.set_attribute("ERROR.MESSAGE", error_msg)
+### C17b segment: log messages/text  [10]
+   m62: - inference_time_ms=inference_time_ms,
+         + inference_time_ms=None,
+   m65: - inference_time_ms=inference_time_ms, )
+         + )
+   m86: - f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), " f"retrying in {delay}s: {sanitize_error(e)}",
+         + None,
+   m87: - f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "
+         + f"Segmentation request failed (attempt {attempt - 1}/{self._max_retries}), "
+   m88: - f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "
+         + f"Segmentation request failed (attempt {attempt + 2}/{self._max_retries}), "
+   m89: - f"retrying in {delay}s: {sanitize_error(e)}",
+         + f"retrying in {delay}s: {sanitize_error(None)}",
+   m92: - f"Segmentation failed after {self._max_retries} attempts",
+         + None,
+   m93: - exc_info=True,
+         + exc_info=None,
+   m95: - exc_info=True, )
+         + )
+   m96: - exc_info=True,
+         + exc_info=False,
+### C17c segment: metric label  [1]
+   m91: - record_pipeline_error(f"{self._detector_type}_segmentation_error")
+         + record_pipeline_error(None)
+### C19 warmup metric labels/log/duration  [40]
+   m5: - set_model_warmth_state("yolo26", "warming")
+         + set_model_warmth_state(None, "warming")
+   m6: - set_model_warmth_state("yolo26", "warming")
+         + set_model_warmth_state("yolo26", None)
+   m9: - set_model_warmth_state("yolo26", "warming")
+         + set_model_warmth_state("XXyolo26XX", "warming")
+   m10: - set_model_warmth_state("yolo26", "warming")
+         + set_model_warmth_state("YOLO26", "warming")
+   m11: - set_model_warmth_state("yolo26", "warming")
+         + set_model_warmth_state("yolo26", "XXwarmingXX")
+   m12: - set_model_warmth_state("yolo26", "warming")
+         + set_model_warmth_state("yolo26", "WARMING")
+   m13: - logger.info("Starting YOLO26 model warmup...")
+         + logger.info(None)
+   m14: - logger.info("Starting YOLO26 model warmup...")
+         + logger.info("XXStarting YOLO26 model warmup...XX")
+   m15: - logger.info("Starting YOLO26 model warmup...")
+         + logger.info("starting yolo26 model warmup...")
+   m16: - logger.info("Starting YOLO26 model warmup...")
+         + logger.info("STARTING YOLO26 MODEL WARMUP...")
+   m20: - duration = time.monotonic() - start_time
+         + duration = time.monotonic() + start_time
+   m21: - observe_model_warmup_duration("yolo26", duration)
+         + observe_model_warmup_duration(None, duration)
+   m25: - observe_model_warmup_duration("yolo26", duration)
+         + observe_model_warmup_duration("XXyolo26XX", duration)
+   m26: - observe_model_warmup_duration("yolo26", duration)
+         + observe_model_warmup_duration("YOLO26", duration)
+   m27: - record_model_cold_start("yolo26")
+         + record_model_cold_start(None)
+   m28: - record_model_cold_start("yolo26")
+         + record_model_cold_start("XXyolo26XX")
+   m29: - record_model_cold_start("yolo26")
+         + record_model_cold_start("YOLO26")
+   m30: - set_model_warmth_state("yolo26", "warm")
+         + set_model_warmth_state(None, "warm")
+   m31: - set_model_warmth_state("yolo26", "warm")
+         + set_model_warmth_state("yolo26", None)
+   m34: - set_model_warmth_state("yolo26", "warm")
+         + set_model_warmth_state("XXyolo26XX", "warm")
+   m35: - set_model_warmth_state("yolo26", "warm")
+         + set_model_warmth_state("YOLO26", "warm")
+   m36: - set_model_warmth_state("yolo26", "warm")
+         + set_model_warmth_state("yolo26", "XXwarmXX")
+   m37: - set_model_warmth_state("yolo26", "warm")
+         + set_model_warmth_state("yolo26", "WARM")
+   m38: - f"YOLO26 warmup completed in {duration:.2f}s",
+         + None,
+   m39: - extra={"duration": duration, "was_cold": was_cold},
+         + extra=None,
+   m41: - extra={"duration": duration, "was_cold": was_cold}, )
+         + )
+   m42: - extra={"duration": duration, "was_cold": was_cold},
+         + extra={"XXdurationXX": duration, "was_cold": was_cold},
+   m43: - extra={"duration": duration, "was_cold": was_cold},
+         + extra={"DURATION": duration, "was_cold": was_cold},
+   m44: - extra={"duration": duration, "was_cold": was_cold},
+         + extra={"duration": duration, "XXwas_coldXX": was_cold},
+   m45: - extra={"duration": duration, "was_cold": was_cold},
+         + extra={"duration": duration, "WAS_COLD": was_cold},
+   m47: - set_model_warmth_state("yolo26", "cold")
+         + set_model_warmth_state(None, "cold")
+   m48: - set_model_warmth_state("yolo26", "cold")
+         + set_model_warmth_state("yolo26", None)
+   m51: - set_model_warmth_state("yolo26", "cold")
+         + set_model_warmth_state("XXyolo26XX", "cold")
+   m52: - set_model_warmth_state("yolo26", "cold")
+         + set_model_warmth_state("YOLO26", "cold")
+   m53: - set_model_warmth_state("yolo26", "cold")
+         + set_model_warmth_state("yolo26", "XXcoldXX")
+   m54: - set_model_warmth_state("yolo26", "cold")
+         + set_model_warmth_state("yolo26", "COLD")
+   m55: - logger.warning("YOLO26 warmup failed - model not ready")
+         + logger.warning(None)
+   m56: - logger.warning("YOLO26 warmup failed - model not ready")
+         + logger.warning("XXYOLO26 warmup failed - model not readyXX")
+   m57: - logger.warning("YOLO26 warmup failed - model not ready")
+         + logger.warning("yolo26 warmup failed - model not ready")
+   m58: - logger.warning("YOLO26 warmup failed - model not ready")
+         + logger.warning("YOLO26 WARMUP FAILED - MODEL NOT READY")
+### C2 send: telemetry span attributes  [47]
+   m6: - f"{self._detector_type}_detection_request",
+         + None,
+   m7: - camera_id=camera_id,
+         + camera_id=None,
+   m8: - image_path=image_path,
+         + image_path=None,
+   m9: - image_size_bytes=len(image_data),
+         + image_size_bytes=None,
+   m11: - camera_id=camera_id,
+         + 
+   m12: - image_path=image_path,
+         + 
+   m13: - image_size_bytes=len(image_data), ) as span:
+         + ) as span:
+   m15: - model_name=self._detector_type,
+         + model_name=None,
+   m16: - model_version=self._model_version,
+         + model_version=None,
+   m17: - model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+         + model_provider=None,
+   m18: - device="cuda:0",  # Default GPU device
+         + device=None,  # Default GPU device
+   m19: - batch_size=1,  # Single image per request
+         + batch_size=None,  # Single image per request
+   m21: - model_name=self._detector_type,
+         + 
+   m22: - model_version=self._model_version,
+         + 
+   m23: - model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+         + 
+   m24: - device="cuda:0",  # Default GPU device
+         + 
+   m25: - batch_size=1,  # Single image per request )
+         + )
+   m26: - model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+         + model_provider="huggingface" if (self._detector_type == "yolo26") and False else "ultralytics",
+   m28: - model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+         + model_provider="XXhuggingfaceXX" if self._detector_type == "yolo26" else "ultralytics",
+   m29: - model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+         + model_provider="HUGGINGFACE" if self._detector_type == "yolo26" else "ultralytics",
+   m30: - model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+         + model_provider="huggingface" if self._detector_type != "yolo26" else "ultralytics",
+   m35: - device="cuda:0",  # Default GPU device
+         + device="XXcuda:0XX",  # Default GPU device
+   m36: - device="cuda:0",  # Default GPU device
+         + device="CUDA:0",  # Default GPU device
+   m37: - batch_size=1,  # Single image per request
+         + batch_size=2,  # Single image per request
+   m39: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute(None, attempt)
+   m40: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute("retry_attempt", None)
+   m43: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute("XXretry_attemptXX", attempt)
+   m44: - span.set_attribute("retry_attempt", attempt)
+         + span.set_attribute("RETRY_ATTEMPT", attempt)
+   m60: - inference_time_ms = (time.monotonic() - start_time) * 1000
+         + inference_time_ms = None
+   m61: - inference_time_ms = (time.monotonic() - start_time) * 1000
+         + inference_time_ms = (time.monotonic() - start_time) / 1000
+   m62: - inference_time_ms = (time.monotonic() - start_time) * 1000
+         + inference_time_ms = (time.monotonic() + start_time) * 1000
+   m72: - detections=detections,
+         + detections=None,
+   m73: - inference_time_ms=inference_time_ms,
+         + inference_time_ms=None,
+   m75: - detections=detections,
+         + 
+   m76: - inference_time_ms=inference_time_ms, )
+         + )
+   m78: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=None, status="success"
+   m79: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=inference_time_ms, status=None
+   m81: - span, duration_ms=inference_time_ms, status="success"
+         + span, status="success"
+   m82: - span, duration_ms=inference_time_ms, status="success" )
+         + span, duration_ms=inference_time_ms, )
+   m83: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=inference_time_ms, status="XXsuccessXX"
+   m84: - span, duration_ms=inference_time_ms, status="success"
+         + span, duration_ms=inference_time_ms, status="SUCCESS"
+### C20 warmup _is_warming lifecycle + was_cold  [5]
+   m2: - was_cold = self.is_cold()
+         + was_cold = None
+   m3: - self._is_warming = True
+         + self._is_warming = None
+   m4: - self._is_warming = True
+         + self._is_warming = False
+   m60: - self._is_warming = False
+         + self._is_warming = None
+   m61: - self._is_warming = False
+         + self._is_warming = True
+### C21 get_warmth_state state logic  [8]
+   m1: - if self._last_inference_time is None:
+         + if self._last_inference_time is not None:
+   m3: - seconds_ago = time.monotonic() - self._last_inference_time
+         + seconds_ago = time.monotonic() + self._last_inference_time
+   m4: - is_cold = seconds_ago > self._cold_start_threshold
+         + is_cold = None
+   m5: - is_cold = seconds_ago > self._cold_start_threshold
+         + is_cold = seconds_ago >= self._cold_start_threshold
+   m8: - "state": "cold" if is_cold else "warm",
+         + "state": "cold" if (is_cold) and False else "warm",
+   m9: - "state": "cold" if is_cold else "warm",
+         + "state": "cold" if (is_cold) or True else "warm",
+   m10: - "state": "cold" if is_cold else "warm",
+         + "state": "XXcoldXX" if is_cold else "warm",
+   m11: - "state": "cold" if is_cold else "warm",
+         + "state": "COLD" if is_cold else "warm",
+### C22 is_cold boundary > vs >=  [1]
+   m5: - return seconds_since_last > self._cold_start_threshold
+         + return seconds_since_last >= self._cold_start_threshold
+### C23 health_check URL wiring  [1]
+   m2: - f"{self._detector_url}/health",
+         + None,
+### C24 semaphore recreate-condition flips  [4]
+   m3: - if cls._request_semaphore is None or cls._semaphore_limit != limit:
+         + if cls._request_semaphore is None and cls._semaphore_limit != limit:
+   m4: - if cls._request_semaphore is None or cls._semaphore_limit != limit:
+         + if cls._request_semaphore is not None or cls._semaphore_limit != limit:
+   m5: - if cls._request_semaphore is None or cls._semaphore_limit != limit:
+         + if cls._request_semaphore is None or cls._semaphore_limit == limit:
+   m9: - logger.debug(f"Created DetectorClient semaphore with limit={limit}")
+         + logger.debug(None)
+### C25 auth header SecretStr attr hasattr mutations  [3]
+   m4: - if hasattr(self._api_key, "get_secret_value")
+         + if hasattr(None, "get_secret_value")
+   m8: - if hasattr(self._api_key, "get_secret_value")
+         + if hasattr(self._api_key, "XXget_secret_valueXX")
+   m9: - if hasattr(self._api_key, "get_secret_value")
+         + if hasattr(self._api_key, "GET_SECRET_VALUE")
+### C26 __init__ timeout wiring to None/removal  [9]
+   m41: - write=read_timeout,
+         + write=None,
+   m42: - pool=settings.ai_connect_timeout,
+         + pool=None,
+   m47: - self._health_timeout = httpx.Timeout( connect=settings.ai_health_timeout, read=settings.ai_health_timeout, write=settings.ai_healt
+         + self._health_timeout = None
+   m48: - connect=settings.ai_health_timeout,
+         + connect=None,
+   m49: - read=settings.ai_health_timeout,
+         + read=None,
+   m50: - write=settings.ai_health_timeout,
+         + write=None,
+   m51: - pool=settings.ai_health_timeout,
+         + pool=None,
+   m74: - timeout=self._health_timeout,
+         + timeout=None,
+   m76: - timeout=self._health_timeout,
+         + 
+### C27 gateway routing default/rstrip  [7]
+   m20: - if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str):
+         + if getattr(settings, "use_ai_gateway", None) is True and isinstance(gw_url, str):
+   m26: - if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str):
+         + if getattr(settings, "use_ai_gateway", True) is True and isinstance(gw_url, str):
+   m32: - self._detector_url = f"{gw_url.rstrip('/')}/yolo26"
+         + self._detector_url = f"{gw_url.rstrip('XX/XX')}/yolo26"
+   m111: - extra={ "detector_type": self._detector_type, "detector_url": self._detector_url, "free_threading": free_threading, "max_concurren
+         + extra=None,
+   m113: - extra={ "detector_type": self._detector_type, "detector_url": self._detector_url, "free_threading": free_threading, "max_concurren
+         + )
+   m119: - "detector_url": self._detector_url,
+         + "XXdetector_urlXX": self._detector_url,
+   m120: - "detector_url": self._detector_url,
+         + "DETECTOR_URL": self._detector_url,
+### C28 CircuitBreakerConfig constants  [7]
+   m91: - half_open_max_calls=3,
+         + half_open_max_calls=None,
+   m92: - success_threshold=2,
+         + success_threshold=None,
+   m94: - failure_threshold=5,
+         + 
+   m96: - half_open_max_calls=3,
+         + 
+   m97: - success_threshold=2,
+         + 
+   m101: - half_open_max_calls=3,
+         + half_open_max_calls=4,
+   m102: - success_threshold=2,
+         + success_threshold=3,
+### C29 __init__ log/extra/label text + log-only vars  [28]
+   m6: - self._model_version = "yolo26m"  # YOLO26 medium model
+         + self._model_version = None  # YOLO26 medium model
+   m7: - self._model_version = "yolo26m"  # YOLO26 medium model
+         + self._model_version = "XXyolo26mXX"  # YOLO26 medium model
+   m8: - self._model_version = "yolo26m"  # YOLO26 medium model
+         + self._model_version = "YOLO26M"  # YOLO26 medium model
+   m61: - self._max_concurrent = settings.ai_max_concurrent_inferences
+         + self._max_concurrent = None
+   m108: - preprocess_workers = _get_preprocess_worker_count()
+         + preprocess_workers = None
+   m109: - free_threading = _is_free_threaded()
+         + free_threading = None
+   m110: - "DetectorClient initialized",
+         + None,
+   m114: - "DetectorClient initialized",
+         + "XXDetectorClient initializedXX",
+   m115: - "DetectorClient initialized",
+         + "detectorclient initialized",
+   m116: - "DetectorClient initialized",
+         + "DETECTORCLIENT INITIALIZED",
+   m117: - "detector_type": self._detector_type,
+         + "XXdetector_typeXX": self._detector_type,
+   m118: - "detector_type": self._detector_type,
+         + "DETECTOR_TYPE": self._detector_type,
+   m121: - "free_threading": free_threading,
+         + "XXfree_threadingXX": free_threading,
+   m122: - "free_threading": free_threading,
+         + "FREE_THREADING": free_threading,
+   m123: - "max_concurrent_inferences": self._max_concurrent,
+         + "XXmax_concurrent_inferencesXX": self._max_concurrent,
+   m124: - "max_concurrent_inferences": self._max_concurrent,
+         + "MAX_CONCURRENT_INFERENCES": self._max_concurrent,
+   m125: - "preprocess_workers": preprocess_workers,
+         + "XXpreprocess_workersXX": preprocess_workers,
+   m126: - "preprocess_workers": preprocess_workers,
+         + "PREPROCESS_WORKERS": preprocess_workers,
+   m127: - "max_retries": self._max_retries,
+         + "XXmax_retriesXX": self._max_retries,
+   m128: - "max_retries": self._max_retries,
+         + "MAX_RETRIES": self._max_retries,
+   m129: - "timeout_seconds": read_timeout,
+         + "XXtimeout_secondsXX": read_timeout,
+   m130: - "timeout_seconds": read_timeout,
+         + "TIMEOUT_SECONDS": read_timeout,
+   m131: - "circuit_breaker_failure_threshold": 5,
+         + "XXcircuit_breaker_failure_thresholdXX": 5,
+   m132: - "circuit_breaker_failure_threshold": 5,
+         + "CIRCUIT_BREAKER_FAILURE_THRESHOLD": 5,
+   m133: - "circuit_breaker_failure_threshold": 5,
+         + "circuit_breaker_failure_threshold": 6,
+   m134: - "circuit_breaker_recovery_timeout": 60.0,
+         + "XXcircuit_breaker_recovery_timeoutXX": 60.0,
+   m135: - "circuit_breaker_recovery_timeout": 60.0,
+         + "CIRCUIT_BREAKER_RECOVERY_TIMEOUT": 60.0,
+   m136: - "circuit_breaker_recovery_timeout": 60.0,
+         + "circuit_breaker_recovery_timeout": 61.0,
+### C29b __init__ other: self._is_warming: bool = False  [2]
+   m104: - self._is_warming: bool = False
+         + self._is_warming: bool = None
+   m105: - self._is_warming: bool = False
+         + self._is_warming: bool = True
+### C3 send: record_pipeline_error metric labels  [6]
+   m122: - record_pipeline_error(f"{self._detector_type}_connection_error")
+         + record_pipeline_error(None)
+   m181: - record_pipeline_error(f"{self._detector_type}_timeout")
+         + record_pipeline_error(None)
+   m242: - record_pipeline_error(f"{self._detector_type}_server_error")
+         + record_pipeline_error(None)
+   m275: - record_pipeline_error(f"{self._detector_type}_client_error")
+         + record_pipeline_error(None)
+   m329: - record_pipeline_error(f"{self._detector_type}_json_error")
+         + record_pipeline_error(None)
+   m350: - record_pipeline_error(f"{self._detector_type}_unexpected_error")
+         + record_pipeline_error(None)
+### C30 httpx.Limits pool tuning  [7]
+   m77: - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), )
+         + )
+   m78: - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+         + limits=httpx.Limits(max_connections=None, max_keepalive_connections=5),
+   m79: - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+         + limits=httpx.Limits(max_connections=10, max_keepalive_connections=None),
+   m80: - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+         + limits=httpx.Limits(max_keepalive_connections=5),
+   m81: - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+         + limits=httpx.Limits(max_connections=10, ),
+   m82: - limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+         + limits=httpx.Limits(max_connections=11, max_keepalive_connections=5),
+### C31 is_free_threaded detection  [4]
+   m1: - if hasattr(sys, "_is_gil_enabled"):
+         + if hasattr(None, "_is_gil_enabled"):
+   m5: - if hasattr(sys, "_is_gil_enabled"):
+         + if hasattr(sys, "XX_is_gil_enabledXX"):
+   m6: - if hasattr(sys, "_is_gil_enabled"):
+         + if hasattr(sys, "_IS_GIL_ENABLED"):
+   m7: - return not sys._is_gil_enabled()
+         + return sys._is_gil_enabled()
+### C32 worker-count constant (unused executor)  [1]
+   m1: - return 2  # Fewer workers with GIL (limited parallelism benefit)
+         + return 3  # Fewer workers with GIL (limited parallelism benefit)
+### C32b async validate camera_id->None (log only)  [1]
+   m3: - return await asyncio.to_thread(self._validate_image_for_detection, image_path, camera_id)
+         + return await asyncio.to_thread(self._validate_image_for_detection, image_path, None)
+### C33 health_check log text/exc_info  [36]
+   m7: - "Detector health check failed",
+         + None,
+   m8: - extra={"error": str(e)},
+         + extra=None,
+   m9: - exc_info=True,
+         + exc_info=None,
+   m11: - extra={"error": str(e)},
+         + 
+   m12: - exc_info=True, )
+         + )
+   m13: - "Detector health check failed",
+         + "XXDetector health check failedXX",
+   m14: - "Detector health check failed",
+         + "detector health check failed",
+   m15: - "Detector health check failed",
+         + "DETECTOR HEALTH CHECK FAILED",
+   m16: - extra={"error": str(e)},
+         + extra={"XXerrorXX": str(e)},
+   m17: - extra={"error": str(e)},
+         + extra={"ERROR": str(e)},
+   m18: - extra={"error": str(e)},
+         + extra={"error": str(None)},
+   m19: - exc_info=True,
+         + exc_info=False,
+   m21: - "Detector health check returned error status",
+         + None,
+   m27: - "Detector health check returned error status",
+         + "XXDetector health check returned error statusXX",
+   m28: - "Detector health check returned error status",
+         + "detector health check returned error status",
+   m29: - "Detector health check returned error status",
+         + "DETECTOR HEALTH CHECK RETURNED ERROR STATUS",
+   m35: - "Unexpected error during detector health check",
+         + None,
+   m36: - extra={"error": sanitize_error(e)},
+         + extra=None,
+   m39: - extra={"error": sanitize_error(e)},
+         + 
+   m41: - "Unexpected error during detector health check",
+         + "XXUnexpected error during detector health checkXX",
+   m42: - "Unexpected error during detector health check",
+         + "unexpected error during detector health check",
+   m43: - "Unexpected error during detector health check",
+         + "UNEXPECTED ERROR DURING DETECTOR HEALTH CHECK",
+   m44: - extra={"error": sanitize_error(e)},
+         + extra={"XXerrorXX": sanitize_error(e)},
+   m45: - extra={"error": sanitize_error(e)},
+         + extra={"ERROR": sanitize_error(e)},
+   m46: - extra={"error": sanitize_error(e)},
+         + extra={"error": sanitize_error(None)},
+### C33b validate: MIN size boundary  [1]
+   m4: - if file_size < MIN_DETECTION_IMAGE_SIZE:
+         + if file_size <= MIN_DETECTION_IMAGE_SIZE:
+### C33c validate log text  [27]
+   m5: - "Image too small for detection",
+         + None,
+   m6: - extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size, "min_size": MIN_DETECTION_IMAGE_SIZE, },
+         + extra=None,
+   m8: - extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size, "min_size": MIN_DETECTION_IMAGE_SIZE, }, )
+         + )
+   m9: - "Image too small for detection",
+         + "XXImage too small for detectionXX",
+   m10: - "Image too small for detection",
+         + "image too small for detection",
+   m11: - "Image too small for detection",
+         + "IMAGE TOO SMALL FOR DETECTION",
+   m12: - "camera_id": camera_id,
+         + "XXcamera_idXX": camera_id,
+   m13: - "camera_id": camera_id,
+         + "CAMERA_ID": camera_id,
+   m14: - "file_path": image_path,
+         + "XXfile_pathXX": image_path,
+   m15: - "file_path": image_path,
+         + "FILE_PATH": image_path,
+   m16: - "file_size": file_size,
+         + "XXfile_sizeXX": file_size,
+   m17: - "file_size": file_size,
+         + "FILE_SIZE": file_size,
+   m18: - "min_size": MIN_DETECTION_IMAGE_SIZE,
+         + "XXmin_sizeXX": MIN_DETECTION_IMAGE_SIZE,
+   m19: - "min_size": MIN_DETECTION_IMAGE_SIZE,
+         + "MIN_SIZE": MIN_DETECTION_IMAGE_SIZE,
+   m23: - "Image validation failed (corrupt/truncated)",
+         + None,
+   m24: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+         + extra=None,
+   m26: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, )
+         + )
+   m27: - "Image validation failed (corrupt/truncated)",
+         + "XXImage validation failed (corrupt/truncated)XX",
+   m28: - "Image validation failed (corrupt/truncated)",
+         + "image validation failed (corrupt/truncated)",
+   m29: - "Image validation failed (corrupt/truncated)",
+         + "IMAGE VALIDATION FAILED (CORRUPT/TRUNCATED)",
+   m30: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+         + extra={"XXcamera_idXX": camera_id, "file_path": image_path, "error": str(e)},
+   m31: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+         + extra={"CAMERA_ID": camera_id, "file_path": image_path, "error": str(e)},
+   m32: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+         + extra={"camera_id": camera_id, "XXfile_pathXX": image_path, "error": str(e)},
+   m33: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+         + extra={"camera_id": camera_id, "FILE_PATH": image_path, "error": str(e)},
+   m34: - extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+         + extra={"camera_id": camera_id, "file_path": image_path, "XXerrorXX": str(e)},
+### C34 close() log text  [8]
+   m1: - "DetectorClient HTTP connections closed",
+         + None,
+   m2: - extra={"detector_type": self._detector_type},
+         + extra=None,
+   m4: - extra={"detector_type": self._detector_type}, )
+         + )
+   m5: - "DetectorClient HTTP connections closed",
+         + "XXDetectorClient HTTP connections closedXX",
+   m6: - "DetectorClient HTTP connections closed",
+         + "detectorclient http connections closed",
+   m7: - "DetectorClient HTTP connections closed",
+         + "DETECTORCLIENT HTTP CONNECTIONS CLOSED",
+   m8: - extra={"detector_type": self._detector_type},
+         + extra={"XXdetector_typeXX": self._detector_type},
+   m9: - extra={"detector_type": self._detector_type},
+         + extra={"DETECTOR_TYPE": self._detector_type},
+### C35 probe image/params (mocked boundary)  [24]
+   m4: - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+         + test_image = Image.new("RGB", (32, 32), color=None)
+   m7: - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+         + test_image = Image.new("RGB", (32, 32), )
+   m10: - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+         + test_image = Image.new("RGB", (33, 32), color=(0, 0, 0))
+   m11: - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+         + test_image = Image.new("RGB", (32, 33), color=(0, 0, 0))
+   m12: - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+         + test_image = Image.new("RGB", (32, 32), color=(1, 0, 0))
+   m13: - test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+         + test_image = Image.new("RGB", (32, 32), color=(0, 1, 0))
+   m21: - test_image.save(buffer, format="JPEG")
+         + test_image.save(buffer, format="jpeg")
+   m22: - image_data = buffer.getvalue()
+         + image_data = None
+   m23: - image_data=image_data,
+         + image_data=None,
+   m24: - image_name="warmup_test.jpg",
+         + image_name=None,
+   m25: - camera_id="warmup",
+         + camera_id=None,
+   m26: - image_path="/dev/null",  # placeholder path for warmup probe
+         + image_path=None,  # placeholder path for warmup probe
+   m27: - image_data=image_data,
+         + 
+   m28: - image_name="warmup_test.jpg",
+         + 
+   m29: - camera_id="warmup",
+         + 
+   m30: - image_path="/dev/null",  # placeholder path for warmup probe )
+         + )
+   m31: - image_name="warmup_test.jpg",
+         + image_name="XXwarmup_test.jpgXX",
+   m32: - image_name="warmup_test.jpg",
+         + image_name="WARMUP_TEST.JPG",
+   m33: - camera_id="warmup",
+         + camera_id="XXwarmupXX",
+   m34: - camera_id="warmup",
+         + camera_id="WARMUP",
+   m35: - image_path="/dev/null",  # placeholder path for warmup probe
+         + image_path="XX/dev/nullXX",  # placeholder path for warmup probe
+   m36: - image_path="/dev/null",  # placeholder path for warmup probe
+         + image_path="/DEV/NULL",  # placeholder path for warmup probe
+   m38: - logger.warning(f"YOLO26 readiness probe failed (unavailable): {e}")
+         + logger.warning(None)
+### C4 send: multipart files payload  [7]
+   m47: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = None
+   m48: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"XXfileXX": (image_name, image_data, "image/jpeg")}
+   m49: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"FILE": (image_name, image_data, "image/jpeg")}
+   m50: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"file": (image_name, image_data, "XXimage/jpegXX")}
+   m51: - files = {"file": (image_name, image_data, "image/jpeg")}
+         + files = {"file": (image_name, image_data, "IMAGE/JPEG")}
+   m54: - files=files,
+         + files=None,
+   m57: - files=files,
+         + 
+### C5 send: retry backoff/timeout constants & conditions  [14]
+   m4: - explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+         + explicit_timeout = None
+   m5: - explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+         + explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+   m46: - async with asyncio.timeout(explicit_timeout):
+         + async with asyncio.timeout(None):
+   m96: - delay = min(2**attempt, 30)  # Cap at 30 seconds
+         + delay = min(2**attempt, 31)  # Cap at 30 seconds
+   m299: - delay = min(2**attempt, 30)  # Cap at 30 seconds
+         + delay = None  # Cap at 30 seconds
+   m304: - delay = min(2**attempt, 30)  # Cap at 30 seconds
+         + delay = min(2 * attempt, 30)  # Cap at 30 seconds
+   m305: - delay = min(2**attempt, 30)  # Cap at 30 seconds
+         + delay = min(3**attempt, 30)  # Cap at 30 seconds
+   m328: - await asyncio.sleep(delay)
+         + await asyncio.sleep(None)
+   m347: - if attempt < self._max_retries - 1:
+         + if attempt <= self._max_retries - 1:
+   m348: - if attempt < self._max_retries - 1:
+         + if attempt < self._max_retries + 1:
+   m349: - if attempt < self._max_retries - 1:
+         + if attempt < self._max_retries - 2:
+### C6 send: 4xx error-detail extraction (log/msg text)  [22]
+   m263: - error_detail = None
+         + error_detail = ""
+   m264: - if status_code == 400:
+         + if status_code != 400:
+   m265: - if status_code == 400:
+         + if status_code == 401:
+   m266: - error_response = e.response.json()
+         + error_response = None
+   m267: - error_detail = error_response.get("detail", str(e))
+         + error_detail = None
+   m268: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get(None, str(e))
+   m269: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get("detail", None)
+   m270: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get(str(e))
+   m271: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get("detail", )
+   m272: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get("XXdetailXX", str(e))
+   m273: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get("DETAIL", str(e))
+   m274: - error_detail = error_response.get("detail", str(e))
+         + error_detail = error_response.get("detail", str(None))
+   m276: - "Detector client error",
+         + None,
+   m277: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "error_
+         + extra=None,
+   m279: - extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path": image_path, "status_code": status_code, "error_
+         + )
+   m280: - "Detector client error",
+         + "XXDetector client errorXX",
+   m281: - "Detector client error",
+         + "detector client error",
+   m282: - "Detector client error",
+         + "DETECTOR CLIENT ERROR",
+   m291: - "error_detail": error_detail,
+         + "XXerror_detailXX": error_detail,
+   m292: - "error_detail": error_detail,
+         + "ERROR_DETAIL": error_detail,
+   m293: - f"Detector client error {status_code}: {error_detail or e}"
+         + None
+   m294: - f"Detector client error {status_code}: {error_detail or e}"
+         + f"Detector client error {status_code}: {error_detail and e}"
+### C7 send: last_exception init ("")  [1]
+   m1: - last_exception: Exception | None = None
+         + last_exception: Exception | None = ""
+### C8 detect: bbox clamp/out-of-bounds geometry  [42]
+   m232: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if all(k in bbox for k in ("x", "y", "width", "height")):
+   m233: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(None):
+   m234: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k not in bbox for k in ("x", "y", "width", "height")):
+   m235: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("XXxXX", "y", "width", "height")):
+   m236: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("X", "y", "width", "height")):
+   m237: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("x", "XXyXX", "width", "height")):
+   m238: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("x", "Y", "width", "height")):
+   m239: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("x", "y", "XXwidthXX", "height")):
+   m240: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("x", "y", "WIDTH", "height")):
+   m241: - if not all(k in bbox for k in ("x", "y", "width", "height")):
+         + if not all(k in bbox for k in ("x", "y", "width", "XXheightXX")):
+   m262: - if response_image_width is not None and response_image_height is not None:
+         + if response_image_width is not None or response_image_height is not None:
+   m263: - if response_image_width is not None and response_image_height is not None:
+         + if response_image_width is None and response_image_height is not None:
+   m264: - if response_image_width is not None and response_image_height is not None:
+         + if response_image_width is not None and response_image_height is None:
+   m265: - or bbox_x + bbox_width <= 0 or bbox_y + bbox_height <= 0
+         + or bbox_x + bbox_width <= 0 and bbox_y + bbox_height <= 0
+   m266: - or bbox_y >= response_image_height or bbox_x + bbox_width <= 0
+         + or bbox_y >= response_image_height and bbox_x + bbox_width <= 0
+   m267: - bbox_x >= response_image_width or bbox_y >= response_image_height
+         + bbox_x >= response_image_width and bbox_y >= response_image_height
+   m268: - bbox_x >= response_image_width
+         + bbox_x > response_image_width
+   m269: - or bbox_y >= response_image_height
+         + or bbox_y > response_image_height
+   m271: - or bbox_x + bbox_width <= 0
+         + or bbox_x + bbox_width < 0
+   m272: - or bbox_x + bbox_width <= 0
+         + or bbox_x + bbox_width <= 1
+   m274: - or bbox_y + bbox_height <= 0
+         + or bbox_y + bbox_height < 0
+   m275: - or bbox_y + bbox_height <= 0
+         + or bbox_y + bbox_height <= 1
+   m282: - x1_clamped = max(0, min(bbox_x, response_image_width))
+         + x1_clamped = max(1, min(bbox_x, response_image_width))
+   m292: - y1_clamped = max(0, min(bbox_y, response_image_height))
+         + y1_clamped = max(1, min(bbox_y, response_image_height))
+   m302: - x2_clamped = max(0, min(bbox_x + bbox_width, response_image_width))
+         + x2_clamped = max(1, min(bbox_x + bbox_width, response_image_width))
+   m313: - y2_clamped = max(0, min(bbox_y + bbox_height, response_image_height))
+         + y2_clamped = max(1, min(bbox_y + bbox_height, response_image_height))
+   m319: - bbox_x = int(x1_clamped)
+         + bbox_x = None
+   m321: - bbox_y = int(y1_clamped)
+         + bbox_y = None
+   m325: - bbox_width = int(x2_clamped - x1_clamped)
+         + bbox_width = int(x2_clamped + x1_clamped)
+   m328: - bbox_height = int(y2_clamped - y1_clamped)
+         + bbox_height = int(y2_clamped + y1_clamped)
+   m329: - if bbox_width < 1 or bbox_height < 1:
+         + if bbox_width < 1 and bbox_height < 1:
+   m330: - if bbox_width < 1 or bbox_height < 1:
+         + if bbox_width <= 1 or bbox_height < 1:
+   m331: - if bbox_width < 1 or bbox_height < 1:
+         + if bbox_width < 2 or bbox_height < 1:
+   m332: - if bbox_width < 1 or bbox_height < 1:
+         + if bbox_width < 1 or bbox_height <= 1:
+   m333: - if bbox_width < 1 or bbox_height < 1:
+         + if bbox_width < 1 or bbox_height < 2:
+   m334: - if original_bbox != (bbox_x, bbox_y, bbox_width, bbox_height):
+         + if original_bbox == (bbox_x, bbox_y, bbox_width, bbox_height):
+   m340: - elif bbox_width <= 0 or bbox_height <= 0:
+         + elif bbox_width <= 0 and bbox_height <= 0:
+   m341: - elif bbox_width <= 0 or bbox_height <= 0:
+         + elif bbox_width < 0 or bbox_height <= 0:
+   m342: - elif bbox_width <= 0 or bbox_height <= 0:
+         + elif bbox_width <= 1 or bbox_height <= 0:
+   m343: - elif bbox_width <= 0 or bbox_height <= 0:
+         + elif bbox_width <= 0 or bbox_height < 0:
+   m344: - elif bbox_width <= 0 or bbox_height <= 0:
+         + elif bbox_width <= 0 or bbox_height <= 1:
+### C9 detect: per-detection continue->break  [3]
+   m244: - continue
+         + break
+TOTAL 839 clusters 42

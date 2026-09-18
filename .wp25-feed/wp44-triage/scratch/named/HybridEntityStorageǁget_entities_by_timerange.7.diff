@@ -1,0 +1,12 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities_by_timerange__mutmut_7
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities_by_timerange__mutmut_7: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -31,7 +31,6 @@
+         """
+     entities, total = await self.entity_repo.list(
+         entity_type=entity_type,
+-        since=since,
+         limit=limit,
+         offset=offset,
+     )

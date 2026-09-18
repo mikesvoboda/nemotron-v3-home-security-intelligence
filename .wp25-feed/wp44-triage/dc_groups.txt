@@ -1,0 +1,2027 @@
+==================== x__get_preprocess_worker_count count 1
+     1 | DEL: return 2  # Fewer workers with GIL (limited parallelism benefit)
+       ADD: return 3  # Fewer workers with GIL (limited parallelism benefit)
+       keys: m1
+==================== x__is_free_threaded count 4
+     1 | DEL: if hasattr(sys, "_is_gil_enabled"):
+       ADD: if hasattr(None, "_is_gil_enabled"):
+       keys: m1
+     1 | DEL: if hasattr(sys, "_is_gil_enabled"):
+       ADD: if hasattr(sys, "XX_is_gil_enabledXX"):
+       keys: m5
+     1 | DEL: if hasattr(sys, "_is_gil_enabled"):
+       ADD: if hasattr(sys, "_IS_GIL_ENABLED"):
+       keys: m6
+     1 | DEL: return not sys._is_gil_enabled()
+       ADD: return sys._is_gil_enabled()
+       keys: m7
+==================== xǁDetectorClientǁ__init__ count 60
+     1 | DEL: half_open_max_calls=3,
+       ADD: half_open_max_calls=4,
+       keys: m101
+     1 | DEL: success_threshold=2,
+       ADD: success_threshold=3,
+       keys: m102
+     1 | DEL: self._is_warming: bool = False
+       ADD: self._is_warming: bool = None
+       keys: m104
+     1 | DEL: self._is_warming: bool = False
+       ADD: self._is_warming: bool = True
+       keys: m105
+     1 | DEL: preprocess_workers = _get_preprocess_worker_count()
+       ADD: preprocess_workers = None
+       keys: m108
+     1 | DEL: free_threading = _is_free_threaded()
+       ADD: free_threading = None
+       keys: m109
+     1 | DEL: "DetectorClient initialized",
+       ADD: None,
+       keys: m110
+     1 | DEL: extra={ "detector_type": self._detector_type, "detector_url": self._detector_url
+       ADD: extra=None,
+       keys: m111
+     1 | DEL: extra={ "detector_type": self._detector_type, "detector_url": self._detector_url
+       ADD: )
+       keys: m113
+     1 | DEL: "DetectorClient initialized",
+       ADD: "XXDetectorClient initializedXX",
+       keys: m114
+     1 | DEL: "DetectorClient initialized",
+       ADD: "detectorclient initialized",
+       keys: m115
+     1 | DEL: "DetectorClient initialized",
+       ADD: "DETECTORCLIENT INITIALIZED",
+       keys: m116
+     1 | DEL: "detector_type": self._detector_type,
+       ADD: "XXdetector_typeXX": self._detector_type,
+       keys: m117
+     1 | DEL: "detector_type": self._detector_type,
+       ADD: "DETECTOR_TYPE": self._detector_type,
+       keys: m118
+     1 | DEL: "detector_url": self._detector_url,
+       ADD: "XXdetector_urlXX": self._detector_url,
+       keys: m119
+     1 | DEL: "detector_url": self._detector_url,
+       ADD: "DETECTOR_URL": self._detector_url,
+       keys: m120
+     1 | DEL: "free_threading": free_threading,
+       ADD: "XXfree_threadingXX": free_threading,
+       keys: m121
+     1 | DEL: "free_threading": free_threading,
+       ADD: "FREE_THREADING": free_threading,
+       keys: m122
+     1 | DEL: "max_concurrent_inferences": self._max_concurrent,
+       ADD: "XXmax_concurrent_inferencesXX": self._max_concurrent,
+       keys: m123
+     1 | DEL: "max_concurrent_inferences": self._max_concurrent,
+       ADD: "MAX_CONCURRENT_INFERENCES": self._max_concurrent,
+       keys: m124
+     1 | DEL: "preprocess_workers": preprocess_workers,
+       ADD: "XXpreprocess_workersXX": preprocess_workers,
+       keys: m125
+     1 | DEL: "preprocess_workers": preprocess_workers,
+       ADD: "PREPROCESS_WORKERS": preprocess_workers,
+       keys: m126
+     1 | DEL: "max_retries": self._max_retries,
+       ADD: "XXmax_retriesXX": self._max_retries,
+       keys: m127
+     1 | DEL: "max_retries": self._max_retries,
+       ADD: "MAX_RETRIES": self._max_retries,
+       keys: m128
+     1 | DEL: "timeout_seconds": read_timeout,
+       ADD: "XXtimeout_secondsXX": read_timeout,
+       keys: m129
+     1 | DEL: "timeout_seconds": read_timeout,
+       ADD: "TIMEOUT_SECONDS": read_timeout,
+       keys: m130
+     1 | DEL: "circuit_breaker_failure_threshold": 5,
+       ADD: "XXcircuit_breaker_failure_thresholdXX": 5,
+       keys: m131
+     1 | DEL: "circuit_breaker_failure_threshold": 5,
+       ADD: "CIRCUIT_BREAKER_FAILURE_THRESHOLD": 5,
+       keys: m132
+     1 | DEL: "circuit_breaker_failure_threshold": 5,
+       ADD: "circuit_breaker_failure_threshold": 6,
+       keys: m133
+     1 | DEL: "circuit_breaker_recovery_timeout": 60.0,
+       ADD: "XXcircuit_breaker_recovery_timeoutXX": 60.0,
+       keys: m134
+     1 | DEL: "circuit_breaker_recovery_timeout": 60.0,
+       ADD: "CIRCUIT_BREAKER_RECOVERY_TIMEOUT": 60.0,
+       keys: m135
+     1 | DEL: "circuit_breaker_recovery_timeout": 60.0,
+       ADD: "circuit_breaker_recovery_timeout": 61.0,
+       keys: m136
+     1 | DEL: if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str
+       ADD: if getattr(settings, "use_ai_gateway", None) is True and isinstance(gw_url, str)
+       keys: m20
+     1 | DEL: if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str
+       ADD: if getattr(settings, "use_ai_gateway", True) is True and isinstance(gw_url, str)
+       keys: m26
+     1 | DEL: self._detector_url = f"{gw_url.rstrip('/')}/yolo26"
+       ADD: self._detector_url = f"{gw_url.rstrip('XX/XX')}/yolo26"
+       keys: m32
+     1 | DEL: write=read_timeout,
+       ADD: write=None,
+       keys: m41
+     1 | DEL: pool=settings.ai_connect_timeout,
+       ADD: pool=None,
+       keys: m42
+     1 | DEL: self._health_timeout = httpx.Timeout( connect=settings.ai_health_timeout, read=s
+       ADD: self._health_timeout = None
+       keys: m47
+     1 | DEL: connect=settings.ai_health_timeout,
+       ADD: connect=None,
+       keys: m48
+     1 | DEL: read=settings.ai_health_timeout,
+       ADD: read=None,
+       keys: m49
+     1 | DEL: write=settings.ai_health_timeout,
+       ADD: write=None,
+       keys: m50
+     1 | DEL: pool=settings.ai_health_timeout,
+       ADD: pool=None,
+       keys: m51
+     1 | DEL: self._model_version = "yolo26m"  # YOLO26 medium model
+       ADD: self._model_version = None  # YOLO26 medium model
+       keys: m6
+     1 | DEL: self._max_concurrent = settings.ai_max_concurrent_inferences
+       ADD: self._max_concurrent = None
+       keys: m61
+     1 | DEL: self._model_version = "yolo26m"  # YOLO26 medium model
+       ADD: self._model_version = "XXyolo26mXX"  # YOLO26 medium model
+       keys: m7
+     1 | DEL: timeout=self._health_timeout,
+       ADD: timeout=None,
+       keys: m74
+     1 | DEL: timeout=self._health_timeout,
+       ADD: 
+       keys: m76
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5), )
+       ADD: )
+       keys: m77
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+       ADD: limits=httpx.Limits(max_connections=None, max_keepalive_connections=5),
+       keys: m78
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+       ADD: limits=httpx.Limits(max_connections=10, max_keepalive_connections=None),
+       keys: m79
+     1 | DEL: self._model_version = "yolo26m"  # YOLO26 medium model
+       ADD: self._model_version = "YOLO26M"  # YOLO26 medium model
+       keys: m8
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+       ADD: limits=httpx.Limits(max_keepalive_connections=5),
+       keys: m80
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+       ADD: limits=httpx.Limits(max_connections=10, ),
+       keys: m81
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+       ADD: limits=httpx.Limits(max_connections=11, max_keepalive_connections=5),
+       keys: m82
+     1 | DEL: limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+       ADD: limits=httpx.Limits(max_connections=10, max_keepalive_connections=6),
+       keys: m83
+     1 | DEL: half_open_max_calls=3,
+       ADD: half_open_max_calls=None,
+       keys: m91
+     1 | DEL: success_threshold=2,
+       ADD: success_threshold=None,
+       keys: m92
+     1 | DEL: failure_threshold=5,
+       ADD: 
+       keys: m94
+     1 | DEL: half_open_max_calls=3,
+       ADD: 
+       keys: m96
+     1 | DEL: success_threshold=2,
+       ADD: 
+       keys: m97
+==================== xǁDetectorClientǁ_get_auth_headers count 3
+     1 | DEL: if hasattr(self._api_key, "get_secret_value")
+       ADD: if hasattr(None, "get_secret_value")
+       keys: m4
+     1 | DEL: if hasattr(self._api_key, "get_secret_value")
+       ADD: if hasattr(self._api_key, "XXget_secret_valueXX")
+       keys: m8
+     1 | DEL: if hasattr(self._api_key, "get_secret_value")
+       ADD: if hasattr(self._api_key, "GET_SECRET_VALUE")
+       keys: m9
+==================== xǁDetectorClientǁ_get_semaphore count 4
+     1 | DEL: if cls._request_semaphore is None or cls._semaphore_limit != limit:
+       ADD: if cls._request_semaphore is None and cls._semaphore_limit != limit:
+       keys: m3
+     1 | DEL: if cls._request_semaphore is None or cls._semaphore_limit != limit:
+       ADD: if cls._request_semaphore is not None or cls._semaphore_limit != limit:
+       keys: m4
+     1 | DEL: if cls._request_semaphore is None or cls._semaphore_limit != limit:
+       ADD: if cls._request_semaphore is None or cls._semaphore_limit == limit:
+       keys: m5
+     1 | DEL: logger.debug(f"Created DetectorClient semaphore with limit={limit}")
+       ADD: logger.debug(None)
+       keys: m9
+==================== xǁDetectorClientǁ_send_detection_request count 303
+    10 | DEL: "detector_type": self._detector_type,
+       ADD: "XXdetector_typeXX": self._detector_type,
+       keys: m104,m132,m163,m191 ...
+    10 | DEL: "detector_type": self._detector_type,
+       ADD: "DETECTOR_TYPE": self._detector_type,
+       keys: m105,m133,m164,m192 ...
+    10 | DEL: "camera_id": camera_id,
+       ADD: "XXcamera_idXX": camera_id,
+       keys: m106,m134,m165,m193 ...
+    10 | DEL: "camera_id": camera_id,
+       ADD: "CAMERA_ID": camera_id,
+       keys: m107,m135,m166,m194 ...
+    10 | DEL: "file_path": image_path,
+       ADD: "XXfile_pathXX": image_path,
+       keys: m108,m136,m167,m195 ...
+    10 | DEL: "file_path": image_path,
+       ADD: "FILE_PATH": image_path,
+       keys: m109,m137,m168,m196 ...
+    10 | DEL: extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path
+       ADD: extra=None,
+       keys: m98,m124,m157,m183 ...
+     5 | DEL: extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path
+       ADD: )
+       keys: m100,m159,m221,m279 ...
+     5 | DEL: exc_info=True,
+       ADD: exc_info=None,
+       keys: m125,m184,m245,m332 ...
+     5 | DEL: extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path
+       ADD: 
+       keys: m127,m186,m247,m334 ...
+     5 | DEL: exc_info=True, )
+       ADD: )
+       keys: m128,m187,m248,m335 ...
+     5 | DEL: "attempts": self._max_retries,
+       ADD: "XXattemptsXX": self._max_retries,
+       keys: m138,m197,m260,m343 ...
+     5 | DEL: "attempts": self._max_retries,
+       ADD: "ATTEMPTS": self._max_retries,
+       keys: m139,m198,m261,m344 ...
+     5 | DEL: exc_info=True,
+       ADD: exc_info=False,
+       keys: m143,m202,m262,m345 ...
+     4 | DEL: "attempt": attempt + 1,
+       ADD: "XXattemptXX": attempt + 1,
+       keys: m110,m169,m233,m320
+     4 | DEL: "attempt": attempt + 1,
+       ADD: "ATTEMPT": attempt + 1,
+       keys: m111,m170,m234,m321
+     4 | DEL: "attempt": attempt + 1,
+       ADD: "attempt": attempt - 1,
+       keys: m112,m171,m235,m322
+     4 | DEL: "attempt": attempt + 1,
+       ADD: "attempt": attempt + 2,
+       keys: m113,m172,m236,m323
+     4 | DEL: "max_retries": self._max_retries,
+       ADD: "XXmax_retriesXX": self._max_retries,
+       keys: m114,m173,m237,m324
+     4 | DEL: "max_retries": self._max_retries,
+       ADD: "MAX_RETRIES": self._max_retries,
+       keys: m115,m174,m238,m325
+     4 | DEL: "retry_delay": delay,
+       ADD: "XXretry_delayXX": delay,
+       keys: m116,m175,m239,m326
+     4 | DEL: "retry_delay": delay,
+       ADD: "RETRY_DELAY": delay,
+       keys: m117,m176,m240,m327
+     4 | DEL: "error": str(e),
+       ADD: "XXerrorXX": str(e),
+       keys: m118,m140,m177,m199
+     4 | DEL: "error": str(e),
+       ADD: "ERROR": str(e),
+       keys: m119,m141,m178,m200
+     4 | DEL: "error": str(e),
+       ADD: "error": str(None),
+       keys: m120,m142,m179,m201
+     4 | DEL: delay = min(2**attempt, 30)  # Cap at 30 seconds
+       ADD: delay = min(2**attempt, 31)  # Cap at 30 seconds
+       keys: m96,m155,m217,m306
+     3 | DEL: "status_code": status_code,
+       ADD: "XXstatus_codeXX": status_code,
+       keys: m231,m258,m289
+     3 | DEL: "status_code": status_code,
+       ADD: "STATUS_CODE": status_code,
+       keys: m232,m259,m290
+     1 | DEL: last_exception: Exception | None = None
+       ADD: last_exception: Exception | None = ""
+       keys: m1
+     1 | DEL: "Detector connection error, retrying",
+       ADD: "XXDetector connection error, retryingXX",
+       keys: m101
+     1 | DEL: "Detector connection error, retrying",
+       ADD: "detector connection error, retrying",
+       keys: m102
+     1 | DEL: "Detector connection error, retrying",
+       ADD: "DETECTOR CONNECTION ERROR, RETRYING",
+       keys: m103
+     1 | DEL: camera_id=camera_id,
+       ADD: 
+       keys: m11
+     1 | DEL: image_path=image_path,
+       ADD: 
+       keys: m12
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_connection_error")
+       ADD: record_pipeline_error(None)
+       keys: m122
+     1 | DEL: "Detector connection error after all attempts",
+       ADD: None,
+       keys: m123
+     1 | DEL: "Detector connection error after all attempts",
+       ADD: "XXDetector connection error after all attemptsXX",
+       keys: m129
+     1 | DEL: image_size_bytes=len(image_data), ) as span:
+       ADD: ) as span:
+       keys: m13
+     1 | DEL: "Detector connection error after all attempts",
+       ADD: "detector connection error after all attempts",
+       keys: m130
+     1 | DEL: "Detector connection error after all attempts",
+       ADD: "DETECTOR CONNECTION ERROR AFTER ALL ATTEMPTS",
+       keys: m131
+     1 | DEL: model_name=self._detector_type,
+       ADD: model_name=None,
+       keys: m15
+     1 | DEL: "Detector timeout, retrying",
+       ADD: None,
+       keys: m156
+     1 | DEL: model_version=self._model_version,
+       ADD: model_version=None,
+       keys: m16
+     1 | DEL: "Detector timeout, retrying",
+       ADD: "XXDetector timeout, retryingXX",
+       keys: m160
+     1 | DEL: "Detector timeout, retrying",
+       ADD: "detector timeout, retrying",
+       keys: m161
+     1 | DEL: "Detector timeout, retrying",
+       ADD: "DETECTOR TIMEOUT, RETRYING",
+       keys: m162
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider=None,
+       keys: m17
+     1 | DEL: device="cuda:0",  # Default GPU device
+       ADD: device=None,  # Default GPU device
+       keys: m18
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_timeout")
+       ADD: record_pipeline_error(None)
+       keys: m181
+     1 | DEL: "Detector timeout after all attempts",
+       ADD: None,
+       keys: m182
+     1 | DEL: "Detector timeout after all attempts",
+       ADD: "XXDetector timeout after all attemptsXX",
+       keys: m188
+     1 | DEL: "Detector timeout after all attempts",
+       ADD: "detector timeout after all attempts",
+       keys: m189
+     1 | DEL: batch_size=1,  # Single image per request
+       ADD: batch_size=None,  # Single image per request
+       keys: m19
+     1 | DEL: "Detector timeout after all attempts",
+       ADD: "DETECTOR TIMEOUT AFTER ALL ATTEMPTS",
+       keys: m190
+     1 | DEL: model_name=self._detector_type,
+       ADD: 
+       keys: m21
+     1 | DEL: "Detector server error, retrying",
+       ADD: None,
+       keys: m218
+     1 | DEL: model_version=self._model_version,
+       ADD: 
+       keys: m22
+     1 | DEL: "Detector server error, retrying",
+       ADD: "XXDetector server error, retryingXX",
+       keys: m222
+     1 | DEL: "Detector server error, retrying",
+       ADD: "detector server error, retrying",
+       keys: m223
+     1 | DEL: "Detector server error, retrying",
+       ADD: "DETECTOR SERVER ERROR, RETRYING",
+       keys: m224
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: 
+       keys: m23
+     1 | DEL: device="cuda:0",  # Default GPU device
+       ADD: 
+       keys: m24
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_server_error")
+       ADD: record_pipeline_error(None)
+       keys: m242
+     1 | DEL: "Detector server error after all attempts",
+       ADD: None,
+       keys: m243
+     1 | DEL: "Detector server error after all attempts",
+       ADD: "XXDetector server error after all attemptsXX",
+       keys: m249
+     1 | DEL: batch_size=1,  # Single image per request )
+       ADD: )
+       keys: m25
+     1 | DEL: "Detector server error after all attempts",
+       ADD: "detector server error after all attempts",
+       keys: m250
+     1 | DEL: "Detector server error after all attempts",
+       ADD: "DETECTOR SERVER ERROR AFTER ALL ATTEMPTS",
+       keys: m251
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if (self._detector_type == "yolo26") and False else
+       keys: m26
+     1 | DEL: error_detail = None
+       ADD: error_detail = ""
+       keys: m263
+     1 | DEL: if status_code == 400:
+       ADD: if status_code != 400:
+       keys: m264
+     1 | DEL: if status_code == 400:
+       ADD: if status_code == 401:
+       keys: m265
+     1 | DEL: error_response = e.response.json()
+       ADD: error_response = None
+       keys: m266
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = None
+       keys: m267
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get(None, str(e))
+       keys: m268
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get("detail", None)
+       keys: m269
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if (self._detector_type == "yolo26") or True else "
+       keys: m27
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get(str(e))
+       keys: m270
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get("detail", )
+       keys: m271
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get("XXdetailXX", str(e))
+       keys: m272
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get("DETAIL", str(e))
+       keys: m273
+     1 | DEL: error_detail = error_response.get("detail", str(e))
+       ADD: error_detail = error_response.get("detail", str(None))
+       keys: m274
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_client_error")
+       ADD: record_pipeline_error(None)
+       keys: m275
+     1 | DEL: "Detector client error",
+       ADD: None,
+       keys: m276
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="XXhuggingfaceXX" if self._detector_type == "yolo26" else "ultral
+       keys: m28
+     1 | DEL: "Detector client error",
+       ADD: "XXDetector client errorXX",
+       keys: m280
+     1 | DEL: "Detector client error",
+       ADD: "detector client error",
+       keys: m281
+     1 | DEL: "Detector client error",
+       ADD: "DETECTOR CLIENT ERROR",
+       keys: m282
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="HUGGINGFACE" if self._detector_type == "yolo26" else "ultralytic
+       keys: m29
+     1 | DEL: "error_detail": error_detail,
+       ADD: "XXerror_detailXX": error_detail,
+       keys: m291
+     1 | DEL: "error_detail": error_detail,
+       ADD: "ERROR_DETAIL": error_detail,
+       keys: m292
+     1 | DEL: f"Detector client error {status_code}: {error_detail or e}"
+       ADD: None
+       keys: m293
+     1 | DEL: f"Detector client error {status_code}: {error_detail or e}"
+       ADD: f"Detector client error {status_code}: {error_detail and e}"
+       keys: m294
+     1 | DEL: delay = min(2**attempt, 30)  # Cap at 30 seconds
+       ADD: delay = None  # Cap at 30 seconds
+       keys: m299
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if self._detector_type != "yolo26" else "ultralytic
+       keys: m30
+     1 | DEL: delay = min(2**attempt, 30)  # Cap at 30 seconds
+       ADD: delay = min(2 * attempt, 30)  # Cap at 30 seconds
+       keys: m304
+     1 | DEL: delay = min(2**attempt, 30)  # Cap at 30 seconds
+       ADD: delay = min(3**attempt, 30)  # Cap at 30 seconds
+       keys: m305
+     1 | DEL: f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), " f"ret
+       ADD: None,
+       keys: m307
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if self._detector_type == "XXyolo26XX" else "ultral
+       keys: m31
+     1 | DEL: f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), "
+       ADD: f"Detector JSON/value error (attempt {attempt - 1}/{self._max_retries}), "
+       keys: m311
+     1 | DEL: f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), "
+       ADD: f"Detector JSON/value error (attempt {attempt + 2}/{self._max_retries}), "
+       keys: m312
+     1 | DEL: f"retrying in {delay}s: {sanitize_error(e)}",
+       ADD: f"retrying in {delay}s: {sanitize_error(None)}",
+       keys: m313
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if self._detector_type == "YOLO26" else "ultralytic
+       keys: m32
+     1 | DEL: await asyncio.sleep(delay)
+       ADD: await asyncio.sleep(None)
+       keys: m328
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_json_error")
+       ADD: record_pipeline_error(None)
+       keys: m329
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if self._detector_type == "yolo26" else "XXultralyt
+       keys: m33
+     1 | DEL: f"Detector JSON/value error after {self._max_retries} attempts: " f"{sanitize_er
+       ADD: None,
+       keys: m330
+     1 | DEL: f"{sanitize_error(e)}",
+       ADD: f"{sanitize_error(None)}",
+       keys: m336
+     1 | DEL: model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytic
+       ADD: model_provider="huggingface" if self._detector_type == "yolo26" else "ULTRALYTIC
+       keys: m34
+     1 | DEL: if attempt < self._max_retries - 1:
+       ADD: if attempt <= self._max_retries - 1:
+       keys: m347
+     1 | DEL: if attempt < self._max_retries - 1:
+       ADD: if attempt < self._max_retries + 1:
+       keys: m348
+     1 | DEL: if attempt < self._max_retries - 1:
+       ADD: if attempt < self._max_retries - 2:
+       keys: m349
+     1 | DEL: device="cuda:0",  # Default GPU device
+       ADD: device="XXcuda:0XX",  # Default GPU device
+       keys: m35
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_unexpected_error")
+       ADD: record_pipeline_error(None)
+       keys: m350
+     1 | DEL: "Unexpected detector error after all attempts",
+       ADD: None,
+       keys: m351
+     1 | DEL: "Unexpected detector error after all attempts",
+       ADD: "XXUnexpected detector error after all attemptsXX",
+       keys: m357
+     1 | DEL: "Unexpected detector error after all attempts",
+       ADD: "unexpected detector error after all attempts",
+       keys: m358
+     1 | DEL: "Unexpected detector error after all attempts",
+       ADD: "UNEXPECTED DETECTOR ERROR AFTER ALL ATTEMPTS",
+       keys: m359
+     1 | DEL: device="cuda:0",  # Default GPU device
+       ADD: device="CUDA:0",  # Default GPU device
+       keys: m36
+     1 | DEL: "error": sanitize_error(e),
+       ADD: "XXerrorXX": sanitize_error(e),
+       keys: m368
+     1 | DEL: "error": sanitize_error(e),
+       ADD: "ERROR": sanitize_error(e),
+       keys: m369
+     1 | DEL: batch_size=1,  # Single image per request
+       ADD: batch_size=2,  # Single image per request
+       keys: m37
+     1 | DEL: "error": sanitize_error(e),
+       ADD: "error": sanitize_error(None),
+       keys: m370
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute(None, True)
+       keys: m373
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("error", None)
+       keys: m374
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("XXerrorXX", True)
+       keys: m377
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("ERROR", True)
+       keys: m378
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("error", False)
+       keys: m379
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute(None, error_msg)
+       keys: m380
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute("error.message", None)
+       keys: m381
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute("XXerror.messageXX", error_msg)
+       keys: m384
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute("ERROR.MESSAGE", error_msg)
+       keys: m385
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute(None, attempt)
+       keys: m39
+     1 | DEL: explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+       ADD: explicit_timeout = None
+       keys: m4
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute("retry_attempt", None)
+       keys: m40
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute("XXretry_attemptXX", attempt)
+       keys: m43
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute("RETRY_ATTEMPT", attempt)
+       keys: m44
+     1 | DEL: async with asyncio.timeout(explicit_timeout):
+       ADD: async with asyncio.timeout(None):
+       keys: m46
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = None
+       keys: m47
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"XXfileXX": (image_name, image_data, "image/jpeg")}
+       keys: m48
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"FILE": (image_name, image_data, "image/jpeg")}
+       keys: m49
+     1 | DEL: explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+       ADD: explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+       keys: m5
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"file": (image_name, image_data, "XXimage/jpegXX")}
+       keys: m50
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"file": (image_name, image_data, "IMAGE/JPEG")}
+       keys: m51
+     1 | DEL: f"{self._detector_url}/detect",
+       ADD: None,
+       keys: m53
+     1 | DEL: files=files,
+       ADD: files=None,
+       keys: m54
+     1 | DEL: files=files,
+       ADD: 
+       keys: m57
+     1 | DEL: f"{self._detector_type}_detection_request",
+       ADD: None,
+       keys: m6
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = None
+       keys: m60
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = (time.monotonic() - start_time) / 1000
+       keys: m61
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = (time.monotonic() + start_time) * 1000
+       keys: m62
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = (time.monotonic() - start_time) * 1001
+       keys: m63
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = None
+       keys: m64
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get(None, [])
+       keys: m65
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("detections", None)
+       keys: m66
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("detections", )
+       keys: m68
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("XXdetectionsXX", [])
+       keys: m69
+     1 | DEL: camera_id=camera_id,
+       ADD: camera_id=None,
+       keys: m7
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("DETECTIONS", [])
+       keys: m70
+     1 | DEL: detections=detections,
+       ADD: detections=None,
+       keys: m72
+     1 | DEL: inference_time_ms=inference_time_ms,
+       ADD: inference_time_ms=None,
+       keys: m73
+     1 | DEL: detections=detections,
+       ADD: 
+       keys: m75
+     1 | DEL: inference_time_ms=inference_time_ms, )
+       ADD: )
+       keys: m76
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=None, status="success"
+       keys: m78
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=inference_time_ms, status=None
+       keys: m79
+     1 | DEL: image_path=image_path,
+       ADD: image_path=None,
+       keys: m8
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, status="success"
+       keys: m81
+     1 | DEL: span, duration_ms=inference_time_ms, status="success" )
+       ADD: span, duration_ms=inference_time_ms, )
+       keys: m82
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=inference_time_ms, status="XXsuccessXX"
+       keys: m83
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=inference_time_ms, status="SUCCESS"
+       keys: m84
+     1 | DEL: image_size_bytes=len(image_data),
+       ADD: image_size_bytes=None,
+       keys: m9
+     1 | DEL: "Detector connection error, retrying",
+       ADD: None,
+       keys: m97
+==================== xǁDetectorClientǁ_validate_image_for_detection count 28
+     1 | DEL: "Image too small for detection",
+       ADD: "image too small for detection",
+       keys: m10
+     1 | DEL: "Image too small for detection",
+       ADD: "IMAGE TOO SMALL FOR DETECTION",
+       keys: m11
+     1 | DEL: "camera_id": camera_id,
+       ADD: "XXcamera_idXX": camera_id,
+       keys: m12
+     1 | DEL: "camera_id": camera_id,
+       ADD: "CAMERA_ID": camera_id,
+       keys: m13
+     1 | DEL: "file_path": image_path,
+       ADD: "XXfile_pathXX": image_path,
+       keys: m14
+     1 | DEL: "file_path": image_path,
+       ADD: "FILE_PATH": image_path,
+       keys: m15
+     1 | DEL: "file_size": file_size,
+       ADD: "XXfile_sizeXX": file_size,
+       keys: m16
+     1 | DEL: "file_size": file_size,
+       ADD: "FILE_SIZE": file_size,
+       keys: m17
+     1 | DEL: "min_size": MIN_DETECTION_IMAGE_SIZE,
+       ADD: "XXmin_sizeXX": MIN_DETECTION_IMAGE_SIZE,
+       keys: m18
+     1 | DEL: "min_size": MIN_DETECTION_IMAGE_SIZE,
+       ADD: "MIN_SIZE": MIN_DETECTION_IMAGE_SIZE,
+       keys: m19
+     1 | DEL: "Image validation failed (corrupt/truncated)",
+       ADD: None,
+       keys: m23
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra=None,
+       keys: m24
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)}, )
+       ADD: )
+       keys: m26
+     1 | DEL: "Image validation failed (corrupt/truncated)",
+       ADD: "XXImage validation failed (corrupt/truncated)XX",
+       keys: m27
+     1 | DEL: "Image validation failed (corrupt/truncated)",
+       ADD: "image validation failed (corrupt/truncated)",
+       keys: m28
+     1 | DEL: "Image validation failed (corrupt/truncated)",
+       ADD: "IMAGE VALIDATION FAILED (CORRUPT/TRUNCATED)",
+       keys: m29
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"XXcamera_idXX": camera_id, "file_path": image_path, "error": str(e)},
+       keys: m30
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"CAMERA_ID": camera_id, "file_path": image_path, "error": str(e)},
+       keys: m31
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"camera_id": camera_id, "XXfile_pathXX": image_path, "error": str(e)},
+       keys: m32
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"camera_id": camera_id, "FILE_PATH": image_path, "error": str(e)},
+       keys: m33
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"camera_id": camera_id, "file_path": image_path, "XXerrorXX": str(e)},
+       keys: m34
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"camera_id": camera_id, "file_path": image_path, "ERROR": str(e)},
+       keys: m35
+     1 | DEL: extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+       ADD: extra={"camera_id": camera_id, "file_path": image_path, "error": str(None)},
+       keys: m36
+     1 | DEL: if file_size < MIN_DETECTION_IMAGE_SIZE:
+       ADD: if file_size <= MIN_DETECTION_IMAGE_SIZE:
+       keys: m4
+     1 | DEL: "Image too small for detection",
+       ADD: None,
+       keys: m5
+     1 | DEL: extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size,
+       ADD: extra=None,
+       keys: m6
+     1 | DEL: extra={ "camera_id": camera_id, "file_path": image_path, "file_size": file_size,
+       ADD: )
+       keys: m8
+     1 | DEL: "Image too small for detection",
+       ADD: "XXImage too small for detectionXX",
+       keys: m9
+==================== xǁDetectorClientǁ_validate_image_for_detection_async count 1
+     1 | DEL: return await asyncio.to_thread(self._validate_image_for_detection, image_path, c
+       ADD: return await asyncio.to_thread(self._validate_image_for_detection, image_path, N
+       keys: m3
+==================== xǁDetectorClientǁclose count 8
+     1 | DEL: "DetectorClient HTTP connections closed",
+       ADD: None,
+       keys: m1
+     1 | DEL: extra={"detector_type": self._detector_type},
+       ADD: extra=None,
+       keys: m2
+     1 | DEL: extra={"detector_type": self._detector_type}, )
+       ADD: )
+       keys: m4
+     1 | DEL: "DetectorClient HTTP connections closed",
+       ADD: "XXDetectorClient HTTP connections closedXX",
+       keys: m5
+     1 | DEL: "DetectorClient HTTP connections closed",
+       ADD: "detectorclient http connections closed",
+       keys: m6
+     1 | DEL: "DetectorClient HTTP connections closed",
+       ADD: "DETECTORCLIENT HTTP CONNECTIONS CLOSED",
+       keys: m7
+     1 | DEL: extra={"detector_type": self._detector_type},
+       ADD: extra={"XXdetector_typeXX": self._detector_type},
+       keys: m8
+     1 | DEL: extra={"detector_type": self._detector_type},
+       ADD: extra={"DETECTOR_TYPE": self._detector_type},
+       keys: m9
+==================== xǁDetectorClientǁdetect_objects count 223
+     4 | DEL: "camera_id": camera_id,
+       ADD: "XXcamera_idXX": camera_id,
+       keys: m55,m90,m457,m476
+     4 | DEL: "camera_id": camera_id,
+       ADD: "CAMERA_ID": camera_id,
+       keys: m56,m91,m458,m477
+     3 | DEL: continue
+       ADD: break
+       keys: m244,m261,m422
+     3 | DEL: "file_path": image_path,
+       ADD: "XXfile_pathXX": image_path,
+       keys: m57,m459,m478
+     3 | DEL: "file_path": image_path,
+       ADD: "FILE_PATH": image_path,
+       keys: m58,m460,m479
+     2 | DEL: camera_id=camera_id,
+       ADD: camera_id=None,
+       keys: m115,m442
+     2 | DEL: "detector.type": self._detector_type,
+       ADD: "XXdetector.typeXX": self._detector_type,
+       keys: m13,m137
+     2 | DEL: "detector.type": self._detector_type,
+       ADD: "DETECTOR.TYPE": self._detector_type,
+       keys: m14,m138
+     2 | DEL: extra={"camera_id": camera_id, "file_path": image_path},
+       ADD: extra=None,
+       keys: m19,m41
+     2 | DEL: extra={"camera_id": camera_id, "file_path": image_path}, )
+       ADD: )
+       keys: m21,m43
+     2 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("class", None)
+       keys: m212,m396
+     2 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("class", )
+       keys: m214,m398
+     2 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("class", "XXunknownXX")
+       keys: m217,m401
+     2 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("class", "UNKNOWN")
+       keys: m218,m402
+     2 | DEL: extra={"camera_id": camera_id, "file_path": image_path},
+       ADD: extra={"XXcamera_idXX": camera_id, "file_path": image_path},
+       keys: m25,m44
+     2 | DEL: extra={"camera_id": camera_id, "file_path": image_path},
+       ADD: extra={"CAMERA_ID": camera_id, "file_path": image_path},
+       keys: m26,m45
+     2 | DEL: extra={"camera_id": camera_id, "file_path": image_path},
+       ADD: extra={"camera_id": camera_id, "XXfile_pathXX": image_path},
+       keys: m27,m46
+     2 | DEL: extra={"camera_id": camera_id, "file_path": image_path},
+       ADD: extra={"camera_id": camera_id, "FILE_PATH": image_path},
+       keys: m28,m47
+     2 | DEL: "duration_ms": duration_ms,
+       ADD: "XXduration_msXX": duration_ms,
+       keys: m463,m480
+     2 | DEL: "duration_ms": duration_ms,
+       ADD: "DURATION_MS": duration_ms,
+       keys: m464,m481
+     1 | DEL: trace_id = get_trace_id()
+       ADD: trace_id = None
+       keys: m1
+     1 | DEL: "detector.url": self._detector_url,
+       ADD: "XXdetector.urlXX": self._detector_url,
+       keys: m109
+     1 | DEL: "detector.url": self._detector_url,
+       ADD: "DETECTOR.URL": self._detector_url,
+       keys: m110
+     1 | DEL: image_name=image_file.name,
+       ADD: image_name=None,
+       keys: m114
+     1 | DEL: image_path=image_path,
+       ADD: image_path=None,
+       keys: m116
+     1 | DEL: ai_duration = time.time() - ai_start_time
+       ADD: ai_duration = time.time() + ai_start_time
+       keys: m123
+     1 | DEL: observe_ai_request_duration(self._detector_type, ai_duration)
+       ADD: observe_ai_request_duration(None, ai_duration)
+       keys: m124
+     1 | DEL: "inference.duration_ms": int(ai_duration * 1000),
+       ADD: "inference.duration_ms": int(ai_duration / 1000),
+       keys: m144
+     1 | DEL: "inference.duration_ms": int(ai_duration * 1000),
+       ADD: "inference.duration_ms": int(ai_duration * 1001),
+       keys: m145
+     1 | DEL: "Malformed response from detector (missing 'detections')",
+       ADD: None,
+       keys: m149
+     1 | DEL: extra={"response": str(result)[:500]},
+       ADD: extra=None,
+       keys: m150
+     1 | DEL: extra={"response": str(result)[:500]}, )
+       ADD: )
+       keys: m152
+     1 | DEL: "Malformed response from detector (missing 'detections')",
+       ADD: "XXMalformed response from detector (missing 'detections')XX",
+       keys: m153
+     1 | DEL: "Malformed response from detector (missing 'detections')",
+       ADD: "malformed response from detector (missing 'detections')",
+       keys: m154
+     1 | DEL: "Malformed response from detector (missing 'detections')",
+       ADD: "MALFORMED RESPONSE FROM DETECTOR (MISSING 'DETECTIONS')",
+       keys: m155
+     1 | DEL: extra={"response": str(result)[:500]},
+       ADD: extra={"XXresponseXX": str(result)[:500]},
+       keys: m156
+     1 | DEL: extra={"response": str(result)[:500]},
+       ADD: extra={"RESPONSE": str(result)[:500]},
+       keys: m157
+     1 | DEL: extra={"response": str(result)[:500]},
+       ADD: extra={"response": str(None)[:500]},
+       keys: m158
+     1 | DEL: extra={"response": str(result)[:500]},
+       ADD: extra={"response": str(result)[:501]},
+       keys: m159
+     1 | DEL: record_pipeline_error("malformed_response")
+       ADD: record_pipeline_error(None)
+       keys: m160
+     1 | DEL: record_pipeline_error("malformed_response")
+       ADD: record_pipeline_error("XXmalformed_responseXX")
+       keys: m161
+     1 | DEL: record_pipeline_error("malformed_response")
+       ADD: record_pipeline_error("MALFORMED_RESPONSE")
+       keys: m162
+     1 | DEL: detected_at = datetime.now(UTC)
+       ADD: detected_at = datetime.now(None)
+       keys: m165
+     1 | DEL: if video_path is not None and video_metadata is not None:
+       ADD: if video_path is not None or video_metadata is not None:
+       keys: m174
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get(None, "video/mp4")
+       keys: m179
+     1 | DEL: "Image file not found",
+       ADD: None,
+       keys: m18
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get("file_type", None)
+       keys: m180
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get("file_type", )
+       keys: m182
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get("XXfile_typeXX", "video/mp4")
+       keys: m183
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get("FILE_TYPE", "video/mp4")
+       keys: m184
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get("file_type", "XXvideo/mp4XX")
+       keys: m185
+     1 | DEL: file_type = video_metadata.get("file_type", "video/mp4")
+       ADD: file_type = video_metadata.get("file_type", "VIDEO/MP4")
+       keys: m186
+     1 | DEL: is_video = False
+       ADD: is_video = None
+       keys: m198
+     1 | DEL: is_video = False
+       ADD: is_video = True
+       keys: m199
+     1 | DEL: confidence = detection_data.get("confidence", 0.0)
+       ADD: confidence = detection_data.get("confidence", None)
+       keys: m204
+     1 | DEL: confidence = detection_data.get("confidence", 0.0)
+       ADD: confidence = detection_data.get("confidence", )
+       keys: m206
+     1 | DEL: confidence = detection_data.get("confidence", 0.0)
+       ADD: confidence = detection_data.get("confidence", 1.0)
+       keys: m209
+     1 | DEL: "Image file not found",
+       ADD: "XXImage file not foundXX",
+       keys: m22
+     1 | DEL: object_class, self._confidence_threshold
+       ADD: object_class, None
+       keys: m221
+     1 | DEL: object_class, self._confidence_threshold )
+       ADD: object_class, )
+       keys: m223
+     1 | DEL: bbox = detection_data.get("bbox", {})
+       ADD: bbox = detection_data.get("bbox", None)
+       keys: m227
+     1 | DEL: bbox = detection_data.get("bbox", {})
+       ADD: bbox = detection_data.get("bbox", )
+       keys: m229
+     1 | DEL: "Image file not found",
+       ADD: "image file not found",
+       keys: m23
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if all(k in bbox for k in ("x", "y", "width", "height")):
+       keys: m232
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(None):
+       keys: m233
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k not in bbox for k in ("x", "y", "width", "height")):
+       keys: m234
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("XXxXX", "y", "width", "height")):
+       keys: m235
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("X", "y", "width", "height")):
+       keys: m236
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("x", "XXyXX", "width", "height")):
+       keys: m237
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("x", "Y", "width", "height")):
+       keys: m238
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("x", "y", "XXwidthXX", "height")):
+       keys: m239
+     1 | DEL: "Image file not found",
+       ADD: "IMAGE FILE NOT FOUND",
+       keys: m24
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("x", "y", "WIDTH", "height")):
+       keys: m240
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("x", "y", "width", "XXheightXX")):
+       keys: m241
+     1 | DEL: if not all(k in bbox for k in ("x", "y", "width", "height")):
+       ADD: if not all(k in bbox for k in ("x", "y", "width", "HEIGHT")):
+       keys: m242
+     1 | DEL: logger.warning(f"Invalid bbox dict format: {bbox}")
+       ADD: logger.warning(None)
+       keys: m243
+     1 | DEL: logger.warning(f"Invalid bbox format: {bbox}")
+       ADD: logger.warning(None)
+       keys: m260
+     1 | DEL: if response_image_width is not None and response_image_height is not None:
+       ADD: if response_image_width is not None or response_image_height is not None:
+       keys: m262
+     1 | DEL: if response_image_width is not None and response_image_height is not None:
+       ADD: if response_image_width is None and response_image_height is not None:
+       keys: m263
+     1 | DEL: if response_image_width is not None and response_image_height is not None:
+       ADD: if response_image_width is not None and response_image_height is None:
+       keys: m264
+     1 | DEL: or bbox_x + bbox_width <= 0 or bbox_y + bbox_height <= 0
+       ADD: or bbox_x + bbox_width <= 0 and bbox_y + bbox_height <= 0
+       keys: m265
+     1 | DEL: or bbox_y >= response_image_height or bbox_x + bbox_width <= 0
+       ADD: or bbox_y >= response_image_height and bbox_x + bbox_width <= 0
+       keys: m266
+     1 | DEL: bbox_x >= response_image_width or bbox_y >= response_image_height
+       ADD: bbox_x >= response_image_width and bbox_y >= response_image_height
+       keys: m267
+     1 | DEL: bbox_x >= response_image_width
+       ADD: bbox_x > response_image_width
+       keys: m268
+     1 | DEL: or bbox_y >= response_image_height
+       ADD: or bbox_y > response_image_height
+       keys: m269
+     1 | DEL: or bbox_x + bbox_width <= 0
+       ADD: or bbox_x + bbox_width < 0
+       keys: m271
+     1 | DEL: or bbox_x + bbox_width <= 0
+       ADD: or bbox_x + bbox_width <= 1
+       keys: m272
+     1 | DEL: or bbox_y + bbox_height <= 0
+       ADD: or bbox_y + bbox_height < 0
+       keys: m274
+     1 | DEL: or bbox_y + bbox_height <= 0
+       ADD: or bbox_y + bbox_height <= 1
+       keys: m275
+     1 | DEL: x1_clamped = max(0, min(bbox_x, response_image_width))
+       ADD: x1_clamped = max(1, min(bbox_x, response_image_width))
+       keys: m282
+     1 | DEL: record_pipeline_error("file_not_found")
+       ADD: record_pipeline_error(None)
+       keys: m29
+     1 | DEL: y1_clamped = max(0, min(bbox_y, response_image_height))
+       ADD: y1_clamped = max(1, min(bbox_y, response_image_height))
+       keys: m292
+     1 | DEL: record_pipeline_error("file_not_found")
+       ADD: record_pipeline_error("XXfile_not_foundXX")
+       keys: m30
+     1 | DEL: x2_clamped = max(0, min(bbox_x + bbox_width, response_image_width))
+       ADD: x2_clamped = max(1, min(bbox_x + bbox_width, response_image_width))
+       keys: m302
+     1 | DEL: record_pipeline_error("file_not_found")
+       ADD: record_pipeline_error("FILE_NOT_FOUND")
+       keys: m31
+     1 | DEL: y2_clamped = max(0, min(bbox_y + bbox_height, response_image_height))
+       ADD: y2_clamped = max(1, min(bbox_y + bbox_height, response_image_height))
+       keys: m313
+     1 | DEL: bbox_x = int(x1_clamped)
+       ADD: bbox_x = None
+       keys: m319
+     1 | DEL: bbox_y = int(y1_clamped)
+       ADD: bbox_y = None
+       keys: m321
+     1 | DEL: bbox_width = int(x2_clamped - x1_clamped)
+       ADD: bbox_width = int(x2_clamped + x1_clamped)
+       keys: m325
+     1 | DEL: bbox_height = int(y2_clamped - y1_clamped)
+       ADD: bbox_height = int(y2_clamped + y1_clamped)
+       keys: m328
+     1 | DEL: if bbox_width < 1 or bbox_height < 1:
+       ADD: if bbox_width < 1 and bbox_height < 1:
+       keys: m329
+     1 | DEL: if bbox_width < 1 or bbox_height < 1:
+       ADD: if bbox_width <= 1 or bbox_height < 1:
+       keys: m330
+     1 | DEL: if bbox_width < 1 or bbox_height < 1:
+       ADD: if bbox_width < 2 or bbox_height < 1:
+       keys: m331
+     1 | DEL: if bbox_width < 1 or bbox_height < 1:
+       ADD: if bbox_width < 1 or bbox_height <= 1:
+       keys: m332
+     1 | DEL: if bbox_width < 1 or bbox_height < 1:
+       ADD: if bbox_width < 1 or bbox_height < 2:
+       keys: m333
+     1 | DEL: if original_bbox != (bbox_x, bbox_y, bbox_width, bbox_height):
+       ADD: if original_bbox == (bbox_x, bbox_y, bbox_width, bbox_height):
+       keys: m334
+     1 | DEL: f"Clamped invalid bbox coordinates: " f"original=({original_bbox[0]}, {original_
+       ADD: None
+       keys: m335
+     1 | DEL: f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {origina
+       ADD: f"original=({original_bbox[1]}, {original_bbox[1]}, {original_bbox[2]}, {origina
+       keys: m336
+     1 | DEL: f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {origina
+       ADD: f"original=({original_bbox[0]}, {original_bbox[2]}, {original_bbox[2]}, {origina
+       keys: m337
+     1 | DEL: f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {origina
+       ADD: f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[3]}, {origina
+       keys: m338
+     1 | DEL: if not await self._validate_image_for_detection_async(image_path, camera_id):
+       ADD: if not await self._validate_image_for_detection_async(image_path, None):
+       keys: m34
+     1 | DEL: elif bbox_width <= 0 or bbox_height <= 0:
+       ADD: elif bbox_width <= 0 and bbox_height <= 0:
+       keys: m340
+     1 | DEL: elif bbox_width <= 0 or bbox_height <= 0:
+       ADD: elif bbox_width < 0 or bbox_height <= 0:
+       keys: m341
+     1 | DEL: elif bbox_width <= 0 or bbox_height <= 0:
+       ADD: elif bbox_width <= 1 or bbox_height <= 0:
+       keys: m342
+     1 | DEL: elif bbox_width <= 0 or bbox_height <= 0:
+       ADD: elif bbox_width <= 0 or bbox_height < 0:
+       keys: m343
+     1 | DEL: elif bbox_width <= 0 or bbox_height <= 0:
+       ADD: elif bbox_width <= 0 or bbox_height <= 1:
+       keys: m344
+     1 | DEL: record_pipeline_error("invalid_image")
+       ADD: record_pipeline_error(None)
+       keys: m37
+     1 | DEL: if is_video and video_metadata:
+       ADD: if is_video or video_metadata:
+       keys: m371
+     1 | DEL: record_pipeline_error("invalid_image")
+       ADD: record_pipeline_error("XXinvalid_imageXX")
+       keys: m38
+     1 | DEL: record_pipeline_error("invalid_image")
+       ADD: record_pipeline_error("INVALID_IMAGE")
+       keys: m39
+     1 | DEL: session.add(detection)
+       ADD: session.add(None)
+       keys: m392
+     1 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = None
+       keys: m394
+     1 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get(None, "unknown")
+       keys: m395
+     1 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("unknown")
+       keys: m397
+     1 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("XXclassXX", "unknown")
+       keys: m399
+     1 | DEL: f"Sending detection request for {image_path}",
+       ADD: None,
+       keys: m40
+     1 | DEL: object_class = detection_data.get("class", "unknown")
+       ADD: object_class = detection_data.get("CLASS", "unknown")
+       keys: m400
+     1 | DEL: record_detection_by_class(object_class)
+       ADD: record_detection_by_class(None)
+       keys: m403
+     1 | DEL: observe_detection_confidence(confidence)
+       ADD: observe_detection_confidence(None)
+       keys: m404
+     1 | DEL: f"Created detection: {detection.object_type} " f"(confidence: {confidence:.2f}, 
+       ADD: None
+       keys: m405
+     1 | DEL: "Error processing detection data",
+       ADD: None,
+       keys: m406
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra=None,
+       keys: m407
+     1 | DEL: exc_info=True,
+       ADD: exc_info=None,
+       keys: m408
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: 
+       keys: m410
+     1 | DEL: exc_info=True, )
+       ADD: )
+       keys: m411
+     1 | DEL: "Error processing detection data",
+       ADD: "XXError processing detection dataXX",
+       keys: m412
+     1 | DEL: "Error processing detection data",
+       ADD: "error processing detection data",
+       keys: m413
+     1 | DEL: "Error processing detection data",
+       ADD: "ERROR PROCESSING DETECTION DATA",
+       keys: m414
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra={"XXerrorXX": sanitize_error(e)},
+       keys: m415
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra={"ERROR": sanitize_error(e)},
+       keys: m416
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra={"error": sanitize_error(None)},
+       keys: m417
+     1 | DEL: exc_info=True,
+       ADD: exc_info=False,
+       keys: m418
+     1 | DEL: record_pipeline_error("detection_processing_error")
+       ADD: record_pipeline_error(None)
+       keys: m419
+     1 | DEL: record_pipeline_error("detection_processing_error")
+       ADD: record_pipeline_error("XXdetection_processing_errorXX")
+       keys: m420
+     1 | DEL: record_pipeline_error("detection_processing_error")
+       ADD: record_pipeline_error("DETECTION_PROCESSING_ERROR")
+       keys: m421
+     1 | DEL: f"Updated camera {camera_id} last_seen_at to {detected_at}",
+       ADD: None,
+       keys: m429
+     1 | DEL: extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+       ADD: extra=None,
+       keys: m430
+     1 | DEL: extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()}, )
+       ADD: )
+       keys: m432
+     1 | DEL: extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+       ADD: extra={"XXcamera_idXX": camera_id, "last_seen_at": detected_at.isoformat()},
+       keys: m433
+     1 | DEL: extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+       ADD: extra={"CAMERA_ID": camera_id, "last_seen_at": detected_at.isoformat()},
+       keys: m434
+     1 | DEL: extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+       ADD: extra={"camera_id": camera_id, "XXlast_seen_atXX": detected_at.isoformat()},
+       keys: m435
+     1 | DEL: extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+       ADD: extra={"camera_id": camera_id, "LAST_SEEN_AT": detected_at.isoformat()},
+       keys: m436
+     1 | DEL: if detection.object_type is not None
+       ADD: if detection.object_type is None
+       keys: m439
+     1 | DEL: baseline_timestamp = detections[0].detected_at
+       ADD: baseline_timestamp = None
+       keys: m440
+     1 | DEL: detection_class=object_type,
+       ADD: detection_class=None,
+       keys: m443
+     1 | DEL: timestamp=baseline_timestamp,
+       ADD: timestamp=None,
+       keys: m444
+     1 | DEL: session=session,
+       ADD: session=None,
+       keys: m445
+     1 | DEL: camera_id=camera_id,
+       ADD: 
+       keys: m446
+     1 | DEL: detection_class=object_type,
+       ADD: 
+       keys: m447
+     1 | DEL: timestamp=baseline_timestamp,
+       ADD: 
+       keys: m448
+     1 | DEL: session=session, )
+       ADD: )
+       keys: m449
+     1 | DEL: duration_ms = int((time.time() - start_time) * 1000)
+       ADD: duration_ms = None
+       keys: m450
+     1 | DEL: duration_ms = int((time.time() - start_time) * 1000)
+       ADD: duration_ms = int((time.time() - start_time) / 1000)
+       keys: m452
+     1 | DEL: duration_ms = int((time.time() - start_time) * 1000)
+       ADD: duration_ms = int((time.time() + start_time) * 1000)
+       keys: m453
+     1 | DEL: duration_ms = int((time.time() - start_time) * 1000)
+       ADD: duration_ms = int((time.time() - start_time) * 1001)
+       keys: m454
+     1 | DEL: log_extra: dict[str, Any] = { "camera_id": camera_id, "file_path": image_path, "
+       ADD: log_extra: dict[str, Any] = None
+       keys: m456
+     1 | DEL: "detection_count": len(detections),
+       ADD: "XXdetection_countXX": len(detections),
+       keys: m461
+     1 | DEL: "detection_count": len(detections),
+       ADD: "DETECTION_COUNT": len(detections),
+       keys: m462
+     1 | DEL: logger.info("Stored detections", extra=log_extra)
+       ADD: logger.info(None, extra=log_extra)
+       keys: m465
+     1 | DEL: logger.info("Stored detections", extra=log_extra)
+       ADD: logger.info("Stored detections", extra=None)
+       keys: m466
+     1 | DEL: logger.info("Stored detections", extra=log_extra)
+       ADD: logger.info("Stored detections", )
+       keys: m468
+     1 | DEL: logger.info("Stored detections", extra=log_extra)
+       ADD: logger.info("XXStored detectionsXX", extra=log_extra)
+       keys: m469
+     1 | DEL: logger.info("Stored detections", extra=log_extra)
+       ADD: logger.info("stored detections", extra=log_extra)
+       keys: m470
+     1 | DEL: logger.info("Stored detections", extra=log_extra)
+       ADD: logger.info("STORED DETECTIONS", extra=log_extra)
+       keys: m471
+     1 | DEL: f"No detections above threshold for {image_path}",
+       ADD: None,
+       keys: m472
+     1 | DEL: extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms": duration
+       ADD: extra=None,
+       keys: m473
+     1 | DEL: extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms": duration
+       ADD: )
+       keys: m475
+     1 | DEL: f"Circuit breaker open for {self._detector_type}, rejecting detection request",
+       ADD: None,
+       keys: m49
+     1 | DEL: extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path
+       ADD: extra=None,
+       keys: m50
+     1 | DEL: extra={ "detector_type": self._detector_type, "camera_id": camera_id, "file_path
+       ADD: )
+       keys: m52
+     1 | DEL: "detector_type": self._detector_type,
+       ADD: "XXdetector_typeXX": self._detector_type,
+       keys: m53
+     1 | DEL: "detector_type": self._detector_type,
+       ADD: "DETECTOR_TYPE": self._detector_type,
+       keys: m54
+     1 | DEL: "circuit_state": self._circuit_breaker.state.value,
+       ADD: "XXcircuit_stateXX": self._circuit_breaker.state.value,
+       keys: m59
+     1 | DEL: "circuit_state": self._circuit_breaker.state.value,
+       ADD: "CIRCUIT_STATE": self._circuit_breaker.state.value,
+       keys: m60
+     1 | DEL: record_pipeline_error("circuit_breaker_open")
+       ADD: record_pipeline_error(None)
+       keys: m61
+     1 | DEL: record_pipeline_error("circuit_breaker_open")
+       ADD: record_pipeline_error("XXcircuit_breaker_openXX")
+       keys: m62
+     1 | DEL: record_pipeline_error("circuit_breaker_open")
+       ADD: record_pipeline_error("CIRCUIT_BREAKER_OPEN")
+       keys: m63
+     1 | DEL: f"{self._detector_type} service temporarily unavailable (circuit breaker open)"
+       ADD: None
+       keys: m64
+     1 | DEL: f"Buffered frame for camera {camera_id}",
+       ADD: None,
+       keys: m86
+     1 | DEL: extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), "buffer_cou
+       ADD: extra=None,
+       keys: m87
+     1 | DEL: extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), "buffer_cou
+       ADD: )
+       keys: m89
+     1 | DEL: "frame_size_bytes": len(image_data),
+       ADD: "XXframe_size_bytesXX": len(image_data),
+       keys: m92
+     1 | DEL: "frame_size_bytes": len(image_data),
+       ADD: "FRAME_SIZE_BYTES": len(image_data),
+       keys: m93
+     1 | DEL: "buffer_count": self._frame_buffer.frame_count(camera_id),
+       ADD: "XXbuffer_countXX": self._frame_buffer.frame_count(camera_id),
+       keys: m94
+     1 | DEL: "buffer_count": self._frame_buffer.frame_count(camera_id),
+       ADD: "BUFFER_COUNT": self._frame_buffer.frame_count(camera_id),
+       keys: m95
+     1 | DEL: "buffer_count": self._frame_buffer.frame_count(camera_id),
+       ADD: "buffer_count": self._frame_buffer.frame_count(None),
+       keys: m96
+==================== xǁDetectorClientǁget_warmth_state count 8
+     1 | DEL: if self._last_inference_time is None:
+       ADD: if self._last_inference_time is not None:
+       keys: m1
+     1 | DEL: "state": "cold" if is_cold else "warm",
+       ADD: "state": "XXcoldXX" if is_cold else "warm",
+       keys: m10
+     1 | DEL: "state": "cold" if is_cold else "warm",
+       ADD: "state": "COLD" if is_cold else "warm",
+       keys: m11
+     1 | DEL: seconds_ago = time.monotonic() - self._last_inference_time
+       ADD: seconds_ago = time.monotonic() + self._last_inference_time
+       keys: m3
+     1 | DEL: is_cold = seconds_ago > self._cold_start_threshold
+       ADD: is_cold = None
+       keys: m4
+     1 | DEL: is_cold = seconds_ago > self._cold_start_threshold
+       ADD: is_cold = seconds_ago >= self._cold_start_threshold
+       keys: m5
+     1 | DEL: "state": "cold" if is_cold else "warm",
+       ADD: "state": "cold" if (is_cold) and False else "warm",
+       keys: m8
+     1 | DEL: "state": "cold" if is_cold else "warm",
+       ADD: "state": "cold" if (is_cold) or True else "warm",
+       keys: m9
+==================== xǁDetectorClientǁhealth_check count 37
+     3 | DEL: exc_info=True, )
+       ADD: )
+       keys: m12,m26,m40
+     3 | DEL: exc_info=True,
+       ADD: exc_info=False,
+       keys: m19,m33,m47
+     3 | DEL: exc_info=True,
+       ADD: exc_info=None,
+       keys: m9,m23,m37
+     2 | DEL: extra={"error": str(e)},
+       ADD: 
+       keys: m11,m25
+     2 | DEL: extra={"error": str(e)},
+       ADD: extra={"XXerrorXX": str(e)},
+       keys: m16,m30
+     2 | DEL: extra={"error": str(e)},
+       ADD: extra={"ERROR": str(e)},
+       keys: m17,m31
+     2 | DEL: extra={"error": str(e)},
+       ADD: extra={"error": str(None)},
+       keys: m18,m32
+     2 | DEL: extra={"error": str(e)},
+       ADD: extra=None,
+       keys: m8,m22
+     1 | DEL: "Detector health check failed",
+       ADD: "XXDetector health check failedXX",
+       keys: m13
+     1 | DEL: "Detector health check failed",
+       ADD: "detector health check failed",
+       keys: m14
+     1 | DEL: "Detector health check failed",
+       ADD: "DETECTOR HEALTH CHECK FAILED",
+       keys: m15
+     1 | DEL: f"{self._detector_url}/health",
+       ADD: None,
+       keys: m2
+     1 | DEL: "Detector health check returned error status",
+       ADD: None,
+       keys: m21
+     1 | DEL: "Detector health check returned error status",
+       ADD: "XXDetector health check returned error statusXX",
+       keys: m27
+     1 | DEL: "Detector health check returned error status",
+       ADD: "detector health check returned error status",
+       keys: m28
+     1 | DEL: "Detector health check returned error status",
+       ADD: "DETECTOR HEALTH CHECK RETURNED ERROR STATUS",
+       keys: m29
+     1 | DEL: "Unexpected error during detector health check",
+       ADD: None,
+       keys: m35
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra=None,
+       keys: m36
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: 
+       keys: m39
+     1 | DEL: "Unexpected error during detector health check",
+       ADD: "XXUnexpected error during detector health checkXX",
+       keys: m41
+     1 | DEL: "Unexpected error during detector health check",
+       ADD: "unexpected error during detector health check",
+       keys: m42
+     1 | DEL: "Unexpected error during detector health check",
+       ADD: "UNEXPECTED ERROR DURING DETECTOR HEALTH CHECK",
+       keys: m43
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra={"XXerrorXX": sanitize_error(e)},
+       keys: m44
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra={"ERROR": sanitize_error(e)},
+       keys: m45
+     1 | DEL: extra={"error": sanitize_error(e)},
+       ADD: extra={"error": sanitize_error(None)},
+       keys: m46
+     1 | DEL: "Detector health check failed",
+       ADD: None,
+       keys: m7
+==================== xǁDetectorClientǁis_cold count 1
+     1 | DEL: return seconds_since_last > self._cold_start_threshold
+       ADD: return seconds_since_last >= self._cold_start_threshold
+       keys: m5
+==================== xǁDetectorClientǁmodel_readiness_probe count 24
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (33, 32), color=(0, 0, 0))
+       keys: m10
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (32, 33), color=(0, 0, 0))
+       keys: m11
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (32, 32), color=(1, 0, 0))
+       keys: m12
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (32, 32), color=(0, 1, 0))
+       keys: m13
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (32, 32), color=(0, 0, 1))
+       keys: m14
+     1 | DEL: test_image.save(buffer, format="JPEG")
+       ADD: test_image.save(buffer, format="jpeg")
+       keys: m21
+     1 | DEL: image_data = buffer.getvalue()
+       ADD: image_data = None
+       keys: m22
+     1 | DEL: image_data=image_data,
+       ADD: image_data=None,
+       keys: m23
+     1 | DEL: image_name="warmup_test.jpg",
+       ADD: image_name=None,
+       keys: m24
+     1 | DEL: camera_id="warmup",
+       ADD: camera_id=None,
+       keys: m25
+     1 | DEL: image_path="/dev/null",  # placeholder path for warmup probe
+       ADD: image_path=None,  # placeholder path for warmup probe
+       keys: m26
+     1 | DEL: image_data=image_data,
+       ADD: 
+       keys: m27
+     1 | DEL: image_name="warmup_test.jpg",
+       ADD: 
+       keys: m28
+     1 | DEL: camera_id="warmup",
+       ADD: 
+       keys: m29
+     1 | DEL: image_path="/dev/null",  # placeholder path for warmup probe )
+       ADD: )
+       keys: m30
+     1 | DEL: image_name="warmup_test.jpg",
+       ADD: image_name="XXwarmup_test.jpgXX",
+       keys: m31
+     1 | DEL: image_name="warmup_test.jpg",
+       ADD: image_name="WARMUP_TEST.JPG",
+       keys: m32
+     1 | DEL: camera_id="warmup",
+       ADD: camera_id="XXwarmupXX",
+       keys: m33
+     1 | DEL: camera_id="warmup",
+       ADD: camera_id="WARMUP",
+       keys: m34
+     1 | DEL: image_path="/dev/null",  # placeholder path for warmup probe
+       ADD: image_path="XX/dev/nullXX",  # placeholder path for warmup probe
+       keys: m35
+     1 | DEL: image_path="/dev/null",  # placeholder path for warmup probe
+       ADD: image_path="/DEV/NULL",  # placeholder path for warmup probe
+       keys: m36
+     1 | DEL: logger.warning(f"YOLO26 readiness probe failed (unavailable): {e}")
+       ADD: logger.warning(None)
+       keys: m38
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (32, 32), color=None)
+       keys: m4
+     1 | DEL: test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
+       ADD: test_image = Image.new("RGB", (32, 32), )
+       keys: m7
+==================== xǁDetectorClientǁsegment_image count 89
+     1 | DEL: last_exception: Exception | None = None
+       ADD: last_exception: Exception | None = ""
+       keys: m1
+     1 | DEL: error_msg = f"Segmentation failed after {self._max_retries} attempts"
+       ADD: error_msg = None
+       keys: m101
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute(None, True)
+       keys: m102
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("error", None)
+       keys: m103
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("XXerrorXX", True)
+       keys: m106
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("ERROR", True)
+       keys: m107
+     1 | DEL: span.set_attribute("error", True)
+       ADD: span.set_attribute("error", False)
+       keys: m108
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute(None, error_msg)
+       keys: m109
+     1 | DEL: model_name=self._detector_type,
+       ADD: model_name=None,
+       keys: m11
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute("error.message", None)
+       keys: m110
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute("XXerror.messageXX", error_msg)
+       keys: m113
+     1 | DEL: span.set_attribute("error.message", error_msg)
+       ADD: span.set_attribute("ERROR.MESSAGE", error_msg)
+       keys: m114
+     1 | DEL: error_msg, original_error=last_exception
+       ADD: None, original_error=last_exception
+       keys: m115
+     1 | DEL: error_msg, original_error=last_exception
+       ADD: error_msg, original_error=None
+       keys: m116
+     1 | DEL: error_msg, original_error=last_exception
+       ADD: original_error=last_exception
+       keys: m117
+     1 | DEL: error_msg, original_error=last_exception ) from last_exception
+       ADD: error_msg, ) from last_exception
+       keys: m118
+     1 | DEL: model_version=self._model_version,
+       ADD: model_version=None,
+       keys: m12
+     1 | DEL: model_provider="huggingface",
+       ADD: model_provider=None,
+       keys: m13
+     1 | DEL: device="cuda:0",
+       ADD: device=None,
+       keys: m14
+     1 | DEL: batch_size=1,
+       ADD: batch_size=None,
+       keys: m15
+     1 | DEL: model_name=self._detector_type,
+       ADD: 
+       keys: m17
+     1 | DEL: model_version=self._model_version,
+       ADD: 
+       keys: m18
+     1 | DEL: model_provider="huggingface",
+       ADD: 
+       keys: m19
+     1 | DEL: device="cuda:0",
+       ADD: 
+       keys: m20
+     1 | DEL: batch_size=1, )
+       ADD: )
+       keys: m21
+     1 | DEL: model_provider="huggingface",
+       ADD: model_provider="XXhuggingfaceXX",
+       keys: m22
+     1 | DEL: model_provider="huggingface",
+       ADD: model_provider="HUGGINGFACE",
+       keys: m23
+     1 | DEL: device="cuda:0",
+       ADD: device="XXcuda:0XX",
+       keys: m24
+     1 | DEL: device="cuda:0",
+       ADD: device="CUDA:0",
+       keys: m25
+     1 | DEL: batch_size=1,
+       ADD: batch_size=2,
+       keys: m26
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute(None, attempt)
+       keys: m28
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute("retry_attempt", None)
+       keys: m29
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute("XXretry_attemptXX", attempt)
+       keys: m32
+     1 | DEL: span.set_attribute("retry_attempt", attempt)
+       ADD: span.set_attribute("RETRY_ATTEMPT", attempt)
+       keys: m33
+     1 | DEL: async with asyncio.timeout(explicit_timeout):
+       ADD: async with asyncio.timeout(None):
+       keys: m35
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = None
+       keys: m36
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"XXfileXX": (image_name, image_data, "image/jpeg")}
+       keys: m37
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"FILE": (image_name, image_data, "image/jpeg")}
+       keys: m38
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"file": (image_name, image_data, "XXimage/jpegXX")}
+       keys: m39
+     1 | DEL: explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+       ADD: explicit_timeout = None
+       keys: m4
+     1 | DEL: files = {"file": (image_name, image_data, "image/jpeg")}
+       ADD: files = {"file": (image_name, image_data, "IMAGE/JPEG")}
+       keys: m40
+     1 | DEL: files=files,
+       ADD: files=None,
+       keys: m43
+     1 | DEL: headers=self._get_auth_headers(),
+       ADD: headers=None,
+       keys: m44
+     1 | DEL: files=files,
+       ADD: 
+       keys: m46
+     1 | DEL: headers=self._get_auth_headers(), )
+       ADD: )
+       keys: m47
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = None
+       keys: m49
+     1 | DEL: explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+       ADD: explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+       keys: m5
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = (time.monotonic() - start_time) / 1000
+       keys: m50
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = (time.monotonic() + start_time) * 1000
+       keys: m51
+     1 | DEL: inference_time_ms = (time.monotonic() - start_time) * 1000
+       ADD: inference_time_ms = (time.monotonic() - start_time) * 1001
+       keys: m52
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = None
+       keys: m53
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get(None, [])
+       keys: m54
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("detections", None)
+       keys: m55
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("detections", )
+       keys: m57
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("XXdetectionsXX", [])
+       keys: m58
+     1 | DEL: detections = result.get("detections", [])
+       ADD: detections = result.get("DETECTIONS", [])
+       keys: m59
+     1 | DEL: f"{self._detector_type}_segmentation_request",
+       ADD: None,
+       keys: m6
+     1 | DEL: detections=detections,
+       ADD: detections=None,
+       keys: m61
+     1 | DEL: inference_time_ms=inference_time_ms,
+       ADD: inference_time_ms=None,
+       keys: m62
+     1 | DEL: detections=detections,
+       ADD: 
+       keys: m64
+     1 | DEL: inference_time_ms=inference_time_ms, )
+       ADD: )
+       keys: m65
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=None, status="success"
+       keys: m67
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=inference_time_ms, status=None
+       keys: m68
+     1 | DEL: image_size_bytes=len(image_data),
+       ADD: image_size_bytes=None,
+       keys: m7
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, status="success"
+       keys: m70
+     1 | DEL: span, duration_ms=inference_time_ms, status="success" )
+       ADD: span, duration_ms=inference_time_ms, )
+       keys: m71
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=inference_time_ms, status="XXsuccessXX"
+       keys: m72
+     1 | DEL: span, duration_ms=inference_time_ms, status="success"
+       ADD: span, duration_ms=inference_time_ms, status="SUCCESS"
+       keys: m73
+     1 | DEL: last_exception = e
+       ADD: last_exception = None
+       keys: m74
+     1 | DEL: if attempt < self._max_retries - 1:
+       ADD: if attempt <= self._max_retries - 1:
+       keys: m75
+     1 | DEL: if attempt < self._max_retries - 1:
+       ADD: if attempt < self._max_retries + 1:
+       keys: m76
+     1 | DEL: if attempt < self._max_retries - 1:
+       ADD: if attempt < self._max_retries - 2:
+       keys: m77
+     1 | DEL: delay = min(2**attempt, 30)
+       ADD: delay = None
+       keys: m78
+     1 | DEL: delay = min(2**attempt, 30)
+       ADD: delay = min(2 * attempt, 30)
+       keys: m83
+     1 | DEL: delay = min(2**attempt, 30)
+       ADD: delay = min(3**attempt, 30)
+       keys: m84
+     1 | DEL: delay = min(2**attempt, 30)
+       ADD: delay = min(2**attempt, 31)
+       keys: m85
+     1 | DEL: f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), " f"r
+       ADD: None,
+       keys: m86
+     1 | DEL: f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "
+       ADD: f"Segmentation request failed (attempt {attempt - 1}/{self._max_retries}), "
+       keys: m87
+     1 | DEL: f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "
+       ADD: f"Segmentation request failed (attempt {attempt + 2}/{self._max_retries}), "
+       keys: m88
+     1 | DEL: f"retrying in {delay}s: {sanitize_error(e)}",
+       ADD: f"retrying in {delay}s: {sanitize_error(None)}",
+       keys: m89
+     1 | DEL: image_size_bytes=len(image_data), ) as span:
+       ADD: ) as span:
+       keys: m9
+     1 | DEL: await asyncio.sleep(delay)
+       ADD: await asyncio.sleep(None)
+       keys: m90
+     1 | DEL: record_pipeline_error(f"{self._detector_type}_segmentation_error")
+       ADD: record_pipeline_error(None)
+       keys: m91
+     1 | DEL: f"Segmentation failed after {self._max_retries} attempts",
+       ADD: None,
+       keys: m92
+     1 | DEL: exc_info=True,
+       ADD: exc_info=None,
+       keys: m93
+     1 | DEL: exc_info=True, )
+       ADD: )
+       keys: m95
+     1 | DEL: exc_info=True,
+       ADD: exc_info=False,
+       keys: m96
+     1 | DEL: if status_code >= 500:
+       ADD: if status_code > 500:
+       keys: m98
+     1 | DEL: if status_code >= 500:
+       ADD: if status_code >= 501:
+       keys: m99
+==================== xǁDetectorClientǁwarmup count 45
+     1 | DEL: set_model_warmth_state("yolo26", "warming")
+       ADD: set_model_warmth_state("YOLO26", "warming")
+       keys: m10
+     1 | DEL: set_model_warmth_state("yolo26", "warming")
+       ADD: set_model_warmth_state("yolo26", "XXwarmingXX")
+       keys: m11
+     1 | DEL: set_model_warmth_state("yolo26", "warming")
+       ADD: set_model_warmth_state("yolo26", "WARMING")
+       keys: m12
+     1 | DEL: logger.info("Starting YOLO26 model warmup...")
+       ADD: logger.info(None)
+       keys: m13
+     1 | DEL: logger.info("Starting YOLO26 model warmup...")
+       ADD: logger.info("XXStarting YOLO26 model warmup...XX")
+       keys: m14
+     1 | DEL: logger.info("Starting YOLO26 model warmup...")
+       ADD: logger.info("starting yolo26 model warmup...")
+       keys: m15
+     1 | DEL: logger.info("Starting YOLO26 model warmup...")
+       ADD: logger.info("STARTING YOLO26 MODEL WARMUP...")
+       keys: m16
+     1 | DEL: was_cold = self.is_cold()
+       ADD: was_cold = None
+       keys: m2
+     1 | DEL: duration = time.monotonic() - start_time
+       ADD: duration = time.monotonic() + start_time
+       keys: m20
+     1 | DEL: observe_model_warmup_duration("yolo26", duration)
+       ADD: observe_model_warmup_duration(None, duration)
+       keys: m21
+     1 | DEL: observe_model_warmup_duration("yolo26", duration)
+       ADD: observe_model_warmup_duration("XXyolo26XX", duration)
+       keys: m25
+     1 | DEL: observe_model_warmup_duration("yolo26", duration)
+       ADD: observe_model_warmup_duration("YOLO26", duration)
+       keys: m26
+     1 | DEL: record_model_cold_start("yolo26")
+       ADD: record_model_cold_start(None)
+       keys: m27
+     1 | DEL: record_model_cold_start("yolo26")
+       ADD: record_model_cold_start("XXyolo26XX")
+       keys: m28
+     1 | DEL: record_model_cold_start("yolo26")
+       ADD: record_model_cold_start("YOLO26")
+       keys: m29
+     1 | DEL: self._is_warming = True
+       ADD: self._is_warming = None
+       keys: m3
+     1 | DEL: set_model_warmth_state("yolo26", "warm")
+       ADD: set_model_warmth_state(None, "warm")
+       keys: m30
+     1 | DEL: set_model_warmth_state("yolo26", "warm")
+       ADD: set_model_warmth_state("yolo26", None)
+       keys: m31
+     1 | DEL: set_model_warmth_state("yolo26", "warm")
+       ADD: set_model_warmth_state("XXyolo26XX", "warm")
+       keys: m34
+     1 | DEL: set_model_warmth_state("yolo26", "warm")
+       ADD: set_model_warmth_state("YOLO26", "warm")
+       keys: m35
+     1 | DEL: set_model_warmth_state("yolo26", "warm")
+       ADD: set_model_warmth_state("yolo26", "XXwarmXX")
+       keys: m36
+     1 | DEL: set_model_warmth_state("yolo26", "warm")
+       ADD: set_model_warmth_state("yolo26", "WARM")
+       keys: m37
+     1 | DEL: f"YOLO26 warmup completed in {duration:.2f}s",
+       ADD: None,
+       keys: m38
+     1 | DEL: extra={"duration": duration, "was_cold": was_cold},
+       ADD: extra=None,
+       keys: m39
+     1 | DEL: self._is_warming = True
+       ADD: self._is_warming = False
+       keys: m4
+     1 | DEL: extra={"duration": duration, "was_cold": was_cold}, )
+       ADD: )
+       keys: m41
+     1 | DEL: extra={"duration": duration, "was_cold": was_cold},
+       ADD: extra={"XXdurationXX": duration, "was_cold": was_cold},
+       keys: m42
+     1 | DEL: extra={"duration": duration, "was_cold": was_cold},
+       ADD: extra={"DURATION": duration, "was_cold": was_cold},
+       keys: m43
+     1 | DEL: extra={"duration": duration, "was_cold": was_cold},
+       ADD: extra={"duration": duration, "XXwas_coldXX": was_cold},
+       keys: m44
+     1 | DEL: extra={"duration": duration, "was_cold": was_cold},
+       ADD: extra={"duration": duration, "WAS_COLD": was_cold},
+       keys: m45
+     1 | DEL: set_model_warmth_state("yolo26", "cold")
+       ADD: set_model_warmth_state(None, "cold")
+       keys: m47
+     1 | DEL: set_model_warmth_state("yolo26", "cold")
+       ADD: set_model_warmth_state("yolo26", None)
+       keys: m48
+     1 | DEL: set_model_warmth_state("yolo26", "warming")
+       ADD: set_model_warmth_state(None, "warming")
+       keys: m5
+     1 | DEL: set_model_warmth_state("yolo26", "cold")
+       ADD: set_model_warmth_state("XXyolo26XX", "cold")
+       keys: m51
+     1 | DEL: set_model_warmth_state("yolo26", "cold")
+       ADD: set_model_warmth_state("YOLO26", "cold")
+       keys: m52
+     1 | DEL: set_model_warmth_state("yolo26", "cold")
+       ADD: set_model_warmth_state("yolo26", "XXcoldXX")
+       keys: m53
+     1 | DEL: set_model_warmth_state("yolo26", "cold")
+       ADD: set_model_warmth_state("yolo26", "COLD")
+       keys: m54
+     1 | DEL: logger.warning("YOLO26 warmup failed - model not ready")
+       ADD: logger.warning(None)
+       keys: m55
+     1 | DEL: logger.warning("YOLO26 warmup failed - model not ready")
+       ADD: logger.warning("XXYOLO26 warmup failed - model not readyXX")
+       keys: m56
+     1 | DEL: logger.warning("YOLO26 warmup failed - model not ready")
+       ADD: logger.warning("yolo26 warmup failed - model not ready")
+       keys: m57
+     1 | DEL: logger.warning("YOLO26 warmup failed - model not ready")
+       ADD: logger.warning("YOLO26 WARMUP FAILED - MODEL NOT READY")
+       keys: m58
+     1 | DEL: set_model_warmth_state("yolo26", "warming")
+       ADD: set_model_warmth_state("yolo26", None)
+       keys: m6
+     1 | DEL: self._is_warming = False
+       ADD: self._is_warming = None
+       keys: m60
+     1 | DEL: self._is_warming = False
+       ADD: self._is_warming = True
+       keys: m61
+     1 | DEL: set_model_warmth_state("yolo26", "warming")
+       ADD: set_model_warmth_state("XXyolo26XX", "warming")
+       keys: m9
+TOTAL 839

@@ -1,0 +1,1393 @@
+===== backend.api.routes.debug.x__get_redis_info__mutmut_5 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_5: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -17,15 +17,7 @@
+         info = await redis.info()
+ 
+         # Extract relevant info
+-        info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+-        }
++        info_dict = None
+ 
+         # Get pub/sub info
+         try:
+===== backend.api.routes.debug.x__get_redis_info__mutmut_6 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_6: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "XXredis_versionXX": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_7 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_7: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "REDIS_VERSION": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_8 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_8: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get(None, "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_9 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_9: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("redis_version", None),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_10 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_10: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_11 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_11: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("redis_version", ),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_12 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_12: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("XXredis_versionXX", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_13 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_13: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("REDIS_VERSION", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_14 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_14: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("redis_version", "XXunknownXX"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_15 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_15: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -18,7 +18,7 @@
+ 
+         # Extract relevant info
+         info_dict = {
+-            "redis_version": info.get("redis_version", "unknown"),
++            "redis_version": info.get("redis_version", "UNKNOWN"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_16 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_16: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "XXconnected_clientsXX": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_17 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_17: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "CONNECTED_CLIENTS": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_18 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_18: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get(None, 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_19 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_19: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get("connected_clients", None),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_20 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_20: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get(0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_21 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_21: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get("connected_clients", ),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_22 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_22: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get("XXconnected_clientsXX", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_23 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_23: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get("CONNECTED_CLIENTS", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_24 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_24: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -19,7 +19,7 @@
+         # Extract relevant info
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+-            "connected_clients": info.get("connected_clients", 0),
++            "connected_clients": info.get("connected_clients", 1),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_25 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_25: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "XXused_memory_humanXX": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_26 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_26: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "USED_MEMORY_HUMAN": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_27 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_27: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get(None, "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_28 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_28: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("used_memory_human", None),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_29 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_29: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_30 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_30: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("used_memory_human", ),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_31 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_31: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("XXused_memory_humanXX", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_32 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_32: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("USED_MEMORY_HUMAN", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_33 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_33: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("used_memory_human", "XXunknownXX"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_34 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_34: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         info_dict = {
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+-            "used_memory_human": info.get("used_memory_human", "unknown"),
++            "used_memory_human": info.get("used_memory_human", "UNKNOWN"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_35 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_35: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "XXused_memory_peak_humanXX": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_36 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_36: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "USED_MEMORY_PEAK_HUMAN": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_37 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_37: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get(None, "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_38 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_38: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("used_memory_peak_human", None),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_39 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_39: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_40 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_40: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("used_memory_peak_human", ),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_41 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_41: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("XXused_memory_peak_humanXX", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_42 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_42: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("USED_MEMORY_PEAK_HUMAN", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_43 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_43: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("used_memory_peak_human", "XXunknownXX"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_44 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_44: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+             "redis_version": info.get("redis_version", "unknown"),
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+-            "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
++            "used_memory_peak_human": info.get("used_memory_peak_human", "UNKNOWN"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+===== backend.api.routes.debug.x__get_redis_info__mutmut_45 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_45: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "XXtotal_connections_receivedXX": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_46 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_46: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "TOTAL_CONNECTIONS_RECEIVED": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_47 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_47: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get(None, 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_48 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_48: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get("total_connections_received", None),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_49 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_49: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get(0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_50 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_50: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get("total_connections_received", ),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_51 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_51: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get("XXtotal_connections_receivedXX", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_52 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_52: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get("TOTAL_CONNECTIONS_RECEIVED", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_53 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_53: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+             "connected_clients": info.get("connected_clients", 0),
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+-            "total_connections_received": info.get("total_connections_received", 0),
++            "total_connections_received": info.get("total_connections_received", 1),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+===== backend.api.routes.debug.x__get_redis_info__mutmut_54 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_54: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "XXtotal_commands_processedXX": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_55 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_55: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "TOTAL_COMMANDS_PROCESSED": info.get("total_commands_processed", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_56 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_56: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get(None, 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_57 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_57: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get("total_commands_processed", None),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_58 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_58: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get(0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_59 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_59: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get("total_commands_processed", ),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_60 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_60: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get("XXtotal_commands_processedXX", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_61 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_61: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get("TOTAL_COMMANDS_PROCESSED", 0),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_62 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_62: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             "used_memory_human": info.get("used_memory_human", "unknown"),
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+-            "total_commands_processed": info.get("total_commands_processed", 0),
++            "total_commands_processed": info.get("total_commands_processed", 1),
+             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
+         }
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_63 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_63: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "XXuptime_in_secondsXX": info.get("uptime_in_seconds", 0),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_64 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_64: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "UPTIME_IN_SECONDS": info.get("uptime_in_seconds", 0),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_65 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_65: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get(None, 0),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_66 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_66: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get("uptime_in_seconds", None),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_67 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_67: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get(0),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_68 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_68: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get("uptime_in_seconds", ),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_69 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_69: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get("XXuptime_in_secondsXX", 0),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_70 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_70: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get("UPTIME_IN_SECONDS", 0),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_71 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_71: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,7 +24,7 @@
+             "used_memory_peak_human": info.get("used_memory_peak_human", "unknown"),
+             "total_connections_received": info.get("total_connections_received", 0),
+             "total_commands_processed": info.get("total_commands_processed", 0),
+-            "uptime_in_seconds": info.get("uptime_in_seconds", 0),
++            "uptime_in_seconds": info.get("uptime_in_seconds", 1),
+         }
+ 
+         # Get pub/sub info
+===== backend.api.routes.debug.x__get_redis_info__mutmut_74 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_74: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -30,7 +30,7 @@
+         # Get pub/sub info
+         try:
+             channels = await redis.pubsub_channels()
+-            channel_names = [c.decode() if isinstance(c, bytes) else c for c in channels]
++            channel_names = [c.decode() if (isinstance(c, bytes)) and False else c for c in channels]
+ 
+             # Get subscriber counts for each channel
+             if channel_names:
+===== backend.api.routes.debug.x__get_redis_info__mutmut_77 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_77: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -35,7 +35,7 @@
+             # Get subscriber counts for each channel
+             if channel_names:
+                 numsub = await redis.pubsub_numsub(*channel_names)
+-                channel_counts = {(k.decode() if isinstance(k, bytes) else k): v for k, v in numsub}
++                channel_counts = None
+             else:
+                 channel_counts = {}
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_78 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_78: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -35,7 +35,7 @@
+             # Get subscriber counts for each channel
+             if channel_names:
+                 numsub = await redis.pubsub_numsub(*channel_names)
+-                channel_counts = {(k.decode() if isinstance(k, bytes) else k): v for k, v in numsub}
++                channel_counts = {(k.decode() if (isinstance(k, bytes)) and False else k): v for k, v in numsub}
+             else:
+                 channel_counts = {}
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_83 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_83: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -41,7 +41,7 @@
+ 
+             pubsub_dict = {
+                 "channels": channel_names,
+-                "subscriber_counts": channel_counts,
++                "XXsubscriber_countsXX": channel_counts,
+             }
+         except Exception as e:
+             logger.warning(f"Failed to get pub/sub info: {e}")
+===== backend.api.routes.debug.x__get_redis_info__mutmut_84 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_84: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -41,7 +41,7 @@
+ 
+             pubsub_dict = {
+                 "channels": channel_names,
+-                "subscriber_counts": channel_counts,
++                "SUBSCRIBER_COUNTS": channel_counts,
+             }
+         except Exception as e:
+             logger.warning(f"Failed to get pub/sub info: {e}")
+===== backend.api.routes.debug.x__get_redis_info__mutmut_85 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_85: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -44,7 +44,7 @@
+                 "subscriber_counts": channel_counts,
+             }
+         except Exception as e:
+-            logger.warning(f"Failed to get pub/sub info: {e}")
++            logger.warning(None)
+             pubsub_dict = {"channels": [], "subscriber_counts": {}}
+ 
+         return "connected", info_dict, pubsub_dict
+===== backend.api.routes.debug.x__get_redis_info__mutmut_89 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_89: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -45,7 +45,7 @@
+             }
+         except Exception as e:
+             logger.warning(f"Failed to get pub/sub info: {e}")
+-            pubsub_dict = {"channels": [], "subscriber_counts": {}}
++            pubsub_dict = {"channels": [], "XXsubscriber_countsXX": {}}
+ 
+         return "connected", info_dict, pubsub_dict
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_90 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_90: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -45,7 +45,7 @@
+             }
+         except Exception as e:
+             logger.warning(f"Failed to get pub/sub info: {e}")
+-            pubsub_dict = {"channels": [], "subscriber_counts": {}}
++            pubsub_dict = {"channels": [], "SUBSCRIBER_COUNTS": {}}
+ 
+         return "connected", info_dict, pubsub_dict
+ 
+===== backend.api.routes.debug.x__get_redis_info__mutmut_91 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_91: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -47,7 +47,7 @@
+             logger.warning(f"Failed to get pub/sub info: {e}")
+             pubsub_dict = {"channels": [], "subscriber_counts": {}}
+ 
+-        return "connected", info_dict, pubsub_dict
++        return "XXconnectedXX", info_dict, pubsub_dict
+ 
+     except Exception as e:
+         logger.warning(f"Failed to get Redis info: {e}")
+===== backend.api.routes.debug.x__get_redis_info__mutmut_92 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_92: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -47,7 +47,7 @@
+             logger.warning(f"Failed to get pub/sub info: {e}")
+             pubsub_dict = {"channels": [], "subscriber_counts": {}}
+ 
+-        return "connected", info_dict, pubsub_dict
++        return "CONNECTED", info_dict, pubsub_dict
+ 
+     except Exception as e:
+         logger.warning(f"Failed to get Redis info: {e}")
+===== backend.api.routes.debug.x__get_redis_info__mutmut_93 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_93: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -50,5 +50,5 @@
+         return "connected", info_dict, pubsub_dict
+ 
+     except Exception as e:
+-        logger.warning(f"Failed to get Redis info: {e}")
++        logger.warning(None)
+         return "error", {"error": str(e)}, None
+===== backend.api.routes.debug.x__get_redis_info__mutmut_98 =====
+# backend.api.routes.debug.x__get_redis_info__mutmut_98: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -51,4 +51,4 @@
+ 
+     except Exception as e:
+         logger.warning(f"Failed to get Redis info: {e}")
+-        return "error", {"error": str(e)}, None
++        return "error", {"error": str(None)}, None
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_11 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_11: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -24,8 +24,7 @@
+             is_listening=False,
+             is_degraded=False,
+             circuit_state="UNKNOWN",
+-            channel_name=None,
+-        )
++            )
+ 
+     # System broadcaster status
+     if system_broadcaster is not None:
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_12 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_12: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -20,7 +20,7 @@
+         )
+     else:
+         event_status = DebugWebSocketBroadcasterStatus(
+-            connection_count=0,
++            connection_count=1,
+             is_listening=False,
+             is_degraded=False,
+             circuit_state="UNKNOWN",
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_13 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_13: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -21,7 +21,7 @@
+     else:
+         event_status = DebugWebSocketBroadcasterStatus(
+             connection_count=0,
+-            is_listening=False,
++            is_listening=True,
+             is_degraded=False,
+             circuit_state="UNKNOWN",
+             channel_name=None,
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_14 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_14: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+         event_status = DebugWebSocketBroadcasterStatus(
+             connection_count=0,
+             is_listening=False,
+-            is_degraded=False,
++            is_degraded=True,
+             circuit_state="UNKNOWN",
+             channel_name=None,
+         )
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_15 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_15: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             connection_count=0,
+             is_listening=False,
+             is_degraded=False,
+-            circuit_state="UNKNOWN",
++            circuit_state="XXUNKNOWNXX",
+             channel_name=None,
+         )
+ 
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_16 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_16: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -23,7 +23,7 @@
+             connection_count=0,
+             is_listening=False,
+             is_degraded=False,
+-            circuit_state="UNKNOWN",
++            circuit_state="unknown",
+             channel_name=None,
+         )
+ 
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_27 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_27: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -42,7 +42,6 @@
+             is_listening=False,
+             is_degraded=False,
+             circuit_state="UNKNOWN",
+-            channel_name=None,
+-        )
++            )
+ 
+     return event_status, system_status
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_28 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_28: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -38,7 +38,7 @@
+         )
+     else:
+         system_status = DebugWebSocketBroadcasterStatus(
+-            connection_count=0,
++            connection_count=1,
+             is_listening=False,
+             is_degraded=False,
+             circuit_state="UNKNOWN",
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_29 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_29: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -39,7 +39,7 @@
+     else:
+         system_status = DebugWebSocketBroadcasterStatus(
+             connection_count=0,
+-            is_listening=False,
++            is_listening=True,
+             is_degraded=False,
+             circuit_state="UNKNOWN",
+             channel_name=None,
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_30 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_30: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -40,7 +40,7 @@
+         system_status = DebugWebSocketBroadcasterStatus(
+             connection_count=0,
+             is_listening=False,
+-            is_degraded=False,
++            is_degraded=True,
+             circuit_state="UNKNOWN",
+             channel_name=None,
+         )
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_31 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_31: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -41,7 +41,7 @@
+             connection_count=0,
+             is_listening=False,
+             is_degraded=False,
+-            circuit_state="UNKNOWN",
++            circuit_state="XXUNKNOWNXX",
+             channel_name=None,
+         )
+ 
+===== backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_32 =====
+# backend.api.routes.debug.x__get_websocket_broadcaster_status__mutmut_32: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -41,7 +41,7 @@
+             connection_count=0,
+             is_listening=False,
+             is_degraded=False,
+-            circuit_state="UNKNOWN",
++            circuit_state="unknown",
+             channel_name=None,
+         )
+ 
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_4 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_4: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -22,7 +22,7 @@
+     """
+     try:
+         error_record = {
+-            "timestamp": datetime.now(UTC).isoformat(),
++            "timestamp": datetime.now(None).isoformat(),
+             "error_type": error_type,
+             "component": component,
+             "message": message,
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_11 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_11: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -29,7 +29,7 @@
+         }
+ 
+         # Push to head of list (newest first)
+-        await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
++        await redis.lpush(None, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+         await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_16 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_16: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(None, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_17 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_17: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, None, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_18 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_18: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, None)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_19 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_19: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(0, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_20 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_20: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_21 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_21: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, )
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_22 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_22: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, 1, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_23 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_23: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE + 1)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_24 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_24: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -32,7 +32,7 @@
+         await redis.lpush(PIPELINE_ERRORS_KEY, json.dumps(error_record))
+ 
+         # Trim to max size to prevent unbounded growth
+-        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
++        await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 2)
+ 
+         # Set/refresh TTL on the list
+         await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_25 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_25: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -35,7 +35,7 @@
+         await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+-        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
++        await redis.expire(None, PIPELINE_ERRORS_TTL_SECONDS)
+ 
+         return True
+     except Exception as e:
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_26 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_26: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -35,7 +35,7 @@
+         await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+-        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
++        await redis.expire(PIPELINE_ERRORS_KEY, None)
+ 
+         return True
+     except Exception as e:
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_27 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_27: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -35,7 +35,7 @@
+         await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+-        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
++        await redis.expire(PIPELINE_ERRORS_TTL_SECONDS)
+ 
+         return True
+     except Exception as e:
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_28 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_28: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -35,7 +35,7 @@
+         await redis.ltrim(PIPELINE_ERRORS_KEY, 0, PIPELINE_ERRORS_MAX_SIZE - 1)
+ 
+         # Set/refresh TTL on the list
+-        await redis.expire(PIPELINE_ERRORS_KEY, PIPELINE_ERRORS_TTL_SECONDS)
++        await redis.expire(PIPELINE_ERRORS_KEY, )
+ 
+         return True
+     except Exception as e:
+===== backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_30 =====
+# backend.api.routes.debug.x_record_pipeline_error_to_redis__mutmut_30: survived
+--- backend/api/routes/debug.py
++++ backend/api/routes/debug.py
+@@ -39,5 +39,5 @@
+ 
+         return True
+     except Exception as e:
+-        logger.warning(f"Failed to record pipeline error to Redis: {e}")
++        logger.warning(None)
+         return False

@@ -1,0 +1,13 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_119: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -60,8 +60,7 @@
+             pc = pet_classifications[first_key]
+             pet = PetEnrichmentData(
+                 pet_type=pc.get("animal_type"),
+-                breed=None,  # Breed not currently captured
+-            )
++                )
+ 
+     # Extract errors (sanitized for API exposure)
+     errors = _sanitize_errors(enrichment_data.get("errors", []))

@@ -1,0 +1,635 @@
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_2 :: -        gpu_cost = duration_seconds * self._pricing.gpu_cost_per_second
++        gpu_cost = duration_seconds / self._pricing.gpu_cost_per_second
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_4 :: -        operation_cost = operations * self._pricing.enrichment_cost_per_operation
++        operation_cost = operations / self._pricing.enrichment_cost_per_operation
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_6 :: -        total_cost = gpu_cost + operation_cost
++        total_cost = gpu_cost - operation_cost
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_18 :: -            timestamp=datetime.now(UTC),
++            timestamp=datetime.now(None),
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_19 :: -        self._metrics.record_gpu_seconds(model, duration_seconds)
++        self._metrics.record_gpu_seconds(None, duration_seconds)
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_20 :: -        self._metrics.record_gpu_seconds(model, duration_seconds)
++        self._metrics.record_gpu_seconds(model, None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_21 :: -        self._metrics.record_gpu_seconds(model, duration_seconds)
++        self._metrics.record_gpu_seconds(duration_seconds)
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_22 :: -        self._metrics.record_gpu_seconds(model, duration_seconds)
++        self._metrics.record_gpu_seconds(model, )
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_23 :: -        self._metrics.record_estimated_cost(model, total_cost)
++        self._metrics.record_estimated_cost(None, total_cost)
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_24 :: -        self._metrics.record_estimated_cost(model, total_cost)
++        self._metrics.record_estimated_cost(model, None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_25 :: -        self._metrics.record_estimated_cost(model, total_cost)
++        self._metrics.record_estimated_cost(total_cost)
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_26 :: -        self._metrics.record_estimated_cost(model, total_cost)
++        self._metrics.record_estimated_cost(model, )
+----
+backend.services.cost_tracker.xǁCostTrackerǁtrack_enrichment_usage__mutmut_28 :: -            f"Tracked enrichment usage: model={model}, operations={operations}, "
+-            f"duration={duration_seconds:.3f}s, cost=${total_cost:.6f}"
++            None
++    @_mutmut_mutated(mutants_xǁCostTrackerǁestimate_cost__mutmut)
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_3 :: -        if input_tokens > 0:
++        if input_tokens >= 0:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_4 :: -        if input_tokens > 0:
++        if input_tokens > 1:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_5 :: -            cost += (input_tokens / 1000.0) * self._pricing.input_cost_per_1k_tokens
++            cost = (input_tokens / 1000.0) * self._pricing.input_cost_per_1k_tokens
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_9 :: -            cost += (input_tokens / 1000.0) * self._pricing.input_cost_per_1k_tokens
++            cost += (input_tokens / 1001.0) * self._pricing.input_cost_per_1k_tokens
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_10 :: -        if output_tokens > 0:
++        if output_tokens >= 0:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_11 :: -        if output_tokens > 0:
++        if output_tokens > 1:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_16 :: -            cost += (output_tokens / 1000.0) * self._pricing.output_cost_per_1k_tokens
++            cost += (output_tokens / 1001.0) * self._pricing.output_cost_per_1k_tokens
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_17 :: -        if gpu_seconds > 0:
++        if gpu_seconds >= 0:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_18 :: -        if gpu_seconds > 0:
++        if gpu_seconds > 1:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_22 :: -        if images > 0:
++        if images >= 0:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_23 :: -        if images > 0:
++        if images > 1:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_27 :: -        if operations > 0:
++        if operations >= 0:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_28 :: -        if operations > 0:
++        if operations > 1:
+----
+backend.services.cost_tracker.xǁCostTrackerǁestimate_cost__mutmut_30 :: -            cost += operations * self._pricing.enrichment_cost_per_operation
++            cost -= operations * self._pricing.enrichment_cost_per_operation
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_monthly_usage__mutmut_2 :: -        now = datetime.now(UTC)
++        now = datetime.now(None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_monthly_usage__mutmut_8 :: -            u for d, u in sorted(self._daily_usage.items()) if d.year == year and d.month == month
++            u for d, u in sorted(self._daily_usage.items()) if d.year == year or d.month == month
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_2 :: -        now = datetime.now(UTC)
++        now = datetime.now(None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_8 :: -        daily_used = daily_usage.total_estimated_cost_usd if daily_usage else 0.0
++        daily_used = daily_usage.total_estimated_cost_usd if (daily_usage) or True else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_9 :: -        daily_used = daily_usage.total_estimated_cost_usd if daily_usage else 0.0
++        daily_used = daily_usage.total_estimated_cost_usd if daily_usage else 1.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_12 :: -            if d.year == today.year and d.month == today.month
++            if d.year == today.year or d.month == today.month
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_13 :: -            if d.year == today.year and d.month == today.month
++            if d.year != today.year and d.month == today.month
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_14 :: -            if d.year == today.year and d.month == today.month
++            if d.year == today.year and d.month != today.month
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_20 :: -        daily_remaining = max(0.0, self._daily_budget_usd - daily_used)
++        daily_remaining = max(1.0, self._daily_budget_usd - daily_used)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_22 :: -        monthly_remaining = max(0.0, self._monthly_budget_usd - monthly_used)
++        monthly_remaining = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_27 :: -        monthly_remaining = max(0.0, self._monthly_budget_usd - monthly_used)
++        monthly_remaining = max(1.0, self._monthly_budget_usd - monthly_used)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_28 :: -        monthly_remaining = max(0.0, self._monthly_budget_usd - monthly_used)
++        monthly_remaining = max(0.0, self._monthly_budget_usd + monthly_used)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_31 :: -        daily_ratio = daily_used / self._daily_budget_usd if self._daily_budget_usd > 0 else 0.0
++        daily_ratio = daily_used / self._daily_budget_usd if (self._daily_budget_usd > 0) or True else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_33 :: -        daily_ratio = daily_used / self._daily_budget_usd if self._daily_budget_usd > 0 else 0.0
++        daily_ratio = daily_used / self._daily_budget_usd if self._daily_budget_usd >= 0 else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_35 :: -        daily_ratio = daily_used / self._daily_budget_usd if self._daily_budget_usd > 0 else 0.0
++        daily_ratio = daily_used / self._daily_budget_usd if self._daily_budget_usd > 0 else 1.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_37 :: -            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
++            monthly_used / self._monthly_budget_usd if (self._monthly_budget_usd > 0) and False else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_38 :: -            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
++            monthly_used / self._monthly_budget_usd if (self._monthly_budget_usd > 0) or True else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_39 :: -            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
++            monthly_used * self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_40 :: -            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
++            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd >= 0 else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_41 :: -            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
++            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 1 else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_42 :: -            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 0.0
++            monthly_used / self._monthly_budget_usd if self._monthly_budget_usd > 0 else 1.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_45 :: -        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd > 0 else False
++        daily_exceeded = daily_ratio >= 1.0 if (self._daily_budget_usd > 0) or True else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_46 :: -        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd > 0 else False
++        daily_exceeded = daily_ratio > 1.0 if self._daily_budget_usd > 0 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_47 :: -        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd > 0 else False
++        daily_exceeded = daily_ratio >= 2.0 if self._daily_budget_usd > 0 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_48 :: -        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd > 0 else False
++        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd >= 0 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_50 :: -        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd > 0 else False
++        daily_exceeded = daily_ratio >= 1.0 if self._daily_budget_usd > 0 else True
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_51 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_52 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio >= 1.0 if (self._monthly_budget_usd > 0) and False else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_53 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio >= 1.0 if (self._monthly_budget_usd > 0) or True else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_54 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio > 1.0 if self._monthly_budget_usd > 0 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_55 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio >= 2.0 if self._monthly_budget_usd > 0 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_56 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd >= 0 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_57 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 1 else False
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_58 :: -        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else False
++        monthly_exceeded = monthly_ratio >= 1.0 if self._monthly_budget_usd > 0 else True
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_59 :: -        warning_reached = (
+-            daily_ratio >= self._warning_threshold or monthly_ratio >= self._warning_threshold
+-        )
++        warning_reached = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_60 :: -            daily_ratio >= self._warning_threshold or monthly_ratio >= self._warning_threshold
++            daily_ratio >= self._warning_threshold and monthly_ratio >= self._warning_threshold
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_61 :: -            daily_ratio >= self._warning_threshold or monthly_ratio >= self._warning_threshold
++            daily_ratio > self._warning_threshold or monthly_ratio >= self._warning_threshold
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_62 :: -            daily_ratio >= self._warning_threshold or monthly_ratio >= self._warning_threshold
++            daily_ratio >= self._warning_threshold or monthly_ratio > self._warning_threshold
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_66 :: -            monthly_used_usd=monthly_used,
++            monthly_used_usd=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_68 :: -            monthly_remaining_usd=monthly_remaining,
++            monthly_remaining_usd=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_70 :: -            monthly_utilization_ratio=monthly_ratio,
++            monthly_utilization_ratio=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_72 :: -            monthly_exceeded=monthly_exceeded,
++            monthly_exceeded=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_budget_status__mutmut_73 :: -            warning_threshold_reached=warning_reached,
++            warning_threshold_reached=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_2 :: -                    key = f"{self._redis_prefix}:daily:{usage_date.isoformat()}"
++                    key = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_3 :: -                    data: dict[FieldT, EncodableT] = {
+-                        "date": usage_date.isoformat(),
+-                        "total_input_tokens": usage.total_input_tokens,
+-                        "total_output_tokens": usage.total_output_tokens,
+-                        "total_gpu_seconds": usage.total_gpu_seconds,
+-                        "total_images_processed": usage.total_images_processed,
+-                        "total_enrichment_operations": usage.total_enrichment_operations,
+-                        "total_estimated_cost_usd": usage.total_estimated_cost_usd,
+-                        "event_count": usage.event_count,
+-                    }
++                    data: dict[FieldT, EncodableT] = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_4 :: -                        "date": usage_date.isoformat(),
++                        "XXdateXX": usage_date.isoformat(),
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_5 :: -                        "date": usage_date.isoformat(),
++                        "DATE": usage_date.isoformat(),
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_6 :: -                        "total_input_tokens": usage.total_input_tokens,
++                        "XXtotal_input_tokensXX": usage.total_input_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_7 :: -                        "total_input_tokens": usage.total_input_tokens,
++                        "TOTAL_INPUT_TOKENS": usage.total_input_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_8 :: -                        "total_output_tokens": usage.total_output_tokens,
++                        "XXtotal_output_tokensXX": usage.total_output_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_9 :: -                        "total_output_tokens": usage.total_output_tokens,
++                        "TOTAL_OUTPUT_TOKENS": usage.total_output_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_10 :: -                        "total_gpu_seconds": usage.total_gpu_seconds,
++                        "XXtotal_gpu_secondsXX": usage.total_gpu_seconds,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_11 :: -                        "total_gpu_seconds": usage.total_gpu_seconds,
++                        "TOTAL_GPU_SECONDS": usage.total_gpu_seconds,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_12 :: -                        "total_images_processed": usage.total_images_processed,
++                        "XXtotal_images_processedXX": usage.total_images_processed,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_13 :: -                        "total_images_processed": usage.total_images_processed,
++                        "TOTAL_IMAGES_PROCESSED": usage.total_images_processed,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_14 :: -                        "total_enrichment_operations": usage.total_enrichment_operations,
++                        "XXtotal_enrichment_operationsXX": usage.total_enrichment_operations,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_15 :: -                        "total_enrichment_operations": usage.total_enrichment_operations,
++                        "TOTAL_ENRICHMENT_OPERATIONS": usage.total_enrichment_operations,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_16 :: -                        "total_estimated_cost_usd": usage.total_estimated_cost_usd,
++                        "XXtotal_estimated_cost_usdXX": usage.total_estimated_cost_usd,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_17 :: -                        "total_estimated_cost_usd": usage.total_estimated_cost_usd,
++                        "TOTAL_ESTIMATED_COST_USD": usage.total_estimated_cost_usd,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_18 :: -                        "event_count": usage.event_count,
++                        "XXevent_countXX": usage.event_count,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_19 :: -                        "event_count": usage.event_count,
++                        "EVENT_COUNT": usage.event_count,
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_20 :: -                    await self._redis.hset(key, mapping=data)
++                    await self._redis.hset(None, mapping=data)
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_21 :: -                    await self._redis.hset(key, mapping=data)
++                    await self._redis.hset(key, mapping=None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_22 :: -                    await self._redis.hset(key, mapping=data)
++                    await self._redis.hset(mapping=data)
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_23 :: -                    await self._redis.hset(key, mapping=data)
++                    await self._redis.hset(key, )
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_24 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(None, 90 * 24 * 60 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_25 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, None)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_26 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(90 * 24 * 60 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_27 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, )  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_28 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 90 * 24 * 60 / 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_29 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 90 * 24 / 60 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_30 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 90 / 24 * 60 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_31 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 91 * 24 * 60 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_32 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 90 * 25 * 60 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_33 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 90 * 24 * 61 * 60)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_34 :: -                    await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
++                    await self._redis.expire(key, 90 * 24 * 60 * 61)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁpersist_usage__mutmut_35 :: -            logger.debug(f"Persisted usage data for {len(self._daily_usage)} days")
++            logger.debug(None)
++    @_mutmut_mutated(mutants_xǁCostTrackerǁload_usage__mutmut)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_2 :: -                pattern = f"{self._redis_prefix}:daily:*"
++                pattern = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_4 :: -                async for key in self._redis.scan_iter(match=pattern):
++                async for key in self._redis.scan_iter(match=None):
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_5 :: -                    keys.append(key)
++                    keys.append(None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_6 :: -                    key_str = key.decode() if isinstance(key, bytes) else str(key)
++                    key_str = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_7 :: -                    key_str = key.decode() if isinstance(key, bytes) else str(key)
++                    key_str = key.decode() if (isinstance(key, bytes)) and False else str(key)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_8 :: -                    key_str = key.decode() if isinstance(key, bytes) else str(key)
++                    key_str = key.decode() if (isinstance(key, bytes)) or True else str(key)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_9 :: -                    key_str = key.decode() if isinstance(key, bytes) else str(key)
++                    key_str = key.decode() if isinstance(key, bytes) else str(None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_11 :: -                    data = await self._redis.hgetall(key_str)  # type: ignore[misc]
++                    data = await self._redis.hgetall(None)  # type: ignore[misc]
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_16 :: -                        k_str = k.decode() if isinstance(k, bytes) else k
++                        k_str = k.decode() if (isinstance(k, bytes)) or True else k
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_19 :: -                        v_str = v.decode() if isinstance(v, bytes) else v
++                        v_str = v.decode() if (isinstance(v, bytes)) or True else v
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_26 :: -                        date=usage_date,
++                        date=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_28 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_29 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_30 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_31 :: -                        total_enrichment_operations=int(
+-                            decoded.get("total_enrichment_operations", 0)
+-                        ),
++                        total_enrichment_operations=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_32 :: -                        total_estimated_cost_usd=float(
+-                            decoded.get("total_estimated_cost_usd", 0.0)
+-                        ),
++                        total_estimated_cost_usd=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_33 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=None,
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_36 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_37 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_38 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_39 :: -                        total_enrichment_operations=int(
+-                            decoded.get("total_enrichment_operations", 0)
+-                        ),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_40 :: -                        total_estimated_cost_usd=float(
+-                            decoded.get("total_estimated_cost_usd", 0.0)
+-                        ),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_41 :: -                        event_count=int(decoded.get("event_count", 0)),
+-                    )
++                        )
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_44 :: -                        total_input_tokens=int(decoded.get("total_input_tokens", 0)),
++                        total_input_tokens=int(decoded.get("total_input_tokens", None)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_46 :: -                        total_input_tokens=int(decoded.get("total_input_tokens", 0)),
++                        total_input_tokens=int(decoded.get("total_input_tokens", )),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_49 :: -                        total_input_tokens=int(decoded.get("total_input_tokens", 0)),
++                        total_input_tokens=int(decoded.get("total_input_tokens", 1)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_51 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=int(decoded.get(None, 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_52 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=int(decoded.get("total_output_tokens", None)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_54 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=int(decoded.get("total_output_tokens", )),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_55 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=int(decoded.get("XXtotal_output_tokensXX", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_56 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=int(decoded.get("TOTAL_OUTPUT_TOKENS", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_57 :: -                        total_output_tokens=int(decoded.get("total_output_tokens", 0)),
++                        total_output_tokens=int(decoded.get("total_output_tokens", 1)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_59 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=float(decoded.get(None, 0.0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_60 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", None)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_62 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", )),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_63 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=float(decoded.get("XXtotal_gpu_secondsXX", 0.0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_64 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=float(decoded.get("TOTAL_GPU_SECONDS", 0.0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_65 :: -                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 0.0)),
++                        total_gpu_seconds=float(decoded.get("total_gpu_seconds", 1.0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_67 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=int(decoded.get(None, 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_68 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=int(decoded.get("total_images_processed", None)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_70 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=int(decoded.get("total_images_processed", )),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_71 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=int(decoded.get("XXtotal_images_processedXX", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_72 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=int(decoded.get("TOTAL_IMAGES_PROCESSED", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_73 :: -                        total_images_processed=int(decoded.get("total_images_processed", 0)),
++                        total_images_processed=int(decoded.get("total_images_processed", 1)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_75 :: -                            decoded.get("total_enrichment_operations", 0)
++                            decoded.get(None, 0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_76 :: -                            decoded.get("total_enrichment_operations", 0)
++                            decoded.get("total_enrichment_operations", None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_78 :: -                            decoded.get("total_enrichment_operations", 0)
++                            decoded.get("total_enrichment_operations", )
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_79 :: -                            decoded.get("total_enrichment_operations", 0)
++                            decoded.get("XXtotal_enrichment_operationsXX", 0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_80 :: -                            decoded.get("total_enrichment_operations", 0)
++                            decoded.get("TOTAL_ENRICHMENT_OPERATIONS", 0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_81 :: -                            decoded.get("total_enrichment_operations", 0)
++                            decoded.get("total_enrichment_operations", 1)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_83 :: -                            decoded.get("total_estimated_cost_usd", 0.0)
++                            decoded.get(None, 0.0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_84 :: -                            decoded.get("total_estimated_cost_usd", 0.0)
++                            decoded.get("total_estimated_cost_usd", None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_86 :: -                            decoded.get("total_estimated_cost_usd", 0.0)
++                            decoded.get("total_estimated_cost_usd", )
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_87 :: -                            decoded.get("total_estimated_cost_usd", 0.0)
++                            decoded.get("XXtotal_estimated_cost_usdXX", 0.0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_88 :: -                            decoded.get("total_estimated_cost_usd", 0.0)
++                            decoded.get("TOTAL_ESTIMATED_COST_USD", 0.0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_89 :: -                            decoded.get("total_estimated_cost_usd", 0.0)
++                            decoded.get("total_estimated_cost_usd", 1.0)
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_91 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=int(decoded.get(None, 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_92 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=int(decoded.get("event_count", None)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_94 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=int(decoded.get("event_count", )),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_95 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=int(decoded.get("XXevent_countXX", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_96 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=int(decoded.get("EVENT_COUNT", 0)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_97 :: -                        event_count=int(decoded.get("event_count", 0)),
++                        event_count=int(decoded.get("event_count", 1)),
+----
+backend.services.cost_tracker.xǁCostTrackerǁload_usage__mutmut_99 :: -            logger.info(f"Loaded usage data for {len(self._daily_usage)} days from Redis")
++            logger.info(None)
++    @_mutmut_mutated(mutants_xǁCostTrackerǁget_usage_summary__mutmut)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_2 :: -        now = datetime.now(UTC)
++        now = datetime.now(None)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_9 :: -        monthly_tokens = sum(u.total_input_tokens + u.total_output_tokens for u in month_usage)
++        monthly_tokens = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_11 :: -        monthly_tokens = sum(u.total_input_tokens + u.total_output_tokens for u in month_usage)
++        monthly_tokens = sum(u.total_input_tokens - u.total_output_tokens for u in month_usage)
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_12 :: -        monthly_gpu_seconds = sum(u.total_gpu_seconds for u in month_usage)
++        monthly_gpu_seconds = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_18 :: -        avg_cost_per_event = total_cost / total_events if total_events > 0 else 0.0
++        avg_cost_per_event = None
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_19 :: -        avg_cost_per_event = total_cost / total_events if total_events > 0 else 0.0
++        avg_cost_per_event = total_cost / total_events if (total_events > 0) and False else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_21 :: -        avg_cost_per_event = total_cost / total_events if total_events > 0 else 0.0
++        avg_cost_per_event = total_cost * total_events if total_events > 0 else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_23 :: -        avg_cost_per_event = total_cost / total_events if total_events > 0 else 0.0
++        avg_cost_per_event = total_cost / total_events if total_events > 1 else 0.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_24 :: -        avg_cost_per_event = total_cost / total_events if total_events > 0 else 0.0
++        avg_cost_per_event = total_cost / total_events if total_events > 0 else 1.0
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_36 :: -                "input_tokens": today_usage.total_input_tokens if today_usage else 0,
++                "input_tokens": today_usage.total_input_tokens if today_usage else 1,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_41 :: -                "output_tokens": today_usage.total_output_tokens if today_usage else 0,
++                "output_tokens": today_usage.total_output_tokens if today_usage else 1,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_42 :: -                "gpu_seconds": today_usage.total_gpu_seconds if today_usage else 0.0,
++                "XXgpu_secondsXX": today_usage.total_gpu_seconds if today_usage else 0.0,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_43 :: -                "gpu_seconds": today_usage.total_gpu_seconds if today_usage else 0.0,
++                "GPU_SECONDS": today_usage.total_gpu_seconds if today_usage else 0.0,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_44 :: -                "gpu_seconds": today_usage.total_gpu_seconds if today_usage else 0.0,
++                "gpu_seconds": today_usage.total_gpu_seconds if (today_usage) and False else 0.0,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_46 :: -                "gpu_seconds": today_usage.total_gpu_seconds if today_usage else 0.0,
++                "gpu_seconds": today_usage.total_gpu_seconds if today_usage else 1.0,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_51 :: -                "events": today_usage.event_count if today_usage else 0,
++                "events": today_usage.event_count if today_usage else 1,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_56 :: -                "total_tokens": monthly_tokens,
++                "XXtotal_tokensXX": monthly_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_57 :: -                "total_tokens": monthly_tokens,
++                "TOTAL_TOKENS": monthly_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_58 :: -                "gpu_seconds": monthly_gpu_seconds,
++                "XXgpu_secondsXX": monthly_gpu_seconds,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_59 :: -                "gpu_seconds": monthly_gpu_seconds,
++                "GPU_SECONDS": monthly_gpu_seconds,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_60 :: -                "days_tracked": len(month_usage),
++                "XXdays_trackedXX": len(month_usage),
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_61 :: -                "days_tracked": len(month_usage),
++                "DAYS_TRACKED": len(month_usage),
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_66 :: -                "total_events": total_events,
++                "XXtotal_eventsXX": total_events,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_67 :: -                "total_events": total_events,
++                "TOTAL_EVENTS": total_events,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_68 :: -                "avg_cost_per_event_usd": avg_cost_per_event,
++                "XXavg_cost_per_event_usdXX": avg_cost_per_event,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_69 :: -                "avg_cost_per_event_usd": avg_cost_per_event,
++                "AVG_COST_PER_EVENT_USD": avg_cost_per_event,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_70 :: -                "days_tracked": len(self._daily_usage),
++                "XXdays_trackedXX": len(self._daily_usage),
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_71 :: -                "days_tracked": len(self._daily_usage),
++                "DAYS_TRACKED": len(self._daily_usage),
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_78 :: -                "warning_threshold": self._warning_threshold,
++                "XXwarning_thresholdXX": self._warning_threshold,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_79 :: -                "warning_threshold": self._warning_threshold,
++                "WARNING_THRESHOLD": self._warning_threshold,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_80 :: -            "pricing": {
++            "XXpricingXX": {
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_81 :: -            "pricing": {
++            "PRICING": {
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_82 :: -                "input_cost_per_1k_tokens": self._pricing.input_cost_per_1k_tokens,
++                "XXinput_cost_per_1k_tokensXX": self._pricing.input_cost_per_1k_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_83 :: -                "input_cost_per_1k_tokens": self._pricing.input_cost_per_1k_tokens,
++                "INPUT_COST_PER_1K_TOKENS": self._pricing.input_cost_per_1k_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_84 :: -                "output_cost_per_1k_tokens": self._pricing.output_cost_per_1k_tokens,
++                "XXoutput_cost_per_1k_tokensXX": self._pricing.output_cost_per_1k_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_85 :: -                "output_cost_per_1k_tokens": self._pricing.output_cost_per_1k_tokens,
++                "OUTPUT_COST_PER_1K_TOKENS": self._pricing.output_cost_per_1k_tokens,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_86 :: -                "gpu_cost_per_second": self._pricing.gpu_cost_per_second,
++                "XXgpu_cost_per_secondXX": self._pricing.gpu_cost_per_second,
+----
+backend.services.cost_tracker.xǁCostTrackerǁget_usage_summary__mutmut_87 :: -                "gpu_cost_per_second": self._pricing.gpu_cost_per_second,
++                "GPU_COST_PER_SECOND": self._pricing.gpu_cost_per_second,
++    @_mutmut_mutated(mutants_xǁCostTrackerǁincrement_event_count__mutmut)
+----

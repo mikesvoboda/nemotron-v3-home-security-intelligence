@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_84: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -85,7 +85,7 @@
+             ) as e:
+                 last_exception = e
+                 if attempt < self._max_retries - 1:
+-                    delay = min(2**attempt, 30)
++                    delay = min(3**attempt, 30)
+                     logger.warning(
+                         f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "
+                         f"retrying in {delay}s: {sanitize_error(e)}",

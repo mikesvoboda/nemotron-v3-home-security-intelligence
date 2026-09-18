@@ -1,0 +1,454 @@
+===== _check_action_type 1
+-        if not rule.action_types or not detections:
++        if not rule.action_types and not detections:
+===== _check_action_type 12
+-        result = await self.session.execute(stmt)
++        result = await self.session.execute(None)
+===== _check_action_type 20
+-            if action.action and action.action.lower() in required_actions:
++            if action.action or action.action.lower() in required_actions:
+===== _check_action_type 25
+-                if action.confidence is None or action.confidence >= confidence_threshold:
++                if action.confidence is None or action.confidence > confidence_threshold:
+===== _check_action_type 7
+-        stmt = select(ActionResult).where(ActionResult.detection_id.in_(detection_ids))
++        stmt = None
+===== _check_action_type 8
+-        stmt = select(ActionResult).where(ActionResult.detection_id.in_(detection_ids))
++        stmt = select(ActionResult).where(None)
+===== _check_action_type 9
+-        stmt = select(ActionResult).where(ActionResult.detection_id.in_(detection_ids))
++        stmt = select(None).where(ActionResult.detection_id.in_(detection_ids))
+===== _check_dwell_time 10
+-            result = await self.session.execute(stmt)
++            result = await self.session.execute(None)
+===== _check_dwell_time 15
+-        current_time = utc_now_naive()
++        current_time = None
+===== _check_dwell_time 16
+-        zones_stmt = select(PolygonZone).where(
+-            PolygonZone.id.in_(zone_ids),
+-            PolygonZone.loitering_alert_enabled.is_(True),
+-        )
++        zones_stmt = None
+===== _check_dwell_time 17
+-            PolygonZone.id.in_(zone_ids),
++            None,
+===== _check_dwell_time 18
+-            PolygonZone.loitering_alert_enabled.is_(True),
++            None,
+===== _check_dwell_time 19
+-            PolygonZone.id.in_(zone_ids),
+===== _check_dwell_time 20
+-            PolygonZone.loitering_alert_enabled.is_(True),
+-        )
++            )
+===== _check_dwell_time 21
+-        zones_stmt = select(PolygonZone).where(
++        zones_stmt = select(None).where(
+===== _check_dwell_time 23
+-            PolygonZone.loitering_alert_enabled.is_(True),
++            PolygonZone.loitering_alert_enabled.is_(None),
+===== _check_dwell_time 24
+-            PolygonZone.loitering_alert_enabled.is_(True),
++            PolygonZone.loitering_alert_enabled.is_(False),
+===== _check_dwell_time 26
+-        zones_result = await self.session.execute(zones_stmt)
++        zones_result = await self.session.execute(None)
+===== _check_dwell_time 32
+-            dwell_stmt = (
+-                select(DwellTimeRecord)
+-                .where(DwellTimeRecord.zone_id == zone_id)
+-                .where(DwellTimeRecord.exit_time.is_(None))
+-            )
++            dwell_stmt = None
+===== _check_dwell_time 33
+-                .where(DwellTimeRecord.exit_time.is_(None))
++                .where(None)
+===== _check_dwell_time 34
+-                .where(DwellTimeRecord.zone_id == zone_id)
++                .where(None)
+===== _check_dwell_time 35
+-                select(DwellTimeRecord)
++                select(None)
+===== _check_dwell_time 36
+-                .where(DwellTimeRecord.zone_id == zone_id)
++                .where(DwellTimeRecord.zone_id != zone_id)
+===== _check_dwell_time 38
+-            dwell_result = await self.session.execute(dwell_stmt)
++            dwell_result = await self.session.execute(None)
+===== _check_dwell_time 4
+-            stmt = (
+-                select(DwellTimeRecord.zone_id)
+-                .where(DwellTimeRecord.camera_id == event.camera_id)
+-                .where(DwellTimeRecord.exit_time.is_(None))
+-                .distinct()
+-            )
++            stmt = None
+===== _check_dwell_time 41
+-                dwell_seconds = record.calculate_dwell_time(current_time)
++                dwell_seconds = record.calculate_dwell_time(None)
+===== _check_dwell_time 42
+-                if dwell_seconds >= zone.loitering_threshold_seconds:
++                if dwell_seconds > zone.loitering_threshold_seconds:
+===== _check_dwell_time 5
+-                .where(DwellTimeRecord.exit_time.is_(None))
++                .where(None)
+===== _check_dwell_time 52
+-                        f"Loitering detected for rule {rule.id}: "
+-                        f"track {record.track_id} in zone {zone.name} "
+-                        f"for {dwell_seconds:.1f}s "
+-                        f"(threshold: {zone.loitering_threshold_seconds}s)"
++                        None
+===== _check_dwell_time 6
+-                .where(DwellTimeRecord.camera_id == event.camera_id)
++                .where(None)
+===== _check_dwell_time 7
+-                select(DwellTimeRecord.zone_id)
++                select(None)
+===== _check_dwell_time 8
+-                .where(DwellTimeRecord.camera_id == event.camera_id)
++                .where(DwellTimeRecord.camera_id != event.camera_id)
+===== _check_pose_type 1
+-        if not rule.pose_types or not detections:
++        if not rule.pose_types and not detections:
+===== _check_pose_type 12
+-        result = await self.session.execute(stmt)
++        result = await self.session.execute(None)
+===== _check_pose_type 25
+-                if pose.confidence is None or pose.confidence >= confidence_threshold:
++                if pose.confidence is None or pose.confidence > confidence_threshold:
+===== _check_pose_type 7
+-        stmt = select(PoseResult).where(PoseResult.detection_id.in_(detection_ids))
++        stmt = None
+===== _check_pose_type 8
+-        stmt = select(PoseResult).where(PoseResult.detection_id.in_(detection_ids))
++        stmt = select(PoseResult).where(None)
+===== _check_pose_type 9
+-        stmt = select(PoseResult).where(PoseResult.detection_id.in_(detection_ids))
++        stmt = select(None).where(PoseResult.detection_id.in_(detection_ids))
+===== _check_smoke_fire 1
+-        if not rule.smoke_fire_detection_enabled or not detections:
++        if not rule.smoke_fire_detection_enabled and not detections:
+===== _check_smoke_fire 11
+-        consecutive_required = rule.smoke_fire_consecutive_required or 2
++        consecutive_required = rule.smoke_fire_consecutive_required and 2
+===== _check_smoke_fire 12
+-        consecutive_required = rule.smoke_fire_consecutive_required or 2
++        consecutive_required = rule.smoke_fire_consecutive_required or 3
+===== _check_smoke_fire 13
+-            stmt = select(Detection).where(Detection.id.in_(detection_ids))
++            stmt = None
+===== _check_smoke_fire 14
+-            stmt = select(Detection).where(Detection.id.in_(detection_ids))
++            stmt = select(Detection).where(None)
+===== _check_smoke_fire 15
+-            stmt = select(Detection).where(Detection.id.in_(detection_ids))
++            stmt = select(None).where(Detection.id.in_(detection_ids))
+===== _check_smoke_fire 18
+-            result = await self.session.execute(stmt)
++            result = await self.session.execute(None)
+===== _check_smoke_fire 23
+-                        if result_confidence < confidence_threshold:
++                        if result_confidence <= confidence_threshold:
+===== _check_smoke_fire 24
+-                            continue
++                            break
+===== _check_smoke_fire 26
+-                        if consecutive_count < consecutive_required:
++                        if consecutive_count <= consecutive_required:
+===== _check_smoke_fire 27
+-                            continue
++                            break
+===== _check_smoke_fire 29
+-                    if isinstance(detection_type, str) and detection_type in ("smoke", "fire"):
++                    if isinstance(detection_type, str) or detection_type in ("smoke", "fire"):
+===== _check_smoke_fire 33
+-                    if isinstance(detection_type, str) and detection_type in ("smoke", "fire"):
++                    if isinstance(detection_type, str) and detection_type in ("smoke", "XXfireXX"):
+===== _check_smoke_fire 34
+-                    if isinstance(detection_type, str) and detection_type in ("smoke", "fire"):
++                    if isinstance(detection_type, str) and detection_type in ("smoke", "FIRE"):
+===== _check_threat_detected 1
+-        if not rule.threat_detection_enabled or not detections:
++        if not rule.threat_detection_enabled and not detections:
+===== _check_threat_detected 12
+-        result = await self.session.execute(stmt)
++        result = await self.session.execute(None)
+===== _check_threat_detected 21
+-            if rule.threat_min_severity
++            if (rule.threat_min_severity) or True
+===== _check_threat_detected 23
+-            THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, 0)
++            THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, None)
+===== _check_threat_detected 25
+-            THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, 0)
++            THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, )
+===== _check_threat_detected 26
+-            THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, 0)
++            THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, 1)
+===== _check_threat_detected 27
+-            else 0
++            else 1
+===== _check_threat_detected 30
+-            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, 0)
++            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(None, 0)
+===== _check_threat_detected 31
+-            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, 0)
++            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, None)
+===== _check_threat_detected 33
+-            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, 0)
++            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, )
+===== _check_threat_detected 34
+-            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, 0)
++            threat_severity_priority = THREAT_SEVERITY_PRIORITY.get(threat.severity, 1)
+===== _check_threat_detected 35
+-            if threat_severity_priority < min_severity_priority:
++            if threat_severity_priority <= min_severity_priority:
+===== _check_threat_detected 36
+-                continue
++                break
+===== _check_threat_detected 37
+-            if threat.confidence < confidence_threshold:
++            if threat.confidence <= confidence_threshold:
+===== _check_threat_detected 38
+-                continue
++                break
+===== _check_threat_detected 7
+-        stmt = select(ThreatDetection).where(ThreatDetection.detection_id.in_(detection_ids))
++        stmt = None
+===== _check_threat_detected 8
+-        stmt = select(ThreatDetection).where(ThreatDetection.detection_id.in_(detection_ids))
++        stmt = select(ThreatDetection).where(None)
+===== _check_threat_detected 9
+-        stmt = select(ThreatDetection).where(ThreatDetection.detection_id.in_(detection_ids))
++        stmt = select(None).where(ThreatDetection.detection_id.in_(detection_ids))
+===== _load_event_detections 1
+-            state = inspect(event)
++            state = None
+===== _load_event_detections 11
+-        stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
++        stmt = None
+===== _load_event_detections 12
+-        stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
++        stmt = select(EventDetection.detection_id).where(None)
+===== _load_event_detections 13
+-        stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
++        stmt = select(None).where(EventDetection.event_id == event.id)
+===== _load_event_detections 14
+-        stmt = select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
++        stmt = select(EventDetection.detection_id).where(EventDetection.event_id != event.id)
+===== _load_event_detections 16
+-        result = await self.session.execute(stmt)
++        result = await self.session.execute(None)
+===== _load_event_detections 2
+-            state = inspect(event)
++            state = inspect(None)
+===== _load_event_detections 20
+-        return await batch_fetch_detections(self.session, detection_id_list)
++        return await batch_fetch_detections(None, detection_id_list)
+===== _load_event_detections 21
+-        return await batch_fetch_detections(self.session, detection_id_list)
++        return await batch_fetch_detections(self.session, None)
+===== _load_event_detections 22
+-        return await batch_fetch_detections(self.session, detection_id_list)
++        return await batch_fetch_detections(detection_id_list)
+===== _load_event_detections 23
+-        return await batch_fetch_detections(self.session, detection_id_list)
++        return await batch_fetch_detections(self.session, )
+===== _trigger_alert_webhook 10
+-                "severity": alert.severity.value
++                "SEVERITY": alert.severity.value
+===== _trigger_alert_webhook 11
+-                if hasattr(alert.severity, "value")
++                if (hasattr(alert.severity, "value")) and False
+===== _trigger_alert_webhook 12
+-                if hasattr(alert.severity, "value")
++                if (hasattr(alert.severity, "value")) or True
+===== _trigger_alert_webhook 13
+-                if hasattr(alert.severity, "value")
++                if hasattr(None, "value")
+===== _trigger_alert_webhook 17
+-                if hasattr(alert.severity, "value")
++                if hasattr(alert.severity, "XXvalueXX")
+===== _trigger_alert_webhook 18
+-                if hasattr(alert.severity, "value")
++                if hasattr(alert.severity, "VALUE")
+===== _trigger_alert_webhook 19
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "XXstatusXX": alert.status.value if hasattr(alert.status, "value") else alert.status,
+===== _trigger_alert_webhook 2
+-            webhook_data = {
+-                "alert_id": alert.id,
+-                "event_id": alert.event_id,
+-                "rule_id": alert.rule_id,
+-                "severity": alert.severity.value
+-                if hasattr(alert.severity, "value")
+-                else alert.severity,
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+-                "dedup_key": alert.dedup_key,
+-                "channels": alert.channels or [],
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
+-                if alert.alert_metadata
+-                else [],
+-                "rule_name": alert.alert_metadata.get("rule_name")
+-                if alert.alert_metadata
+-                else None,
+-                "camera_id": event.camera_id,
+-                "risk_score": event.risk_score,
+-            }
++            webhook_data = None
+===== _trigger_alert_webhook 20
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "STATUS": alert.status.value if hasattr(alert.status, "value") else alert.status,
+===== _trigger_alert_webhook 21
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "status": alert.status.value if (hasattr(alert.status, "value")) and False else alert.status,
+===== _trigger_alert_webhook 22
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "status": alert.status.value if (hasattr(alert.status, "value")) or True else alert.status,
+===== _trigger_alert_webhook 23
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "status": alert.status.value if hasattr(None, "value") else alert.status,
+===== _trigger_alert_webhook 27
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "status": alert.status.value if hasattr(alert.status, "XXvalueXX") else alert.status,
+===== _trigger_alert_webhook 28
+-                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
++                "status": alert.status.value if hasattr(alert.status, "VALUE") else alert.status,
+===== _trigger_alert_webhook 29
+-                "dedup_key": alert.dedup_key,
++                "XXdedup_keyXX": alert.dedup_key,
+===== _trigger_alert_webhook 3
+-                "alert_id": alert.id,
++                "XXalert_idXX": alert.id,
+===== _trigger_alert_webhook 30
+-                "dedup_key": alert.dedup_key,
++                "DEDUP_KEY": alert.dedup_key,
+===== _trigger_alert_webhook 31
+-                "channels": alert.channels or [],
++                "XXchannelsXX": alert.channels or [],
+===== _trigger_alert_webhook 32
+-                "channels": alert.channels or [],
++                "CHANNELS": alert.channels or [],
+===== _trigger_alert_webhook 33
+-                "channels": alert.channels or [],
++                "channels": alert.channels and [],
+===== _trigger_alert_webhook 34
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "XXmatched_conditionsXX": alert.alert_metadata.get("matched_conditions", [])
+===== _trigger_alert_webhook 35
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "MATCHED_CONDITIONS": alert.alert_metadata.get("matched_conditions", [])
+===== _trigger_alert_webhook 36
+-                if alert.alert_metadata
++                if (alert.alert_metadata) and False
+===== _trigger_alert_webhook 37
+-                if alert.alert_metadata
++                if (alert.alert_metadata) or True
+===== _trigger_alert_webhook 38
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "matched_conditions": alert.alert_metadata.get(None, [])
+===== _trigger_alert_webhook 39
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "matched_conditions": alert.alert_metadata.get("matched_conditions", None)
+===== _trigger_alert_webhook 4
+-                "alert_id": alert.id,
++                "ALERT_ID": alert.id,
+===== _trigger_alert_webhook 41
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "matched_conditions": alert.alert_metadata.get("matched_conditions", )
+===== _trigger_alert_webhook 42
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "matched_conditions": alert.alert_metadata.get("XXmatched_conditionsXX", [])
+===== _trigger_alert_webhook 43
+-                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
++                "matched_conditions": alert.alert_metadata.get("MATCHED_CONDITIONS", [])
+===== _trigger_alert_webhook 44
+-                "rule_name": alert.alert_metadata.get("rule_name")
++                "XXrule_nameXX": alert.alert_metadata.get("rule_name")
+===== _trigger_alert_webhook 45
+-                "rule_name": alert.alert_metadata.get("rule_name")
++                "RULE_NAME": alert.alert_metadata.get("rule_name")
+===== _trigger_alert_webhook 46
+-                if alert.alert_metadata
++                if (alert.alert_metadata) and False
+===== _trigger_alert_webhook 47
+-                if alert.alert_metadata
++                if (alert.alert_metadata) or True
+===== _trigger_alert_webhook 48
+-                "rule_name": alert.alert_metadata.get("rule_name")
++                "rule_name": alert.alert_metadata.get(None)
+===== _trigger_alert_webhook 49
+-                "rule_name": alert.alert_metadata.get("rule_name")
++                "rule_name": alert.alert_metadata.get("XXrule_nameXX")
+===== _trigger_alert_webhook 5
+-                "event_id": alert.event_id,
++                "XXevent_idXX": alert.event_id,
+===== _trigger_alert_webhook 50
+-                "rule_name": alert.alert_metadata.get("rule_name")
++                "rule_name": alert.alert_metadata.get("RULE_NAME")
+===== _trigger_alert_webhook 51
+-                "camera_id": event.camera_id,
++                "XXcamera_idXX": event.camera_id,
+===== _trigger_alert_webhook 52
+-                "camera_id": event.camera_id,
++                "CAMERA_ID": event.camera_id,
+===== _trigger_alert_webhook 53
+-                "risk_score": event.risk_score,
++                "XXrisk_scoreXX": event.risk_score,
+===== _trigger_alert_webhook 54
+-                "risk_score": event.risk_score,
++                "RISK_SCORE": event.risk_score,
+===== _trigger_alert_webhook 55
+-                self.session,
++                None,
+===== _trigger_alert_webhook 57
+-                webhook_data,
++                None,
+===== _trigger_alert_webhook 58
+-                event_id=alert.id,
++                event_id=None,
+===== _trigger_alert_webhook 6
+-                "event_id": alert.event_id,
++                "EVENT_ID": alert.event_id,
+===== _trigger_alert_webhook 61
+-                webhook_data,
+===== _trigger_alert_webhook 62
+-                event_id=alert.id,
+-            )
++                )
+===== _trigger_alert_webhook 63
+-                f"Failed to trigger ALERT_FIRED webhooks: {e}",
++                None,
+===== _trigger_alert_webhook 64
+-                extra={"alert_id": alert.id, "event_id": event.id},
++                extra=None,
+===== _trigger_alert_webhook 66
+-                extra={"alert_id": alert.id, "event_id": event.id},
+-            )
++                )
+===== _trigger_alert_webhook 67
+-                extra={"alert_id": alert.id, "event_id": event.id},
++                extra={"XXalert_idXX": alert.id, "event_id": event.id},
+===== _trigger_alert_webhook 68
+-                extra={"alert_id": alert.id, "event_id": event.id},
++                extra={"ALERT_ID": alert.id, "event_id": event.id},
+===== _trigger_alert_webhook 69
+-                extra={"alert_id": alert.id, "event_id": event.id},
++                extra={"alert_id": alert.id, "XXevent_idXX": event.id},
+===== _trigger_alert_webhook 7
+-                "rule_id": alert.rule_id,
++                "XXrule_idXX": alert.rule_id,
+===== _trigger_alert_webhook 70
+-                extra={"alert_id": alert.id, "event_id": event.id},
++                extra={"alert_id": alert.id, "EVENT_ID": event.id},
+===== _trigger_alert_webhook 8
+-                "rule_id": alert.rule_id,
++                "RULE_ID": alert.rule_id,
+===== _trigger_alert_webhook 9
+-                "severity": alert.severity.value
++                "XXseverityXX": alert.severity.value
+===== create_alerts_for_event 22
+-            self.session.add(alert)
++            self.session.add(None)

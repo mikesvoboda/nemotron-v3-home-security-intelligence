@@ -1,0 +1,13 @@
+# backend.api.routes.system.x__get_degradation_status__mutmut_59: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -41,8 +41,7 @@
+             memory_queue_size=status.get("memory_queue_size", 0),
+             fallback_queues=status.get("fallback_queues", {}),
+             services=services_list,
+-            available_features=status.get("available_features", []),
+-        )
++            )
+     except (KeyError, ValueError, AttributeError) as e:
+         # Status data parsing failures
+         logger.error(f"Error getting degradation status: {e}", exc_info=True)

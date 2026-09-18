@@ -1,0 +1,185 @@
+x_format_batch_clothing_context__mutmut_24              | return "\n".join(lines)   ==>   return "XX\nXX".join(lines)
+x_format_clothing_context__mutmut_9                     | items_str = ", ".join(items)   ==>   items_str = "XX, XX".join(items)
+x_format_clothing_context__mutmut_12                    | parts.append("(face appears covered)")   ==>   parts.append("XX(face appears covered)XX")
+x_format_clothing_context__mutmut_15                    | parts.append("(carrying bag)")   ==>   parts.append("XX(carrying bag)XX")
+x_format_clothing_context__mutmut_18                    | return " ".join(parts)   ==>   return "XX XX".join(parts)
+x_load_segformer_model__mutmut_3                        | "SegFormer B2 Clothes requires a CUDA GPU — CPU inference holds "   ==>   "XXSegFormer B2 Clothes requires a CUDA GPU — CPU inference holds XX"
+x_load_segformer_model__mutmut_6                        | logger.info(f"Loading SegFormer B2 Clothes model from {model_path}")   ==>   logger.info(None)
+x_load_segformer_model__mutmut_9                        | processor = SegformerImageProcessor.from_pretrained(model_path)   ==>   processor = None
+x_load_segformer_model__mutmut_10                       | processor = SegformerImageProcessor.from_pretrained(model_path)   ==>   processor = SegformerImageProcessor.from_pretrained(None)
+x_load_segformer_model__mutmut_26                       | logger.info(f"Successfully loaded SegFormer B2 Clothes model from {model_path}")   ==>   logger.info(None)
+x_load_segformer_model__mutmut_27                       | OLDFIRST ['"transformers or torch package not installed. "', '"Install with: pip install transformers torch"'] NEWFIRST ['None']
+x_load_segformer_model__mutmut_28                       | "transformers or torch package not installed. "   ==>   "XXtransformers or torch package not installed. XX"
+x_load_segformer_model__mutmut_29                       | "transformers or torch package not installed. "   ==>   "TRANSFORMERS OR TORCH PACKAGE NOT INSTALLED. "
+x_load_segformer_model__mutmut_31                       | "SegFormer requires transformers and torch. "   ==>   "XXSegFormer requires transformers and torch. XX"
+x_load_segformer_model__mutmut_34                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   None, exc_info=True, extra={"model_path": model_path}
+x_load_segformer_model__mutmut_35                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "Failed to load SegFormer model", exc_info=None, extra={"model_path": model_path}
+x_load_segformer_model__mutmut_36                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "Failed to load SegFormer model", exc_info=True, extra=None
+x_load_segformer_model__mutmut_38                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "Failed to load SegFormer model", extra={"model_path": model_path}
+x_load_segformer_model__mutmut_39                       | OLDFIRST ['"Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}', ')'] NEWFIRST ['"Failed to load SegFormer model", exc_info=True, )']
+x_load_segformer_model__mutmut_40                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "XXFailed to load SegFormer modelXX", exc_info=True, extra={"model_path": model_path}
+x_load_segformer_model__mutmut_41                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "failed to load segformer model", exc_info=True, extra={"model_path": model_path}
+x_load_segformer_model__mutmut_42                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "FAILED TO LOAD SEGFORMER MODEL", exc_info=True, extra={"model_path": model_path}
+x_load_segformer_model__mutmut_43                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "Failed to load SegFormer model", exc_info=False, extra={"model_path": model_path}
+x_load_segformer_model__mutmut_44                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "Failed to load SegFormer model", exc_info=True, extra={"XXmodel_pathXX": model_path}
+x_load_segformer_model__mutmut_45                       | "Failed to load SegFormer model", exc_info=True, extra={"model_path": model_path}   ==>   "Failed to load SegFormer model", exc_info=True, extra={"MODEL_PATH": model_path}
+x_segment_clothing__mutmut_1                            | loop = asyncio.get_running_loop()   ==>   loop = None
+x_segment_clothing__mutmut_2                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = None
+x_segment_clothing__mutmut_3                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = processor(images=None, return_tensors="pt")
+x_segment_clothing__mutmut_4                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = processor(images=person_crop, return_tensors=None)
+x_segment_clothing__mutmut_5                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = processor(return_tensors="pt")
+x_segment_clothing__mutmut_6                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = processor(images=person_crop, )
+x_segment_clothing__mutmut_7                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = processor(images=person_crop, return_tensors="XXptXX")
+x_segment_clothing__mutmut_8                            | inputs = processor(images=person_crop, return_tensors="pt")   ==>   inputs = processor(images=person_crop, return_tensors="PT")
+x_segment_clothing__mutmut_9                            | device = next(model.parameters()).device   ==>   device = None
+x_segment_clothing__mutmut_10                           | device = next(model.parameters()).device   ==>   device = next(None).device
+x_segment_clothing__mutmut_11                           | inputs = {k: v.to(device) for k, v in inputs.items()}   ==>   inputs = None
+x_segment_clothing__mutmut_12                           | inputs = {k: v.to(device) for k, v in inputs.items()}   ==>   inputs = {k: v.to(None) for k, v in inputs.items()}
+x_segment_clothing__mutmut_13                           | outputs = model(**inputs)   ==>   outputs = None
+x_segment_clothing__mutmut_14                           | logits = outputs.logits   ==>   logits = None
+x_segment_clothing__mutmut_15                           | OLDFIRST ['upsampled_logits = torch.nn.functional.interpolate(', 'logits,', 'size=person_crop.size[::-1],  # (height, width)', 'mode="bilinear",', 'align_corners=False,', ')'] NEWFIRST ['upsampled_logits = None']
+x_segment_clothing__mutmut_16                           | logits,   ==>   None,
+x_segment_clothing__mutmut_17                           | size=person_crop.size[::-1],  # (height, width)   ==>   size=None,  # (height, width)
+x_segment_clothing__mutmut_18                           | mode="bilinear",   ==>   mode=None,
+x_segment_clothing__mutmut_19                           | align_corners=False,   ==>   align_corners=None,
+x_segment_clothing__mutmut_20                           | OLDFIRST ['logits,'] NEWFIRST []
+x_segment_clothing__mutmut_21                           | OLDFIRST ['size=person_crop.size[::-1],  # (height, width)'] NEWFIRST []
+x_segment_clothing__mutmut_22                           | OLDFIRST ['mode="bilinear",'] NEWFIRST []
+x_segment_clothing__mutmut_23                           | OLDFIRST ['align_corners=False,', ')'] NEWFIRST [')']
+x_segment_clothing__mutmut_24                           | size=person_crop.size[::-1],  # (height, width)   ==>   size=person_crop.size[::+1],  # (height, width)
+x_segment_clothing__mutmut_25                           | size=person_crop.size[::-1],  # (height, width)   ==>   size=person_crop.size[::-2],  # (height, width)
+x_segment_clothing__mutmut_26                           | mode="bilinear",   ==>   mode="XXbilinearXX",
+x_segment_clothing__mutmut_27                           | mode="bilinear",   ==>   mode="BILINEAR",
+x_segment_clothing__mutmut_28                           | align_corners=False,   ==>   align_corners=True,
+x_segment_clothing__mutmut_29                           | predicted_mask = upsampled_logits.argmax(dim=1).squeeze().cpu().numpy()   ==>   predicted_mask = None
+x_segment_clothing__mutmut_30                           | predicted_mask = upsampled_logits.argmax(dim=1).squeeze().cpu().numpy()   ==>   predicted_mask = upsampled_logits.argmax(dim=None).squeeze().cpu().numpy()
+x_segment_clothing__mutmut_31                           | predicted_mask = upsampled_logits.argmax(dim=1).squeeze().cpu().numpy()   ==>   predicted_mask = upsampled_logits.argmax(dim=2).squeeze().cpu().numpy()
+x_segment_clothing__mutmut_32                           | total_pixels = predicted_mask.size   ==>   total_pixels = None
+x_segment_clothing__mutmut_33                           | unique_classes, counts = np.unique(predicted_mask, return_counts=True)   ==>   unique_classes, counts = None
+x_segment_clothing__mutmut_34                           | unique_classes, counts = np.unique(predicted_mask, return_counts=True)   ==>   unique_classes, counts = np.unique(None, return_counts=True)
+x_segment_clothing__mutmut_35                           | unique_classes, counts = np.unique(predicted_mask, return_counts=True)   ==>   unique_classes, counts = np.unique(predicted_mask, return_counts=None)
+x_segment_clothing__mutmut_36                           | unique_classes, counts = np.unique(predicted_mask, return_counts=True)   ==>   unique_classes, counts = np.unique(return_counts=True)
+x_segment_clothing__mutmut_37                           | unique_classes, counts = np.unique(predicted_mask, return_counts=True)   ==>   unique_classes, counts = np.unique(predicted_mask, )
+x_segment_clothing__mutmut_38                           | unique_classes, counts = np.unique(predicted_mask, return_counts=True)   ==>   unique_classes, counts = np.unique(predicted_mask, return_counts=False)
+x_segment_clothing__mutmut_39                           | coverage_percentages: dict[str, float] = {}   ==>   coverage_percentages: dict[str, float] = None
+x_segment_clothing__mutmut_40                           | clothing_items: set[str] = set()   ==>   clothing_items: set[str] = None
+x_segment_clothing__mutmut_41                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(None, counts, strict=True):
+x_segment_clothing__mutmut_42                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(unique_classes, None, strict=True):
+x_segment_clothing__mutmut_43                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(unique_classes, counts, strict=None):
+x_segment_clothing__mutmut_44                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(counts, strict=True):
+x_segment_clothing__mutmut_45                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(unique_classes, strict=True):
+x_segment_clothing__mutmut_46                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(unique_classes, counts, ):
+x_segment_clothing__mutmut_47                           | for class_id, count in zip(unique_classes, counts, strict=True):   ==>   for class_id, count in zip(unique_classes, counts, strict=False):
+x_segment_clothing__mutmut_48                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = None
+x_segment_clothing__mutmut_49                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get(None, "unknown")
+x_segment_clothing__mutmut_50                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get(int(class_id), None)
+x_segment_clothing__mutmut_51                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get("unknown")
+x_segment_clothing__mutmut_52                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get(int(class_id), )
+x_segment_clothing__mutmut_53                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get(int(None), "unknown")
+x_segment_clothing__mutmut_54                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get(int(class_id), "XXunknownXX")
+x_segment_clothing__mutmut_55                           | label = CLOTHING_LABELS.get(int(class_id), "unknown")   ==>   label = CLOTHING_LABELS.get(int(class_id), "UNKNOWN")
+x_segment_clothing__mutmut_56                           | coverage = count / total_pixels   ==>   coverage = None
+x_segment_clothing__mutmut_57                           | coverage = count / total_pixels   ==>   coverage = count * total_pixels
+x_segment_clothing__mutmut_58                           | if label != "background" and coverage >= min_coverage:   ==>   if label != "background" or coverage >= min_coverage:
+x_segment_clothing__mutmut_59                           | if label != "background" and coverage >= min_coverage:   ==>   if label == "background" and coverage >= min_coverage:
+x_segment_clothing__mutmut_60                           | if label != "background" and coverage >= min_coverage:   ==>   if label != "XXbackgroundXX" and coverage >= min_coverage:
+x_segment_clothing__mutmut_61                           | if label != "background" and coverage >= min_coverage:   ==>   if label != "BACKGROUND" and coverage >= min_coverage:
+x_segment_clothing__mutmut_62                           | if label != "background" and coverage >= min_coverage:   ==>   if label != "background" and coverage > min_coverage:
+x_segment_clothing__mutmut_63                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = None
+x_segment_clothing__mutmut_64                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(None, 2)
+x_segment_clothing__mutmut_65                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(coverage * 100, None)
+x_segment_clothing__mutmut_66                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(2)
+x_segment_clothing__mutmut_67                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(coverage * 100, )
+x_segment_clothing__mutmut_68                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(coverage / 100, 2)
+x_segment_clothing__mutmut_69                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(coverage * 101, 2)
+x_segment_clothing__mutmut_70                           | coverage_percentages[label] = round(coverage * 100, 2)   ==>   coverage_percentages[label] = round(coverage * 100, 3)
+x_segment_clothing__mutmut_71                           | if label in SECURITY_CLOTHING_LABELS:   ==>   if label not in SECURITY_CLOTHING_LABELS:
+x_segment_clothing__mutmut_72                           | clothing_items.add(label)   ==>   clothing_items.add(None)
+x_segment_clothing__mutmut_73                           | elif label in SHOE_LABELS:   ==>   elif label not in SHOE_LABELS:
+x_segment_clothing__mutmut_74                           | clothing_items.add("shoes")   ==>   clothing_items.add(None)
+x_segment_clothing__mutmut_75                           | clothing_items.add("shoes")   ==>   clothing_items.add("XXshoesXX")
+x_segment_clothing__mutmut_76                           | clothing_items.add("shoes")   ==>   clothing_items.add("SHOES")
+x_segment_clothing__mutmut_77                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = None
+x_segment_clothing__mutmut_78                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get(None, 0.0)
+x_segment_clothing__mutmut_79                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get("shoes", None)
+x_segment_clothing__mutmut_80                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get(0.0)
+x_segment_clothing__mutmut_81                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get("shoes", )
+x_segment_clothing__mutmut_82                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get("XXshoesXX", 0.0)
+x_segment_clothing__mutmut_83                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get("SHOES", 0.0)
+x_segment_clothing__mutmut_84                           | current = coverage_percentages.get("shoes", 0.0)   ==>   current = coverage_percentages.get("shoes", 1.0)
+x_segment_clothing__mutmut_85                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = None
+x_segment_clothing__mutmut_86                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["XXshoesXX"] = round(current + coverage * 100, 2)
+x_segment_clothing__mutmut_87                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["SHOES"] = round(current + coverage * 100, 2)
+x_segment_clothing__mutmut_88                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(None, 2)
+x_segment_clothing__mutmut_89                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(current + coverage * 100, None)
+x_segment_clothing__mutmut_90                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(2)
+x_segment_clothing__mutmut_91                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(current + coverage * 100, )
+x_segment_clothing__mutmut_92                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(current - coverage * 100, 2)
+x_segment_clothing__mutmut_93                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(current + coverage / 100, 2)
+x_segment_clothing__mutmut_94                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(current + coverage * 101, 2)
+x_segment_clothing__mutmut_95                           | coverage_percentages["shoes"] = round(current + coverage * 100, 2)   ==>   coverage_percentages["shoes"] = round(current + coverage * 100, 3)
+x_segment_clothing__mutmut_96                           | coverage_percentages.pop(label, None)   ==>   coverage_percentages.pop(None, None)
+x_segment_clothing__mutmut_97                           | coverage_percentages.pop(label, None)   ==>   coverage_percentages.pop(None)
+x_segment_clothing__mutmut_98                           | coverage_percentages.pop(label, None)   ==>   coverage_percentages.pop(label, )
+x_segment_clothing__mutmut_99                           | has_sunglasses = "sunglasses" in clothing_items   ==>   has_sunglasses = None
+x_segment_clothing__mutmut_100                          | has_sunglasses = "sunglasses" in clothing_items   ==>   has_sunglasses = "XXsunglassesXX" in clothing_items
+x_segment_clothing__mutmut_101                          | has_sunglasses = "sunglasses" in clothing_items   ==>   has_sunglasses = "SUNGLASSES" in clothing_items
+x_segment_clothing__mutmut_102                          | has_sunglasses = "sunglasses" in clothing_items   ==>   has_sunglasses = "sunglasses" not in clothing_items
+x_segment_clothing__mutmut_103                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = None
+x_segment_clothing__mutmut_104                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "hat" in clothing_items and "scarf" in clothing_items
+x_segment_clothing__mutmut_105                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "XXhatXX" in clothing_items or "scarf" in clothing_items
+x_segment_clothing__mutmut_106                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "HAT" in clothing_items or "scarf" in clothing_items
+x_segment_clothing__mutmut_107                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "hat" not in clothing_items or "scarf" in clothing_items
+x_segment_clothing__mutmut_108                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "hat" in clothing_items or "XXscarfXX" in clothing_items
+x_segment_clothing__mutmut_109                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "hat" in clothing_items or "SCARF" in clothing_items
+x_segment_clothing__mutmut_110                          | has_head_covering = "hat" in clothing_items or "scarf" in clothing_items   ==>   has_head_covering = "hat" in clothing_items or "scarf" not in clothing_items
+x_segment_clothing__mutmut_111                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = None
+x_segment_clothing__mutmut_112                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get(None, 0.0)
+x_segment_clothing__mutmut_113                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get("face", None)
+x_segment_clothing__mutmut_114                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get(0.0)
+x_segment_clothing__mutmut_115                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get("face", )
+x_segment_clothing__mutmut_116                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get("XXfaceXX", 0.0)
+x_segment_clothing__mutmut_117                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get("FACE", 0.0)
+x_segment_clothing__mutmut_118                          | face_coverage = coverage_percentages.get("face", 0.0)   ==>   face_coverage = coverage_percentages.get("face", 1.0)
+x_segment_clothing__mutmut_119                          | has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 5.0)   ==>   has_face_covered = None
+x_segment_clothing__mutmut_120                          | has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 5.0)   ==>   has_face_covered = has_sunglasses or (has_head_covering or face_coverage < 5.0)
+x_segment_clothing__mutmut_121                          | has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 5.0)   ==>   has_face_covered = has_sunglasses and (has_head_covering and face_coverage < 5.0)
+x_segment_clothing__mutmut_122                          | has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 5.0)   ==>   has_face_covered = has_sunglasses and (has_head_covering or face_coverage <= 5.0)
+x_segment_clothing__mutmut_123                          | has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 5.0)   ==>   has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 6.0)
+x_segment_clothing__mutmut_124                          | has_bag = "bag" in clothing_items   ==>   has_bag = None
+x_segment_clothing__mutmut_125                          | has_bag = "bag" in clothing_items   ==>   has_bag = "XXbagXX" in clothing_items
+x_segment_clothing__mutmut_126                          | has_bag = "bag" in clothing_items   ==>   has_bag = "BAG" in clothing_items
+x_segment_clothing__mutmut_127                          | has_bag = "bag" in clothing_items   ==>   has_bag = "bag" not in clothing_items
+x_segment_clothing__mutmut_128                          | clothing_items=clothing_items,   ==>   clothing_items=None,
+x_segment_clothing__mutmut_129                          | has_face_covered=has_face_covered,   ==>   has_face_covered=None,
+x_segment_clothing__mutmut_130                          | has_bag=has_bag,   ==>   has_bag=None,
+x_segment_clothing__mutmut_131                          | coverage_percentages=coverage_percentages,   ==>   coverage_percentages=None,
+x_segment_clothing__mutmut_132                          | raw_mask=predicted_mask,   ==>   raw_mask=None,
+x_segment_clothing__mutmut_133                          | OLDFIRST ['clothing_items=clothing_items,'] NEWFIRST []
+x_segment_clothing__mutmut_134                          | OLDFIRST ['has_face_covered=has_face_covered,'] NEWFIRST []
+x_segment_clothing__mutmut_135                          | OLDFIRST ['has_bag=has_bag,'] NEWFIRST []
+x_segment_clothing__mutmut_136                          | OLDFIRST ['coverage_percentages=coverage_percentages,'] NEWFIRST []
+x_segment_clothing__mutmut_137                          | OLDFIRST ['raw_mask=predicted_mask,', ')'] NEWFIRST [')']
+x_segment_clothing__mutmut_138                          | loop.run_in_executor(None, _segment),   ==>   None,
+x_segment_clothing__mutmut_139                          | timeout=15.0,   ==>   timeout=None,
+x_segment_clothing__mutmut_140                          | OLDFIRST ['loop.run_in_executor(None, _segment),'] NEWFIRST []
+x_segment_clothing__mutmut_141                          | OLDFIRST ['timeout=15.0,', ')'] NEWFIRST [')']
+x_segment_clothing__mutmut_142                          | loop.run_in_executor(None, _segment),   ==>   loop.run_in_executor(None, None),
+x_segment_clothing__mutmut_143                          | loop.run_in_executor(None, _segment),   ==>   loop.run_in_executor(_segment),
+x_segment_clothing__mutmut_144                          | loop.run_in_executor(None, _segment),   ==>   loop.run_in_executor(None, ),
+x_segment_clothing__mutmut_145                          | timeout=15.0,   ==>   timeout=16.0,
+x_segment_clothing__mutmut_146                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error(None, exc_info=True)
+x_segment_clothing__mutmut_147                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error("Failed to segment clothing", exc_info=None)
+x_segment_clothing__mutmut_149                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error("Failed to segment clothing", )
+x_segment_clothing__mutmut_150                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error("XXFailed to segment clothingXX", exc_info=True)
+x_segment_clothing__mutmut_151                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error("failed to segment clothing", exc_info=True)
+x_segment_clothing__mutmut_152                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error("FAILED TO SEGMENT CLOTHING", exc_info=True)
+x_segment_clothing__mutmut_153                          | logger.error("Failed to segment clothing", exc_info=True)   ==>   logger.error("Failed to segment clothing", exc_info=False)
+x_segment_clothing_batch__mutmut_4                      | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(None, processor, crop, min_coverage)
+x_segment_clothing_batch__mutmut_5                      | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(model, None, crop, min_coverage)
+x_segment_clothing_batch__mutmut_6                      | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(model, processor, None, min_coverage)
+x_segment_clothing_batch__mutmut_7                      | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(model, processor, crop, None)
+x_segment_clothing_batch__mutmut_8                      | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(processor, crop, min_coverage)
+x_segment_clothing_batch__mutmut_9                      | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(model, crop, min_coverage)
+x_segment_clothing_batch__mutmut_10                     | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(model, processor, min_coverage)
+x_segment_clothing_batch__mutmut_11                     | result = await segment_clothing(model, processor, crop, min_coverage)   ==>   result = await segment_clothing(model, processor, crop, )

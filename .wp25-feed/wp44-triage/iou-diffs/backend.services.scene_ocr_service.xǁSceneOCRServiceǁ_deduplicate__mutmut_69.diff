@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_69: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -93,7 +93,7 @@
+                 {
+                     "value": frame_ocr.text,
+                     "confidence": frame_ocr.confidence,
+-                    "region": self._determine_region(
++                    "XXregionXX": self._determine_region(
+                         frame_ocr.bbox, detection_bboxes.get(best_det_id, (0, 0, 0, 0))
+                     ),
+                 }

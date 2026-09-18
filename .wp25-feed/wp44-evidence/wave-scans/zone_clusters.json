@@ -1,0 +1,398 @@
+{
+ "OTHER": [
+  [
+   "_reset_zone_anomaly_service",
+   1
+  ]
+ ],
+ "freq_getattr_local": [
+  10,
+  14,
+  15,
+  16,
+  22,
+  23,
+  25,
+  28,
+  29,
+  30,
+  31,
+  41,
+  43,
+  46,
+  49,
+  51,
+  53,
+  56,
+  59,
+  7
+ ],
+ "freq_getattr_field": [
+  101,
+  102,
+  103,
+  104,
+  108,
+  109,
+  110,
+  97
+ ],
+ "freq_uuid_ternary": [
+  20
+ ],
+ "freq_cutoff_math": [
+  33,
+  35
+ ],
+ "freq_cutoff_op": [
+  37
+ ],
+ "freq_append_none": [
+  38
+ ],
+ "freq_std_clamp": [
+  60,
+  61
+ ],
+ "freq_thresh_op": [
+  65
+ ],
+ "freq_anom_id_local": [
+  68,
+  69
+ ],
+ "freq_field_none": [
+  70,
+  71,
+  72,
+  74,
+  75,
+  76,
+  77,
+  78,
+  79,
+  80,
+  81,
+  82
+ ],
+ "freq_kwarg_drop": [
+  83,
+  84,
+  85,
+  87,
+  88,
+  89,
+  90,
+  91,
+  92,
+  93,
+  94,
+  95
+ ],
+ "ack_query_mangle": [
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "cd_UNC": [
+  [
+   11,
+   "if getattr(baseline, \"sample_count\", 0) == 0:",
+   "if getattr(baseline, \"sample_count\", None) == 0:"
+  ],
+  [
+   14,
+   "if getattr(baseline, \"sample_count\", 0) == 0:",
+   "if getattr(baseline, \"sample_count\", ) == 0:"
+  ],
+  [
+   17,
+   "if getattr(baseline, \"sample_count\", 0) == 0:",
+   "if getattr(baseline, \"sample_count\", 1) == 0:"
+  ],
+  [
+   21,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = None"
+  ],
+  [
+   22,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = self._check_unusual_time(None, zone, baseline, threshold)"
+  ],
+  [
+   24,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = self._check_unusual_time(detection, zone, None, threshold)"
+  ],
+  [
+   26,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = self._check_unusual_time(zone, baseline, threshold)"
+  ],
+  [
+   27,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = self._check_unusual_time(detection, baseline, threshold)"
+  ],
+  [
+   28,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = self._check_unusual_time(detection, zone, threshold)"
+  ],
+  [
+   29,
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)",
+   "time_anomaly = self._check_unusual_time(detection, zone, baseline, )"
+  ],
+  [
+   31,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = None"
+  ],
+  [
+   32,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = await self._check_unusual_frequency(None, zone, baseline, threshold)"
+  ],
+  [
+   34,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, None, threshold)"
+  ],
+  [
+   36,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = await self._check_unusual_frequency(zone, baseline, threshold)"
+  ],
+  [
+   37,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = await self._check_unusual_frequency(detection, baseline, threshold)"
+  ],
+  [
+   38,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, threshold)"
+  ],
+  [
+   39,
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)",
+   "freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, )"
+  ],
+  [
+   4,
+   "baseline = await self._baseline_service.get_baseline(zone.id, session=session)",
+   "baseline = await self._baseline_service.get_baseline(None, session=session)"
+  ],
+  [
+   40,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = None"
+  ],
+  [
+   41,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = await self._check_unusual_dwell(None, zone, baseline, threshold)"
+  ],
+  [
+   43,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, None, threshold)"
+  ],
+  [
+   45,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = await self._check_unusual_dwell(zone, baseline, threshold)"
+  ],
+  [
+   46,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = await self._check_unusual_dwell(detection, baseline, threshold)"
+  ],
+  [
+   47,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, threshold)"
+  ],
+  [
+   48,
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)",
+   "dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, )"
+  ],
+  [
+   5,
+   "baseline = await self._baseline_service.get_baseline(zone.id, session=session)",
+   "baseline = await self._baseline_service.get_baseline(zone.id, session=None)"
+  ],
+  [
+   52,
+   "AnomalySeverity.CRITICAL.value: 0,",
+   "AnomalySeverity.CRITICAL.value: 1,"
+  ],
+  [
+   53,
+   "AnomalySeverity.WARNING.value: 1,",
+   "AnomalySeverity.WARNING.value: 2,"
+  ],
+  [
+   54,
+   "AnomalySeverity.INFO.value: 2,",
+   "AnomalySeverity.INFO.value: 3,"
+  ],
+  [
+   57,
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))",
+   "anomalies.sort(key=lambda a: severity_order.get(None, 99))"
+  ],
+  [
+   58,
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))",
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, None))"
+  ],
+  [
+   60,
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))",
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, ))"
+  ],
+  [
+   61,
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))",
+   "anomalies.sort(key=lambda a: severity_order.get(a.severity, 100))"
+  ],
+  [
+   63,
+   "most_severe = anomalies[0]",
+   "most_severe = anomalies[1]"
+  ],
+  [
+   64,
+   "await self._persist_and_emit(most_severe, session=session)",
+   "await self._persist_and_emit(None, session=session)"
+  ],
+  [
+   65,
+   "await self._persist_and_emit(most_severe, session=session)",
+   "await self._persist_and_emit(most_severe, session=None)"
+  ],
+  [
+   66,
+   "await self._persist_and_emit(most_severe, session=session)",
+   "await self._persist_and_emit(session=session)"
+  ],
+  [
+   67,
+   "await self._persist_and_emit(most_severe, session=session)",
+   "await self._persist_and_emit(most_severe, )"
+  ],
+  [
+   7,
+   "baseline = await self._baseline_service.get_baseline(zone.id, session=session)",
+   "baseline = await self._baseline_service.get_baseline(zone.id, )"
+  ]
+ ],
+ "gafz_where_mangle": [
+  11,
+  12,
+  13,
+  14,
+  15,
+  18,
+  2,
+  3,
+  4,
+  5,
+  8,
+  9
+ ],
+ "gacz_UNC": [
+  [
+   12,
+   "query = query.where(ZoneAnomaly.timestamp >= since)",
+   "query = query.where(None)"
+  ],
+  [
+   13,
+   "query = query.where(ZoneAnomaly.timestamp >= since)",
+   "query = query.where(ZoneAnomaly.timestamp > since)"
+  ],
+  [
+   15,
+   "query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712",
+   "query = query.where(None)  # noqa: E712"
+  ],
+  [
+   16,
+   "query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712",
+   "query = query.where(ZoneAnomaly.acknowledged != False)  # noqa: E712"
+  ],
+  [
+   17,
+   "query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712",
+   "query = query.where(ZoneAnomaly.acknowledged == True)  # noqa: E712"
+  ],
+  [
+   18,
+   "query = query.group_by(ZoneAnomaly.zone_id)",
+   "query = None"
+  ],
+  [
+   19,
+   "query = query.group_by(ZoneAnomaly.zone_id)",
+   "query = query.group_by(None)"
+  ],
+  [
+   2,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(None, func.count(ZoneAnomaly.id).label(\"count\"))"
+  ],
+  [
+   22,
+   "raise ValueError(\"session is required\")",
+   "raise ValueError(\"XXsession is requiredXX\")"
+  ],
+  [
+   25,
+   "result = await session.execute(query)",
+   "result = await session.execute(None)"
+  ],
+  [
+   3,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(ZoneAnomaly.zone_id, None)"
+  ],
+  [
+   4,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(func.count(ZoneAnomaly.id).label(\"count\"))"
+  ],
+  [
+   5,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(ZoneAnomaly.zone_id, )"
+  ],
+  [
+   6,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(None))"
+  ],
+  [
+   7,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(ZoneAnomaly.zone_id, func.count(None).label(\"count\"))"
+  ],
+  [
+   8,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"XXcountXX\"))"
+  ],
+  [
+   9,
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"count\"))",
+   "query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(\"COUNT\"))"
+  ]
+ ]
+}

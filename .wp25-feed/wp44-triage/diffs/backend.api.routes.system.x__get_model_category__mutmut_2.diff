@@ -1,0 +1,9 @@
+# backend.api.routes.system.x__get_model_category__mutmut_2: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -10,4 +10,4 @@
+     for category, models in MODEL_CATEGORIES.items():
+         if model_name in models:
+             return category
+-    return "Other"
++    return "XXOtherXX"

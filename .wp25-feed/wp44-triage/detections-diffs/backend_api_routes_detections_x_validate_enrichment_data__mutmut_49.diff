@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_49: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -30,7 +30,7 @@
+                 vehicle_type=vc.get("vehicle_type"),
+                 vehicle_color=None,  # Color not currently captured in enrichment
+                 has_damage=has_damage,
+-                is_commercial=vc.get("is_commercial", False),
++                is_commercial=vc.get("XXis_commercialXX", False),
+             )
+ 
+     # Extract person data using typed model

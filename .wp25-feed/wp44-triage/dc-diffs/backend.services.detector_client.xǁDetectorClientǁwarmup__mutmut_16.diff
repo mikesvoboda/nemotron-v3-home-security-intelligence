@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁwarmup__mutmut_16: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -26,7 +26,7 @@
+     set_model_warmth_state("yolo26", "warming")
+ 
+     try:
+-        logger.info("Starting YOLO26 model warmup...")
++        logger.info("STARTING YOLO26 MODEL WARMUP...")
+         start_time = time.monotonic()
+ 
+         result = await self.model_readiness_probe()

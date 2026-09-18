@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_3: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -12,7 +12,7 @@
+         Returns:
+             Region name ("top", "chest", "bottom", "left", "right", "center", "unknown")
+         """
+-    if det_bbox[2] <= det_bbox[0] or det_bbox[3] <= det_bbox[1]:
++    if det_bbox[2] < det_bbox[0] or det_bbox[3] <= det_bbox[1]:
+         return "unknown"
+ 
+     # Calculate text center relative to detection

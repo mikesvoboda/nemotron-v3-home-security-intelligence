@@ -1,0 +1,9 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_24: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -30,4 +30,4 @@
+             else:
+                 raise
+ 
+-        self._group_created = True
++        self._group_created = False

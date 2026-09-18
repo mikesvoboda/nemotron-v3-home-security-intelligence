@@ -1423,6 +1423,20 @@ class TestMessageFormat:
 # the real implementation.
 
 
+def _is_mutmut_generated(name: str) -> bool:
+    """True for names the mutmut harness injects (WP4.3).
+
+    Under a mutation run the class under test is the ``mutants/`` copy, whose
+    methods mutmut renames ``x<CLOBBER>Class<CLOBBER>method__mutmut_orig/_1/
+    ...`` behind its dispatch decorator. Those variants are not API drift --
+    the mock-vs-real comparison below is about human-written methods, which
+    keep their names under mutation. The marker ``__mutmut`` is mutmut's own
+    key suffix, stable across its 3.x releases (scripts/mutation-score.py
+    keys on the same name shape).
+    """
+    return "__mutmut" in name
+
+
 class TestMockInterfaceCompatibility:
     """Verify mock classes match real implementation interfaces.
 
@@ -1447,12 +1461,12 @@ class TestMockInterfaceCompatibility:
         real_public_methods = {
             name
             for name, method in inspect.getmembers(EventBroadcaster, predicate=inspect.isfunction)
-            if not name.startswith("_")
+            if not name.startswith("_") and not _is_mutmut_generated(name)
         }
 
         # Also include async methods (coroutines)
         for name in dir(EventBroadcaster):
-            if not name.startswith("_"):
+            if not name.startswith("_") and not _is_mutmut_generated(name):
                 attr = getattr(EventBroadcaster, name, None)
                 if inspect.iscoroutinefunction(attr) or inspect.isfunction(attr):
                     real_public_methods.add(name)
@@ -1484,12 +1498,12 @@ class TestMockInterfaceCompatibility:
         real_public_methods = {
             name
             for name, method in inspect.getmembers(SystemBroadcaster, predicate=inspect.isfunction)
-            if not name.startswith("_")
+            if not name.startswith("_") and not _is_mutmut_generated(name)
         }
 
         # Also include async methods (coroutines)
         for name in dir(SystemBroadcaster):
-            if not name.startswith("_"):
+            if not name.startswith("_") and not _is_mutmut_generated(name):
                 attr = getattr(SystemBroadcaster, name, None)
                 if inspect.iscoroutinefunction(attr) or inspect.isfunction(attr):
                     real_public_methods.add(name)

@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁconsume_batches__mutmut_23: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -27,7 +27,7 @@
+         for message_id, data in _stream_entries(result):
+             try:
+                 msg = AnalysisStreamMessage.from_stream_entry(
+-                    message_id, data, delivery_count=1
++                    message_id, data, delivery_count=None
+                 )
+                 messages.append(msg)
+             except (ValueError, KeyError) as e:

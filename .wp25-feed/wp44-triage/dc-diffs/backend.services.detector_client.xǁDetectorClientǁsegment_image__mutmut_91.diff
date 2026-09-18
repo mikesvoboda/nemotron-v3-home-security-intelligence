@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_91: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -92,7 +92,7 @@
+                     )
+                     await asyncio.sleep(delay)
+                 else:
+-                    record_pipeline_error(f"{self._detector_type}_segmentation_error")
++                    record_pipeline_error(None)
+                     logger.error(
+                         f"Segmentation failed after {self._max_retries} attempts",
+                         exc_info=True,

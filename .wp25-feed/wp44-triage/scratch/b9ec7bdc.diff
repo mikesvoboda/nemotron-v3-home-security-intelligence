@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_redis_match__mutmut_5
+# backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_redis_match__mutmut_5: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -13,7 +13,7 @@
+         entity_type=match.entity.entity_type,
+         embedding=match.entity.embedding,
+         camera_id=match.entity.camera_id,
+-        timestamp=match.entity.timestamp,
++        timestamp=None,
+         detection_id=match.entity.detection_id,
+         attributes=match.entity.attributes,
+         similarity=match.similarity,

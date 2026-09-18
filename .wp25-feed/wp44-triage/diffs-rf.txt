@@ -1,0 +1,550 @@
+===== backend.services.restore_service.xǁRestoreServiceǁ_calculate_checksum__mutmut_3
+-            raise FileNotFoundError(f"File not found: {resolved_path}")
++            raise FileNotFoundError(None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_calculate_checksum__mutmut_16
+-            for chunk in iter(lambda: f.read(8192), b""):
++            for chunk in iter(lambda: f.read(None), b""):
+===== backend.services.restore_service.xǁRestoreServiceǁ_calculate_checksum__mutmut_17
+-            for chunk in iter(lambda: f.read(8192), b""):
++            for chunk in iter(lambda: f.read(8193), b""):
+===== backend.services.restore_service.xǁRestoreServiceǁ_get_model_class__mutmut_22
+-            logger.error(f"Failed to import model for {table_name}: {e}")
++            logger.error(None)
++
++    @_mutmut_mutated(mutants_xǁRestoreServiceǁ_process_record_data__mutmut)
++    def _process_record_data(self, data: dict[str, Any]) -> dict[str, Any]:
++        """Process record data for database insertion.
++
++        Converts datetime strings to datetime objects and handles
++        other type conversions as needed.
++
++        Args:
++            data: Raw record data from JSON.
++
++        Returns:
++            Processed data ready for model instantiation.
++        """
++        processed: dict[str, Any] = {}
++
++        for key, value in data.items():
++            if value is None:
++                processed[key] = None
++            elif isinstance(value, str) and self._is_datetime_field(key, value):
++                # Convert ISO datetime strings
++                try:
++                    processed[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
++                except ValueError:
++                    processed[key] = value
++            else:
++                processed[key] = value
++
++        return processed
+===== backend.services.restore_service.xǁRestoreServiceǁ_is_datetime_field__mutmut_12
+-            return len(value) >= 10 and "-" in value[:10]
++            return len(value) >= 10 or "-" in value[:10]
+===== backend.services.restore_service.xǁRestoreServiceǁ_is_datetime_field__mutmut_17
+-            return len(value) >= 10 and "-" in value[:10]
++            return len(value) >= 10 and "-" in value[:11]
+===== backend.services.restore_service.xǁRestoreServiceǁ_process_record_data__mutmut_4
+-            elif isinstance(value, str) and self._is_datetime_field(key, value):
++            elif isinstance(value, str) or self._is_datetime_field(key, value):
+===== backend.services.restore_service.xǁRestoreServiceǁ_process_record_data__mutmut_15
+-                    processed[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
++                    processed[key] = datetime.fromisoformat(value.replace("XXZXX", "+00:00"))
+===== backend.services.restore_service.xǁRestoreServiceǁ_process_record_data__mutmut_16
+-                    processed[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
++                    processed[key] = datetime.fromisoformat(value.replace("z", "+00:00"))
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_13
+-        model_class = self._get_model_class(table_name)
++        model_class = self._get_model_class(None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_15
+-            logger.warning(f"No model mapping for table {table_name}, skipping")
++            logger.warning(None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_17
+-        await db.execute(delete(model_class))
++        await db.execute(None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_24
+-                db.add(instance)
++                db.add(None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_28
+-                    f"Failed to restore record in {table_name}: {e}",
++                    None,
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_29
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra=None,
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_31
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
+-                )
++                    )
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_32
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra={"XXtableXX": table_name, "record": str(record_data)[:200]},
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_33
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra={"TABLE": table_name, "record": str(record_data)[:200]},
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_34
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra={"table": table_name, "XXrecordXX": str(record_data)[:200]},
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_35
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra={"table": table_name, "RECORD": str(record_data)[:200]},
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_36
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra={"table": table_name, "record": str(None)[:200]},
+===== backend.services.restore_service.xǁRestoreServiceǁ_restore_table__mutmut_37
+-                    extra={"table": table_name, "record": str(record_data)[:200]},
++                    extra={"table": table_name, "record": str(record_data)[:201]},
++
++    @_mutmut_mutated(mutants_xǁRestoreServiceǁ_get_model_class__mutmut)
++    def _get_model_class(self, table_name: str) -> type | None:
++        """Get SQLAlchemy model class for a table name.
++
++        Args:
++            table_name: Name of the table.
++
++        Returns:
++            Model class or None if not found.
++        """
++        model_path = self.TABLE_MODEL_MAPPING.get(table_name)
++        if not model_path:
++            return None
++
++        try:
++            # Dynamically import the model
++            module_path, class_name = model_path.rsplit(".", 1)
++            module = __import__(module_path, fromlist=[class_name])
++            model_class: type = getattr(module, class_name)
++            return model_class
++        except (ImportError, AttributeError) as e:
++            logger.error(f"Failed to import model for {table_name}: {e}")
++            return None
+===== backend.services.restore_service.xǁRestoreServiceǁ_validate_manifest__mutmut_12
+-        version = manifest.get("version", "")
++        version = manifest.get("version", None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_validate_manifest__mutmut_14
+-        version = manifest.get("version", "")
++        version = manifest.get("version", )
+===== backend.services.restore_service.xǁRestoreServiceǁ_validate_manifest__mutmut_17
+-        version = manifest.get("version", "")
++        version = manifest.get("version", "XXXX")
+===== backend.services.restore_service.xǁRestoreServiceǁ_validate_manifest__mutmut_22
+-        contents = manifest.get("contents", {})
++        contents = manifest.get("contents", None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_validate_manifest__mutmut_24
+-        contents = manifest.get("contents", {})
++        contents = manifest.get("contents", )
+===== backend.services.restore_service.xǁRestoreServiceǁ_validate_manifest__mutmut_29
+-            raise BackupValidationError("Invalid manifest contents structure")
++            raise BackupValidationError("XXInvalid manifest contents structureXX")
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_3
+-        contents = manifest.get("contents", {})
++        contents = manifest.get("contents", None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_5
+-        contents = manifest.get("contents", {})
++        contents = manifest.get("contents", )
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_11
+-                logger.warning(f"File for {table_name} not found during checksum verification")
++                logger.warning(None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_12
+-                continue
++                break
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_15
+-            expected_checksum = content_info.get("checksum", "")
++            expected_checksum = content_info.get("checksum", None)
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_17
+-            expected_checksum = content_info.get("checksum", "")
++            expected_checksum = content_info.get("checksum", )
+===== backend.services.restore_service.xǁRestoreServiceǁ_verify_checksums__mutmut_20
+-            expected_checksum = content_info.get("checksum", "")
++            expected_checksum = content_info.get("checksum", "XXXX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_1
+-            "Starting restore from backup",
++            None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_2
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
++            extra=None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_4
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
+-        )
++            )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_5
+-            "Starting restore from backup",
++            "XXStarting restore from backupXX",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_6
+-            "Starting restore from backup",
++            "starting restore from backup",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_7
+-            "Starting restore from backup",
++            "STARTING RESTORE FROM BACKUP",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_8
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
++            extra={"XXjob_idXX": job_id, "backup_file": str(backup_file)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_9
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
++            extra={"JOB_ID": job_id, "backup_file": str(backup_file)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_10
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
++            extra={"job_id": job_id, "XXbackup_fileXX": str(backup_file)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_11
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
++            extra={"job_id": job_id, "BACKUP_FILE": str(backup_file)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_12
+-            extra={"job_id": job_id, "backup_file": str(backup_file)},
++            extra={"job_id": job_id, "backup_file": str(None)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_13
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(None, "Extracting backup file...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_14
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(5, None)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_15
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback("Extracting backup file...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_16
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(5, )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_17
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(6, "Extracting backup file...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_18
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(5, "XXExtracting backup file...XX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_19
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(5, "extracting backup file...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_20
+-            await progress_callback(5, "Extracting backup file...")
++            await progress_callback(5, "EXTRACTING BACKUP FILE...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_26
+-                with zipfile.ZipFile(backup_file, "r") as zf:
++                with zipfile.ZipFile(backup_file, ) as zf:
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_31
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(None, "Reading manifest...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_32
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(10, None)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_33
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback("Reading manifest...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_34
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(10, )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_35
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(11, "Reading manifest...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_36
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(10, "XXReading manifest...XX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_37
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(10, "reading manifest...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_38
+-                await progress_callback(10, "Reading manifest...")
++                await progress_callback(10, "READING MANIFEST...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_48
+-                raise BackupValidationError("Invalid manifest path detected")
++                raise BackupValidationError("XXInvalid manifest path detectedXX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_53
+-                raise BackupValidationError("Backup manifest not found")
++                raise BackupValidationError("XXBackup manifest not foundXX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_61
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(None, "Verifying checksums...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_62
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(15, None)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_63
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback("Verifying checksums...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_64
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(15, )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_65
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(16, "Verifying checksums...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_66
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(15, "XXVerifying checksums...XX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_67
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(15, "verifying checksums...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_68
+-                await progress_callback(15, "Verifying checksums...")
++                await progress_callback(15, "VERIFYING CHECKSUMS...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_73
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(None, "Starting restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_74
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(20, None)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_75
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback("Starting restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_76
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(20, )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_77
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(21, "Starting restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_78
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(20, "XXStarting restore...XX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_79
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(20, "starting restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_80
+-                await progress_callback(20, "Starting restore...")
++                await progress_callback(20, "STARTING RESTORE...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_86
+-            tables_completed = 0
++            tables_completed = 1
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_89
+-                    if table_name not in manifest_data.get("contents", {}):
++                    if table_name not in manifest_data.get("contents", None):
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_91
+-                    if table_name not in manifest_data.get("contents", {}):
++                    if table_name not in manifest_data.get("contents", ):
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_94
+-                        continue
++                        break
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_98
+-                            f"Backup file for {table_name} not found, skipping",
++                            None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_99
+-                            extra={"job_id": job_id, "table": table_name},
++                            extra=None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_101
+-                            extra={"job_id": job_id, "table": table_name},
+-                        )
++                            )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_102
+-                            extra={"job_id": job_id, "table": table_name},
++                            extra={"XXjob_idXX": job_id, "table": table_name},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_103
+-                            extra={"job_id": job_id, "table": table_name},
++                            extra={"JOB_ID": job_id, "table": table_name},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_104
+-                            extra={"job_id": job_id, "table": table_name},
++                            extra={"job_id": job_id, "XXtableXX": table_name},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_105
+-                            extra={"job_id": job_id, "table": table_name},
++                            extra={"job_id": job_id, "TABLE": table_name},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_106
+-                        continue
++                        break
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_107
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = None
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_108
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = 20 - int((tables_completed / max(total_tables, 1)) * 70)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_109
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = 21 + int((tables_completed / max(total_tables, 1)) * 70)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_111
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) / 70)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_112
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = 20 + int((tables_completed * max(total_tables, 1)) * 70)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_117
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = 20 + int((tables_completed / max(total_tables, 2)) * 70)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_118
+-                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 70)
++                    progress_percent = 20 + int((tables_completed / max(total_tables, 1)) * 71)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_126
+-                    items_restored[table_name] = count
++                    items_restored[table_name] = None
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_127
+-                    total_items += count
++                    total_items = count
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_129
+-                    tables_completed += 1
++                    tables_completed = 1
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_130
+-                    tables_completed += 1
++                    tables_completed -= 1
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_131
+-                    tables_completed += 1
++                    tables_completed += 2
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_132
+-                        f"Restored {count} records to {table_name}",
++                        None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_133
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra=None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_135
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
+-                    )
++                        )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_136
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra={"XXjob_idXX": job_id, "table": table_name, "count": count},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_137
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra={"JOB_ID": job_id, "table": table_name, "count": count},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_138
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra={"job_id": job_id, "XXtableXX": table_name, "count": count},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_139
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra={"job_id": job_id, "TABLE": table_name, "count": count},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_140
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra={"job_id": job_id, "table": table_name, "XXcountXX": count},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_141
+-                        extra={"job_id": job_id, "table": table_name, "count": count},
++                        extra={"job_id": job_id, "table": table_name, "COUNT": count},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_142
+-                    "Restore failed, rolled back transaction",
++                    None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_143
+-                    extra={"job_id": job_id, "error": str(e)},
++                    extra=None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_145
+-                    extra={"job_id": job_id, "error": str(e)},
+-                )
++                    )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_146
+-                    "Restore failed, rolled back transaction",
++                    "XXRestore failed, rolled back transactionXX",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_147
+-                    "Restore failed, rolled back transaction",
++                    "restore failed, rolled back transaction",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_148
+-                    "Restore failed, rolled back transaction",
++                    "RESTORE FAILED, ROLLED BACK TRANSACTION",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_149
+-                    extra={"job_id": job_id, "error": str(e)},
++                    extra={"XXjob_idXX": job_id, "error": str(e)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_150
+-                    extra={"job_id": job_id, "error": str(e)},
++                    extra={"JOB_ID": job_id, "error": str(e)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_151
+-                    extra={"job_id": job_id, "error": str(e)},
++                    extra={"job_id": job_id, "XXerrorXX": str(e)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_152
+-                    extra={"job_id": job_id, "error": str(e)},
++                    extra={"job_id": job_id, "ERROR": str(e)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_153
+-                    extra={"job_id": job_id, "error": str(e)},
++                    extra={"job_id": job_id, "error": str(None)},
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_155
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(None, "Finalizing restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_156
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(95, None)
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_157
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback("Finalizing restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_158
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(95, )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_159
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(96, "Finalizing restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_160
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(95, "XXFinalizing restore...XX")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_161
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(95, "finalizing restore...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_162
+-                await progress_callback(95, "Finalizing restore...")
++                await progress_callback(95, "FINALIZING RESTORE...")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_171
+-                manifest_data["created_at"].replace("Z", "+00:00")
++                manifest_data["created_at"].replace("XXZXX", "+00:00")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_172
+-                manifest_data["created_at"].replace("Z", "+00:00")
++                manifest_data["created_at"].replace("z", "+00:00")
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_185
+-                "Restore completed successfully",
++                None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_186
+-                extra={
+-                    "job_id": job_id,
+-                    "backup_id": result.backup_id,
+-                    "total_items": total_items,
+-                    "items_restored": items_restored,
+-                },
++                extra=None,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_188
+-                extra={
+-                    "job_id": job_id,
+-                    "backup_id": result.backup_id,
+-                    "total_items": total_items,
+-                    "items_restored": items_restored,
+-                },
+-            )
++                )
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_189
+-                "Restore completed successfully",
++                "XXRestore completed successfullyXX",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_190
+-                "Restore completed successfully",
++                "restore completed successfully",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_191
+-                "Restore completed successfully",
++                "RESTORE COMPLETED SUCCESSFULLY",
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_192
+-                    "job_id": job_id,
++                    "XXjob_idXX": job_id,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_193
+-                    "job_id": job_id,
++                    "JOB_ID": job_id,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_194
+-                    "backup_id": result.backup_id,
++                    "XXbackup_idXX": result.backup_id,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_195
+-                    "backup_id": result.backup_id,
++                    "BACKUP_ID": result.backup_id,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_196
+-                    "total_items": total_items,
++                    "XXtotal_itemsXX": total_items,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_197
+-                    "total_items": total_items,
++                    "TOTAL_ITEMS": total_items,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_198
+-                    "items_restored": items_restored,
++                    "XXitems_restoredXX": items_restored,
+===== backend.services.restore_service.xǁRestoreServiceǁrestore_from_backup__mutmut_199
+-                    "items_restored": items_restored,
++                    "ITEMS_RESTORED": items_restored,
++
++    @_mutmut_mutated(mutants_xǁRestoreServiceǁ_validate_manifest__mutmut)
++    def _validate_manifest(self, manifest: dict[str, Any]) -> None:
++        """Validate backup manifest version and structure.
++
++        Args:
++            manifest: Parsed manifest dictionary.
++
++        Raises:
++            BackupValidationError: If manifest is invalid or version incompatible.
++        """
++        # Check required fields
++        required_fields = ["backup_id", "version", "created_at"]
++        for field in required_fields:
++            if field not in manifest:
++                raise BackupValidationError(f"Missing required manifest field: {field}")
++
++        # Check version compatibility
++        version = manifest.get("version", "")
++        if version != SUPPORTED_BACKUP_VERSION:
++            raise BackupValidationError(
++                f"Unsupported backup version: {version}. Expected: {SUPPORTED_BACKUP_VERSION}"
++            )
++
++        # Validate contents structure if present
++        contents = manifest.get("contents", {})
++        if not isinstance(contents, dict):
++            raise BackupValidationError("Invalid manifest contents structure")
++
++        for table_name, content_info in contents.items():
++            if not isinstance(content_info, dict):
++                raise BackupValidationError(f"Invalid content info for table {table_name}")
++            if "count" not in content_info or "checksum" not in content_info:
++                raise BackupValidationError(f"Missing count or checksum for table {table_name}")

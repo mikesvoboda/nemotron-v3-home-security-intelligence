@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_3: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -7,7 +7,7 @@
+     return {
+         "license_plates": [
+             {
+-                "bbox": plate.bbox.to_tuple(),
++                "XXbboxXX": plate.bbox.to_tuple(),
+                 "text": plate.text,
+                 "confidence": plate.confidence,
+                 "ocr_confidence": plate.ocr_confidence,

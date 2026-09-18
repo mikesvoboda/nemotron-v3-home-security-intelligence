@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x__extract_vehicle_from_enrichment__mutmut_61: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -22,6 +22,6 @@
+     if first_key in vehicle_damage:
+         vd = vehicle_damage[first_key]
+         vehicle_response["damage_detected"] = vd.get("has_damage", False)
+-        vehicle_response["damage_types"] = vd.get("damage_types", [])
++        vehicle_response["damage_types"] = vd.get("damage_types", None)
+ 
+     return vehicle_response

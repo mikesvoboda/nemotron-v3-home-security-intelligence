@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁget_stream_info__mutmut_67: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -25,7 +25,7 @@
+             "groups": info.get("groups", 0),
+             "last_entry_id": info.get("last-generated-id", ""),
+             "first_entry_id": info.get("first-entry", [""])[0]
+-            if info.get("first-entry")
++            if info.get("FIRST-ENTRY")
+             else "",
+         }
+     except Exception as e:

@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_45: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -73,7 +73,7 @@
+                 # Record provider match metric for scene text
+                 record_scene_ocr_provider_match(match.category)
+ 
+-        result.processing_time_ms = (time.perf_counter() - start_time) * 1000
++        result.processing_time_ms = (time.perf_counter() - start_time) / 1000
+ 
+         # Record total processing time metric (combined full_frame + crop)
+         observe_scene_ocr_processing("total", result.processing_time_ms / 1000.0)

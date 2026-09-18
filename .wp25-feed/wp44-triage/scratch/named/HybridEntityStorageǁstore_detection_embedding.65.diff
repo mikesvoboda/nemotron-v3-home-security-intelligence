@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_65
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_65: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -74,7 +74,7 @@
+     except Exception as e:
+         # Log error but don't fail - PostgreSQL storage succeeded
+         logger.warning(
+-            "Failed to store embedding in Redis for detection %d: %s",
++            "FAILED TO STORE EMBEDDING IN REDIS FOR DETECTION %D: %S",
+             detection_id,
+             str(e),
+         )

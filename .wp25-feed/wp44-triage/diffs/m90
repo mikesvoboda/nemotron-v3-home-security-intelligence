@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_90: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -46,7 +46,6 @@
+ 
+             person = PersonEnrichmentData(
+                 clothing_description=raw_desc if raw_desc else None,
+-                action=None,  # Action not in clothing classification
+                 carrying=carrying_list,
+                 is_suspicious=cc.get("is_suspicious", False),
+             )

@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__get_circuit_breaker_state__mutmut_3: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -10,7 +10,7 @@
+     from backend.services.circuit_breaker import _get_registry
+ 
+     registry = _get_registry()
+-    breaker = registry.get(service_name)
++    breaker = registry.get(None)
+ 
+     if breaker is None:
+         return AIServiceCircuitState.CLOSED

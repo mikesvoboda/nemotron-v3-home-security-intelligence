@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁconsume_batches__mutmut_8: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -15,7 +15,7 @@
+         result = await self._redis._client.xreadgroup(
+             self._consumer_group,
+             consumer_name,
+-            {self._stream_key: ">"},
++            None,
+             count=count,
+             block=block_ms,
+         )

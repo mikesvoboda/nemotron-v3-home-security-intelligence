@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_14: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -38,7 +38,7 @@
+             texts.append(
+                 {
+                     "value": ocr.text,
+-                    "confidence": ocr.confidence,
++                    "XXconfidenceXX": ocr.confidence,
+                     "region": self._determine_region(
+                         ocr.bbox, detection_bboxes.get(det_id, (0, 0, 0, 0))
+                     ),

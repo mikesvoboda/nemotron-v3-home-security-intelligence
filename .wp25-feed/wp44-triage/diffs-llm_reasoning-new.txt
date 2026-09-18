@@ -1,0 +1,735 @@
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_10
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["low confidence", "uncertain", "unclear", "XXpossiblyXX", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_11
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["low confidence", "uncertain", "unclear", "POSSIBLY", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_12
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "XXmight beXX"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_13
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "MIGHT BE"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_15
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["XXhigh confidenceXX", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_16
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["HIGH CONFIDENCE", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_19
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["high confidence", "confident", "XXcertainXX", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_20
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["high confidence", "confident", "CERTAIN", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_21
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["high confidence", "confident", "certain", "XXclearlyXX", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_22
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["high confidence", "confident", "certain", "CLEARLY", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_23
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["high confidence", "confident", "certain", "clearly", "XXdefinitelyXX"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_24
+@@ -12,7 +12,7 @@
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+-    high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
++    high_indicators = ["high confidence", "confident", "certain", "clearly", "DEFINITELY"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_26
+@@ -13,7 +13,7 @@
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+-    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
++    medium_indicators = ["XXmoderate confidenceXX", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+         if indicator in content_lower:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_27
+@@ -13,7 +13,7 @@
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+-    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
++    medium_indicators = ["MODERATE CONFIDENCE", "likely", "probably", "suggests"]
+ 
+     for indicator in low_indicators:
+         if indicator in content_lower:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_30
+@@ -13,7 +13,7 @@
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+-    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
++    medium_indicators = ["moderate confidence", "likely", "XXprobablyXX", "suggests"]
+ 
+     for indicator in low_indicators:
+         if indicator in content_lower:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_31
+@@ -13,7 +13,7 @@
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+-    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
++    medium_indicators = ["moderate confidence", "likely", "PROBABLY", "suggests"]
+ 
+     for indicator in low_indicators:
+         if indicator in content_lower:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_32
+@@ -13,7 +13,7 @@
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+-    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
++    medium_indicators = ["moderate confidence", "likely", "probably", "XXsuggestsXX"]
+ 
+     for indicator in low_indicators:
+         if indicator in content_lower:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_33
+@@ -13,7 +13,7 @@
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+     low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+-    medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
++    medium_indicators = ["moderate confidence", "likely", "probably", "SUGGESTS"]
+ 
+     for indicator in low_indicators:
+         if indicator in content_lower:
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_4
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["XXlow confidenceXX", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_5
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["LOW CONFIDENCE", "uncertain", "unclear", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_8
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["low confidence", "uncertain", "XXunclearXX", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_confidence__mutmut_9
+@@ -11,7 +11,7 @@
+ 
+     # Check low indicators FIRST since they are more specific
+     # e.g., "uncertain" should not be overridden by "confident" matching "am confident"
+-    low_indicators = ["low confidence", "uncertain", "unclear", "possibly", "might be"]
++    low_indicators = ["low confidence", "uncertain", "UNCLEAR", "possibly", "might be"]
+     high_indicators = ["high confidence", "confident", "certain", "clearly", "definitely"]
+     medium_indicators = ["moderate confidence", "likely", "probably", "suggests"]
+ 
+
+=== backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_11
+@@ -29,7 +29,7 @@
+         matches = re.findall(pattern, content, re.IGNORECASE)
+         for match in matches:
+             factor = match.strip()
+-            if factor and len(factor) > 3 and factor not in factors:
++            if factor and len(factor) > 3 or factor not in factors:
+                 factors.append(factor)
+ 
+     # Limit to avoid noise
+
+=== backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_12
+@@ -29,7 +29,7 @@
+         matches = re.findall(pattern, content, re.IGNORECASE)
+         for match in matches:
+             factor = match.strip()
+-            if factor and len(factor) > 3 and factor not in factors:
++            if factor or len(factor) > 3 and factor not in factors:
+                 factors.append(factor)
+ 
+     # Limit to avoid noise
+
+=== backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_13
+@@ -29,7 +29,7 @@
+         matches = re.findall(pattern, content, re.IGNORECASE)
+         for match in matches:
+             factor = match.strip()
+-            if factor and len(factor) > 3 and factor not in factors:
++            if factor and len(factor) >= 3 and factor not in factors:
+                 factors.append(factor)
+ 
+     # Limit to avoid noise
+
+=== backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_14
+@@ -29,7 +29,7 @@
+         matches = re.findall(pattern, content, re.IGNORECASE)
+         for match in matches:
+             factor = match.strip()
+-            if factor and len(factor) > 3 and factor not in factors:
++            if factor and len(factor) > 4 and factor not in factors:
+                 factors.append(factor)
+ 
+     # Limit to avoid noise
+
+=== backend.api.routes.llm_reasoning.x__extract_key_factors__mutmut_9
+@@ -26,7 +26,7 @@
+     ]
+ 
+     for pattern in patterns:
+-        matches = re.findall(pattern, content, re.IGNORECASE)
++        matches = re.findall(pattern, content, )
+         for match in matches:
+             factor = match.strip()
+             if factor and len(factor) > 3 and factor not in factors:
+
+=== backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_11
+@@ -22,7 +22,7 @@
+         matches = re.findall(pattern, think_content, re.IGNORECASE)
+         for match in matches:
+             factor = match.strip()
+-            if factor and factor not in risk_factors:
++            if factor or factor not in risk_factors:
+                 risk_factors.append(factor)
+ 
+     # Also look for keywords
+
+=== backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_13
+@@ -23,7 +23,7 @@
+         for match in matches:
+             factor = match.strip()
+             if factor and factor not in risk_factors:
+-                risk_factors.append(factor)
++                risk_factors.append(None)
+ 
+     # Also look for keywords
+     keywords = [
+
+=== backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_17
+@@ -41,7 +41,7 @@
+ 
+     content_lower = think_content.lower()
+     for kw in keywords:
+-        if kw in content_lower and kw not in risk_factors:
++        if kw in content_lower or kw not in risk_factors:
+             risk_factors.append(kw)
+ 
+     return risk_factors[:10]
+
+=== backend.api.routes.llm_reasoning.x__extract_risk_factors__mutmut_21
+@@ -44,4 +44,4 @@
+         if kw in content_lower and kw not in risk_factors:
+             risk_factors.append(kw)
+ 
+-    return risk_factors[:10]
++    return risk_factors[:11]
+
+=== backend.api.routes.llm_reasoning.x__extract_think_block__mutmut_3
+@@ -8,7 +8,7 @@
+         Extracted think block content or None if not found
+     """
+     # Match <think>...</think> blocks (case-insensitive, multiline)
+-    pattern = r"<think>(.*?)</think>"
++    pattern = r"<THINK>(.*?)</THINK>"
+     match = re.search(pattern, raw_response, re.DOTALL | re.IGNORECASE)
+     if match:
+         return match.group(1).strip()
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_100
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get("SIMILARITY_SCORE", 0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_101
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get("similarity_score", 1.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_102
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get("method") and match_data.get("match_method"),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_103
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get(None) or match_data.get("match_method"),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_104
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get("XXmethodXX") or match_data.get("match_method"),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_105
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get("METHOD") or match_data.get("match_method"),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_106
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get("method") or match_data.get(None),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_107
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get("method") or match_data.get("XXmatch_methodXX"),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_108
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=match_data.get("method") or match_data.get("MATCH_METHOD"),
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_77
+@@ -49,7 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
++                        match_method=None,
+                     )
+                 )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_79
+@@ -45,7 +45,6 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_81
+@@ -49,8 +49,7 @@
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
+-                    )
++                        )
+                 )
+ 
+     return matches
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_82
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get("name") and match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_83
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get(None) or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_84
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get("XXnameXX") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_85
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get("NAME") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_86
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get("name") or match_data.get(None),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_87
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get("name") or match_data.get("XXentity_nameXX"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_88
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=match_data.get("name") or match_data.get("ENTITY_NAME"),
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_89
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            None, match_data.get("similarity_score", 0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_90
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", None
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_92
+@@ -47,8 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
+-                        ),
++                            "similarity", ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+                 )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_93
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "XXsimilarityXX", match_data.get("similarity_score", 0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_94
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "SIMILARITY", match_data.get("similarity_score", 0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_95
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get(None, 0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_96
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get("similarity_score", None)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_97
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get(0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_98
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get("similarity_score", )
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_99
+@@ -47,7 +47,7 @@
+                         entity_type=entity_type,
+                         entity_name=match_data.get("name") or match_data.get("entity_name"),
+                         similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
++                            "similarity", match_data.get("XXsimilarity_scoreXX", 0.0)
+                         ),
+                         match_method=match_data.get("method") or match_data.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_18
+@@ -26,7 +26,7 @@
+                         step_number=step_num,
+                         content=cleaned_content,
+                         key_factors=_extract_key_factors(cleaned_content),
+-                        confidence_indicator=_extract_confidence(cleaned_content),
++                        confidence_indicator=None,
+                     )
+                 )
+         return steps
+
+=== backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_21
+@@ -25,7 +25,6 @@
+                     ReasoningStep(
+                         step_number=step_num,
+                         content=cleaned_content,
+-                        key_factors=_extract_key_factors(cleaned_content),
+                         confidence_indicator=_extract_confidence(cleaned_content),
+                     )
+                 )
+
+=== backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_22
+@@ -26,8 +26,7 @@
+                         step_number=step_num,
+                         content=cleaned_content,
+                         key_factors=_extract_key_factors(cleaned_content),
+-                        confidence_indicator=_extract_confidence(cleaned_content),
+-                    )
++                        )
+                 )
+         return steps
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_37
+@@ -39,7 +39,7 @@
+                 step_number=i,
+                 content=para,
+                 key_factors=_extract_key_factors(para),
+-                confidence_indicator=_extract_confidence(para),
++                confidence_indicator=None,
+             )
+         )
+ 
+
+=== backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_40
+@@ -38,7 +38,6 @@
+             ReasoningStep(
+                 step_number=i,
+                 content=para,
+-                key_factors=_extract_key_factors(para),
+                 confidence_indicator=_extract_confidence(para),
+             )
+         )
+
+=== backend.api.routes.llm_reasoning.x__parse_reasoning_steps__mutmut_41
+@@ -39,8 +39,7 @@
+                 step_number=i,
+                 content=para,
+                 key_factors=_extract_key_factors(para),
+-                confidence_indicator=_extract_confidence(para),
+-            )
++                )
+         )
+ 
+     # If still no steps, treat entire content as one step
+

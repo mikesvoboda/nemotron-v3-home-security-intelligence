@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_7: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -6,7 +6,7 @@
+         """
+     # Get memory info from Redis INFO command
+     info = await self._redis.info("memory")
+-    server_info = await self._redis.info("stats")
++    server_info = await self._redis.info("XXstatsXX")
+     keyspace_info = await self._redis.info("keyspace")
+ 
+     # Parse memory values

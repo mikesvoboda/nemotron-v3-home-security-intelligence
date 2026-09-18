@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_65: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -27,7 +27,7 @@
+     keys_with_ttl = 0
+     for _db_name, db_info in keyspace_info.items():
+         if isinstance(db_info, dict) and "expires" in db_info:
+-            keys_with_ttl += db_info.get("expires", 0)
++            keys_with_ttl = db_info.get("expires", 0)
+ 
+     # Get evicted keys count
+     evicted_keys = server_info.get("evicted_keys", 0)

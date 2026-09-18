@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_13: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -18,7 +18,7 @@
+     vehicle: VehicleEnrichmentData | None = None
+     vehicle_classifications = enrichment_data.get("vehicle_classifications", {})
+     if vehicle_classifications:
+-        first_key = next(iter(vehicle_classifications), None)
++        first_key = next(iter(vehicle_classifications), )
+         if first_key:
+             vc = vehicle_classifications[first_key]
+             vehicle_damage = enrichment_data.get("vehicle_damage", {})

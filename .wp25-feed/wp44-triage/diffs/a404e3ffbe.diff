@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_9: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -15,7 +15,7 @@
+         flags.append(
+             {
+                 "type": "violence",
+-                "description": f"Violence detected ({self.violence_detection.confidence:.0%} confidence)",
++                "DESCRIPTION": f"Violence detected ({self.violence_detection.confidence:.0%} confidence)",
+                 "severity": "critical",
+             }
+         )

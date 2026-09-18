@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_60: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -43,7 +43,7 @@
+                 x2 = min(image.width, bbox[2])
+                 y2 = min(image.height, bbox[3])
+ 
+-                if x2 <= x1 or y2 <= y1:
++                if x2 <= x1 and y2 <= y1:
+                     return det_id, []
+ 
+                 crop = image.crop((x1, y1, x2, y2))

@@ -1,0 +1,13 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_58: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -51,8 +51,7 @@
+                     text=item.get("text", ""),
+                     confidence=confidence,
+                     bbox=(int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])),
+-                    source="frame",
+-                )
++                    )
+             )
+ 
+         # Record processing time for full frame OCR

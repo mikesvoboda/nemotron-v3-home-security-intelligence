@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_81: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -37,7 +37,7 @@
+     region_map = {
+         ("middle", "center"): "chest",  # For person uniforms
+         ("top", "center"): "top",
+-        ("top", "left"): "top",
++        ("top", "XXleftXX"): "top",
+         ("top", "right"): "top",
+         ("bottom", "center"): "bottom",
+         ("bottom", "left"): "bottom",

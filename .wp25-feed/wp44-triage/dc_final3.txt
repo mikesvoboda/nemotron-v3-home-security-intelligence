@@ -1,0 +1,41 @@
+C-LOG-SEND    184 EQUIVALENT send: log message / extra-payload text  | _send_detection_request.m97, _send_detection_request.m98, _send_detection_request.m100 | funcs={'xǁDetectorClientǁ_send_detection_request': 184}
+C-SPAN        102 LOW-VALUE  telemetry span attrs / model metadata never asserted  | _send_detection_request.m6, segment_image.m6, _send_detection_request.m7 | funcs={'xǁDetectorClientǁ_send_detection_request': 53, 'xǁDetectorClientǁsegment_image': 49}
+C-METRIC       72 LOW-VALUE  metric / pipeline-error label text  | detect_objects.m13, detect_objects.m14, detect_objects.m19 | funcs={'xǁDetectorClientǁ_send_detection_request': 6, 'xǁDetectorClientǁdetect_objects': 65, 'xǁDetectorClientǁsegment_image': 1}
+C-LOG-DET      56 EQUIVALENT detect: log message / extra-payload text  | detect_objects.m18, detect_objects.m22, detect_objects.m23 | funcs={'xǁDetectorClientǁdetect_objects': 56}
+C-BBOX         40 TEST-GAP   detect: bbox clamp/out-of-bounds geometry (comparison + and/or flips)  | detect_objects.m232, detect_objects.m233, detect_objects.m234 | funcs={'xǁDetectorClientǁdetect_objects': 40}
+C-WARMM        40 LOW-VALUE  warmup metric labels + completed-log text  | warmup.m5, warmup.m6, warmup.m9 | funcs={'xǁDetectorClientǁwarmup': 40}
+C-EXCINFO      30 LOW-VALUE  exc_info True -> False/None (traceback dropped)  | health_check.m9, health_check.m12, health_check.m19 | funcs={'xǁDetectorClientǁ_send_detection_request': 15, 'xǁDetectorClientǁdetect_objects': 3, 'xǁDetectorClientǁhealth_check': 9, 'xǁDetectorClientǁsegment_image': 3}
+C-INITLOG      27 LOW-VALUE  __init__ log extra / model_version / max_concurrent (observability-only)  | __init__.m6, __init__.m7, __init__.m8 | funcs={'xǁDetectorClientǁ__init__': 27}
+C-LOG-VAL      27 EQUIVALENT validate: log message text  | _validate_image_for_detection.m5, _validate_image_for_detection.m6, _validate_image_for_detection.m8 | funcs={'xǁDetectorClientǁ_validate_image_for_detection': 27}
+C-LOG-HC       27 EQUIVALENT health_check log message text  | health_check.m7, health_check.m8, health_check.m11 | funcs={'xǁDetectorClientǁhealth_check': 27}
+C-PROBE        24 LOW-VALUE  readiness-probe test image/params (sentinel probe; mocked boundary)  | model_readiness_probe.m4, model_readiness_probe.m7, model_readiness_probe.m10 | funcs={'xǁDetectorClientǁmodel_readiness_probe': 24}
+C-4XX          22 TEST-GAP   send: 4xx error-detail extraction (400 gate + detail in raised message)  | _send_detection_request.m263, _send_detection_request.m264, _send_detection_request.m265 | funcs={'xǁDetectorClientǁ_send_detection_request': 22}
+C-WARM         16 TEST-GAP   warmth state machine (_is_warming init/lifecycle, was_cold, get_warmth_state, is_cold boundary)  | get_warmth_state.m1, warmup.m2, get_warmth_state.m3 | funcs={'xǁDetectorClientǁ__init__': 2, 'xǁDetectorClientǁget_warmth_state': 8, 'xǁDetectorClientǁis_cold': 1, 'xǁDetectorClientǁwarmup': 5}
+C-DUR          16 LOW-VALUE  duration math (s/ms flips) feeding only metrics/log  | detect_objects.m1, detect_objects.m123, detect_objects.m124 | funcs={'xǁDetectorClientǁdetect_objects': 16}
+C-SEG-RT       16 TEST-GAP   segment: retry/backoff + HTTP-500 boundary + original_error preserved  | segment_image.m74, segment_image.m75, segment_image.m76 | funcs={'xǁDetectorClientǁsegment_image': 16}
+C-DEFALT       15 LOW-VALUE  detect: missing class/bbox .get default text/None  | detect_objects.m212, detect_objects.m214, detect_objects.m217 | funcs={'xǁDetectorClientǁdetect_objects': 15}
+C-CBCFG        12 LOW-VALUE  CircuitBreakerConfig tuning constants  | __init__.m91, __init__.m92, __init__.m94 | funcs={'xǁDetectorClientǁ__init__': 12}
+C-SEND-RT      11 TEST-GAP   send: retry backoff timing on unasserted branches (TimeoutError/JSON/OSError)  | _send_detection_request.m96, _send_detection_request.m155, _send_detection_request.m217 | funcs={'xǁDetectorClientǁ_send_detection_request': 11}
+C-VIDEO        10 TEST-GAP   detect: video-branch condition + file_type default  | detect_objects.m174, detect_objects.m179, detect_objects.m180 | funcs={'xǁDetectorClientǁdetect_objects': 10}
+C-HTTPTO        9 LOW-VALUE  httpx.Timeout wiring -> None/removal  | __init__.m41, __init__.m42, __init__.m47 | funcs={'xǁDetectorClientǁ__init__': 9}
+C-SEG-PAY       9 TEST-GAP   segment: POST URL + multipart payload + auth header never asserted  | segment_image.m36, segment_image.m37, segment_image.m38 | funcs={'xǁDetectorClientǁsegment_image': 9}
+C-SEND-PAY      8 TEST-GAP   send: POST URL + multipart payload (key/mime/filename) never asserted  | _send_detection_request.m47, _send_detection_request.m48, _send_detection_request.m49 | funcs={'xǁDetectorClientǁ_send_detection_request': 8}
+C-LOGCLOSE      8 EQUIVALENT close() log message text  | close.m1, close.m2, close.m4 | funcs={'xǁDetectorClientǁclose': 8}
+C-LIMITS        7 LOW-VALUE  httpx.Limits pool tuning values  | __init__.m77, __init__.m78, __init__.m79 | funcs={'xǁDetectorClientǁ__init__': 7}
+C-TIMEOUT       7 LOW-VALUE  explicit asyncio.timeout defense-in-depth disabled (None/sub)  | segment_image.m1, _send_detection_request.m4, segment_image.m4 | funcs={'xǁDetectorClientǁ_send_detection_request': 3, 'xǁDetectorClientǁsegment_image': 4}
+C-BASE          7 TEST-GAP   detect: baseline update kwargs + session wiring  | detect_objects.m392, detect_objects.m440, detect_objects.m443 | funcs={'xǁDetectorClientǁdetect_objects': 7}
+C-SEG-LOG       7 EQUIVALENT segment: log message text  | segment_image.m62, segment_image.m65, segment_image.m86 | funcs={'xǁDetectorClientǁsegment_image': 7}
+C-SEND-KW       5 TEST-GAP   detect: _send_detection_request kwargs (image_name/camera_id/image_path) -> None  | detect_objects.m114, detect_objects.m115, detect_objects.m116 | funcs={'xǁDetectorClientǁdetect_objects': 5}
+C-FREETHR       4 LOW-VALUE  _is_free_threaded detection mutations (dead executor + log consumer)  | is_free_threaded.m1, is_free_threaded.m5, is_free_threaded.m6 | funcs={'x__is_free_threaded': 4}
+C-GW            3 TEST-GAP   __init__ AI-gateway routing (getattr default, rstrip) URL construction  | __init__.m20, __init__.m26, __init__.m32 | funcs={'xǁDetectorClientǁ__init__': 3}
+C-AUTH          3 TEST-GAP   _get_auth_headers SecretStr get_secret_value hasattr mutations (masked-str fallback)  | _get_auth_headers.m4, _get_auth_headers.m8, _get_auth_headers.m9 | funcs={'xǁDetectorClientǁ_get_auth_headers': 3}
+C-SEM           3 TEST-GAP   _get_semaphore recreate-on-limit-change condition flips  | _get_semaphore.m3, _get_semaphore.m4, _get_semaphore.m5 | funcs={'xǁDetectorClientǁ_get_semaphore': 3}
+C-CONFDEF       3 TEST-GAP   detect: missing-confidence default 0.0 -> 1.0/None  | detect_objects.m204, detect_objects.m206, detect_objects.m209 | funcs={'xǁDetectorClientǁdetect_objects': 3}
+C-BRK           3 TEST-GAP   detect: per-detection continue -> break (drops rest of batch)  | detect_objects.m244, detect_objects.m261, detect_objects.m422 | funcs={'xǁDetectorClientǁdetect_objects': 3}
+C-PREPROC       1 EQUIVALENT _get_preprocess_worker_count (executor never called => dead code)  | get_preprocess_worker_count.m1 | funcs={'x__get_preprocess_worker_count': 1}
+C-LOGSEM        1 EQUIVALENT _get_semaphore debug log text  | _get_semaphore.m9 | funcs={'xǁDetectorClientǁ_get_semaphore': 1}
+C-LASTEXC       1 EQUIVALENT last_exception init -> "" (post-loop always set => dead)  | _send_detection_request.m1 | funcs={'xǁDetectorClientǁ_send_detection_request': 1}
+C-MINSZ         1 TEST-GAP   validate: file_size < vs <= boundary at MIN_DETECTION_IMAGE_SIZE  | _validate_image_for_detection.m4 | funcs={'xǁDetectorClientǁ_validate_image_for_detection': 1}
+C-ASVAL         1 EQUIVALENT async validate camera_id -> None (log-only field)  | _validate_image_for_detection_async.m3 | funcs={'xǁDetectorClientǁ_validate_image_for_detection_async': 1}
+C-HURL          1 LOW-VALUE  health_check URL -> None (unasserted; still returns False)  | health_check.m2 | funcs={'xǁDetectorClientǁhealth_check': 1}
+TOTAL 839 clusters 40 {'EQUIVALENT': 313, 'LOW-VALUE': 366, 'TEST-GAP': 160}

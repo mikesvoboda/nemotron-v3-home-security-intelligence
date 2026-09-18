@@ -1,0 +1,407 @@
+===KEY=== backend.services.zone_anomaly_service.x_reset_zone_anomaly_service__mutmut_1
+-    _zone_anomaly_service = None
++    _zone_anomaly_service = ""
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_10
+-    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "timestamp", None)
++    timestamp = getattr(detection, "detected_at", None) or getattr(None, "timestamp", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_101
+-        detection_id=getattr(detection, "id", None),
++        detection_id=getattr(detection, "id", ),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_102
+-        detection_id=getattr(detection, "id", None),
++        detection_id=getattr(detection, "XXidXX", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_103
+-        detection_id=getattr(detection, "id", None),
++        detection_id=getattr(detection, "ID", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_104
+-        thumbnail_url=getattr(detection, "thumbnail_path", None),
++        thumbnail_url=getattr(None, "thumbnail_path", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_108
+-        thumbnail_url=getattr(detection, "thumbnail_path", None),
++        thumbnail_url=getattr(detection, "thumbnail_path", ),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_109
+-        thumbnail_url=getattr(detection, "thumbnail_path", None),
++        thumbnail_url=getattr(detection, "XXthumbnail_pathXX", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_110
+-        thumbnail_url=getattr(detection, "thumbnail_path", None),
++        thumbnail_url=getattr(detection, "THUMBNAIL_PATH", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_14
+-    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "timestamp", None)
++    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "timestamp", )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_15
+-    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "timestamp", None)
++    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "XXtimestampXX", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_16
+-    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "timestamp", None)
++    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "TIMESTAMP", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_20
+-    zone_uuid = uuid.UUID(zone.id) if isinstance(zone.id, str) else zone.id
++    zone_uuid = uuid.UUID(zone.id) if (isinstance(zone.id, str)) or True else zone.id
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_22
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_23
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = getattr(None, "id", id(detection))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_25
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = getattr(detection, "id", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_28
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = getattr(detection, "id", )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_29
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = getattr(detection, "XXidXX", id(detection))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_30
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = getattr(detection, "ID", id(detection))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_31
+-    detection_id = getattr(detection, "id", id(detection))
++    detection_id = getattr(detection, "id", id(None))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_33
+-    cutoff = timestamp - timedelta(hours=1)
++    cutoff = timestamp + timedelta(hours=1)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_35
+-    cutoff = timestamp - timedelta(hours=1)
++    cutoff = timestamp - timedelta(hours=2)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_37
+-        (ts, did) for ts, did in self._frequency_tracker[zone_uuid] if ts > cutoff
++        (ts, did) for ts, did in self._frequency_tracker[zone_uuid] if ts >= cutoff
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_38
+-    self._frequency_tracker[zone_uuid].append((timestamp, detection_id))
++    self._frequency_tracker[zone_uuid].append(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_41
+-    typical_rate = getattr(baseline, "typical_crossing_rate", 10.0)
++    typical_rate = getattr(None, "typical_crossing_rate", 10.0)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_43
+-    typical_rate = getattr(baseline, "typical_crossing_rate", 10.0)
++    typical_rate = getattr(baseline, "typical_crossing_rate", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_46
+-    typical_rate = getattr(baseline, "typical_crossing_rate", 10.0)
++    typical_rate = getattr(baseline, "typical_crossing_rate", )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_49
+-    typical_rate = getattr(baseline, "typical_crossing_rate", 10.0)
++    typical_rate = getattr(baseline, "typical_crossing_rate", 11.0)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_51
+-    typical_std = getattr(baseline, "typical_crossing_std", 5.0)
++    typical_std = getattr(None, "typical_crossing_std", 5.0)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_53
+-    typical_std = getattr(baseline, "typical_crossing_std", 5.0)
++    typical_std = getattr(baseline, "typical_crossing_std", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_56
+-    typical_std = getattr(baseline, "typical_crossing_std", 5.0)
++    typical_std = getattr(baseline, "typical_crossing_std", )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_59
+-    typical_std = getattr(baseline, "typical_crossing_std", 5.0)
++    typical_std = getattr(baseline, "typical_crossing_std", 6.0)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_60
+-    if typical_std <= 0:
++    if typical_std < 0:
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_61
+-    if typical_std <= 0:
++    if typical_std <= 1:
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_65
+-    if deviation < threshold:
++    if deviation <= threshold:
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_68
+-    anomaly_id = str(uuid.uuid4())
++    anomaly_id = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_69
+-    anomaly_id = str(uuid.uuid4())
++    anomaly_id = str(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_7
+-    timestamp = getattr(detection, "detected_at", None) or getattr(detection, "timestamp", None)
++    timestamp = getattr(detection, "detected_at", ) or getattr(detection, "timestamp", None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_70
+-        id=anomaly_id,
++        id=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_71
+-        zone_id=zone.id,
++        zone_id=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_72
+-        camera_id=zone.camera_id,
++        camera_id=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_74
+-        severity=severity.value,
++        severity=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_75
+-        title=f"High activity frequency in {zone.name}",
++        title=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_76
+-        description=(
+-            f"Detected {current_rate} crossings in the last hour, "
+-            f"typical is {typical_rate:.1f} (std: {typical_std:.1f})."
+-        ),
++        description=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_77
+-        expected_value=typical_rate,
++        expected_value=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_78
+-        actual_value=float(current_rate),
++        actual_value=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_79
+-        deviation=deviation,
++        deviation=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_80
+-        detection_id=getattr(detection, "id", None),
++        detection_id=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_81
+-        thumbnail_url=getattr(detection, "thumbnail_path", None),
++        thumbnail_url=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_82
+-        timestamp=timestamp,
++        timestamp=None,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_83
+-        id=anomaly_id,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_84
+-        zone_id=zone.id,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_85
+-        camera_id=zone.camera_id,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_87
+-        severity=severity.value,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_88
+-        title=f"High activity frequency in {zone.name}",
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_89
+-        description=(
+-            f"Detected {current_rate} crossings in the last hour, "
+-            f"typical is {typical_rate:.1f} (std: {typical_std:.1f})."
+-        ),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_90
+-        expected_value=typical_rate,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_91
+-        actual_value=float(current_rate),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_92
+-        deviation=deviation,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_93
+-        detection_id=getattr(detection, "id", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_94
+-        thumbnail_url=getattr(detection, "thumbnail_path", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_95
+-        timestamp=timestamp,
+-    )
++        )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁ_check_unusual_frequency__mutmut_97
+-        detection_id=getattr(detection, "id", None),
++        detection_id=getattr(None, "id", None),
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁacknowledge_anomaly__mutmut_2
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.id == str(anomaly_id))
++    query = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁacknowledge_anomaly__mutmut_3
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.id == str(anomaly_id))
++    query = select(ZoneAnomaly).where(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁacknowledge_anomaly__mutmut_4
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.id == str(anomaly_id))
++    query = select(None).where(ZoneAnomaly.id == str(anomaly_id))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁacknowledge_anomaly__mutmut_5
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.id == str(anomaly_id))
++    query = select(ZoneAnomaly).where(ZoneAnomaly.id != str(anomaly_id))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁacknowledge_anomaly__mutmut_6
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.id == str(anomaly_id))
++    query = select(ZoneAnomaly).where(ZoneAnomaly.id == str(None))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁacknowledge_anomaly__mutmut_8
+-    result = await session.execute(query)
++    result = await session.execute(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_11
+-    if getattr(baseline, "sample_count", 0) == 0:
++    if getattr(baseline, "sample_count", None) == 0:
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_14
+-    if getattr(baseline, "sample_count", 0) == 0:
++    if getattr(baseline, "sample_count", ) == 0:
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_17
+-    if getattr(baseline, "sample_count", 0) == 0:
++    if getattr(baseline, "sample_count", 1) == 0:
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_21
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_22
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = self._check_unusual_time(None, zone, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_24
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = self._check_unusual_time(detection, zone, None, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_26
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = self._check_unusual_time(zone, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_27
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = self._check_unusual_time(detection, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_28
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = self._check_unusual_time(detection, zone, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_29
+-    time_anomaly = self._check_unusual_time(detection, zone, baseline, threshold)
++    time_anomaly = self._check_unusual_time(detection, zone, baseline, )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_31
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_32
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = await self._check_unusual_frequency(None, zone, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_34
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = await self._check_unusual_frequency(detection, zone, None, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_36
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = await self._check_unusual_frequency(zone, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_37
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = await self._check_unusual_frequency(detection, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_38
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = await self._check_unusual_frequency(detection, zone, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_39
+-    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, threshold)
++    freq_anomaly = await self._check_unusual_frequency(detection, zone, baseline, )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_4
+-    baseline = await self._baseline_service.get_baseline(zone.id, session=session)
++    baseline = await self._baseline_service.get_baseline(None, session=session)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_40
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_41
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = await self._check_unusual_dwell(None, zone, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_43
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = await self._check_unusual_dwell(detection, zone, None, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_45
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = await self._check_unusual_dwell(zone, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_46
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = await self._check_unusual_dwell(detection, baseline, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_47
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = await self._check_unusual_dwell(detection, zone, threshold)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_48
+-    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, threshold)
++    dwell_anomaly = await self._check_unusual_dwell(detection, zone, baseline, )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_5
+-    baseline = await self._baseline_service.get_baseline(zone.id, session=session)
++    baseline = await self._baseline_service.get_baseline(zone.id, session=None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_52
+-        AnomalySeverity.CRITICAL.value: 0,
++        AnomalySeverity.CRITICAL.value: 1,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_53
+-        AnomalySeverity.WARNING.value: 1,
++        AnomalySeverity.WARNING.value: 2,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_54
+-        AnomalySeverity.INFO.value: 2,
++        AnomalySeverity.INFO.value: 3,
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_57
+-    anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))
++    anomalies.sort(key=lambda a: severity_order.get(None, 99))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_58
+-    anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))
++    anomalies.sort(key=lambda a: severity_order.get(a.severity, None))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_60
+-    anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))
++    anomalies.sort(key=lambda a: severity_order.get(a.severity, ))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_61
+-    anomalies.sort(key=lambda a: severity_order.get(a.severity, 99))
++    anomalies.sort(key=lambda a: severity_order.get(a.severity, 100))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_63
+-    most_severe = anomalies[0]
++    most_severe = anomalies[1]
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_64
+-    await self._persist_and_emit(most_severe, session=session)
++    await self._persist_and_emit(None, session=session)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_65
+-    await self._persist_and_emit(most_severe, session=session)
++    await self._persist_and_emit(most_severe, session=None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_66
+-    await self._persist_and_emit(most_severe, session=session)
++    await self._persist_and_emit(session=session)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_67
+-    await self._persist_and_emit(most_severe, session=session)
++    await self._persist_and_emit(most_severe, )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁcheck_detection__mutmut_7
+-    baseline = await self._baseline_service.get_baseline(zone.id, session=session)
++    baseline = await self._baseline_service.get_baseline(zone.id, )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_11
+-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
++        query = query.where(None)  # noqa: E712
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_12
+-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
++        query = query.where(ZoneAnomaly.acknowledged != False)  # noqa: E712
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_13
+-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
++        query = query.where(ZoneAnomaly.acknowledged == True)  # noqa: E712
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_14
+-    query = query.order_by(ZoneAnomaly.timestamp.desc())
++    query = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_15
+-    query = query.order_by(ZoneAnomaly.timestamp.desc())
++    query = query.order_by(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_18
+-    result = await session.execute(query)
++    result = await session.execute(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_2
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == str(zone_id))
++    query = select(ZoneAnomaly).where(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_3
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == str(zone_id))
++    query = select(None).where(ZoneAnomaly.zone_id == str(zone_id))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_4
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == str(zone_id))
++    query = select(ZoneAnomaly).where(ZoneAnomaly.zone_id != str(zone_id))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_5
+-    query = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == str(zone_id))
++    query = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == str(None))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_8
+-        query = query.where(ZoneAnomaly.timestamp >= since)
++        query = query.where(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomalies_for_zone__mutmut_9
+-        query = query.where(ZoneAnomaly.timestamp >= since)
++        query = query.where(ZoneAnomaly.timestamp > since)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_12
+-        query = query.where(ZoneAnomaly.timestamp >= since)
++        query = query.where(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_13
+-        query = query.where(ZoneAnomaly.timestamp >= since)
++        query = query.where(ZoneAnomaly.timestamp > since)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_15
+-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
++        query = query.where(None)  # noqa: E712
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_16
+-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
++        query = query.where(ZoneAnomaly.acknowledged != False)  # noqa: E712
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_17
+-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
++        query = query.where(ZoneAnomaly.acknowledged == True)  # noqa: E712
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_18
+-    query = query.group_by(ZoneAnomaly.zone_id)
++    query = None
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_19
+-    query = query.group_by(ZoneAnomaly.zone_id)
++    query = query.group_by(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_2
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(None, func.count(ZoneAnomaly.id).label("count"))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_22
+-        raise ValueError("session is required")
++        raise ValueError("XXsession is requiredXX")
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_25
+-    result = await session.execute(query)
++    result = await session.execute(None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_3
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(ZoneAnomaly.zone_id, None)
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_4
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(func.count(ZoneAnomaly.id).label("count"))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_5
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(ZoneAnomaly.zone_id, )
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_6
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label(None))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_7
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(ZoneAnomaly.zone_id, func.count(None).label("count"))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_8
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("XXcountXX"))
+===KEY=== backend.services.zone_anomaly_service.xǁZoneAnomalyServiceǁget_anomaly_counts_by_zone__mutmut_9
+-    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("count"))
++    query = select(ZoneAnomaly.zone_id, func.count(ZoneAnomaly.id).label("COUNT"))

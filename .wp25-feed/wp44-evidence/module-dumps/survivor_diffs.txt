@@ -1,0 +1,483 @@
+=== backend.services.enrichment_client.xǁActionClassificationResultǁhas_security_alerts__mutmut_2
+-        return self.is_suspicious or self.risk_weight >= 0.7
++        return self.is_suspicious or self.risk_weight > 0.7
+=== backend.services.enrichment_client.xǁActionClassificationResultǁto_context_string__mutmut_6
+-        return "\n".join(lines)
+-
++        return "XX\nXX".join(lines)
+=== backend.services.enrichment_client.xǁClothingClassificationResultǁto_context_string__mutmut_12
+-        return "\n".join(lines)
+-
++        return "XX\nXX".join(lines)
+=== backend.services.enrichment_client.xǁClothingClassificationResultǁto_context_string__mutmut_3
+-            lines.append("  [ALERT: Potentially suspicious attire detected]")
++            lines.append("XX  [ALERT: Potentially suspicious attire detected]XX")
+=== backend.services.enrichment_client.xǁClothingClassificationResultǁto_context_string__mutmut_5
+-            lines.append("  [ALERT: Potentially suspicious attire detected]")
++            lines.append("  [ALERT: POTENTIALLY SUSPICIOUS ATTIRE DETECTED]")
+=== backend.services.enrichment_client.xǁClothingClassificationResultǁto_context_string__mutmut_7
+-            lines.append("  [Service/delivery worker uniform detected]")
++            lines.append("XX  [Service/delivery worker uniform detected]XX")
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_is_retryable_error__mutmut_4
+-            return bool(error.response.status_code >= 500)
++            return bool(error.response.status_code > 500)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_is_retryable_error__mutmut_5
+-            return bool(error.response.status_code >= 500)
++            return bool(error.response.status_code >= 501)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_10
+-            inference_time_ms=data.get("inference_time_ms", 0.0),
++            inference_time_ms=data.get("inference_time_ms", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_101
+-                age_range=demo_data.get("age_range", "unknown"),
++                age_range=demo_data.get("age_range", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_104
+-                age_range=demo_data.get("age_range", "unknown"),
++                age_range=demo_data.get("age_range", "XXunknownXX"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_105
+-                age_range=demo_data.get("age_range", "unknown"),
++                age_range=demo_data.get("age_range", "UNKNOWN"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_106
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get(None, 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_107
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get("age_confidence", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_108
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get(0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_109
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get("age_confidence", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_110
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get("XXage_confidenceXX", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_111
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get("AGE_CONFIDENCE", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_112
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=demo_data.get("age_confidence", 1.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_114
+-                gender=demo_data.get("gender", "unknown"),
++                gender=demo_data.get("gender", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_116
+-                gender=demo_data.get("gender", "unknown"),
++                gender=demo_data.get("gender", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_119
+-                gender=demo_data.get("gender", "unknown"),
++                gender=demo_data.get("gender", "XXunknownXX"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_12
+-            inference_time_ms=data.get("inference_time_ms", 0.0),
++            inference_time_ms=data.get("inference_time_ms", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_120
+-                gender=demo_data.get("gender", "unknown"),
++                gender=demo_data.get("gender", "UNKNOWN"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_121
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get(None, 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_122
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get("gender_confidence", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_123
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get(0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_124
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get("gender_confidence", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_125
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get("XXgender_confidenceXX", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_126
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get("GENDER_CONFIDENCE", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_127
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=demo_data.get("gender_confidence", 1.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_137
+-                color=vehicle_data.get("color"),
++                color=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_139
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_15
+-            inference_time_ms=data.get("inference_time_ms", 0.0),
++            inference_time_ms=data.get("inference_time_ms", 1.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_151
+-                color=vehicle_data.get("color"),
++                color=vehicle_data.get(None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_152
+-                color=vehicle_data.get("color"),
++                color=vehicle_data.get("XXcolorXX"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_153
+-                color=vehicle_data.get("color"),
++                color=vehicle_data.get("COLOR"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_155
+-                type=vehicle_data.get("type", "unknown"),
++                type=vehicle_data.get("type", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_157
+-                type=vehicle_data.get("type", "unknown"),
++                type=vehicle_data.get("type", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_160
+-                type=vehicle_data.get("type", "unknown"),
++                type=vehicle_data.get("type", "XXunknownXX"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_161
+-                type=vehicle_data.get("type", "unknown"),
++                type=vehicle_data.get("type", "UNKNOWN"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_162
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get(None, 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_163
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get("confidence", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_164
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get(0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_165
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get("confidence", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_166
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get("XXconfidenceXX", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_167
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get("CONFIDENCE", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_168
+-                confidence=vehicle_data.get("confidence", 0.0),
++                confidence=vehicle_data.get("confidence", 1.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_176
+-                threats=threat_data.get("threats", []),
++                threats=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_178
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_182
+-                threats=threat_data.get("threats", []),
++                threats=threat_data.get(None, []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_183
+-                threats=threat_data.get("threats", []),
++                threats=threat_data.get("threats", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_185
+-                threats=threat_data.get("threats", []),
++                threats=threat_data.get("threats", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_186
+-                threats=threat_data.get("threats", []),
++                threats=threat_data.get("XXthreatsXX", []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_187
+-                threats=threat_data.get("threats", []),
++                threats=threat_data.get("THREATS", []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_189
+-                has_threat=threat_data.get("has_threat", False),
++                has_threat=threat_data.get("has_threat", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_191
+-                has_threat=threat_data.get("has_threat", False),
++                has_threat=threat_data.get("has_threat", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_194
+-                has_threat=threat_data.get("has_threat", False),
++                has_threat=threat_data.get("has_threat", True),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_195
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get(None, "none"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_196
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("max_severity", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_197
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("none"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_198
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("max_severity", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_199
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("XXmax_severityXX", "none"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_200
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("MAX_SEVERITY", "none"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_201
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("max_severity", "XXnoneXX"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_202
+-                max_severity=threat_data.get("max_severity", "none"),
++                max_severity=threat_data.get("max_severity", "NONE"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_23
+-                keypoints=pose_data.get("keypoints", []),
++                keypoints=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_25
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_31
+-                keypoints=pose_data.get("keypoints", []),
++                keypoints=pose_data.get(None, []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_32
+-                keypoints=pose_data.get("keypoints", []),
++                keypoints=pose_data.get("keypoints", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_34
+-                keypoints=pose_data.get("keypoints", []),
++                keypoints=pose_data.get("keypoints", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_35
+-                keypoints=pose_data.get("keypoints", []),
++                keypoints=pose_data.get("XXkeypointsXX", []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_36
+-                keypoints=pose_data.get("keypoints", []),
++                keypoints=pose_data.get("KEYPOINTS", []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_38
+-                pose_class=pose_data.get("pose_class", "unknown"),
++                pose_class=pose_data.get("pose_class", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_40
+-                pose_class=pose_data.get("pose_class", "unknown"),
++                pose_class=pose_data.get("pose_class", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_43
+-                pose_class=pose_data.get("pose_class", "unknown"),
++                pose_class=pose_data.get("pose_class", "XXunknownXX"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_44
+-                pose_class=pose_data.get("pose_class", "unknown"),
++                pose_class=pose_data.get("pose_class", "UNKNOWN"),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_45
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get(None, 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_46
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get("confidence", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_47
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get(0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_48
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get("confidence", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_49
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get("XXconfidenceXX", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_50
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get("CONFIDENCE", 0.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_51
+-                confidence=pose_data.get("confidence", 0.0),
++                confidence=pose_data.get("confidence", 1.0),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_53
+-                is_suspicious=pose_data.get("is_suspicious", False),
++                is_suspicious=pose_data.get("is_suspicious", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_55
+-                is_suspicious=pose_data.get("is_suspicious", False),
++                is_suspicious=pose_data.get("is_suspicious", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_58
+-                is_suspicious=pose_data.get("is_suspicious", False),
++                is_suspicious=pose_data.get("is_suspicious", True),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_66
+-                categories=clothing_data.get("categories", []),
++                categories=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_70
+-                categories=clothing_data.get("categories", []),
++                categories=clothing_data.get(None, []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_71
+-                categories=clothing_data.get("categories", []),
++                categories=clothing_data.get("categories", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_73
+-                categories=clothing_data.get("categories", []),
++                categories=clothing_data.get("categories", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_74
+-                categories=clothing_data.get("categories", []),
++                categories=clothing_data.get("XXcategoriesXX", []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_75
+-                categories=clothing_data.get("categories", []),
++                categories=clothing_data.get("CATEGORIES", []),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_76
+-                is_suspicious=clothing_data.get("is_suspicious", False),
++                is_suspicious=clothing_data.get(None, False),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_77
+-                is_suspicious=clothing_data.get("is_suspicious", False),
++                is_suspicious=clothing_data.get("is_suspicious", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_79
+-                is_suspicious=clothing_data.get("is_suspicious", False),
++                is_suspicious=clothing_data.get("is_suspicious", ),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_80
+-                is_suspicious=clothing_data.get("is_suspicious", False),
++                is_suspicious=clothing_data.get("XXis_suspiciousXX", False),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_81
+-                is_suspicious=clothing_data.get("is_suspicious", False),
++                is_suspicious=clothing_data.get("IS_SUSPICIOUS", False),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_82
+-                is_suspicious=clothing_data.get("is_suspicious", False),
++                is_suspicious=clothing_data.get("is_suspicious", True),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_91
+-                age_confidence=demo_data.get("age_confidence", 0.0),
++                age_confidence=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_93
+-                gender_confidence=demo_data.get("gender_confidence", 0.0),
++                gender_confidence=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁ_parse_unified_response__mutmut_99
+-                age_range=demo_data.get("age_range", "unknown"),
++                age_range=demo_data.get("age_range", None),
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_10
+-            return cast("dict[str, Any]", response.json())
++            return cast("XXdict[str, Any]XX", response.json())
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_11
+-            return cast("dict[str, Any]", response.json())
++            return cast("dict[str, any]", response.json())
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_12
+-            return cast("dict[str, Any]", response.json())
++            return cast("DICT[STR, ANY]", response.json())
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_13
+-            logger.warning(f"Failed to get model status: {e}")
++            logger.warning(None)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_16
+-            return {"error": str(e), "loaded_models": []}
++            return {"error": str(None), "loaded_models": []}
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_2
+-                f"{self._base_url}/models/status",
++                None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_3
+-                headers=self._get_headers(),
++                headers=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_4
+-                f"{self._base_url}/models/status",
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_5
+-                headers=self._get_headers(),
+-            )
++                )
+=== backend.services.enrichment_client.xǁEnrichmentClientǁget_model_status__mutmut_6
+-            return cast("dict[str, Any]", response.json())
++            return cast(None, response.json())
+=== backend.services.enrichment_client.xǁEnrichmentClientǁis_circuit_open__mutmut_4
+-            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
++            breaker = self._breakers.get(endpoint, None)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁis_circuit_open__mutmut_6
+-            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
++            breaker = self._breakers.get(endpoint, )
+=== backend.services.enrichment_client.xǁEnrichmentClientǁpreload_model__mutmut_12
+-                logger.info(f"Successfully preloaded model: {model_name}")
++                logger.info(None)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁpreload_model__mutmut_14
+-                logger.warning(f"Failed to preload model {model_name}: HTTP {response.status_code}")
++                logger.warning(None)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁpreload_model__mutmut_16
+-            logger.warning(f"Failed to preload model {model_name}: {e}")
++            logger.warning(None)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁpreload_model__mutmut_4
+-                headers=self._get_headers(),
++                headers=None,
+=== backend.services.enrichment_client.xǁEnrichmentClientǁpreload_model__mutmut_7
+-                headers=self._get_headers(),
+-            )
++                )
+=== backend.services.enrichment_client.xǁEnrichmentClientǁreset_circuit_breaker__mutmut_4
+-            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
++            breaker = self._breakers.get(endpoint, None)
+=== backend.services.enrichment_client.xǁEnrichmentClientǁreset_circuit_breaker__mutmut_6
+-            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
++            breaker = self._breakers.get(endpoint, )
+=== backend.services.enrichment_client.xǁPoseAnalysisResultǁto_context_string__mutmut_13
+-                    lines.append("  [ALERT: Person lying down - possible medical emergency]")
++                    lines.append("XX  [ALERT: Person lying down - possible medical emergency]XX")
+=== backend.services.enrichment_client.xǁPoseAnalysisResultǁto_context_string__mutmut_20
+-                    lines.append("  [ALERT: Hands raised - possible surrender/robbery]")
++                    lines.append("XX  [ALERT: Hands raised - possible surrender/robbery]XX")
+=== backend.services.enrichment_client.xǁPoseAnalysisResultǁto_context_string__mutmut_27
+-                    lines.append("  [ALERT: Fighting stance detected - potential aggression]")
++                    lines.append("XX  [ALERT: Fighting stance detected - potential aggression]XX")
+=== backend.services.enrichment_client.xǁPoseAnalysisResultǁto_context_string__mutmut_33
+-        return "\n".join(lines)
+-
++        return "XX\nXX".join(lines)
+=== backend.services.enrichment_client.xǁPoseAnalysisResultǁto_context_string__mutmut_6
+-                    lines.append("  [ALERT: Person crouching - potential hiding/break-in]")
++                    lines.append("XX  [ALERT: Person crouching - potential hiding/break-in]XX")
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_10
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', )} (confidence: {top.get('confidence', 0):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_13
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', 'XXunknownXX')} (confidence: {top.get('confidence', 0):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_14
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', 'UNKNOWN')} (confidence: {top.get('confidence', 0):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_16
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', None):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_18
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', ):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_21
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 1):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_23
+-            lines.append("  [ALERT: Potentially suspicious attire]")
++            lines.append("XX  [ALERT: Potentially suspicious attire]XX")
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_25
+-            lines.append("  [ALERT: Potentially suspicious attire]")
++            lines.append("  [ALERT: POTENTIALLY SUSPICIOUS ATTIRE]")
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_27
+-        return "\n".join(lines)
+-
++        return "XX\nXX".join(lines)
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_4
+-        top = self.categories[0] if self.categories else {}
++        top = self.categories[0] if (self.categories) or True else {}
+=== backend.services.enrichment_client.xǁUnifiedClothingResultǁto_context_string__mutmut_8
+-            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
++            f"Clothing: {top.get('category', None)} (confidence: {top.get('confidence', 0):.0%})"
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_context_string__mutmut_13
+-        return "\n".join(lines)
+-
++        return "XX\nXX".join(lines)
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_10
+-            ("vehicle", self.vehicle),
++            ("VEHICLE", self.vehicle),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_14
+-                result[field_name] = field_value.to_dict()
++                result[field_name] = None
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_16
+-            ("pet", self.pet),
++            ("XXpetXX", self.pet),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_17
+-            ("pet", self.pet),
++            ("PET", self.pet),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_20
+-            ("action", self.action),
++            ("XXactionXX", self.action),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_21
+-            ("action", self.action),
++            ("ACTION", self.action),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_22
+-            ("depth", self.depth),
++            ("XXdepthXX", self.depth),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_23
+-            ("depth", self.depth),
++            ("DEPTH", self.depth),
+=== backend.services.enrichment_client.xǁUnifiedEnrichmentResultǁto_dict__mutmut_9
+-            ("vehicle", self.vehicle),
++            ("XXvehicleXX", self.vehicle),
+=== backend.services.enrichment_client.xǁUnifiedPoseResultǁto_context_string__mutmut_3
+-            lines.append("  [ALERT: Suspicious posture detected]")
++            lines.append("XX  [ALERT: Suspicious posture detected]XX")
+=== backend.services.enrichment_client.xǁUnifiedPoseResultǁto_context_string__mutmut_5
+-            lines.append("  [ALERT: Suspicious posture detected]")
++            lines.append("  [ALERT: SUSPICIOUS POSTURE DETECTED]")
+=== backend.services.enrichment_client.xǁUnifiedPoseResultǁto_context_string__mutmut_7
+-        return "\n".join(lines)
+-
++        return "XX\nXX".join(lines)
+=== backend.services.enrichment_client.xǁUnifiedThreatResultǁto_context_string__mutmut_12
+-        threat_types = [t.get("type", "unknown") for t in self.threats]
++        threat_types = [t.get("type", "XXunknownXX") for t in self.threats]
+=== backend.services.enrichment_client.xǁUnifiedThreatResultǁto_context_string__mutmut_13
+-        threat_types = [t.get("type", "unknown") for t in self.threats]
++        threat_types = [t.get("type", "UNKNOWN") for t in self.threats]
+=== backend.services.enrichment_client.xǁUnifiedThreatResultǁto_context_string__mutmut_15
+-        return f"THREAT DETECTED: {', '.join(threat_types)} (severity: {self.max_severity})"
+-
++        return f"THREAT DETECTED: {'XX, XX'.join(threat_types)} (severity: {self.max_severity})"
+=== backend.services.enrichment_client.xǁUnifiedThreatResultǁto_context_string__mutmut_2
+-            return "Threat detection: No threats detected"
++            return "XXThreat detection: No threats detectedXX"
+=== backend.services.enrichment_client.xǁUnifiedThreatResultǁto_context_string__mutmut_7
+-        threat_types = [t.get("type", "unknown") for t in self.threats]
++        threat_types = [t.get("type", None) for t in self.threats]
+=== backend.services.enrichment_client.xǁUnifiedThreatResultǁto_context_string__mutmut_9
+-        threat_types = [t.get("type", "unknown") for t in self.threats]
++        threat_types = [t.get("type", ) for t in self.threats]
+=== backend.services.enrichment_client.xǁUnifiedVehicleResultǁto_context_string__mutmut_7
+-        return f"Vehicle: {' '.join(parts)} (confidence: {self.confidence:.0%})"
+-
++        return f"Vehicle: {'XX XX'.join(parts)} (confidence: {self.confidence:.0%})"
+=== backend.services.enrichment_client.xǁVehicleClassificationResultǁto_context_string__mutmut_5
+-            base += " [Commercial/delivery vehicle]"
++            base += "XX [Commercial/delivery vehicle]XX"

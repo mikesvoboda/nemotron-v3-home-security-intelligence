@@ -1,0 +1,11 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_134: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -85,7 +85,6 @@
+     except httpx.TimeoutException:
+         return AIServiceHealthDetail(
+             status=AIServiceStatus.UNHEALTHY,
+-            circuit_state=circuit_state,
+             last_health_check=datetime.now(UTC),
+             error_rate_1h=error_rate,
+             latency_p99_ms=None,

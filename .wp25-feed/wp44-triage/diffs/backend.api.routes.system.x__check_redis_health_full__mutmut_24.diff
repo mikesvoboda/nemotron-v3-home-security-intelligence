@@ -1,0 +1,13 @@
+# backend.api.routes.system.x__check_redis_health_full__mutmut_24: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -14,8 +14,7 @@
+                 name="redis",
+                 status=ServiceHealthState.UNHEALTHY,
+                 message=f"Redis error: {info.get('error')}",
+-                details=None,
+-            )
++                )
+         return InfrastructureHealthStatus(
+             name="redis",
+             status=ServiceHealthState.HEALTHY,

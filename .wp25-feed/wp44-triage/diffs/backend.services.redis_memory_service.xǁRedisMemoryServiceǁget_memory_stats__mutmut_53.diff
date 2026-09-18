@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_53: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -17,7 +17,7 @@
+ 
+     # Get eviction policy
+     config = await self._redis.config_get("maxmemory-policy")
+-    maxmemory_policy = config.get("maxmemory-policy", "noeviction")
++    maxmemory_policy = config.get("maxmemory-policy", )
+ 
+     # Get key counts
+     total_keys = await self._redis.dbsize()

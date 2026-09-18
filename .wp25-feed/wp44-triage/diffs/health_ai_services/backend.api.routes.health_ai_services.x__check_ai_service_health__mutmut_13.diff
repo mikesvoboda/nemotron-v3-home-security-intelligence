@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_13: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -15,7 +15,7 @@
+     """
+     name = service_config["name"]
+     url_attr = service_config["url_attr"]
+-    circuit_breaker_name = service_config.get("circuit_breaker_name", name)
++    circuit_breaker_name = service_config.get("CIRCUIT_BREAKER_NAME", name)
+ 
+     service_url = getattr(settings, url_attr, None)
+     circuit_state = _get_circuit_breaker_state(circuit_breaker_name)

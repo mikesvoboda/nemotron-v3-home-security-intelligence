@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_17: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -10,7 +10,7 @@
+     keyspace_info = await self._redis.info("keyspace")
+ 
+     # Parse memory values
+-    used_memory = info.get("used_memory", 0)
++    used_memory = info.get("used_memory", )
+     used_memory_peak = info.get("used_memory_peak", 0)
+     maxmemory = info.get("maxmemory", 0)
+     fragmentation_ratio = info.get("mem_fragmentation_ratio", 1.0)

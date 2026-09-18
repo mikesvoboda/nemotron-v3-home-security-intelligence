@@ -1,0 +1,459 @@
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_27
+-    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
++    safe_norms = np.where(None, 1.0, candidate_norms)
+
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_34
+-    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
++    safe_norms = np.where(candidate_norms == 1, 1.0, candidate_norms)
+
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_35
+-    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
++    safe_norms = np.where(candidate_norms == 0, 2.0, candidate_norms)
+
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_44
+-    similarities = np.where(candidate_norms == 0, 0.0, similarities)
++    similarities = np.where(None, 0.0, similarities)
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_10
+-    b = np.array(vec2, dtype=np.float32)
++    b = np.array(vec2, dtype=None)
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_12
+-    b = np.array(vec2, dtype=np.float32)
++    b = np.array(vec2, )
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_5
+-    a = np.array(vec1, dtype=np.float32)
++    a = np.array(vec1, dtype=None)
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_7
+-    a = np.array(vec1, dtype=np.float32)
++    a = np.array(vec1, )
+
+### backend.services.reid_service.x_format_entity_match__mutmut_11
+-    elif minutes < 60:
++    elif minutes <= 60:
+
+### backend.services.reid_service.x_format_entity_match__mutmut_12
+-    elif minutes < 60:
++    elif minutes < 61:
+
+### backend.services.reid_service.x_format_entity_match__mutmut_17
+-        hours = minutes / 60
++        hours = minutes / 61
+
+### backend.services.reid_service.x_format_entity_match__mutmut_31
+-        clothing = clean_vqa_output(clothing_raw) if clothing_raw else None
++        clothing = clean_vqa_output(clothing_raw) if (clothing_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_40
+-        carrying = clean_vqa_output(carrying_raw) if carrying_raw else None
++        carrying = clean_vqa_output(carrying_raw) if (carrying_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_49
+-        color = clean_vqa_output(color_raw) if color_raw else None
++        color = clean_vqa_output(color_raw) if (color_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_58
+-        vehicle_type = clean_vqa_output(vehicle_type_raw) if vehicle_type_raw else None
++        vehicle_type = clean_vqa_output(vehicle_type_raw) if (vehicle_type_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_6
+-    if minutes < 1:
++    if minutes <= 1:
+
+### backend.services.reid_service.x_format_entity_match__mutmut_63
+-            lines.append(f"    Attributes: {', '.join(attr_parts)}")
++            lines.append(f"    Attributes: {'XX, XX'.join(attr_parts)}")
+
+### backend.services.reid_service.x_format_entity_match__mutmut_65
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+### backend.services.reid_service.x_format_entity_match__mutmut_7
+-    if minutes < 1:
++    if minutes < 2:
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_11
+-        if not person_section.startswith("No "):
++        if not person_section.startswith("XXNo XX"):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_12
+-        if not person_section.startswith("No "):
++        if not person_section.startswith("no "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_13
+-        if not person_section.startswith("No "):
++        if not person_section.startswith("NO "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_17
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, None)
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_19
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, )
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_20
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, "XXvehicleXX")
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_21
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, "VEHICLE")
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_24
+-        if not vehicle_section.startswith("No "):
++        if not vehicle_section.startswith("XXNo XX"):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_25
+-        if not vehicle_section.startswith("No "):
++        if not vehicle_section.startswith("no "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_26
+-        if not vehicle_section.startswith("No "):
++        if not vehicle_section.startswith("NO "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_29
+-        return "No entities matched with previous sightings."
++        return "XXNo entities matched with previous sightings.XX"
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_33
+-    return "\n\n".join(sections)
++    return "XX\n\nXX".join(sections)
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_4
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, None)
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_6
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, )
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_7
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, "XXpersonXX")
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_8
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, "PERSON")
+
+### backend.services.reid_service.x_format_reid_context__mutmut_12
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+### backend.services.reid_service.x_format_reid_context__mutmut_4
+-            continue
++            break
+
+### backend.services.reid_service.x_format_reid_summary__mutmut_15
+-        return "All entities appear to be new (not seen in last 24h)."
++        return "XXAll entities appear to be new (not seen in last 24h).XX"
+
+### backend.services.reid_service.x_format_reid_summary__mutmut_20
+-    return ", ".join(parts) + "."
++    return "XX, XX".join(parts) + "."
+
+### backend.services.reid_service.x_format_reid_summary__mutmut_21
+-    return ", ".join(parts) + "."
++    return ", ".join(parts) + "XX.XX"
+
+### backend.services.reid_service.x_reset_reid_service__mutmut_1
+-    _reid_service = None
++    _reid_service = ""
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_11
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_13
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=2)).strftime("%Y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_14
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=1)).strftime("XX%Y-%m-%dXX")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_15
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=1)).strftime("%y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_16
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=1)).strftime("%Y-%M-%D")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_19
+-                    key = f"entity_embeddings:{date_str}"
++                    key = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_21
+-                    data_raw = await redis_client.get(key)
++                    data_raw = await redis_client.get(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_23
+-                        continue
++                        break
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_3
+-            now = datetime.now(UTC)
++            now = datetime.now(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_4
+-                today = now.strftime("%Y-%m-%d")
++                today = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_40
+-                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
++                    entity_list = data.get(list_key, []) if (isinstance(data, dict)) or True else []
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_42
+-                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
++                    entity_list = data.get(list_key, None) if isinstance(data, dict) else []
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_44
+-                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
++                    entity_list = data.get(list_key, ) if isinstance(data, dict) else []
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_47
+-                                key,
++                                None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_48
+-                                type(stored_data).__name__,
++                                None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_52
+-                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
++                                "XXSkipping malformed entity data in Redis key %s: expected dict, got %sXX",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_53
+-                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
++                                "skipping malformed entity data in redis key %s: expected dict, got %s",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_55
+-                                type(stored_data).__name__,
++                                type(None).__name__,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_6
+-                today = now.strftime("%Y-%m-%d")
++                today = now.strftime("XX%Y-%m-%dXX")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_69
+-                logger.error(f"Failed to get entity history: {e}")
++                logger.error(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_7
+-                today = now.strftime("%Y-%m-%d")
++                today = now.strftime("%y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_8
+-                today = now.strftime("%Y-%m-%d")
++                today = now.strftime("%Y-%M-%D")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_9
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_18
+-                embedding_json = json.dumps(embedding.to_dict())
++                embedding_json = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_19
+-                embedding_json = json.dumps(embedding.to_dict())
++                embedding_json = json.dumps(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_20
+-                raw_client = None
++                raw_client = ""
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_21
+-                use_atomic = (
+-                    raw_client is not None
+-                    and hasattr(raw_client, "eval")
+-                    and callable(getattr(raw_client, "eval", None))
+-                )
++                use_atomic = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_22
+-                    and hasattr(raw_client, "eval")
+-                    and callable(getattr(raw_client, "eval", None))
++                    and hasattr(raw_client, "eval") or callable(getattr(raw_client, "eval", None))
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_23
+-                    raw_client is not None
+-                    and hasattr(raw_client, "eval")
++                    raw_client is not None or hasattr(raw_client, "eval")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_24
+-                    raw_client is not None
++                    raw_client is None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_25
+-                if use_atomic and raw_client is not None:
++                if use_atomic or raw_client is not None:
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_26
+-                if use_atomic and raw_client is not None:
++                if use_atomic and raw_client is None:
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_28
+-                    data_json = await redis_client.get(key)
++                    data_json = await redis_client.get(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_44
+-                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id} (atomic)"
++                    None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_45
+-                logger.error(f"Failed to store embedding: {e}")
++                logger.error(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_46
+-            if persist_to_postgres and self._hybrid_storage:
++            if persist_to_postgres or self._hybrid_storage:
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_47
+-                    detection_id = (
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
+-                    )
++                    detection_id = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_48
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
++                        int(embedding.detection_id) if (embedding.detection_id.isdigit()) and False else 0
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_50
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
++                        int(None) if embedding.detection_id.isdigit() else 0
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_51
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
++                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 1
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_53
+-                        detection_id=detection_id,
++                        detection_id=None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_57
+-                        timestamp=embedding.timestamp,
++                        timestamp=None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_59
+-                        detection_id=detection_id,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_63
+-                        timestamp=embedding.timestamp,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_65
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_66
+-                        embedding.entity_type,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_67
+-                        embedding.camera_id,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_68
+-                        entity_id,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_69
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_7
+-                lua_script = """
+-                local key = KEYS[1]
+-                local embedding_json = ARGV[1]
+-                local list_key = ARGV[2]
+-                local ttl = tonumber(ARGV[3])
+-
+-                -- Get existing data or create empty structure
+-                local data_json = redis.call('GET', key)
+-                local data
+-                if data_json then
+-                    data = cjson.decode(data_json)
+-                else
+-                    data = {persons = {}, vehicles = {}}
+-                end
+-
+-                -- Add new embedding to appropriate list
+-                local embedding = cjson.decode(embedding_json)
+-                table.insert(data[list_key], embedding)
+-
+-                -- Store with TTL
+-                redis.call('SET', key, cjson.encode(data), 'EX', ttl)
+-                return 1
+-                """
++                lua_script = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_70
+-                        embedding.entity_type,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_71
+-                        embedding.camera_id,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_72
+-                        entity_id,
+-                    )
++                        )
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_73
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        "XXPersisted %s embedding to PostgreSQL for camera %s (entity_id=%s)XX",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_74
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        "persisted %s embedding to postgresql for camera %s (entity_id=%s)",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_75
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        "PERSISTED %S EMBEDDING TO POSTGRESQL FOR CAMERA %S (ENTITY_ID=%S)",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_76
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_77
+-                        embedding.entity_type,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_78
+-                        embedding.camera_id,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_79
+-                        str(e),
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_80
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_81
+-                        embedding.entity_type,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_82
+-                        embedding.camera_id,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_83
+-                        str(e),
+-                    )
++                        )
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_84
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        "XXFailed to persist %s embedding to PostgreSQL for camera %s: %sXX",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_85
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        "failed to persist %s embedding to postgresql for camera %s: %s",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_86
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        "FAILED TO PERSIST %S EMBEDDING TO POSTGRESQL FOR CAMERA %S: %S",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_87
+-                        str(e),
++                        str(None),

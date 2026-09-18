@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_43: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -40,7 +40,7 @@
+         "depth_analysis": (self.depth_analysis.to_dict() if self.depth_analysis else None),
+         "quality_change_detected": self.quality_change_detected,
+         "quality_change_description": self.quality_change_description,
+-        "threat_detection": (
++        "XXthreat_detectionXX": (
+             self.threat_detection.to_dict()
+             if self.threat_detection and hasattr(self.threat_detection, "to_dict")
+             else None

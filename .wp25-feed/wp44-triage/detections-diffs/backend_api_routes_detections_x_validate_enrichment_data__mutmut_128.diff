@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_128: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -64,7 +64,7 @@
+             )
+ 
+     # Extract errors (sanitized for API exposure)
+-    errors = _sanitize_errors(enrichment_data.get("errors", []))
++    errors = _sanitize_errors(enrichment_data.get("errors", ))
+ 
+     return EnrichmentDataSchema(
+         vehicle=vehicle,

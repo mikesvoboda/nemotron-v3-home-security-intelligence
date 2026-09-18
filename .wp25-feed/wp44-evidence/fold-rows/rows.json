@@ -1,0 +1,348 @@
+[
+ {
+  "cluster": "C1 parse-default-branch",
+  "count": 50,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient._parse_unified_response__mutmut_10",
+   "EnrichmentClient._parse_unified_response__mutmut_101",
+   "EnrichmentClient._parse_unified_response__mutmut_104"
+  ],
+  "note": "`_parse_unified_response`: the DEFAULT branch of `X.get(key, default)` flipped across pose/clothing/demographics/vehicle/threat sub-dicts and top-level `inference_time_ms` (src lines 3059-3107): `0.0`->`None`/`1.0`/omitted, `\"unknown\"`->`None`/`\"UNKNOWN\"`/`\"XXunknownXX\"`, `False`->`None`/`True`, `[]`->`None`/omitted, `\"none\"`->`None`/`\"NONE\"`. Fires only when a *present* sub-dict omits that key; every existing parse test (`test_parse_full_response`, `test_parse_partial_response`, `test_enrich_detection_*` in backend/tests/unit/services/test_enrichment_client.py:2952-3046, :2597+) supplies every key, so the default branch never fires with a missing key.",
+  "members": [
+   "EnrichmentClient._parse_unified_response__mutmut_10",
+   "EnrichmentClient._parse_unified_response__mutmut_101",
+   "EnrichmentClient._parse_unified_response__mutmut_104",
+   "EnrichmentClient._parse_unified_response__mutmut_105",
+   "EnrichmentClient._parse_unified_response__mutmut_107",
+   "EnrichmentClient._parse_unified_response__mutmut_109",
+   "EnrichmentClient._parse_unified_response__mutmut_112",
+   "EnrichmentClient._parse_unified_response__mutmut_114",
+   "EnrichmentClient._parse_unified_response__mutmut_116",
+   "EnrichmentClient._parse_unified_response__mutmut_119",
+   "EnrichmentClient._parse_unified_response__mutmut_12",
+   "EnrichmentClient._parse_unified_response__mutmut_120",
+   "EnrichmentClient._parse_unified_response__mutmut_122",
+   "EnrichmentClient._parse_unified_response__mutmut_124",
+   "EnrichmentClient._parse_unified_response__mutmut_127",
+   "EnrichmentClient._parse_unified_response__mutmut_15",
+   "EnrichmentClient._parse_unified_response__mutmut_155",
+   "EnrichmentClient._parse_unified_response__mutmut_157",
+   "EnrichmentClient._parse_unified_response__mutmut_160",
+   "EnrichmentClient._parse_unified_response__mutmut_161",
+   "EnrichmentClient._parse_unified_response__mutmut_163",
+   "EnrichmentClient._parse_unified_response__mutmut_165",
+   "EnrichmentClient._parse_unified_response__mutmut_168",
+   "EnrichmentClient._parse_unified_response__mutmut_183",
+   "EnrichmentClient._parse_unified_response__mutmut_185",
+   "EnrichmentClient._parse_unified_response__mutmut_189",
+   "EnrichmentClient._parse_unified_response__mutmut_191",
+   "EnrichmentClient._parse_unified_response__mutmut_194",
+   "EnrichmentClient._parse_unified_response__mutmut_196",
+   "EnrichmentClient._parse_unified_response__mutmut_198",
+   "EnrichmentClient._parse_unified_response__mutmut_201",
+   "EnrichmentClient._parse_unified_response__mutmut_202",
+   "EnrichmentClient._parse_unified_response__mutmut_32",
+   "EnrichmentClient._parse_unified_response__mutmut_34",
+   "EnrichmentClient._parse_unified_response__mutmut_38",
+   "EnrichmentClient._parse_unified_response__mutmut_40",
+   "EnrichmentClient._parse_unified_response__mutmut_43",
+   "EnrichmentClient._parse_unified_response__mutmut_44",
+   "EnrichmentClient._parse_unified_response__mutmut_46",
+   "EnrichmentClient._parse_unified_response__mutmut_48",
+   "EnrichmentClient._parse_unified_response__mutmut_51",
+   "EnrichmentClient._parse_unified_response__mutmut_53",
+   "EnrichmentClient._parse_unified_response__mutmut_55",
+   "EnrichmentClient._parse_unified_response__mutmut_58",
+   "EnrichmentClient._parse_unified_response__mutmut_71",
+   "EnrichmentClient._parse_unified_response__mutmut_73",
+   "EnrichmentClient._parse_unified_response__mutmut_77",
+   "EnrichmentClient._parse_unified_response__mutmut_79",
+   "EnrichmentClient._parse_unified_response__mutmut_82",
+   "EnrichmentClient._parse_unified_response__mutmut_99"
+  ]
+ },
+ {
+  "cluster": "C2 parse-clobber-key-arg",
+  "count": 35,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient._parse_unified_response__mutmut_106",
+   "EnrichmentClient._parse_unified_response__mutmut_108",
+   "EnrichmentClient._parse_unified_response__mutmut_110"
+  ],
+  "note": "`_parse_unified_response`: the LOOKUP KEY of `.get(...)` clobbered - `\"age_confidence\"`->`None`/`0.0`/`\"XXage_confidenceXX\"`/`\"AGE_CONFIDENCE\"`, same pattern for keypoints/pose_class/confidence/is_suspicious/categories/gender(_confidence)/color/type/threats/has_threat/max_severity (src 3059-3107). Lookup misses the real key and silently falls back to the default. A single partial-sub-dict parse test asserting every defaulted field equals its default value kills the whole cluster at once (a missing key reads as absent from the mangled key too, returning the same default - so only the FULL-sub-dict-with-asserted-defaults shape separates them; see drafted test 1 which asserts defaults AND full-payload field values).",
+  "members": [
+   "EnrichmentClient._parse_unified_response__mutmut_106",
+   "EnrichmentClient._parse_unified_response__mutmut_108",
+   "EnrichmentClient._parse_unified_response__mutmut_110",
+   "EnrichmentClient._parse_unified_response__mutmut_111",
+   "EnrichmentClient._parse_unified_response__mutmut_121",
+   "EnrichmentClient._parse_unified_response__mutmut_123",
+   "EnrichmentClient._parse_unified_response__mutmut_125",
+   "EnrichmentClient._parse_unified_response__mutmut_126",
+   "EnrichmentClient._parse_unified_response__mutmut_151",
+   "EnrichmentClient._parse_unified_response__mutmut_152",
+   "EnrichmentClient._parse_unified_response__mutmut_153",
+   "EnrichmentClient._parse_unified_response__mutmut_162",
+   "EnrichmentClient._parse_unified_response__mutmut_164",
+   "EnrichmentClient._parse_unified_response__mutmut_166",
+   "EnrichmentClient._parse_unified_response__mutmut_167",
+   "EnrichmentClient._parse_unified_response__mutmut_182",
+   "EnrichmentClient._parse_unified_response__mutmut_186",
+   "EnrichmentClient._parse_unified_response__mutmut_187",
+   "EnrichmentClient._parse_unified_response__mutmut_195",
+   "EnrichmentClient._parse_unified_response__mutmut_197",
+   "EnrichmentClient._parse_unified_response__mutmut_199",
+   "EnrichmentClient._parse_unified_response__mutmut_200",
+   "EnrichmentClient._parse_unified_response__mutmut_31",
+   "EnrichmentClient._parse_unified_response__mutmut_35",
+   "EnrichmentClient._parse_unified_response__mutmut_36",
+   "EnrichmentClient._parse_unified_response__mutmut_45",
+   "EnrichmentClient._parse_unified_response__mutmut_47",
+   "EnrichmentClient._parse_unified_response__mutmut_49",
+   "EnrichmentClient._parse_unified_response__mutmut_50",
+   "EnrichmentClient._parse_unified_response__mutmut_70",
+   "EnrichmentClient._parse_unified_response__mutmut_74",
+   "EnrichmentClient._parse_unified_response__mutmut_75",
+   "EnrichmentClient._parse_unified_response__mutmut_76",
+   "EnrichmentClient._parse_unified_response__mutmut_80",
+   "EnrichmentClient._parse_unified_response__mutmut_81"
+  ]
+ },
+ {
+  "cluster": "C3 parse-expr-to-none",
+  "count": 9,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient._parse_unified_response__mutmut_137",
+   "EnrichmentClient._parse_unified_response__mutmut_139",
+   "EnrichmentClient._parse_unified_response__mutmut_176"
+  ],
+  "note": "`_parse_unified_response`: whole field expression replaced with `None` (`keypoints=None`, pose `confidence=None`, `categories=None`, `age_confidence=None`, `gender_confidence=None`, `color=None`, vehicle `confidence=None`, `threats=None`, `max_severity=None`) - `X.get(k, d)` call removed entirely. Fires whenever that sub-dict is present in the payload, even fully populated.",
+  "members": [
+   "EnrichmentClient._parse_unified_response__mutmut_137",
+   "EnrichmentClient._parse_unified_response__mutmut_139",
+   "EnrichmentClient._parse_unified_response__mutmut_176",
+   "EnrichmentClient._parse_unified_response__mutmut_178",
+   "EnrichmentClient._parse_unified_response__mutmut_23",
+   "EnrichmentClient._parse_unified_response__mutmut_25",
+   "EnrichmentClient._parse_unified_response__mutmut_66",
+   "EnrichmentClient._parse_unified_response__mutmut_91",
+   "EnrichmentClient._parse_unified_response__mutmut_93"
+  ]
+ },
+ {
+  "cluster": "C4 msg-text",
+  "count": 13,
+  "classification": "TEST-GAP",
+  "examples": [
+   "ClothingClassificationResult.to_context_string__mutmut_3",
+   "ClothingClassificationResult.to_context_string__mutmut_5",
+   "ClothingClassificationResult.to_context_string__mutmut_7"
+  ],
+  "note": "`to_context_string` ALERT/tag literals clobbered across ClothingClassificationResult (189-204), PoseAnalysisResult (677-699), UnifiedPoseResult (399-404), UnifiedClothingResult (434-435), VehicleClassificationResult (98-107): XX-padding `\"  [ALERT: ...]\"`->`\"XX  [ALERT: ...]XX\"` or CAPS swap `\"Potentially suspicious\"`->`\"POTENTIALLY SUSPICIOUS\"`. Covering tests assert only `\"ALERT\" in context`, `\"suspicious\" in context.lower()`, `\"Service/delivery worker\" in context`, `\"Commercial/delivery vehicle\" in context` - all substrings that survive XX-padding (which merely extends the line) and the case variants (`.lower()` comparison; case-insensitive substrings).",
+  "members": [
+   "ClothingClassificationResult.to_context_string__mutmut_3",
+   "ClothingClassificationResult.to_context_string__mutmut_5",
+   "ClothingClassificationResult.to_context_string__mutmut_7",
+   "PoseAnalysisResult.to_context_string__mutmut_13",
+   "PoseAnalysisResult.to_context_string__mutmut_20",
+   "PoseAnalysisResult.to_context_string__mutmut_27",
+   "PoseAnalysisResult.to_context_string__mutmut_6",
+   "UnifiedClothingResult.to_context_string__mutmut_23",
+   "UnifiedClothingResult.to_context_string__mutmut_25",
+   "UnifiedPoseResult.to_context_string__mutmut_3",
+   "UnifiedPoseResult.to_context_string__mutmut_5",
+   "UnifiedThreatResult.to_context_string__mutmut_2",
+   "VehicleClassificationResult.to_context_string__mutmut_5"
+  ]
+ },
+ {
+  "cluster": "C5 ctxstring-default",
+  "count": 11,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "UnifiedClothingResult.to_context_string__mutmut_10",
+   "UnifiedClothingResult.to_context_string__mutmut_13",
+   "UnifiedClothingResult.to_context_string__mutmut_14"
+  ],
+  "note": "`UnifiedClothingResult.to_context_string` (src 430-436) and `UnifiedThreatResult.to_context_string` (src 538-540): fallback defaults inside `top.get(\"category\", \"unknown\")`, `top.get(\"confidence\", 0)` and `t.get(\"type\", \"unknown\")` clobbered to None/omitted/CAPS/XX-padding. Only observable when a category/threat dict omits the key; every fixture (`{\"category\": \"casual\", \"confidence\": 0.85}`, `{\"type\": \"knife\", ...}`) populates both keys, so the defaults are dead code under the current tests.",
+  "members": [
+   "UnifiedClothingResult.to_context_string__mutmut_10",
+   "UnifiedClothingResult.to_context_string__mutmut_13",
+   "UnifiedClothingResult.to_context_string__mutmut_14",
+   "UnifiedClothingResult.to_context_string__mutmut_16",
+   "UnifiedClothingResult.to_context_string__mutmut_18",
+   "UnifiedClothingResult.to_context_string__mutmut_21",
+   "UnifiedClothingResult.to_context_string__mutmut_8",
+   "UnifiedThreatResult.to_context_string__mutmut_12",
+   "UnifiedThreatResult.to_context_string__mutmut_13",
+   "UnifiedThreatResult.to_context_string__mutmut_7",
+   "UnifiedThreatResult.to_context_string__mutmut_9"
+  ]
+ },
+ {
+  "cluster": "C6 unified-to_dict",
+  "count": 9,
+  "classification": "TEST-GAP",
+  "examples": [
+   "UnifiedEnrichmentResult.to_dict__mutmut_10",
+   "UnifiedEnrichmentResult.to_dict__mutmut_14",
+   "UnifiedEnrichmentResult.to_dict__mutmut_16"
+  ],
+  "note": "`UnifiedEnrichmentResult.to_dict` (src 585-609): field-name string literals in the `convertible_fields` list (`\"vehicle\"`->`\"VEHICLE\"`/`\"XXvehicleXX\"`) and `direct_fields` list (`\"pet\"`/`\"action\"`/`\"depth\"`-> XX/CAPS variants) clobbered, plus `result[field_name] = field_value.to_dict()`->`= None`. The existing `test_to_dict` (test_enrichment_client.py:2508-2518) asserts membership only for pose/clothing/demographics/threat/reid_embedding and never supplies pet/action/depth - so `\"XXvehicleXX\"` in place of `\"vehicle\"` (pose fixture keeps its own assert green) and the `= None` swap for a field whose membership is checked (`result[\"vehicle\"] is None`) both pass. NOTE: it does assert `\"threat\" in result`, which is why the threat-name mutants were killed; the same membership assert on vehicle/pet/action/depth kills this cluster.",
+  "members": [
+   "UnifiedEnrichmentResult.to_dict__mutmut_10",
+   "UnifiedEnrichmentResult.to_dict__mutmut_14",
+   "UnifiedEnrichmentResult.to_dict__mutmut_16",
+   "UnifiedEnrichmentResult.to_dict__mutmut_17",
+   "UnifiedEnrichmentResult.to_dict__mutmut_20",
+   "UnifiedEnrichmentResult.to_dict__mutmut_21",
+   "UnifiedEnrichmentResult.to_dict__mutmut_22",
+   "UnifiedEnrichmentResult.to_dict__mutmut_23",
+   "UnifiedEnrichmentResult.to_dict__mutmut_9"
+  ]
+ },
+ {
+  "cluster": "C7 join-separator",
+  "count": 8,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "ActionClassificationResult.to_context_string__mutmut_6",
+   "ClothingClassificationResult.to_context_string__mutmut_12",
+   "PoseAnalysisResult.to_context_string__mutmut_33"
+  ],
+  "note": "`\"\\n\".join(lines)`->`\"XX\\nXX\".join(lines)` in 6 multi-line context builders (ActionClassificationResult src 332, ClothingClassificationResult 203, PoseAnalysisResult 699, UnifiedClothingResult 436, UnifiedPoseResult 404, UnifiedEnrichmentResult 637) plus `' '.join(parts)`->`'XX XX'.join` (UnifiedVehicleResult 510) and `', '.join(threat_types)`->`'XX, XX'.join` (UnifiedThreatResult 540). These DO change multi-line output, but every covering test uses substring asserts (`\"standing\" in context`, `\"red\" in context`, `\"knife\" in context`, `\"ALERT\" in context`) that survive any separator mangling; and several instances are exercised with single-element joins where the mutation is a literal no-op. A format-strict test (assert `\\n` in multi-section output) is cheap and kills the multi-line members.",
+  "members": [
+   "ActionClassificationResult.to_context_string__mutmut_6",
+   "ClothingClassificationResult.to_context_string__mutmut_12",
+   "PoseAnalysisResult.to_context_string__mutmut_33",
+   "UnifiedClothingResult.to_context_string__mutmut_27",
+   "UnifiedEnrichmentResult.to_context_string__mutmut_13",
+   "UnifiedPoseResult.to_context_string__mutmut_7",
+   "UnifiedThreatResult.to_context_string__mutmut_15",
+   "UnifiedVehicleResult.to_context_string__mutmut_7"
+  ]
+ },
+ {
+  "cluster": "C8 http-call-args",
+  "count": 6,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_2",
+   "EnrichmentClient.get_model_status__mutmut_3",
+   "EnrichmentClient.get_model_status__mutmut_4"
+  ],
+  "note": "`get_model_status` (src 3256-3258) and `preload_model` (src 3287-3289): request URL arg mutated to `None` or the whole kwarg dropped, and `headers=self._get_headers()`->`headers=None`/dropped. The NEM-3147 W3C Trace Context header propagation on these two endpoints is therefore untested. `test_preload_model_success` checks `\"models/preload\" in call_args.args[0]` and params, but never headers; `test_get_model_status_success` never inspects the call at all (mutmut_4/5 - URL and headers args *removed* - survive because a kwargs-only call still returns the mocked 200).",
+  "members": [
+   "EnrichmentClient.get_model_status__mutmut_2",
+   "EnrichmentClient.get_model_status__mutmut_3",
+   "EnrichmentClient.get_model_status__mutmut_4",
+   "EnrichmentClient.get_model_status__mutmut_5",
+   "EnrichmentClient.preload_model__mutmut_4",
+   "EnrichmentClient.preload_model__mutmut_7"
+  ]
+ },
+ {
+  "cluster": "C9 cast-inert",
+  "count": 4,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_10",
+   "EnrichmentClient.get_model_status__mutmut_11",
+   "EnrichmentClient.get_model_status__mutmut_12"
+  ],
+  "note": "`cast(\"dict[str, Any]\", response.json())` type-string clobbered to `\"XXdict[str, Any]XX\"`, `\"dict[str, any]\"`, `\"DICT[STR, ANY]\"` (string literals, never evaluated) and `cast(None, ...)` (src 3260). `typing.cast` returns its first-position value argument unchanged at runtime - zero behavioral difference; only a type checker would notice.",
+  "members": [
+   "EnrichmentClient.get_model_status__mutmut_10",
+   "EnrichmentClient.get_model_status__mutmut_11",
+   "EnrichmentClient.get_model_status__mutmut_12",
+   "EnrichmentClient.get_model_status__mutmut_6"
+  ]
+ },
+ {
+  "cluster": "C10 log-arg",
+  "count": 4,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_13",
+   "EnrichmentClient.preload_model__mutmut_12",
+   "EnrichmentClient.preload_model__mutmut_14"
+  ],
+  "note": "`logger.warning(f\"Failed to get model status: {e}\")`, `logger.info(f\"Successfully preloaded model: {model_name}\")` and two warning siblings replaced with `logger.warning(None)`/`logger.info(None)` (src 3266, 3291, 3294, 3297). Real change to log content, but no test in the enrichment test files asserts log output (zero `caplog` usage in backend/tests/unit/services/test_enrichment_client*.py). Cosmetic observability; nobody should assert on it here.",
+  "members": [
+   "EnrichmentClient.get_model_status__mutmut_13",
+   "EnrichmentClient.preload_model__mutmut_12",
+   "EnrichmentClient.preload_model__mutmut_14",
+   "EnrichmentClient.preload_model__mutmut_16"
+  ]
+ },
+ {
+  "cluster": "C11 breaker-fallback",
+  "count": 4,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient.is_circuit_open__mutmut_4",
+   "EnrichmentClient.is_circuit_open__mutmut_6",
+   "EnrichmentClient.reset_circuit_breaker__mutmut_4"
+  ],
+  "note": "`is_circuit_open` (src 1020) and `reset_circuit_breaker` (src 1034): `self._breakers.get(endpoint, self._breakers[\"enrich\"])` default dropped (`None`/omitted) -> returns `breaker=None` -> `AttributeError: 'NoneType' has no attribute 'get_state'/'reset'` for ANY endpoint string not in the 10-key breakers dict, including `endpoint=None` passed positionally through the non-None branch guard? No - None short-circuits; the gap is unknown-endpoint names (typos, future models) which are supposed to fall back to the shared enrich breaker. Existing tests pass only \"vehicle\"/\"pose\" or None (test_enrichment_client.py:1913-1930, test_enrichment_client_circuit_breaker.py:428-465).",
+  "members": [
+   "EnrichmentClient.is_circuit_open__mutmut_4",
+   "EnrichmentClient.is_circuit_open__mutmut_6",
+   "EnrichmentClient.reset_circuit_breaker__mutmut_4",
+   "EnrichmentClient.reset_circuit_breaker__mutmut_6"
+  ]
+ },
+ {
+  "cluster": "C12 retry-500-boundary",
+  "count": 2,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient._is_retryable_error__mutmut_4",
+   "EnrichmentClient._is_retryable_error__mutmut_5"
+  ],
+  "note": "`_is_retryable_error` (src 1082): `status_code >= 500`->`> 500` and `>= 500`->`>= 501`. HTTP 500 flips retryable->non-retryable. Retry tests use 503 (`test_is_retryable_error_5xx`) and 400 (4xx test); no test calls the helper with 500. Caution for the fix-author: the classify_* retry loops inline their own `< 500` checks (e.g. src 1240) and do NOT call this helper, so the behavioral blast radius today is limited to helper callers elsewhere/future use - but the helper IS the documented retry policy contract, so a boundary unit assert is the right kill.",
+  "members": [
+   "EnrichmentClient._is_retryable_error__mutmut_4",
+   "EnrichmentClient._is_retryable_error__mutmut_5"
+  ]
+ },
+ {
+  "cluster": "C13 action-0.7-boundary",
+  "count": 1,
+  "classification": "TEST-GAP",
+  "examples": [
+   "ActionClassificationResult.has_security_alerts__mutmut_2"
+  ],
+  "note": "`ActionClassificationResult.has_security_alerts` (src 340): `risk_weight >= 0.7`->`> 0.7`. A risk weight of exactly 0.7 stops alerting. Tests use 0.75/True, 0.5/False, 0.2/False - never the 0.7 boundary.",
+  "members": [
+   "ActionClassificationResult.has_security_alerts__mutmut_2"
+  ]
+ },
+ {
+  "cluster": "C14 status-error-msg",
+  "count": 1,
+  "classification": "TEST-GAP",
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_16"
+  ],
+  "note": "`get_model_status` ConnectError/Timeout except branch (src 3270): `\"error\": str(e)`->`\"error\": str(None)` - the error dict now carries the literal string `\"None\"` instead of the exception message. `test_get_model_status_connection_error` asserts only `\"error\" in result` (key presence), never content.",
+  "members": [
+   "EnrichmentClient.get_model_status__mutmut_16"
+  ]
+ },
+ {
+  "cluster": "C15 dead-guard-equiv",
+  "count": 1,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "UnifiedClothingResult.to_context_string__mutmut_4"
+  ],
+  "note": "`UnifiedClothingResult.to_context_string` (src 430): `self.categories[0] if self.categories else {}`->`self.categories[0] if (self.categories) or True else {}`. `x or True` is always truthy, which WOULD index an empty list - except the line is unreachable with empty categories: the preceding guard `if not self.categories: return \"Clothing: No classification available\"` already returned. Semantically identical on every reachable path.",
+  "members": [
+   "UnifiedClothingResult.to_context_string__mutmut_4"
+  ]
+ }
+]

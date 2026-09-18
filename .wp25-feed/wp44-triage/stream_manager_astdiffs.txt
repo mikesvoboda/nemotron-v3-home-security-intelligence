@@ -1,0 +1,1248 @@
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_1
+     async with self._lock:
+-        if camera_id in self._streams:
++        if camera_id not in self._streams:
+             await self._cleanup_stream(camera_id)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_2
+         if camera_id in self._streams:
+-            await self._cleanup_stream(camera_id)
++            await self._cleanup_stream(None)
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_3
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(None, extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_4
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(f'Adding stream for camera {camera_id}', extra=None)
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_6
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(f'Adding stream for camera {camera_id}')
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_7
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(f'Adding stream for camera {camera_id}', extra={'XXcamera_idXX': camera_id, 'rtsp_url': rtsp_url})
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_8
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(f'Adding stream for camera {camera_id}', extra={'CAMERA_ID': camera_id, 'rtsp_url': rtsp_url})
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_9
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'XXrtsp_urlXX': rtsp_url})
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_10
+             await self._cleanup_stream(camera_id)
+-        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
++        logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'RTSP_URL': rtsp_url})
+         self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_12
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'XXrtsp_urlXX': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_13
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'RTSP_URL': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_14
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'XXcaptureXX': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_15
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'CAPTURE': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_19
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'XXlast_errorXX': None, 'connection_time': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_20
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'LAST_ERROR': None, 'connection_time': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_21
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'XXconnection_timeXX': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_22
+         logger.info(f'Adding stream for camera {camera_id}', extra={'camera_id': camera_id, 'rtsp_url': rtsp_url})
+-        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'connection_time': None}
++        self._streams[camera_id] = {'rtsp_url': rtsp_url, 'capture': None, 'retry_count': 0, 'last_error': None, 'CONNECTION_TIME': None}
+         task = asyncio.create_task(self._connection_loop(camera_id, rtsp_url))
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_30
+         self._background_tasks[f'connection_{camera_id}'] = task
+-        await self._update_health(camera_id, 'connecting')
++        await self._update_health(None, 'connecting')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_31
+         self._background_tasks[f'connection_{camera_id}'] = task
+-        await self._update_health(camera_id, 'connecting')
++        await self._update_health(camera_id, None)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_34
+         self._background_tasks[f'connection_{camera_id}'] = task
+-        await self._update_health(camera_id, 'connecting')
++        await self._update_health(camera_id, 'XXconnectingXX')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁadd_stream__mutmut_35
+         self._background_tasks[f'connection_{camera_id}'] = task
+-        await self._update_health(camera_id, 'connecting')
++        await self._update_health(camera_id, 'CONNECTING')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁremove_stream__mutmut_2
+         if camera_id not in self._streams:
+-            logger.debug(f'No stream to remove for camera {camera_id}')
++            logger.debug(None)
+             return
+
+KEY backend.services.stream_manager.xǁStreamManagerǁremove_stream__mutmut_3
+             return
+-        logger.info(f'Removing stream for camera {camera_id}')
++        logger.info(None)
+         await self._cleanup_stream(camera_id)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁremove_stream__mutmut_5
+         await self._cleanup_stream(camera_id)
+-        self._streams.pop(camera_id, None)
++        self._streams.pop(None, None)
+         await self._delete_health_key(camera_id)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁremove_stream__mutmut_7
+         await self._cleanup_stream(camera_id)
+-        self._streams.pop(camera_id, None)
++        self._streams.pop(camera_id)
+         await self._delete_health_key(camera_id)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁremove_stream__mutmut_8
+         self._streams.pop(camera_id, None)
+-        await self._delete_health_key(camera_id)
++        await self._delete_health_key(None)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁget_stream_health__mutmut_1
+         """
+-    key = f'{REDIS_HEALTH_KEY_PREFIX}{camera_id}'
++    key = None
+     try:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁget_stream_health__mutmut_3
+     try:
+-        data = await self.redis_client.hgetall(key)
++        data = await self.redis_client.hgetall(None)
+         if not data:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁget_stream_health__mutmut_5
+             return None
+-        return {k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v for k, v in data.items()}
++        return {k.decode() if isinstance(k, bytes) and False else k: v.decode() if isinstance(v, bytes) else v for k, v in data.items()}
+     except Exception as e:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁget_stream_health__mutmut_7
+             return None
+-        return {k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v for k, v in data.items()}
++        return {k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) and False else v for k, v in data.items()}
+     except Exception as e:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_7
+             if capture is not None and capture.isOpened():
+-                logger.info(f'Stream connected for camera {camera_id}', extra={'camera_id': camera_id})
++                logger.info(None, extra={'camera_id': camera_id})
+                 async with self._lock:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_8
+             if capture is not None and capture.isOpened():
+-                logger.info(f'Stream connected for camera {camera_id}', extra={'camera_id': camera_id})
++                logger.info(f'Stream connected for camera {camera_id}', extra=None)
+                 async with self._lock:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_10
+             if capture is not None and capture.isOpened():
+-                logger.info(f'Stream connected for camera {camera_id}', extra={'camera_id': camera_id})
++                logger.info(f'Stream connected for camera {camera_id}')
+                 async with self._lock:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_11
+             if capture is not None and capture.isOpened():
+-                logger.info(f'Stream connected for camera {camera_id}', extra={'camera_id': camera_id})
++                logger.info(f'Stream connected for camera {camera_id}', extra={'XXcamera_idXX': camera_id})
+                 async with self._lock:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_12
+             if capture is not None and capture.isOpened():
+-                logger.info(f'Stream connected for camera {camera_id}', extra={'camera_id': camera_id})
++                logger.info(f'Stream connected for camera {camera_id}', extra={'CAMERA_ID': camera_id})
+                 async with self._lock:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_17
+                         self._streams[camera_id]['capture'] = capture
+-                        self._streams[camera_id]['retry_count'] = 0
++                        self._streams[camera_id]['retry_count'] = None
+                         self._streams[camera_id]['last_error'] = None
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_18
+                         self._streams[camera_id]['capture'] = capture
+-                        self._streams[camera_id]['retry_count'] = 0
++                        self._streams[camera_id]['XXretry_countXX'] = 0
+                         self._streams[camera_id]['last_error'] = None
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_19
+                         self._streams[camera_id]['capture'] = capture
+-                        self._streams[camera_id]['retry_count'] = 0
++                        self._streams[camera_id]['RETRY_COUNT'] = 0
+                         self._streams[camera_id]['last_error'] = None
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_20
+                         self._streams[camera_id]['capture'] = capture
+-                        self._streams[camera_id]['retry_count'] = 0
++                        self._streams[camera_id]['retry_count'] = 1
+                         self._streams[camera_id]['last_error'] = None
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_21
+                         self._streams[camera_id]['retry_count'] = 0
+-                        self._streams[camera_id]['last_error'] = None
++                        self._streams[camera_id]['last_error'] = ''
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_22
+                         self._streams[camera_id]['retry_count'] = 0
+-                        self._streams[camera_id]['last_error'] = None
++                        self._streams[camera_id]['XXlast_errorXX'] = None
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_23
+                         self._streams[camera_id]['retry_count'] = 0
+-                        self._streams[camera_id]['last_error'] = None
++                        self._streams[camera_id]['LAST_ERROR'] = None
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_24
+                         self._streams[camera_id]['last_error'] = None
+-                        self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
++                        self._streams[camera_id]['connection_time'] = None
+                 await self._update_health(camera_id, 'connected')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_25
+                         self._streams[camera_id]['last_error'] = None
+-                        self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
++                        self._streams[camera_id]['XXconnection_timeXX'] = datetime.now(UTC).isoformat()
+                 await self._update_health(camera_id, 'connected')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_26
+                         self._streams[camera_id]['last_error'] = None
+-                        self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
++                        self._streams[camera_id]['CONNECTION_TIME'] = datetime.now(UTC).isoformat()
+                 await self._update_health(camera_id, 'connected')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_27
+                         self._streams[camera_id]['last_error'] = None
+-                        self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
++                        self._streams[camera_id]['connection_time'] = datetime.now(None).isoformat()
+                 await self._update_health(camera_id, 'connected')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_28
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+-                await self._update_health(camera_id, 'connected')
++                await self._update_health(None, 'connected')
+                 await self._health_monitoring_loop(camera_id, capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_29
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+-                await self._update_health(camera_id, 'connected')
++                await self._update_health(camera_id, None)
+                 await self._health_monitoring_loop(camera_id, capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_30
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+-                await self._update_health(camera_id, 'connected')
++                await self._update_health('connected')
+                 await self._health_monitoring_loop(camera_id, capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_31
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+-                await self._update_health(camera_id, 'connected')
++                await self._update_health(camera_id)
+                 await self._health_monitoring_loop(camera_id, capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_32
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+-                await self._update_health(camera_id, 'connected')
++                await self._update_health(camera_id, 'XXconnectedXX')
+                 await self._health_monitoring_loop(camera_id, capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_33
+                         self._streams[camera_id]['connection_time'] = datetime.now(UTC).isoformat()
+-                await self._update_health(camera_id, 'connected')
++                await self._update_health(camera_id, 'CONNECTED')
+                 await self._health_monitoring_loop(camera_id, capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_36
+                 await self._update_health(camera_id, 'connected')
+-                await self._health_monitoring_loop(camera_id, capture)
++                await self._health_monitoring_loop(capture)
+             else:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_37
+                 await self._update_health(camera_id, 'connected')
+-                await self._health_monitoring_loop(camera_id, capture)
++                await self._health_monitoring_loop(camera_id)
+             else:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_39
+             else:
+-                await self._handle_connection_failure(camera_id, 'Failed to open stream')
++                await self._handle_connection_failure(camera_id, None)
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_40
+             else:
+-                await self._handle_connection_failure(camera_id, 'Failed to open stream')
++                await self._handle_connection_failure('Failed to open stream')
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_41
+             else:
+-                await self._handle_connection_failure(camera_id, 'Failed to open stream')
++                await self._handle_connection_failure(camera_id)
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_42
+             else:
+-                await self._handle_connection_failure(camera_id, 'Failed to open stream')
++                await self._handle_connection_failure(camera_id, 'XXFailed to open streamXX')
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_43
+             else:
+-                await self._handle_connection_failure(camera_id, 'Failed to open stream')
++                await self._handle_connection_failure(camera_id, 'failed to open stream')
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_44
+             else:
+-                await self._handle_connection_failure(camera_id, 'Failed to open stream')
++                await self._handle_connection_failure(camera_id, 'FAILED TO OPEN STREAM')
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_connection_loop__mutmut_45
+         except asyncio.CancelledError:
+-            logger.debug(f'Connection loop cancelled for camera {camera_id}')
++            logger.debug(None)
+             raise
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_7
+         retry_count = self._streams[camera_id]['retry_count']
+-        self._streams[camera_id]['retry_count'] = retry_count + 1
++        self._streams[camera_id]['XXretry_countXX'] = retry_count + 1
+         self._streams[camera_id]['last_error'] = error_message
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_8
+         retry_count = self._streams[camera_id]['retry_count']
+-        self._streams[camera_id]['retry_count'] = retry_count + 1
++        self._streams[camera_id]['RETRY_COUNT'] = retry_count + 1
+         self._streams[camera_id]['last_error'] = error_message
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_9
+         retry_count = self._streams[camera_id]['retry_count']
+-        self._streams[camera_id]['retry_count'] = retry_count + 1
++        self._streams[camera_id]['retry_count'] = retry_count - 1
+         self._streams[camera_id]['last_error'] = error_message
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_10
+         retry_count = self._streams[camera_id]['retry_count']
+-        self._streams[camera_id]['retry_count'] = retry_count + 1
++        self._streams[camera_id]['retry_count'] = retry_count + 2
+         self._streams[camera_id]['last_error'] = error_message
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_11
+         self._streams[camera_id]['retry_count'] = retry_count + 1
+-        self._streams[camera_id]['last_error'] = error_message
++        self._streams[camera_id]['last_error'] = None
+     backoff = self._calculate_backoff(retry_count)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_12
+         self._streams[camera_id]['retry_count'] = retry_count + 1
+-        self._streams[camera_id]['last_error'] = error_message
++        self._streams[camera_id]['XXlast_errorXX'] = error_message
+     backoff = self._calculate_backoff(retry_count)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_13
+         self._streams[camera_id]['retry_count'] = retry_count + 1
+-        self._streams[camera_id]['last_error'] = error_message
++        self._streams[camera_id]['LAST_ERROR'] = error_message
+     backoff = self._calculate_backoff(retry_count)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_16
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(None, extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_17
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra=None)
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_19
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s')
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_20
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'XXcamera_idXX': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_21
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'CAMERA_ID': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_22
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'XXerrorXX': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_23
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'ERROR': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_24
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'XXretry_countXX': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_25
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'RETRY_COUNT': retry_count + 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_26
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count - 1, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_27
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 2, 'backoff_seconds': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_28
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'XXbackoff_secondsXX': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_29
+     backoff = self._calculate_backoff(retry_count)
+-    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
++    logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'BACKOFF_SECONDS': backoff})
+     await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_30
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(None, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_31
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, None, retry_count=retry_count + 1, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_32
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'reconnecting', retry_count=None, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_33
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=None)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_36
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'reconnecting', last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_37
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_38
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'XXreconnectingXX', retry_count=retry_count + 1, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_39
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'RECONNECTING', retry_count=retry_count + 1, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_40
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count - 1, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_handle_connection_failure__mutmut_41
+     logger.warning(f'Stream connection failed for camera {camera_id}, retrying in {backoff}s', extra={'camera_id': camera_id, 'error': error_message, 'retry_count': retry_count + 1, 'backoff_seconds': backoff})
+-    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 1, last_error=error_message)
++    await self._update_health(camera_id, 'reconnecting', retry_count=retry_count + 2, last_error=error_message)
+     await asyncio.sleep(backoff)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture__mutmut_9
+         loop = asyncio.get_running_loop()
+-        capture: cv2.VideoCapture = await loop.run_in_executor(None, lambda: self._create_capture_sync(rtsp_url))
++        capture: cv2.VideoCapture = await loop.run_in_executor(None, lambda: self._create_capture_sync(None))
+         return capture
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_2
+     """Create VideoCapture with TCP transport and timeout settings."""
+-    capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
++    capture = cv2.VideoCapture(None, cv2.CAP_FFMPEG)
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_3
+     """Create VideoCapture with TCP transport and timeout settings."""
+-    capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
++    capture = cv2.VideoCapture(rtsp_url, None)
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_4
+     """Create VideoCapture with TCP transport and timeout settings."""
+-    capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
++    capture = cv2.VideoCapture(cv2.CAP_FFMPEG)
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_5
+     """Create VideoCapture with TCP transport and timeout settings."""
+-    capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
++    capture = cv2.VideoCapture(rtsp_url)
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_6
+     capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+-    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
++    capture.set(None, 10000)
+     capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_7
+     capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+-    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
++    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, None)
+     capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_8
+     capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+-    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
++    capture.set(10000)
+     capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_9
+     capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+-    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
++    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC)
+     capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_10
+     capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+-    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
++    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10001)
+     capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_11
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+-    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
++    capture.set(None, 5000)
+     return capture
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_12
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+-    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
++    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, None)
+     return capture
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_13
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+-    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
++    capture.set(5000)
+     return capture
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_14
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+-    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
++    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC)
+     return capture
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_create_capture_sync__mutmut_15
+     capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+-    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
++    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5001)
+     return capture
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_1
+         """
+-    last_fps_calc_time = asyncio.get_running_loop().time()
++    last_fps_calc_time = None
+     frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_2
+     last_fps_calc_time = asyncio.get_running_loop().time()
+-    frame_count = 0
++    frame_count = None
+     while self.running and camera_id in self._streams:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_3
+     last_fps_calc_time = asyncio.get_running_loop().time()
+-    frame_count = 0
++    frame_count = 1
+     while self.running and camera_id in self._streams:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_4
+     frame_count = 0
+-    while self.running and camera_id in self._streams:
++    while self.running or camera_id in self._streams:
+         try:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_6
+         try:
+-            if not capture.isOpened():
++            if capture.isOpened():
+                 logger.warning(f'Stream disconnected for camera {camera_id}')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_7
+                 break
+-            loop = asyncio.get_running_loop()
++            loop = None
+             success, _ = await loop.run_in_executor(None, capture.read)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_8
+             loop = asyncio.get_running_loop()
+-            success, _ = await loop.run_in_executor(None, capture.read)
++            success, _ = None
+             if not success:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_9
+             loop = asyncio.get_running_loop()
+-            success, _ = await loop.run_in_executor(None, capture.read)
++            success, _ = await loop.run_in_executor(None, None)
+             if not success:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_10
+             loop = asyncio.get_running_loop()
+-            success, _ = await loop.run_in_executor(None, capture.read)
++            success, _ = await loop.run_in_executor(capture.read)
+             if not success:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_11
+             loop = asyncio.get_running_loop()
+-            success, _ = await loop.run_in_executor(None, capture.read)
++            success, _ = await loop.run_in_executor(None)
+             if not success:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_12
+             success, _ = await loop.run_in_executor(None, capture.read)
+-            if not success:
++            if success:
+                 logger.warning(f'Failed to read frame for camera {camera_id}')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_13
+                 break
+-            frame_count += 1
++            frame_count = 1
+             current_time = asyncio.get_running_loop().time()
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_14
+                 break
+-            frame_count += 1
++            frame_count -= 1
+             current_time = asyncio.get_running_loop().time()
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_15
+                 break
+-            frame_count += 1
++            frame_count += 2
+             current_time = asyncio.get_running_loop().time()
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_16
+             frame_count += 1
+-            current_time = asyncio.get_running_loop().time()
++            current_time = None
+             elapsed = current_time - last_fps_calc_time
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_17
+             current_time = asyncio.get_running_loop().time()
+-            elapsed = current_time - last_fps_calc_time
++            elapsed = None
+             if elapsed >= self._health_update_interval:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_18
+             current_time = asyncio.get_running_loop().time()
+-            elapsed = current_time - last_fps_calc_time
++            elapsed = current_time + last_fps_calc_time
+             if elapsed >= self._health_update_interval:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_19
+             elapsed = current_time - last_fps_calc_time
+-            if elapsed >= self._health_update_interval:
++            if elapsed > self._health_update_interval:
+                 fps = frame_count / elapsed if elapsed > 0 else 0.0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_20
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = None
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_21
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = frame_count / elapsed if elapsed > 0 and False else 0.0
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_22
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = frame_count / elapsed if elapsed > 0 or True else 0.0
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_23
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = frame_count * elapsed if elapsed > 0 else 0.0
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_24
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = frame_count / elapsed if elapsed >= 0 else 0.0
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_25
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = frame_count / elapsed if elapsed > 1 else 0.0
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_26
+             if elapsed >= self._health_update_interval:
+-                fps = frame_count / elapsed if elapsed > 0 else 0.0
++                fps = frame_count / elapsed if elapsed > 0 else 1.0
+                 frame_count = 0
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_27
+                 fps = frame_count / elapsed if elapsed > 0 else 0.0
+-                frame_count = 0
++                frame_count = None
+                 last_fps_calc_time = current_time
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_28
+                 fps = frame_count / elapsed if elapsed > 0 else 0.0
+-                frame_count = 0
++                frame_count = 1
+                 last_fps_calc_time = current_time
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_29
+                 frame_count = 0
+-                last_fps_calc_time = current_time
++                last_fps_calc_time = None
+                 await self._update_health(camera_id, 'connected', fps=fps)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_30
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(None, 'connected', fps=fps)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_31
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(camera_id, None, fps=fps)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_32
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(camera_id, 'connected', fps=None)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_33
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health('connected', fps=fps)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_34
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(camera_id, fps=fps)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_35
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(camera_id, 'connected')
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_36
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(camera_id, 'XXconnectedXX', fps=fps)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_37
+                 last_fps_calc_time = current_time
+-                await self._update_health(camera_id, 'connected', fps=fps)
++                await self._update_health(camera_id, 'CONNECTED', fps=fps)
+             await asyncio.sleep(0.033)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_38
+                 await self._update_health(camera_id, 'connected', fps=fps)
+-            await asyncio.sleep(0.033)
++            await asyncio.sleep(None)
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_39
+                 await self._update_health(camera_id, 'connected', fps=fps)
+-            await asyncio.sleep(0.033)
++            await asyncio.sleep(1.033)
+         except asyncio.CancelledError:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_40
+         except asyncio.CancelledError:
+-            await self._release_capture(capture)
++            await self._release_capture(None)
+             raise
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_41
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(None, extra={'camera_id': camera_id, 'error': str(e)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_42
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra=None)
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_43
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(extra={'camera_id': camera_id, 'error': str(e)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_44
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}')
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_45
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'XXcamera_idXX': camera_id, 'error': str(e)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_46
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'CAMERA_ID': camera_id, 'error': str(e)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_47
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'XXerrorXX': str(e)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_48
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'ERROR': str(e)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_49
+         except Exception as e:
+-            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++            logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(None)})
+             await self._release_capture(capture)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_50
+             logger.error(f'Error in health monitoring for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
+-            await self._release_capture(capture)
++            await self._release_capture(None)
+             break
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_health_monitoring_loop__mutmut_51
+             await self._release_capture(capture)
+-            break
++            return
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_cleanup_stream__mutmut_1
+     """Clean up stream resources."""
+-    task_name = f'connection_{camera_id}'
++    task_name = None
+     if task_name in self._background_tasks:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_cleanup_stream__mutmut_3
+             pass
+-        self._background_tasks.pop(task_name, None)
++        self._background_tasks.pop(None, None)
+     if camera_id in self._streams:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_cleanup_stream__mutmut_5
+             pass
+-        self._background_tasks.pop(task_name, None)
++        self._background_tasks.pop(task_name)
+     if camera_id in self._streams:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_cleanup_stream__mutmut_13
+             await self._release_capture(capture)
+-            self._streams[camera_id]['capture'] = None
++            self._streams[camera_id]['capture'] = ''
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_cleanup_stream__mutmut_14
+             await self._release_capture(capture)
+-            self._streams[camera_id]['capture'] = None
++            self._streams[camera_id]['XXcaptureXX'] = None
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_cleanup_stream__mutmut_15
+             await self._release_capture(capture)
+-            self._streams[camera_id]['capture'] = None
++            self._streams[camera_id]['CAPTURE'] = None
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_3
+     key = f'{REDIS_HEALTH_KEY_PREFIX}{camera_id}'
+-    health_data: dict[str, str] = {'status': status}
++    health_data: dict[str, str] = {'XXstatusXX': status}
+     stream = self._streams.get(camera_id, {})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_4
+     key = f'{REDIS_HEALTH_KEY_PREFIX}{camera_id}'
+-    health_data: dict[str, str] = {'status': status}
++    health_data: dict[str, str] = {'STATUS': status}
+     stream = self._streams.get(camera_id, {})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_6
+     health_data: dict[str, str] = {'status': status}
+-    stream = self._streams.get(camera_id, {})
++    stream = self._streams.get(None, {})
+     if (connection_time := stream.get('connection_time')):
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_7
+     health_data: dict[str, str] = {'status': status}
+-    stream = self._streams.get(camera_id, {})
++    stream = self._streams.get(camera_id, None)
+     if (connection_time := stream.get('connection_time')):
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_9
+     health_data: dict[str, str] = {'status': status}
+-    stream = self._streams.get(camera_id, {})
++    stream = self._streams.get(camera_id)
+     if (connection_time := stream.get('connection_time')):
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_10
+     stream = self._streams.get(camera_id, {})
+-    if (connection_time := stream.get('connection_time')):
++    if (connection_time := stream.get(None)):
+         health_data['connection_time'] = connection_time
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_11
+     stream = self._streams.get(camera_id, {})
+-    if (connection_time := stream.get('connection_time')):
++    if (connection_time := stream.get('XXconnection_timeXX')):
+         health_data['connection_time'] = connection_time
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_12
+     stream = self._streams.get(camera_id, {})
+-    if (connection_time := stream.get('connection_time')):
++    if (connection_time := stream.get('CONNECTION_TIME')):
+         health_data['connection_time'] = connection_time
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_13
+     if (connection_time := stream.get('connection_time')):
+-        health_data['connection_time'] = connection_time
++        health_data['connection_time'] = None
+     if retry_count is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_14
+     if (connection_time := stream.get('connection_time')):
+-        health_data['connection_time'] = connection_time
++        health_data['XXconnection_timeXX'] = connection_time
+     if retry_count is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_15
+     if (connection_time := stream.get('connection_time')):
+-        health_data['connection_time'] = connection_time
++        health_data['CONNECTION_TIME'] = connection_time
+     if retry_count is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_16
+         health_data['connection_time'] = connection_time
+-    if retry_count is None:
++    if retry_count is not None:
+         retry_count = stream.get('retry_count', 0)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_17
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = None
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_18
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get(None, 0)
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_19
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get('retry_count', None)
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_20
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get(0)
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_21
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get('retry_count')
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_22
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get('XXretry_countXX', 0)
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_23
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get('RETRY_COUNT', 0)
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_24
+     if retry_count is None:
+-        retry_count = stream.get('retry_count', 0)
++        retry_count = stream.get('retry_count', 1)
+     if last_error is None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_25
+         retry_count = stream.get('retry_count', 0)
+-    if last_error is None:
++    if last_error is not None:
+         last_error = stream.get('last_error')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_26
+     if last_error is None:
+-        last_error = stream.get('last_error')
++        last_error = None
+     if fps is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_27
+     if last_error is None:
+-        last_error = stream.get('last_error')
++        last_error = stream.get(None)
+     if fps is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_28
+     if last_error is None:
+-        last_error = stream.get('last_error')
++        last_error = stream.get('XXlast_errorXX')
+     if fps is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_29
+     if last_error is None:
+-        last_error = stream.get('last_error')
++        last_error = stream.get('LAST_ERROR')
+     if fps is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_31
+     if fps is not None:
+-        health_data['fps'] = f'{fps:.1f}'
++        health_data['fps'] = None
+     if retry_count is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_32
+     if fps is not None:
+-        health_data['fps'] = f'{fps:.1f}'
++        health_data['XXfpsXX'] = f'{fps:.1f}'
+     if retry_count is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_33
+     if fps is not None:
+-        health_data['fps'] = f'{fps:.1f}'
++        health_data['FPS'] = f'{fps:.1f}'
+     if retry_count is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_34
+         health_data['fps'] = f'{fps:.1f}'
+-    if retry_count is not None:
++    if retry_count is None:
+         health_data['retry_count'] = str(retry_count)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_35
+     if retry_count is not None:
+-        health_data['retry_count'] = str(retry_count)
++        health_data['retry_count'] = None
+     if last_error is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_36
+     if retry_count is not None:
+-        health_data['retry_count'] = str(retry_count)
++        health_data['XXretry_countXX'] = str(retry_count)
+     if last_error is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_37
+     if retry_count is not None:
+-        health_data['retry_count'] = str(retry_count)
++        health_data['RETRY_COUNT'] = str(retry_count)
+     if last_error is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_38
+     if retry_count is not None:
+-        health_data['retry_count'] = str(retry_count)
++        health_data['retry_count'] = str(None)
+     if last_error is not None:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_39
+         health_data['retry_count'] = str(retry_count)
+-    if last_error is not None:
++    if last_error is None:
+         health_data['last_error'] = last_error
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_40
+     if last_error is not None:
+-        health_data['last_error'] = last_error
++        health_data['last_error'] = None
+     try:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_41
+     if last_error is not None:
+-        health_data['last_error'] = last_error
++        health_data['XXlast_errorXX'] = last_error
+     try:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_42
+     if last_error is not None:
+-        health_data['last_error'] = last_error
++        health_data['LAST_ERROR'] = last_error
+     try:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_44
+     try:
+-        await self.redis_client.hset(key, mapping=health_data)
++        await self.redis_client.hset(key, mapping=None)
+     except Exception as e:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_46
+     try:
+-        await self.redis_client.hset(key, mapping=health_data)
++        await self.redis_client.hset(key)
+     except Exception as e:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_47
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(None, extra={'camera_id': camera_id, 'error': str(e)})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_48
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra=None)
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_50
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}')
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_51
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'XXcamera_idXX': camera_id, 'error': str(e)})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_52
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'CAMERA_ID': camera_id, 'error': str(e)})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_53
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'XXerrorXX': str(e)})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_54
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'ERROR': str(e)})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_update_health__mutmut_55
+     except Exception as e:
+-        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(e)})
++        logger.warning(f'Failed to update health for camera {camera_id}: {e}', extra={'camera_id': camera_id, 'error': str(None)})
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_delete_health_key__mutmut_1
+     """Delete health key from Redis."""
+-    key = f'{REDIS_HEALTH_KEY_PREFIX}{camera_id}'
++    key = None
+     try:
+
+KEY backend.services.stream_manager.xǁStreamManagerǁ_delete_health_key__mutmut_2
+     try:
+-        await self.redis_client.delete(key)
++        await self.redis_client.delete(None)
+     except Exception as e:

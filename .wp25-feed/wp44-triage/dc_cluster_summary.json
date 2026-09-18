@@ -1,0 +1,560 @@
+[
+ {
+  "id": "C-LOG-SEND",
+  "pattern": "send: log message / extra-payload text",
+  "count": 184,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "_send_detection_request.m97",
+   "_send_detection_request.m98",
+   "_send_detection_request.m100"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 184
+  }
+ },
+ {
+  "id": "C-SPAN",
+  "pattern": "telemetry span attrs / model metadata never asserted",
+  "count": 102,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "_send_detection_request.m6",
+   "segment_image.m6",
+   "_send_detection_request.m7"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 53,
+   "x\u01c1DetectorClient\u01c1segment_image": 49
+  }
+ },
+ {
+  "id": "C-METRIC",
+  "pattern": "metric / pipeline-error label text",
+  "count": 72,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "detect_objects.m13",
+   "detect_objects.m14",
+   "detect_objects.m19"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 6,
+   "x\u01c1DetectorClient\u01c1detect_objects": 65,
+   "x\u01c1DetectorClient\u01c1segment_image": 1
+  }
+ },
+ {
+  "id": "C-LOG-DET",
+  "pattern": "detect: log message / extra-payload text",
+  "count": 56,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "detect_objects.m18",
+   "detect_objects.m22",
+   "detect_objects.m23"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 56
+  }
+ },
+ {
+  "id": "C-BBOX",
+  "pattern": "detect: bbox clamp/out-of-bounds geometry (comparison + and/or flips)",
+  "count": 40,
+  "classification": "TEST-GAP",
+  "examples": [
+   "detect_objects.m232",
+   "detect_objects.m233",
+   "detect_objects.m234"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 40
+  }
+ },
+ {
+  "id": "C-WARMM",
+  "pattern": "warmup metric labels + completed-log text",
+  "count": 40,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "warmup.m5",
+   "warmup.m6",
+   "warmup.m9"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1warmup": 40
+  }
+ },
+ {
+  "id": "C-EXCINFO",
+  "pattern": "exc_info True -> False/None (traceback dropped)",
+  "count": 30,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "health_check.m9",
+   "health_check.m12",
+   "health_check.m19"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 15,
+   "x\u01c1DetectorClient\u01c1detect_objects": 3,
+   "x\u01c1DetectorClient\u01c1health_check": 9,
+   "x\u01c1DetectorClient\u01c1segment_image": 3
+  }
+ },
+ {
+  "id": "C-INITLOG",
+  "pattern": "__init__ log extra / model_version / max_concurrent (observability-only)",
+  "count": 27,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "__init__.m6",
+   "__init__.m7",
+   "__init__.m8"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1__init__": 27
+  }
+ },
+ {
+  "id": "C-LOG-VAL",
+  "pattern": "validate: log message text",
+  "count": 27,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "_validate_image_for_detection.m5",
+   "_validate_image_for_detection.m6",
+   "_validate_image_for_detection.m8"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_validate_image_for_detection": 27
+  }
+ },
+ {
+  "id": "C-LOG-HC",
+  "pattern": "health_check log message text",
+  "count": 27,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "health_check.m7",
+   "health_check.m8",
+   "health_check.m11"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1health_check": 27
+  }
+ },
+ {
+  "id": "C-PROBE",
+  "pattern": "readiness-probe test image/params (sentinel probe; mocked boundary)",
+  "count": 24,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "model_readiness_probe.m4",
+   "model_readiness_probe.m7",
+   "model_readiness_probe.m10"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1model_readiness_probe": 24
+  }
+ },
+ {
+  "id": "C-4XX",
+  "pattern": "send: 4xx error-detail extraction (400 gate + detail in raised message)",
+  "count": 22,
+  "classification": "TEST-GAP",
+  "examples": [
+   "_send_detection_request.m263",
+   "_send_detection_request.m264",
+   "_send_detection_request.m265"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 22
+  }
+ },
+ {
+  "id": "C-WARM",
+  "pattern": "warmth state machine (_is_warming init/lifecycle, was_cold, get_warmth_state, is_cold boundary)",
+  "count": 16,
+  "classification": "TEST-GAP",
+  "examples": [
+   "get_warmth_state.m1",
+   "warmup.m2",
+   "get_warmth_state.m3"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1__init__": 2,
+   "x\u01c1DetectorClient\u01c1get_warmth_state": 8,
+   "x\u01c1DetectorClient\u01c1is_cold": 1,
+   "x\u01c1DetectorClient\u01c1warmup": 5
+  }
+ },
+ {
+  "id": "C-DUR",
+  "pattern": "duration math (s/ms flips) feeding only metrics/log",
+  "count": 16,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "detect_objects.m1",
+   "detect_objects.m123",
+   "detect_objects.m124"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 16
+  }
+ },
+ {
+  "id": "C-SEG-RT",
+  "pattern": "segment: retry/backoff + HTTP-500 boundary + original_error preserved",
+  "count": 16,
+  "classification": "TEST-GAP",
+  "examples": [
+   "segment_image.m74",
+   "segment_image.m75",
+   "segment_image.m76"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1segment_image": 16
+  }
+ },
+ {
+  "id": "C-DEFALT",
+  "pattern": "detect: missing class/bbox .get default text/None",
+  "count": 15,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "detect_objects.m212",
+   "detect_objects.m214",
+   "detect_objects.m217"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 15
+  }
+ },
+ {
+  "id": "C-CBCFG",
+  "pattern": "CircuitBreakerConfig tuning constants",
+  "count": 12,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "__init__.m91",
+   "__init__.m92",
+   "__init__.m94"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1__init__": 12
+  }
+ },
+ {
+  "id": "C-SEND-RT",
+  "pattern": "send: retry backoff timing on unasserted branches (TimeoutError/JSON/OSError)",
+  "count": 11,
+  "classification": "TEST-GAP",
+  "examples": [
+   "_send_detection_request.m96",
+   "_send_detection_request.m155",
+   "_send_detection_request.m217"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 11
+  }
+ },
+ {
+  "id": "C-VIDEO",
+  "pattern": "detect: video-branch condition + file_type default",
+  "count": 10,
+  "classification": "TEST-GAP",
+  "examples": [
+   "detect_objects.m174",
+   "detect_objects.m179",
+   "detect_objects.m180"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 10
+  }
+ },
+ {
+  "id": "C-HTTPTO",
+  "pattern": "httpx.Timeout wiring -> None/removal",
+  "count": 9,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "__init__.m41",
+   "__init__.m42",
+   "__init__.m47"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1__init__": 9
+  }
+ },
+ {
+  "id": "C-SEG-PAY",
+  "pattern": "segment: POST URL + multipart payload + auth header never asserted",
+  "count": 9,
+  "classification": "TEST-GAP",
+  "examples": [
+   "segment_image.m36",
+   "segment_image.m37",
+   "segment_image.m38"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1segment_image": 9
+  }
+ },
+ {
+  "id": "C-SEND-PAY",
+  "pattern": "send: POST URL + multipart payload (key/mime/filename) never asserted",
+  "count": 8,
+  "classification": "TEST-GAP",
+  "examples": [
+   "_send_detection_request.m47",
+   "_send_detection_request.m48",
+   "_send_detection_request.m49"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 8
+  }
+ },
+ {
+  "id": "C-LOGCLOSE",
+  "pattern": "close() log message text",
+  "count": 8,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "close.m1",
+   "close.m2",
+   "close.m4"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1close": 8
+  }
+ },
+ {
+  "id": "C-LIMITS",
+  "pattern": "httpx.Limits pool tuning values",
+  "count": 7,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "__init__.m77",
+   "__init__.m78",
+   "__init__.m79"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1__init__": 7
+  }
+ },
+ {
+  "id": "C-TIMEOUT",
+  "pattern": "explicit asyncio.timeout defense-in-depth disabled (None/sub)",
+  "count": 7,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "segment_image.m1",
+   "_send_detection_request.m4",
+   "segment_image.m4"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 3,
+   "x\u01c1DetectorClient\u01c1segment_image": 4
+  }
+ },
+ {
+  "id": "C-BASE",
+  "pattern": "detect: baseline update kwargs + session wiring",
+  "count": 7,
+  "classification": "TEST-GAP",
+  "examples": [
+   "detect_objects.m392",
+   "detect_objects.m440",
+   "detect_objects.m443"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 7
+  }
+ },
+ {
+  "id": "C-SEG-LOG",
+  "pattern": "segment: log message text",
+  "count": 7,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "segment_image.m62",
+   "segment_image.m65",
+   "segment_image.m86"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1segment_image": 7
+  }
+ },
+ {
+  "id": "C-SEND-KW",
+  "pattern": "detect: _send_detection_request kwargs (image_name/camera_id/image_path) -> None",
+  "count": 5,
+  "classification": "TEST-GAP",
+  "examples": [
+   "detect_objects.m114",
+   "detect_objects.m115",
+   "detect_objects.m116"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 5
+  }
+ },
+ {
+  "id": "C-FREETHR",
+  "pattern": "_is_free_threaded detection mutations (dead executor + log consumer)",
+  "count": 4,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "is_free_threaded.m1",
+   "is_free_threaded.m5",
+   "is_free_threaded.m6"
+  ],
+  "funcs": {
+   "x__is_free_threaded": 4
+  }
+ },
+ {
+  "id": "C-GW",
+  "pattern": "__init__ AI-gateway routing (getattr default, rstrip) URL construction",
+  "count": 3,
+  "classification": "TEST-GAP",
+  "examples": [
+   "__init__.m20",
+   "__init__.m26",
+   "__init__.m32"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1__init__": 3
+  }
+ },
+ {
+  "id": "C-AUTH",
+  "pattern": "_get_auth_headers SecretStr get_secret_value hasattr mutations (masked-str fallback)",
+  "count": 3,
+  "classification": "TEST-GAP",
+  "examples": [
+   "_get_auth_headers.m4",
+   "_get_auth_headers.m8",
+   "_get_auth_headers.m9"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_get_auth_headers": 3
+  }
+ },
+ {
+  "id": "C-SEM",
+  "pattern": "_get_semaphore recreate-on-limit-change condition flips",
+  "count": 3,
+  "classification": "TEST-GAP",
+  "examples": [
+   "_get_semaphore.m3",
+   "_get_semaphore.m4",
+   "_get_semaphore.m5"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_get_semaphore": 3
+  }
+ },
+ {
+  "id": "C-CONFDEF",
+  "pattern": "detect: missing-confidence default 0.0 -> 1.0/None",
+  "count": 3,
+  "classification": "TEST-GAP",
+  "examples": [
+   "detect_objects.m204",
+   "detect_objects.m206",
+   "detect_objects.m209"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 3
+  }
+ },
+ {
+  "id": "C-BRK",
+  "pattern": "detect: per-detection continue -> break (drops rest of batch)",
+  "count": 3,
+  "classification": "TEST-GAP",
+  "examples": [
+   "detect_objects.m244",
+   "detect_objects.m261",
+   "detect_objects.m422"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1detect_objects": 3
+  }
+ },
+ {
+  "id": "C-PREPROC",
+  "pattern": "_get_preprocess_worker_count (executor never called => dead code)",
+  "count": 1,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "get_preprocess_worker_count.m1"
+  ],
+  "funcs": {
+   "x__get_preprocess_worker_count": 1
+  }
+ },
+ {
+  "id": "C-LOGSEM",
+  "pattern": "_get_semaphore debug log text",
+  "count": 1,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "_get_semaphore.m9"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_get_semaphore": 1
+  }
+ },
+ {
+  "id": "C-LASTEXC",
+  "pattern": "last_exception init -> \"\" (post-loop always set => dead)",
+  "count": 1,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "_send_detection_request.m1"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_send_detection_request": 1
+  }
+ },
+ {
+  "id": "C-MINSZ",
+  "pattern": "validate: file_size < vs <= boundary at MIN_DETECTION_IMAGE_SIZE",
+  "count": 1,
+  "classification": "TEST-GAP",
+  "examples": [
+   "_validate_image_for_detection.m4"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_validate_image_for_detection": 1
+  }
+ },
+ {
+  "id": "C-ASVAL",
+  "pattern": "async validate camera_id -> None (log-only field)",
+  "count": 1,
+  "classification": "EQUIVALENT",
+  "examples": [
+   "_validate_image_for_detection_async.m3"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1_validate_image_for_detection_async": 1
+  }
+ },
+ {
+  "id": "C-HURL",
+  "pattern": "health_check URL -> None (unasserted; still returns False)",
+  "count": 1,
+  "classification": "LOW-VALUE",
+  "examples": [
+   "health_check.m2"
+  ],
+  "funcs": {
+   "x\u01c1DetectorClient\u01c1health_check": 1
+  }
+ }
+]
