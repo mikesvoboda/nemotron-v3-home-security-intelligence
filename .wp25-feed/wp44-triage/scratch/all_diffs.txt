@@ -1,0 +1,999 @@
+# backend.services.inference_semaphore.x__get_default_permits__mutmut_1: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -9,4 +9,4 @@
+     """
+     if is_free_threaded():
+         return 20  # Higher limit with true parallelism
+-    return 4  # Conservative limit with GIL
++    return 5  # Conservative limit with GIL
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_10: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -30,7 +30,7 @@
+         default_permits = _get_default_permits()
+ 
+         logger.info(
+-            "AI inference semaphore initialized",
++            None,
+             extra={
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_11: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -31,12 +31,7 @@
+ 
+         logger.info(
+             "AI inference semaphore initialized",
+-            extra={
+-                "max_concurrent": max_concurrent,
+-                "free_threading": free_threading,
+-                "default_permits": default_permits,
+-                "using_custom_limit": max_concurrent != default_permits,
+-            },
++            extra=None,
+         )
+ 
+     return _inference_semaphore
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_13: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -31,12 +31,6 @@
+ 
+         logger.info(
+             "AI inference semaphore initialized",
+-            extra={
+-                "max_concurrent": max_concurrent,
+-                "free_threading": free_threading,
+-                "default_permits": default_permits,
+-                "using_custom_limit": max_concurrent != default_permits,
+-            },
+-        )
++            )
+ 
+     return _inference_semaphore
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_14: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -30,7 +30,7 @@
+         default_permits = _get_default_permits()
+ 
+         logger.info(
+-            "AI inference semaphore initialized",
++            "XXAI inference semaphore initializedXX",
+             extra={
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_15: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -30,7 +30,7 @@
+         default_permits = _get_default_permits()
+ 
+         logger.info(
+-            "AI inference semaphore initialized",
++            "ai inference semaphore initialized",
+             extra={
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_16: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -30,7 +30,7 @@
+         default_permits = _get_default_permits()
+ 
+         logger.info(
+-            "AI inference semaphore initialized",
++            "AI INFERENCE SEMAPHORE INITIALIZED",
+             extra={
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_17: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -32,7 +32,7 @@
+         logger.info(
+             "AI inference semaphore initialized",
+             extra={
+-                "max_concurrent": max_concurrent,
++                "XXmax_concurrentXX": max_concurrent,
+                 "free_threading": free_threading,
+                 "default_permits": default_permits,
+                 "using_custom_limit": max_concurrent != default_permits,
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_18: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -32,7 +32,7 @@
+         logger.info(
+             "AI inference semaphore initialized",
+             extra={
+-                "max_concurrent": max_concurrent,
++                "MAX_CONCURRENT": max_concurrent,
+                 "free_threading": free_threading,
+                 "default_permits": default_permits,
+                 "using_custom_limit": max_concurrent != default_permits,
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_19: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -33,7 +33,7 @@
+             "AI inference semaphore initialized",
+             extra={
+                 "max_concurrent": max_concurrent,
+-                "free_threading": free_threading,
++                "XXfree_threadingXX": free_threading,
+                 "default_permits": default_permits,
+                 "using_custom_limit": max_concurrent != default_permits,
+             },
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_20: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -33,7 +33,7 @@
+             "AI inference semaphore initialized",
+             extra={
+                 "max_concurrent": max_concurrent,
+-                "free_threading": free_threading,
++                "FREE_THREADING": free_threading,
+                 "default_permits": default_permits,
+                 "using_custom_limit": max_concurrent != default_permits,
+             },
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_21: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -34,7 +34,7 @@
+             extra={
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+-                "default_permits": default_permits,
++                "XXdefault_permitsXX": default_permits,
+                 "using_custom_limit": max_concurrent != default_permits,
+             },
+         )
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_22: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -34,7 +34,7 @@
+             extra={
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+-                "default_permits": default_permits,
++                "DEFAULT_PERMITS": default_permits,
+                 "using_custom_limit": max_concurrent != default_permits,
+             },
+         )
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_23: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -35,7 +35,7 @@
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+                 "default_permits": default_permits,
+-                "using_custom_limit": max_concurrent != default_permits,
++                "XXusing_custom_limitXX": max_concurrent != default_permits,
+             },
+         )
+ 
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_24: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -35,7 +35,7 @@
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+                 "default_permits": default_permits,
+-                "using_custom_limit": max_concurrent != default_permits,
++                "USING_CUSTOM_LIMIT": max_concurrent != default_permits,
+             },
+         )
+ 
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_25: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -35,7 +35,7 @@
+                 "max_concurrent": max_concurrent,
+                 "free_threading": free_threading,
+                 "default_permits": default_permits,
+-                "using_custom_limit": max_concurrent != default_permits,
++                "using_custom_limit": max_concurrent == default_permits,
+             },
+         )
+ 
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_8: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -26,7 +26,7 @@
+         _current_permit_count = max_concurrent
+ 
+         # Log initialization with free-threading status
+-        free_threading = is_free_threaded()
++        free_threading = None
+         default_permits = _get_default_permits()
+ 
+         logger.info(
+@@@END@@@
+# backend.services.inference_semaphore.x_get_inference_semaphore__mutmut_9: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -27,7 +27,7 @@
+ 
+         # Log initialization with free-threading status
+         free_threading = is_free_threaded()
+-        default_permits = _get_default_permits()
++        default_permits = None
+ 
+         logger.info(
+             "AI inference semaphore initialized",
+@@@END@@@
+# backend.services.inference_semaphore.x_is_free_threaded__mutmut_1: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -15,6 +15,6 @@
+     """
+     # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+     # Returns False when running free-threaded Python (GIL disabled)
+-    if hasattr(sys, "_is_gil_enabled"):
++    if hasattr(None, "_is_gil_enabled"):
+         return not sys._is_gil_enabled()
+     return False
+@@@END@@@
+# backend.services.inference_semaphore.x_is_free_threaded__mutmut_5: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -15,6 +15,6 @@
+     """
+     # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+     # Returns False when running free-threaded Python (GIL disabled)
+-    if hasattr(sys, "_is_gil_enabled"):
++    if hasattr(sys, "XX_is_gil_enabledXX"):
+         return not sys._is_gil_enabled()
+     return False
+@@@END@@@
+# backend.services.inference_semaphore.x_is_free_threaded__mutmut_6: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -15,6 +15,6 @@
+     """
+     # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+     # Returns False when running free-threaded Python (GIL disabled)
+-    if hasattr(sys, "_is_gil_enabled"):
++    if hasattr(sys, "_IS_GIL_ENABLED"):
+         return not sys._is_gil_enabled()
+     return False
+@@@END@@@
+# backend.services.inference_semaphore.x_is_free_threaded__mutmut_7: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -16,5 +16,5 @@
+     # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+     # Returns False when running free-threaded Python (GIL disabled)
+     if hasattr(sys, "_is_gil_enabled"):
+-        return not sys._is_gil_enabled()
++        return sys._is_gil_enabled()
+     return False
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_12: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -45,7 +45,7 @@
+     # Calculate target permits based on pressure level
+     if pressure_level == MemoryPressureLevel.CRITICAL:
+         # Reduce to 50% of original (minimum 1)
+-        target_permits = max(1, _original_permit_count // 2)
++        target_permits = max(2, _original_permit_count // 2)
+     else:  # WARNING
+         # Reduce to 75% of original
+         target_permits = max(1, int(_original_permit_count * 0.75))
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_20: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -48,7 +48,7 @@
+         target_permits = max(1, _original_permit_count // 2)
+     else:  # WARNING
+         # Reduce to 75% of original
+-        target_permits = max(1, int(_original_permit_count * 0.75))
++        target_permits = max(2, int(_original_permit_count * 0.75))
+ 
+     # Calculate how many permits to remove
+     permits_to_remove = _current_permit_count - target_permits
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_26: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -53,7 +53,7 @@
+     # Calculate how many permits to remove
+     permits_to_remove = _current_permit_count - target_permits
+ 
+-    if permits_to_remove <= 0:
++    if permits_to_remove < 0:
+         # Already at or below target
+         logger.debug(
+             "Semaphore already at or below target permits",
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_28: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -56,7 +56,7 @@
+     if permits_to_remove <= 0:
+         # Already at or below target
+         logger.debug(
+-            "Semaphore already at or below target permits",
++            None,
+             extra={
+                 "current_permits": _current_permit_count,
+                 "target_permits": target_permits,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_29: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -57,11 +57,7 @@
+         # Already at or below target
+         logger.debug(
+             "Semaphore already at or below target permits",
+-            extra={
+-                "current_permits": _current_permit_count,
+-                "target_permits": target_permits,
+-                "pressure_level": pressure_level.value,
+-            },
++            extra=None,
+         )
+         return
+ 
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_3: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -35,7 +35,7 @@
+         # No reduction needed for NORMAL pressure
+         return
+ 
+-    if _original_permit_count is None or _current_permit_count is None:
++    if _original_permit_count is None and _current_permit_count is None:
+         logger.warning(
+             "Cannot reduce permits: semaphore not initialized",
+             extra={"pressure_level": pressure_level.value},
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_31: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -57,12 +57,7 @@
+         # Already at or below target
+         logger.debug(
+             "Semaphore already at or below target permits",
+-            extra={
+-                "current_permits": _current_permit_count,
+-                "target_permits": target_permits,
+-                "pressure_level": pressure_level.value,
+-            },
+-        )
++            )
+         return
+ 
+     # Acquire permits to reduce available capacity
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_32: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -56,7 +56,7 @@
+     if permits_to_remove <= 0:
+         # Already at or below target
+         logger.debug(
+-            "Semaphore already at or below target permits",
++            "XXSemaphore already at or below target permitsXX",
+             extra={
+                 "current_permits": _current_permit_count,
+                 "target_permits": target_permits,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_33: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -56,7 +56,7 @@
+     if permits_to_remove <= 0:
+         # Already at or below target
+         logger.debug(
+-            "Semaphore already at or below target permits",
++            "semaphore already at or below target permits",
+             extra={
+                 "current_permits": _current_permit_count,
+                 "target_permits": target_permits,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_34: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -56,7 +56,7 @@
+     if permits_to_remove <= 0:
+         # Already at or below target
+         logger.debug(
+-            "Semaphore already at or below target permits",
++            "SEMAPHORE ALREADY AT OR BELOW TARGET PERMITS",
+             extra={
+                 "current_permits": _current_permit_count,
+                 "target_permits": target_permits,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_35: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -58,7 +58,7 @@
+         logger.debug(
+             "Semaphore already at or below target permits",
+             extra={
+-                "current_permits": _current_permit_count,
++                "XXcurrent_permitsXX": _current_permit_count,
+                 "target_permits": target_permits,
+                 "pressure_level": pressure_level.value,
+             },
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_36: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -58,7 +58,7 @@
+         logger.debug(
+             "Semaphore already at or below target permits",
+             extra={
+-                "current_permits": _current_permit_count,
++                "CURRENT_PERMITS": _current_permit_count,
+                 "target_permits": target_permits,
+                 "pressure_level": pressure_level.value,
+             },
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_37: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -59,7 +59,7 @@
+             "Semaphore already at or below target permits",
+             extra={
+                 "current_permits": _current_permit_count,
+-                "target_permits": target_permits,
++                "XXtarget_permitsXX": target_permits,
+                 "pressure_level": pressure_level.value,
+             },
+         )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_38: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -59,7 +59,7 @@
+             "Semaphore already at or below target permits",
+             extra={
+                 "current_permits": _current_permit_count,
+-                "target_permits": target_permits,
++                "TARGET_PERMITS": target_permits,
+                 "pressure_level": pressure_level.value,
+             },
+         )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_39: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -60,7 +60,7 @@
+             extra={
+                 "current_permits": _current_permit_count,
+                 "target_permits": target_permits,
+-                "pressure_level": pressure_level.value,
++                "XXpressure_levelXX": pressure_level.value,
+             },
+         )
+         return
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_40: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -60,7 +60,7 @@
+             extra={
+                 "current_permits": _current_permit_count,
+                 "target_permits": target_permits,
+-                "pressure_level": pressure_level.value,
++                "PRESSURE_LEVEL": pressure_level.value,
+             },
+         )
+         return
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_44: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -71,7 +71,7 @@
+     for _ in range(permits_to_remove):
+         # Use nowait to avoid blocking if semaphore is already fully utilized
+         try:
+-            if semaphore._value > 0:  # Check internal value
++            if semaphore._value >= 0:  # Check internal value
+                 await asyncio.wait_for(semaphore.acquire(), timeout=0.1)
+                 acquired += 1
+         except TimeoutError:
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_45: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -71,7 +71,7 @@
+     for _ in range(permits_to_remove):
+         # Use nowait to avoid blocking if semaphore is already fully utilized
+         try:
+-            if semaphore._value > 0:  # Check internal value
++            if semaphore._value > 1:  # Check internal value
+                 await asyncio.wait_for(semaphore.acquire(), timeout=0.1)
+                 acquired += 1
+         except TimeoutError:
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_47: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -72,7 +72,7 @@
+         # Use nowait to avoid blocking if semaphore is already fully utilized
+         try:
+             if semaphore._value > 0:  # Check internal value
+-                await asyncio.wait_for(semaphore.acquire(), timeout=0.1)
++                await asyncio.wait_for(semaphore.acquire(), timeout=None)
+                 acquired += 1
+         except TimeoutError:
+             # Semaphore is fully utilized, can't reduce further
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_50: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -72,7 +72,7 @@
+         # Use nowait to avoid blocking if semaphore is already fully utilized
+         try:
+             if semaphore._value > 0:  # Check internal value
+-                await asyncio.wait_for(semaphore.acquire(), timeout=0.1)
++                await asyncio.wait_for(semaphore.acquire(), timeout=1.1)
+                 acquired += 1
+         except TimeoutError:
+             # Semaphore is fully utilized, can't reduce further
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_58: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -82,7 +82,7 @@
+     _throttled_for_pressure = True
+ 
+     logger.warning(
+-        f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
++        None,
+         extra={
+             "original_permits": _original_permit_count,
+             "current_permits": _current_permit_count,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_59: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -83,10 +83,5 @@
+ 
+     logger.warning(
+         f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
+-        extra={
+-            "original_permits": _original_permit_count,
+-            "current_permits": _current_permit_count,
+-            "acquired_permits": acquired,
+-            "pressure_level": pressure_level.value,
+-        },
++        extra=None,
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_61: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -83,10 +83,4 @@
+ 
+     logger.warning(
+         f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
+-        extra={
+-            "original_permits": _original_permit_count,
+-            "current_permits": _current_permit_count,
+-            "acquired_permits": acquired,
+-            "pressure_level": pressure_level.value,
+-        },
+-    )
++        )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_62: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -84,7 +84,7 @@
+     logger.warning(
+         f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
+         extra={
+-            "original_permits": _original_permit_count,
++            "XXoriginal_permitsXX": _original_permit_count,
+             "current_permits": _current_permit_count,
+             "acquired_permits": acquired,
+             "pressure_level": pressure_level.value,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_63: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -84,7 +84,7 @@
+     logger.warning(
+         f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
+         extra={
+-            "original_permits": _original_permit_count,
++            "ORIGINAL_PERMITS": _original_permit_count,
+             "current_permits": _current_permit_count,
+             "acquired_permits": acquired,
+             "pressure_level": pressure_level.value,
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_64: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -85,7 +85,7 @@
+         f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
+         extra={
+             "original_permits": _original_permit_count,
+-            "current_permits": _current_permit_count,
++            "XXcurrent_permitsXX": _current_permit_count,
+             "acquired_permits": acquired,
+             "pressure_level": pressure_level.value,
+         },
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_65: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -85,7 +85,7 @@
+         f"Reduced inference semaphore permits for {pressure_level.value} memory pressure",
+         extra={
+             "original_permits": _original_permit_count,
+-            "current_permits": _current_permit_count,
++            "CURRENT_PERMITS": _current_permit_count,
+             "acquired_permits": acquired,
+             "pressure_level": pressure_level.value,
+         },
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_66: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -86,7 +86,7 @@
+         extra={
+             "original_permits": _original_permit_count,
+             "current_permits": _current_permit_count,
+-            "acquired_permits": acquired,
++            "XXacquired_permitsXX": acquired,
+             "pressure_level": pressure_level.value,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_67: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -86,7 +86,7 @@
+         extra={
+             "original_permits": _original_permit_count,
+             "current_permits": _current_permit_count,
+-            "acquired_permits": acquired,
++            "ACQUIRED_PERMITS": acquired,
+             "pressure_level": pressure_level.value,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_68: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -87,6 +87,6 @@
+             "original_permits": _original_permit_count,
+             "current_permits": _current_permit_count,
+             "acquired_permits": acquired,
+-            "pressure_level": pressure_level.value,
++            "XXpressure_levelXX": pressure_level.value,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_reduce_permits_for_memory_pressure__mutmut_69: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -87,6 +87,6 @@
+             "original_permits": _original_permit_count,
+             "current_permits": _current_permit_count,
+             "acquired_permits": acquired,
+-            "pressure_level": pressure_level.value,
++            "PRESSURE_LEVEL": pressure_level.value,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_2: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -11,7 +11,7 @@
+     """
+     global _inference_semaphore, _original_permit_count, _current_permit_count, _throttled_for_pressure  # noqa: PLW0603
+     _inference_semaphore = None
+-    _original_permit_count = None
++    _original_permit_count = ""
+     _current_permit_count = None
+     _throttled_for_pressure = False
+     logger.debug("AI inference semaphore reset")
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_3: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -12,6 +12,6 @@
+     global _inference_semaphore, _original_permit_count, _current_permit_count, _throttled_for_pressure  # noqa: PLW0603
+     _inference_semaphore = None
+     _original_permit_count = None
+-    _current_permit_count = None
++    _current_permit_count = ""
+     _throttled_for_pressure = False
+     logger.debug("AI inference semaphore reset")
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_4: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -13,5 +13,5 @@
+     _inference_semaphore = None
+     _original_permit_count = None
+     _current_permit_count = None
+-    _throttled_for_pressure = False
++    _throttled_for_pressure = None
+     logger.debug("AI inference semaphore reset")
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_5: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -13,5 +13,5 @@
+     _inference_semaphore = None
+     _original_permit_count = None
+     _current_permit_count = None
+-    _throttled_for_pressure = False
++    _throttled_for_pressure = True
+     logger.debug("AI inference semaphore reset")
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_6: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -14,4 +14,4 @@
+     _original_permit_count = None
+     _current_permit_count = None
+     _throttled_for_pressure = False
+-    logger.debug("AI inference semaphore reset")
++    logger.debug(None)
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_7: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -14,4 +14,4 @@
+     _original_permit_count = None
+     _current_permit_count = None
+     _throttled_for_pressure = False
+-    logger.debug("AI inference semaphore reset")
++    logger.debug("XXAI inference semaphore resetXX")
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_8: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -14,4 +14,4 @@
+     _original_permit_count = None
+     _current_permit_count = None
+     _throttled_for_pressure = False
+-    logger.debug("AI inference semaphore reset")
++    logger.debug("ai inference semaphore reset")
+@@@END@@@
+# backend.services.inference_semaphore.x_reset_inference_semaphore__mutmut_9: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -14,4 +14,4 @@
+     _original_permit_count = None
+     _current_permit_count = None
+     _throttled_for_pressure = False
+-    logger.debug("AI inference semaphore reset")
++    logger.debug("AI INFERENCE SEMAPHORE RESET")
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_11: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -30,7 +30,7 @@
+     for _ in range(permits_to_restore):
+         semaphore.release()
+ 
+-    _current_permit_count = _original_permit_count
++    _current_permit_count = None
+     _throttled_for_pressure = False
+ 
+     logger.info(
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_12: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -31,7 +31,7 @@
+         semaphore.release()
+ 
+     _current_permit_count = _original_permit_count
+-    _throttled_for_pressure = False
++    _throttled_for_pressure = None
+ 
+     logger.info(
+         "Restored inference semaphore permits after memory pressure relief",
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_13: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -31,7 +31,7 @@
+         semaphore.release()
+ 
+     _current_permit_count = _original_permit_count
+-    _throttled_for_pressure = False
++    _throttled_for_pressure = True
+ 
+     logger.info(
+         "Restored inference semaphore permits after memory pressure relief",
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_14: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -34,7 +34,7 @@
+     _throttled_for_pressure = False
+ 
+     logger.info(
+-        "Restored inference semaphore permits after memory pressure relief",
++        None,
+         extra={
+             "restored_permits": permits_to_restore,
+             "current_permits": _current_permit_count,
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_15: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -35,8 +35,5 @@
+ 
+     logger.info(
+         "Restored inference semaphore permits after memory pressure relief",
+-        extra={
+-            "restored_permits": permits_to_restore,
+-            "current_permits": _current_permit_count,
+-        },
++        extra=None,
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_17: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -35,8 +35,4 @@
+ 
+     logger.info(
+         "Restored inference semaphore permits after memory pressure relief",
+-        extra={
+-            "restored_permits": permits_to_restore,
+-            "current_permits": _current_permit_count,
+-        },
+-    )
++        )
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_18: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -34,7 +34,7 @@
+     _throttled_for_pressure = False
+ 
+     logger.info(
+-        "Restored inference semaphore permits after memory pressure relief",
++        "XXRestored inference semaphore permits after memory pressure reliefXX",
+         extra={
+             "restored_permits": permits_to_restore,
+             "current_permits": _current_permit_count,
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_19: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -34,7 +34,7 @@
+     _throttled_for_pressure = False
+ 
+     logger.info(
+-        "Restored inference semaphore permits after memory pressure relief",
++        "restored inference semaphore permits after memory pressure relief",
+         extra={
+             "restored_permits": permits_to_restore,
+             "current_permits": _current_permit_count,
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_20: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -34,7 +34,7 @@
+     _throttled_for_pressure = False
+ 
+     logger.info(
+-        "Restored inference semaphore permits after memory pressure relief",
++        "RESTORED INFERENCE SEMAPHORE PERMITS AFTER MEMORY PRESSURE RELIEF",
+         extra={
+             "restored_permits": permits_to_restore,
+             "current_permits": _current_permit_count,
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_21: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -36,7 +36,7 @@
+     logger.info(
+         "Restored inference semaphore permits after memory pressure relief",
+         extra={
+-            "restored_permits": permits_to_restore,
++            "XXrestored_permitsXX": permits_to_restore,
+             "current_permits": _current_permit_count,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_22: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -36,7 +36,7 @@
+     logger.info(
+         "Restored inference semaphore permits after memory pressure relief",
+         extra={
+-            "restored_permits": permits_to_restore,
++            "RESTORED_PERMITS": permits_to_restore,
+             "current_permits": _current_permit_count,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_23: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -37,6 +37,6 @@
+         "Restored inference semaphore permits after memory pressure relief",
+         extra={
+             "restored_permits": permits_to_restore,
+-            "current_permits": _current_permit_count,
++            "XXcurrent_permitsXX": _current_permit_count,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_24: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -37,6 +37,6 @@
+         "Restored inference semaphore permits after memory pressure relief",
+         extra={
+             "restored_permits": permits_to_restore,
+-            "current_permits": _current_permit_count,
++            "CURRENT_PERMITS": _current_permit_count,
+         },
+     )
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_3: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -15,7 +15,7 @@
+ 
+     semaphore = get_inference_semaphore()
+ 
+-    if _original_permit_count is None or _current_permit_count is None:
++    if _original_permit_count is None and _current_permit_count is None:
+         logger.warning("Cannot restore permits: permit counts not tracked")
+         return
+ 
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_8: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -22,7 +22,7 @@
+     # Calculate permits to restore
+     permits_to_restore = _original_permit_count - _current_permit_count
+ 
+-    if permits_to_restore <= 0:
++    if permits_to_restore < 0:
+         _throttled_for_pressure = False
+         return
+ 
+@@@END@@@
+# backend.services.inference_semaphore.x_restore_permits_after_pressure__mutmut_9: survived
+--- backend/services/inference_semaphore.py
++++ backend/services/inference_semaphore.py
+@@ -22,7 +22,7 @@
+     # Calculate permits to restore
+     permits_to_restore = _original_permit_count - _current_permit_count
+ 
+-    if permits_to_restore <= 0:
++    if permits_to_restore <= 1:
+         _throttled_for_pressure = False
+         return
+ 
+@@@END@@@

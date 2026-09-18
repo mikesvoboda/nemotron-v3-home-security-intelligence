@@ -1,0 +1,319 @@
+{
+ "x_load_age_classifier_model__mutmut_1": [
+  "-        if not torch.cuda.is_available():",
+  "+        if torch.cuda.is_available():"
+ ],
+ "x_load_age_classifier_model__mutmut_2": [
+  "-                \"Age Classifier requires a CUDA GPU \u2014 ViT CPU inference holds \"",
+  "-                \"the GIL for 5-15 s per frame and starves the async event loop. \"",
+  "-                \"Skipping on CPU-only host.\"",
+  "+                None"
+ ],
+ "x_load_age_classifier_model__mutmut_3": [
+  "-                \"Age Classifier requires a CUDA GPU \u2014 ViT CPU inference holds \"",
+  "+                \"XXAge Classifier requires a CUDA GPU \u2014 ViT CPU inference holds XX\""
+ ],
+ "x_load_age_classifier_model__mutmut_4": [
+  "-                \"Age Classifier requires a CUDA GPU \u2014 ViT CPU inference holds \"",
+  "+                \"age classifier requires a cuda gpu \u2014 vit cpu inference holds \""
+ ],
+ "x_load_age_classifier_model__mutmut_5": [
+  "-                \"Age Classifier requires a CUDA GPU \u2014 ViT CPU inference holds \"",
+  "+                \"AGE CLASSIFIER REQUIRES A CUDA GPU \u2014 VIT CPU INFERENCE HOLDS \""
+ ],
+ "x_load_age_classifier_model__mutmut_6": [
+  "-            \"Failed to load age classifier model\",",
+  "+            None,"
+ ],
+ "x_load_age_classifier_model__mutmut_7": [
+  "-            exc_info=True,",
+  "+            exc_info=None,"
+ ],
+ "x_load_age_classifier_model__mutmut_8": [
+  "-            extra={\"model_path\": model_path},",
+  "+            extra=None,"
+ ],
+ "x_load_age_classifier_model__mutmut_9": [
+  "-            \"Failed to load age classifier model\","
+ ],
+ "x_load_age_classifier_model__mutmut_10": [
+  "-            exc_info=True,"
+ ],
+ "x_load_age_classifier_model__mutmut_11": [
+  "-            extra={\"model_path\": model_path},",
+  "-        )",
+  "+            )"
+ ],
+ "x_load_age_classifier_model__mutmut_12": [
+  "-            \"Failed to load age classifier model\",",
+  "+            \"XXFailed to load age classifier modelXX\","
+ ],
+ "x_load_age_classifier_model__mutmut_13": [
+  "-            \"Failed to load age classifier model\",",
+  "+            \"failed to load age classifier model\","
+ ],
+ "x_load_age_classifier_model__mutmut_14": [
+  "-            \"Failed to load age classifier model\",",
+  "+            \"FAILED TO LOAD AGE CLASSIFIER MODEL\","
+ ],
+ "x_load_age_classifier_model__mutmut_15": [
+  "-            exc_info=True,",
+  "+            exc_info=False,"
+ ],
+ "x_load_age_classifier_model__mutmut_16": [
+  "-            extra={\"model_path\": model_path},",
+  "+            extra={\"XXmodel_pathXX\": model_path},"
+ ],
+ "x_load_age_classifier_model__mutmut_17": [
+  "-            extra={\"model_path\": model_path},",
+  "+            extra={\"MODEL_PATH\": model_path},"
+ ],
+ "x_load_age_classifier_model__mutmut_18": [
+  "-        raise RuntimeError(f\"Failed to load age classifier model: {e}\") from e",
+  "+        raise RuntimeError(None) from e"
+ ],
+ "x_classify_ages_batch__mutmut_1": [
+  "-    if not images:",
+  "+    if images:"
+ ],
+ "x_classify_ages_batch__mutmut_2": [
+  "-        model = model_dict[\"model\"]",
+  "+        model = None"
+ ],
+ "x_classify_ages_batch__mutmut_3": [
+  "-        model = model_dict[\"model\"]",
+  "+        model = model_dict[\"XXmodelXX\"]"
+ ],
+ "x_classify_ages_batch__mutmut_4": [
+  "-        model = model_dict[\"model\"]",
+  "+        model = model_dict[\"MODEL\"]"
+ ],
+ "x_classify_ages_batch__mutmut_5": [
+  "-        processor = model_dict[\"processor\"]",
+  "+        processor = None"
+ ],
+ "x_classify_ages_batch__mutmut_6": [
+  "-        processor = model_dict[\"processor\"]",
+  "+        processor = model_dict[\"XXprocessorXX\"]"
+ ],
+ "x_classify_ages_batch__mutmut_7": [
+  "-        processor = model_dict[\"processor\"]",
+  "+        processor = model_dict[\"PROCESSOR\"]"
+ ],
+ "x_classify_ages_batch__mutmut_8": [
+  "-        labels = model_dict[\"labels\"]",
+  "+        labels = None"
+ ],
+ "x_classify_ages_batch__mutmut_9": [
+  "-        labels = model_dict[\"labels\"]",
+  "+        labels = model_dict[\"XXlabelsXX\"]"
+ ],
+ "x_classify_ages_batch__mutmut_10": [
+  "-        labels = model_dict[\"labels\"]",
+  "+        labels = model_dict[\"LABELS\"]"
+ ],
+ "x_classify_ages_batch__mutmut_11": [
+  "-        loop = asyncio.get_running_loop()",
+  "+        loop = None"
+ ],
+ "x_classify_ages_batch__mutmut_12": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = None"
+ ],
+ "x_classify_ages_batch__mutmut_13": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"RGB\") if (img.mode != \"RGB\") and False else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_14": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"RGB\") if (img.mode != \"RGB\") or True else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_15": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(None) if img.mode != \"RGB\" else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_16": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"XXRGBXX\") if img.mode != \"RGB\" else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_17": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"rgb\") if img.mode != \"RGB\" else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_18": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"RGB\") if img.mode == \"RGB\" else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_19": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"RGB\") if img.mode != \"XXRGBXX\" else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_20": [
+  "-            rgb_images = [img.convert(\"RGB\") if img.mode != \"RGB\" else img for img in images]",
+  "+            rgb_images = [img.convert(\"RGB\") if img.mode != \"rgb\" else img for img in images]"
+ ],
+ "x_classify_ages_batch__mutmut_21": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = None"
+ ],
+ "x_classify_ages_batch__mutmut_22": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=None, return_tensors=\"pt\", padding=True)"
+ ],
+ "x_classify_ages_batch__mutmut_23": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, return_tensors=None, padding=True)"
+ ],
+ "x_classify_ages_batch__mutmut_24": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=None)"
+ ],
+ "x_classify_ages_batch__mutmut_25": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(return_tensors=\"pt\", padding=True)"
+ ],
+ "x_classify_ages_batch__mutmut_26": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, padding=True)"
+ ],
+ "x_classify_ages_batch__mutmut_27": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, return_tensors=\"pt\", )"
+ ],
+ "x_classify_ages_batch__mutmut_28": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, return_tensors=\"XXptXX\", padding=True)"
+ ],
+ "x_classify_ages_batch__mutmut_29": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, return_tensors=\"PT\", padding=True)"
+ ],
+ "x_classify_ages_batch__mutmut_30": [
+  "-            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=True)",
+  "+            inputs = processor(images=rgb_images, return_tensors=\"pt\", padding=False)"
+ ],
+ "x_classify_ages_batch__mutmut_31": [
+  "-            device = next(model.parameters()).device",
+  "+            device = None"
+ ],
+ "x_classify_ages_batch__mutmut_32": [
+  "-            device = next(model.parameters()).device",
+  "+            device = next(None).device"
+ ],
+ "x_classify_ages_batch__mutmut_33": [
+  "-            dtype = next(model.parameters()).dtype",
+  "+            dtype = None"
+ ],
+ "x_classify_ages_batch__mutmut_34": [
+  "-            dtype = next(model.parameters()).dtype",
+  "+            dtype = next(None).dtype"
+ ],
+ "x_classify_ages_batch__mutmut_35": [
+  "-            inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}",
+  "+            inputs = None"
+ ],
+ "x_classify_ages_batch__mutmut_36": [
+  "-            inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}",
+  "+            inputs = {k: v.to(device=None, dtype=dtype) for k, v in inputs.items()}"
+ ],
+ "x_classify_ages_batch__mutmut_37": [
+  "-            inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}",
+  "+            inputs = {k: v.to(device=device, dtype=None) for k, v in inputs.items()}"
+ ],
+ "x_classify_ages_batch__mutmut_38": [
+  "-            inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}",
+  "+            inputs = {k: v.to(dtype=dtype) for k, v in inputs.items()}"
+ ],
+ "x_classify_ages_batch__mutmut_39": [
+  "-            inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}",
+  "+            inputs = {k: v.to(device=device, ) for k, v in inputs.items()}"
+ ],
+ "x_classify_ages_batch__mutmut_40": [
+  "-                outputs = model(**inputs)",
+  "+                outputs = None"
+ ],
+ "x_classify_ages_batch__mutmut_41": [
+  "-                all_logits = outputs.logits",
+  "+                all_logits = None"
+ ],
+ "x_classify_ages_batch__mutmut_42": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = None"
+ ],
+ "x_classify_ages_batch__mutmut_43": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = torch.nn.functional.softmax(None, dim=-1)"
+ ],
+ "x_classify_ages_batch__mutmut_44": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = torch.nn.functional.softmax(all_logits, dim=None)"
+ ],
+ "x_classify_ages_batch__mutmut_45": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = torch.nn.functional.softmax(dim=-1)"
+ ],
+ "x_classify_ages_batch__mutmut_46": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = torch.nn.functional.softmax(all_logits, )"
+ ],
+ "x_classify_ages_batch__mutmut_47": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = torch.nn.functional.softmax(all_logits, dim=+1)"
+ ],
+ "x_classify_ages_batch__mutmut_48": [
+  "-            all_probs = torch.nn.functional.softmax(all_logits, dim=-1)",
+  "+            all_probs = torch.nn.functional.softmax(all_logits, dim=-2)"
+ ],
+ "x_classify_ages_batch__mutmut_49": [
+  "-            results = []",
+  "+            results = None"
+ ],
+ "x_classify_ages_batch__mutmut_50": [
+  "-        return await loop.run_in_executor(None, _classify_batch)",
+  "+        return await loop.run_in_executor(None, None)"
+ ],
+ "x_classify_ages_batch__mutmut_51": [
+  "-        return await loop.run_in_executor(None, _classify_batch)",
+  "+        return await loop.run_in_executor(_classify_batch)"
+ ],
+ "x_classify_ages_batch__mutmut_52": [
+  "-        return await loop.run_in_executor(None, _classify_batch)",
+  "+        return await loop.run_in_executor(None, )"
+ ],
+ "x_classify_ages_batch__mutmut_53": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(None, exc_info=True)"
+ ],
+ "x_classify_ages_batch__mutmut_54": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(\"Batch age classification failed\", exc_info=None)"
+ ],
+ "x_classify_ages_batch__mutmut_55": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(exc_info=True)"
+ ],
+ "x_classify_ages_batch__mutmut_56": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(\"Batch age classification failed\", )"
+ ],
+ "x_classify_ages_batch__mutmut_57": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(\"XXBatch age classification failedXX\", exc_info=True)"
+ ],
+ "x_classify_ages_batch__mutmut_58": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(\"batch age classification failed\", exc_info=True)"
+ ],
+ "x_classify_ages_batch__mutmut_59": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(\"BATCH AGE CLASSIFICATION FAILED\", exc_info=True)"
+ ],
+ "x_classify_ages_batch__mutmut_60": [
+  "-        logger.error(\"Batch age classification failed\", exc_info=True)",
+  "+        logger.error(\"Batch age classification failed\", exc_info=False)"
+ ],
+ "x_classify_ages_batch__mutmut_61": [
+  "-        raise RuntimeError(f\"Batch age classification failed: {e}\") from e",
+  "+        raise RuntimeError(None) from e"
+ ]
+}

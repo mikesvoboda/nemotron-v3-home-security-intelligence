@@ -1,459 +1,985 @@
-### backend.services.reid_service.x_batch_cosine_similarity__mutmut_27
--    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
-+    safe_norms = np.where(None, 1.0, candidate_norms)
-
-### backend.services.reid_service.x_batch_cosine_similarity__mutmut_34
--    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
-+    safe_norms = np.where(candidate_norms == 1, 1.0, candidate_norms)
-
-### backend.services.reid_service.x_batch_cosine_similarity__mutmut_35
--    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
-+    safe_norms = np.where(candidate_norms == 0, 2.0, candidate_norms)
-
-### backend.services.reid_service.x_batch_cosine_similarity__mutmut_44
--    similarities = np.where(candidate_norms == 0, 0.0, similarities)
-+    similarities = np.where(None, 0.0, similarities)
-
-### backend.services.reid_service.x_cosine_similarity__mutmut_10
--    b = np.array(vec2, dtype=np.float32)
-+    b = np.array(vec2, dtype=None)
-
-### backend.services.reid_service.x_cosine_similarity__mutmut_12
--    b = np.array(vec2, dtype=np.float32)
-+    b = np.array(vec2, )
-
-### backend.services.reid_service.x_cosine_similarity__mutmut_5
--    a = np.array(vec1, dtype=np.float32)
-+    a = np.array(vec1, dtype=None)
-
-### backend.services.reid_service.x_cosine_similarity__mutmut_7
--    a = np.array(vec1, dtype=np.float32)
-+    a = np.array(vec1, )
-
-### backend.services.reid_service.x_format_entity_match__mutmut_11
--    elif minutes < 60:
-+    elif minutes <= 60:
-
-### backend.services.reid_service.x_format_entity_match__mutmut_12
--    elif minutes < 60:
-+    elif minutes < 61:
-
-### backend.services.reid_service.x_format_entity_match__mutmut_17
--        hours = minutes / 60
-+        hours = minutes / 61
-
-### backend.services.reid_service.x_format_entity_match__mutmut_31
--        clothing = clean_vqa_output(clothing_raw) if clothing_raw else None
-+        clothing = clean_vqa_output(clothing_raw) if (clothing_raw) or True else None
-
-### backend.services.reid_service.x_format_entity_match__mutmut_40
--        carrying = clean_vqa_output(carrying_raw) if carrying_raw else None
-+        carrying = clean_vqa_output(carrying_raw) if (carrying_raw) or True else None
-
-### backend.services.reid_service.x_format_entity_match__mutmut_49
--        color = clean_vqa_output(color_raw) if color_raw else None
-+        color = clean_vqa_output(color_raw) if (color_raw) or True else None
-
-### backend.services.reid_service.x_format_entity_match__mutmut_58
--        vehicle_type = clean_vqa_output(vehicle_type_raw) if vehicle_type_raw else None
-+        vehicle_type = clean_vqa_output(vehicle_type_raw) if (vehicle_type_raw) or True else None
-
-### backend.services.reid_service.x_format_entity_match__mutmut_6
--    if minutes < 1:
-+    if minutes <= 1:
-
-### backend.services.reid_service.x_format_entity_match__mutmut_63
--            lines.append(f"    Attributes: {', '.join(attr_parts)}")
-+            lines.append(f"    Attributes: {'XX, XX'.join(attr_parts)}")
-
-### backend.services.reid_service.x_format_entity_match__mutmut_65
--    return "\n".join(lines)
-+    return "XX\nXX".join(lines)
-
-### backend.services.reid_service.x_format_entity_match__mutmut_7
--    if minutes < 1:
-+    if minutes < 2:
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_11
--        if not person_section.startswith("No "):
-+        if not person_section.startswith("XXNo XX"):
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_12
--        if not person_section.startswith("No "):
-+        if not person_section.startswith("no "):
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_13
--        if not person_section.startswith("No "):
-+        if not person_section.startswith("NO "):
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_17
--        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
-+        vehicle_section = format_reid_context(vehicle_matches, None)
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_19
--        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
-+        vehicle_section = format_reid_context(vehicle_matches, )
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_20
--        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
-+        vehicle_section = format_reid_context(vehicle_matches, "XXvehicleXX")
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_21
--        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
-+        vehicle_section = format_reid_context(vehicle_matches, "VEHICLE")
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_24
--        if not vehicle_section.startswith("No "):
-+        if not vehicle_section.startswith("XXNo XX"):
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_25
--        if not vehicle_section.startswith("No "):
-+        if not vehicle_section.startswith("no "):
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_26
--        if not vehicle_section.startswith("No "):
-+        if not vehicle_section.startswith("NO "):
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_29
--        return "No entities matched with previous sightings."
-+        return "XXNo entities matched with previous sightings.XX"
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_33
--    return "\n\n".join(sections)
-+    return "XX\n\nXX".join(sections)
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_4
--        person_section = format_reid_context(person_matches, "person")
-+        person_section = format_reid_context(person_matches, None)
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_6
--        person_section = format_reid_context(person_matches, "person")
-+        person_section = format_reid_context(person_matches, )
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_7
--        person_section = format_reid_context(person_matches, "person")
-+        person_section = format_reid_context(person_matches, "XXpersonXX")
-
-### backend.services.reid_service.x_format_full_reid_context__mutmut_8
--        person_section = format_reid_context(person_matches, "person")
-+        person_section = format_reid_context(person_matches, "PERSON")
-
-### backend.services.reid_service.x_format_reid_context__mutmut_12
--    return "\n".join(lines)
-+    return "XX\nXX".join(lines)
-
-### backend.services.reid_service.x_format_reid_context__mutmut_4
--            continue
-+            break
-
-### backend.services.reid_service.x_format_reid_summary__mutmut_15
--        return "All entities appear to be new (not seen in last 24h)."
-+        return "XXAll entities appear to be new (not seen in last 24h).XX"
-
-### backend.services.reid_service.x_format_reid_summary__mutmut_20
--    return ", ".join(parts) + "."
-+    return "XX, XX".join(parts) + "."
-
-### backend.services.reid_service.x_format_reid_summary__mutmut_21
--    return ", ".join(parts) + "."
-+    return ", ".join(parts) + "XX.XX"
-
-### backend.services.reid_service.x_reset_reid_service__mutmut_1
--    _reid_service = None
-+    _reid_service = ""
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_11
--                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-+                yesterday = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_13
--                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-+                yesterday = (now - timedelta(days=2)).strftime("%Y-%m-%d")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_14
--                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-+                yesterday = (now - timedelta(days=1)).strftime("XX%Y-%m-%dXX")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_15
--                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-+                yesterday = (now - timedelta(days=1)).strftime("%y-%m-%d")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_16
--                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-+                yesterday = (now - timedelta(days=1)).strftime("%Y-%M-%D")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_19
--                    key = f"entity_embeddings:{date_str}"
-+                    key = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_21
--                    data_raw = await redis_client.get(key)
-+                    data_raw = await redis_client.get(None)
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_23
--                        continue
-+                        break
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_3
--            now = datetime.now(UTC)
-+            now = datetime.now(None)
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_4
--                today = now.strftime("%Y-%m-%d")
-+                today = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_40
--                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
-+                    entity_list = data.get(list_key, []) if (isinstance(data, dict)) or True else []
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_42
--                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
-+                    entity_list = data.get(list_key, None) if isinstance(data, dict) else []
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_44
--                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
-+                    entity_list = data.get(list_key, ) if isinstance(data, dict) else []
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_47
--                                key,
-+                                None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_48
--                                type(stored_data).__name__,
-+                                None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_52
--                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
-+                                "XXSkipping malformed entity data in Redis key %s: expected dict, got %sXX",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_53
--                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
-+                                "skipping malformed entity data in redis key %s: expected dict, got %s",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_55
--                                type(stored_data).__name__,
-+                                type(None).__name__,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_6
--                today = now.strftime("%Y-%m-%d")
-+                today = now.strftime("XX%Y-%m-%dXX")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_69
--                logger.error(f"Failed to get entity history: {e}")
-+                logger.error(None)
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_7
--                today = now.strftime("%Y-%m-%d")
-+                today = now.strftime("%y-%m-%d")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_8
--                today = now.strftime("%Y-%m-%d")
-+                today = now.strftime("%Y-%M-%D")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_9
--                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-+                yesterday = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_18
--                embedding_json = json.dumps(embedding.to_dict())
-+                embedding_json = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_19
--                embedding_json = json.dumps(embedding.to_dict())
-+                embedding_json = json.dumps(None)
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_20
--                raw_client = None
-+                raw_client = ""
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_21
--                use_atomic = (
--                    raw_client is not None
--                    and hasattr(raw_client, "eval")
--                    and callable(getattr(raw_client, "eval", None))
--                )
-+                use_atomic = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_22
--                    and hasattr(raw_client, "eval")
--                    and callable(getattr(raw_client, "eval", None))
-+                    and hasattr(raw_client, "eval") or callable(getattr(raw_client, "eval", None))
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_23
--                    raw_client is not None
--                    and hasattr(raw_client, "eval")
-+                    raw_client is not None or hasattr(raw_client, "eval")
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_24
--                    raw_client is not None
-+                    raw_client is None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_25
--                if use_atomic and raw_client is not None:
-+                if use_atomic or raw_client is not None:
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_26
--                if use_atomic and raw_client is not None:
-+                if use_atomic and raw_client is None:
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_28
--                    data_json = await redis_client.get(key)
-+                    data_json = await redis_client.get(None)
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_44
--                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id} (atomic)"
-+                    None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_45
--                logger.error(f"Failed to store embedding: {e}")
-+                logger.error(None)
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_46
--            if persist_to_postgres and self._hybrid_storage:
-+            if persist_to_postgres or self._hybrid_storage:
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_47
--                    detection_id = (
--                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
--                    )
-+                    detection_id = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_48
--                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
-+                        int(embedding.detection_id) if (embedding.detection_id.isdigit()) and False else 0
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_50
--                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
-+                        int(None) if embedding.detection_id.isdigit() else 0
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_51
--                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
-+                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 1
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_53
--                        detection_id=detection_id,
-+                        detection_id=None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_57
--                        timestamp=embedding.timestamp,
-+                        timestamp=None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_59
--                        detection_id=detection_id,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_63
--                        timestamp=embedding.timestamp,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_65
--                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_66
--                        embedding.entity_type,
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_67
--                        embedding.camera_id,
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_68
--                        entity_id,
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_69
--                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_7
--                lua_script = """
--                local key = KEYS[1]
--                local embedding_json = ARGV[1]
--                local list_key = ARGV[2]
--                local ttl = tonumber(ARGV[3])
--
--                -- Get existing data or create empty structure
--                local data_json = redis.call('GET', key)
--                local data
--                if data_json then
--                    data = cjson.decode(data_json)
--                else
--                    data = {persons = {}, vehicles = {}}
--                end
--
--                -- Add new embedding to appropriate list
--                local embedding = cjson.decode(embedding_json)
--                table.insert(data[list_key], embedding)
--
--                -- Store with TTL
--                redis.call('SET', key, cjson.encode(data), 'EX', ttl)
--                return 1
--                """
-+                lua_script = None
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_70
--                        embedding.entity_type,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_71
--                        embedding.camera_id,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_72
--                        entity_id,
--                    )
-+                        )
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_73
--                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
-+                        "XXPersisted %s embedding to PostgreSQL for camera %s (entity_id=%s)XX",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_74
--                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
-+                        "persisted %s embedding to postgresql for camera %s (entity_id=%s)",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_75
--                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
-+                        "PERSISTED %S EMBEDDING TO POSTGRESQL FOR CAMERA %S (ENTITY_ID=%S)",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_76
--                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_77
--                        embedding.entity_type,
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_78
--                        embedding.camera_id,
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_79
--                        str(e),
-+                        None,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_80
--                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_81
--                        embedding.entity_type,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_82
--                        embedding.camera_id,
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_83
--                        str(e),
--                    )
-+                        )
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_84
--                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
-+                        "XXFailed to persist %s embedding to PostgreSQL for camera %s: %sXX",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_85
--                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
-+                        "failed to persist %s embedding to postgresql for camera %s: %s",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_86
--                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
-+                        "FAILED TO PERSIST %S EMBEDDING TO POSTGRESQL FOR CAMERA %S: %S",
-
-### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_87
--                        str(e),
-+                        str(None),
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ__init____mutmut_8
+# backend.services.transcode_cache.xǁTranscodeCacheǁ__init____mutmut_8: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -10,7 +10,7 @@
+         config = get_settings().transcode_cache
+     self.config = config
+     self.cache_dir = Path(config.cache_dir)
+-    self.metadata_file = self.cache_dir / "metadata.json"
++    self.metadata_file = self.cache_dir / "XXmetadata.jsonXX"
+     self._metadata: dict[str, CacheEntry] = {}
+     self._lock = asyncio.Lock()
+     self._hits = 0
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ__init____mutmut_9
+# backend.services.transcode_cache.xǁTranscodeCacheǁ__init____mutmut_9: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -10,7 +10,7 @@
+         config = get_settings().transcode_cache
+     self.config = config
+     self.cache_dir = Path(config.cache_dir)
+-    self.metadata_file = self.cache_dir / "metadata.json"
++    self.metadata_file = self.cache_dir / "METADATA.JSON"
+     self._metadata: dict[str, CacheEntry] = {}
+     self._lock = asyncio.Lock()
+     self._hits = 0
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_get_cache_key__mutmut_2
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_get_cache_key__mutmut_2: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -13,7 +13,7 @@
+     try:
+         mtime = source_path.stat().st_mtime
+     except OSError:
+-        mtime = 0
++        mtime = None
+ 
+     key_data = f"{source_path}:{mtime}"
+     return hashlib.sha256(key_data.encode()).hexdigest()[:16]
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_get_cache_key__mutmut_3
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_get_cache_key__mutmut_3: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -13,7 +13,7 @@
+     try:
+         mtime = source_path.stat().st_mtime
+     except OSError:
+-        mtime = 0
++        mtime = 1
+ 
+     key_data = f"{source_path}:{mtime}"
+     return hashlib.sha256(key_data.encode()).hexdigest()[:16]
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_load_metadata__mutmut_7
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_load_metadata__mutmut_7: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -12,5 +12,5 @@
+             data = await asyncio.to_thread(_read_metadata)
+             self._metadata = {k: CacheEntry(**v) for k, v in data.items()}
+         except (json.JSONDecodeError, TypeError, KeyError) as e:
+-            logger.warning(f"Failed to load cache metadata: {e}")
++            logger.warning(None)
+             self._metadata = {}
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_maybe_cleanup__mutmut_4
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_maybe_cleanup__mutmut_4: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -3,7 +3,7 @@
+     stats = await self.get_stats()
+     threshold_gb = self.config.max_cache_size_gb * self.config.cleanup_threshold_percent
+ 
+-    if stats.total_size_gb > threshold_gb:
++    if stats.total_size_gb >= threshold_gb:
+         logger.info(
+             f"Cache cleanup triggered: {stats.total_size_gb:.2f}GB > "
+             f"{threshold_gb:.2f}GB threshold"
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_maybe_cleanup__mutmut_5
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_maybe_cleanup__mutmut_5: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -5,7 +5,6 @@
+ 
+     if stats.total_size_gb > threshold_gb:
+         logger.info(
+-            f"Cache cleanup triggered: {stats.total_size_gb:.2f}GB > "
+-            f"{threshold_gb:.2f}GB threshold"
++            None
+         )
+         await self.cleanup()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_remove_entry__mutmut_4
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_remove_entry__mutmut_4: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -7,7 +7,7 @@
+     entry = self._metadata.get(cache_key)
+     if entry:
+         try:
+-            await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++            await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=None)
+         except OSError as e:
+             logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+         del self._metadata[cache_key]
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_remove_entry__mutmut_6
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_remove_entry__mutmut_6: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -7,7 +7,7 @@
+     entry = self._metadata.get(cache_key)
+     if entry:
+         try:
+-            await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++            await asyncio.to_thread(Path(entry.cached_path).unlink, )
+         except OSError as e:
+             logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+         del self._metadata[cache_key]
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_remove_entry__mutmut_8
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_remove_entry__mutmut_8: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -7,7 +7,7 @@
+     entry = self._metadata.get(cache_key)
+     if entry:
+         try:
+-            await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++            await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=False)
+         except OSError as e:
+             logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+         del self._metadata[cache_key]
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_15
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_15: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -7,7 +7,7 @@
+         temp_file = self.metadata_file.with_suffix(".tmp")
+         # nosemgrep: path-traversal-open - metadata_file is from trusted config
+         with open(temp_file, "w") as f:
+-            json.dump(data, f, indent=2)
++            json.dump(data, f, indent=None)
+         temp_file.rename(self.metadata_file)
+ 
+     await asyncio.to_thread(_write_metadata)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_18
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_18: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -7,7 +7,7 @@
+         temp_file = self.metadata_file.with_suffix(".tmp")
+         # nosemgrep: path-traversal-open - metadata_file is from trusted config
+         with open(temp_file, "w") as f:
+-            json.dump(data, f, indent=2)
++            json.dump(data, f, )
+         temp_file.rename(self.metadata_file)
+ 
+     await asyncio.to_thread(_write_metadata)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_19
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_19: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -7,7 +7,7 @@
+         temp_file = self.metadata_file.with_suffix(".tmp")
+         # nosemgrep: path-traversal-open - metadata_file is from trusted config
+         with open(temp_file, "w") as f:
+-            json.dump(data, f, indent=2)
++            json.dump(data, f, indent=3)
+         temp_file.rename(self.metadata_file)
+ 
+     await asyncio.to_thread(_write_metadata)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_6
+# backend.services.transcode_cache.xǁTranscodeCacheǁ_save_metadata__mutmut_6: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -4,7 +4,7 @@
+ 
+     def _write_metadata() -> None:
+         # Write to temp file first, then rename for atomicity
+-        temp_file = self.metadata_file.with_suffix(".tmp")
++        temp_file = self.metadata_file.with_suffix(".TMP")
+         # nosemgrep: path-traversal-open - metadata_file is from trusted config
+         with open(temp_file, "w") as f:
+             json.dump(data, f, indent=2)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_12
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_12: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -19,8 +19,7 @@
+             self.config.max_cache_size_gb
+             * self.config.cleanup_target_percent
+             * 1024
+-            * 1024
+-            * 1024
++            * 1024 / 1024
+         )
+ 
+         removed = 0
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_13
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_13: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -18,8 +18,7 @@
+         target_size_bytes = int(
+             self.config.max_cache_size_gb
+             * self.config.cleanup_target_percent
+-            * 1024
+-            * 1024
++            * 1024 / 1024
+             * 1024
+         )
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_14
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_14: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -17,8 +17,7 @@
+         current_size = sum(e.size_bytes for e in self._metadata.values())
+         target_size_bytes = int(
+             self.config.max_cache_size_gb
+-            * self.config.cleanup_target_percent
+-            * 1024
++            * self.config.cleanup_target_percent / 1024
+             * 1024
+             * 1024
+         )
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_16
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_16: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -18,7 +18,7 @@
+         target_size_bytes = int(
+             self.config.max_cache_size_gb
+             * self.config.cleanup_target_percent
+-            * 1024
++            * 1025
+             * 1024
+             * 1024
+         )
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_17
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_17: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -19,7 +19,7 @@
+             self.config.max_cache_size_gb
+             * self.config.cleanup_target_percent
+             * 1024
+-            * 1024
++            * 1025
+             * 1024
+         )
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_18
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_18: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -20,7 +20,7 @@
+             * self.config.cleanup_target_percent
+             * 1024
+             * 1024
+-            * 1024
++            * 1025
+         )
+ 
+         removed = 0
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_20
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_20: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -23,7 +23,7 @@
+             * 1024
+         )
+ 
+-        removed = 0
++        removed = 1
+         for cache_key, entry in sorted_entries:
+             if current_size <= target_size_bytes:
+                 break
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_21
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_21: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -25,7 +25,7 @@
+ 
+         removed = 0
+         for cache_key, entry in sorted_entries:
+-            if current_size <= target_size_bytes:
++            if current_size < target_size_bytes:
+                 break
+ 
+             # Remove file
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_24
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_24: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -30,7 +30,7 @@
+ 
+             # Remove file
+             try:
+-                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=None)
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_26
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_26: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -30,7 +30,7 @@
+ 
+             # Remove file
+             try:
+-                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++                await asyncio.to_thread(Path(entry.cached_path).unlink, )
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_28
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_28: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -30,7 +30,7 @@
+ 
+             # Remove file
+             try:
+-                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=False)
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_29
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_29: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -34,7 +34,7 @@
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+-            current_size -= entry.size_bytes
++            current_size = entry.size_bytes
+             del self._metadata[cache_key]
+             removed += 1
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_3
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_3: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,7 +11,7 @@
+         # Sort by last accessed (oldest first)
+         sorted_entries = sorted(
+             self._metadata.items(),
+-            key=lambda x: x[1].last_accessed,
++            key=None,
+         )
+ 
+         current_size = sum(e.size_bytes for e in self._metadata.values())
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_30
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_30: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -34,7 +34,7 @@
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+-            current_size -= entry.size_bytes
++            current_size += entry.size_bytes
+             del self._metadata[cache_key]
+             removed += 1
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_31
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_31: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -36,7 +36,7 @@
+ 
+             current_size -= entry.size_bytes
+             del self._metadata[cache_key]
+-            removed += 1
++            removed = 1
+ 
+         if removed > 0:
+             await self._save_metadata()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_33
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_33: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -36,7 +36,7 @@
+ 
+             current_size -= entry.size_bytes
+             del self._metadata[cache_key]
+-            removed += 1
++            removed += 2
+ 
+         if removed > 0:
+             await self._save_metadata()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_34
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_34: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -38,7 +38,7 @@
+             del self._metadata[cache_key]
+             removed += 1
+ 
+-        if removed > 0:
++        if removed >= 0:
+             await self._save_metadata()
+             logger.info(f"Cache cleanup: removed {removed} entries")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_35
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_35: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -38,7 +38,7 @@
+             del self._metadata[cache_key]
+             removed += 1
+ 
+-        if removed > 0:
++        if removed > 1:
+             await self._save_metadata()
+             logger.info(f"Cache cleanup: removed {removed} entries")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_36
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_36: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -40,6 +40,6 @@
+ 
+         if removed > 0:
+             await self._save_metadata()
+-            logger.info(f"Cache cleanup: removed {removed} entries")
++            logger.info(None)
+ 
+         return removed
+===== backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_5
+# backend.services.transcode_cache.xǁTranscodeCacheǁcleanup__mutmut_5: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,8 +11,7 @@
+         # Sort by last accessed (oldest first)
+         sorted_entries = sorted(
+             self._metadata.items(),
+-            key=lambda x: x[1].last_accessed,
+-        )
++            )
+ 
+         current_size = sum(e.size_bytes for e in self._metadata.values())
+         target_size_bytes = int(
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_10
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_10: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,4 +11,4 @@
+ 
+         self._metadata = {}
+         await self._save_metadata()
+-        logger.info("Cache cleared")
++        logger.info("cache cleared")
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_11
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_11: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,4 +11,4 @@
+ 
+         self._metadata = {}
+         await self._save_metadata()
+-        logger.info("Cache cleared")
++        logger.info("CACHE CLEARED")
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_2
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_2: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -5,7 +5,7 @@
+     async with self._lock:
+         for entry in self._metadata.values():
+             try:
+-                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=None)
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_4
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_4: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -5,7 +5,7 @@
+     async with self._lock:
+         for entry in self._metadata.values():
+             try:
+-                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++                await asyncio.to_thread(Path(entry.cached_path).unlink, )
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_6
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_6: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -5,7 +5,7 @@
+     async with self._lock:
+         for entry in self._metadata.values():
+             try:
+-                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=True)
++                await asyncio.to_thread(Path(entry.cached_path).unlink, missing_ok=False)
+             except OSError as e:
+                 logger.warning(f"Failed to remove cached file {entry.cached_path}: {e}")
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_8
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_8: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,4 +11,4 @@
+ 
+         self._metadata = {}
+         await self._save_metadata()
+-        logger.info("Cache cleared")
++        logger.info(None)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_9
+# backend.services.transcode_cache.xǁTranscodeCacheǁclear__mutmut_9: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,4 +11,4 @@
+ 
+         self._metadata = {}
+         await self._save_metadata()
+-        logger.info("Cache cleared")
++        logger.info("XXCache clearedXX")
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_17
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_17: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -24,7 +24,7 @@
+ 
+         if entry is None:
+             self._misses += 1
+-            logger.debug(f"Cache miss (not found): {source_path}")
++            logger.debug(None)
+             return None
+ 
+         cached_path = Path(entry.cached_path)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_2
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_2: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,7 +11,7 @@
+             Path to cached transcoded file if found and valid, None otherwise
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning None")
++        logger.debug(None)
+         self._misses += 1
+         return None
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_21
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_21: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -31,7 +31,7 @@
+ 
+         # Verify cached file still exists
+         if not cached_path.exists():
+-            logger.warning(f"Cache entry missing file: {cached_path}")
++            logger.warning(None)
+             del self._metadata[cache_key]
+             await self._save_metadata()
+             self._misses += 1
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_22
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_22: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -34,7 +34,7 @@
+             logger.warning(f"Cache entry missing file: {cached_path}")
+             del self._metadata[cache_key]
+             await self._save_metadata()
+-            self._misses += 1
++            self._misses = 1
+             return None
+ 
+         # Verify source hasn't changed
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_23
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_23: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -34,7 +34,7 @@
+             logger.warning(f"Cache entry missing file: {cached_path}")
+             del self._metadata[cache_key]
+             await self._save_metadata()
+-            self._misses += 1
++            self._misses -= 1
+             return None
+ 
+         # Verify source hasn't changed
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_24
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_24: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -34,7 +34,7 @@
+             logger.warning(f"Cache entry missing file: {cached_path}")
+             del self._metadata[cache_key]
+             await self._save_metadata()
+-            self._misses += 1
++            self._misses += 2
+             return None
+ 
+         # Verify source hasn't changed
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_27
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_27: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -41,7 +41,7 @@
+         try:
+             current_mtime = source_path.stat().st_mtime
+             if current_mtime != entry.source_mtime:
+-                logger.info(f"Cache invalidated (source modified): {source_path}")
++                logger.info(None)
+                 await self._remove_entry(cache_key)
+                 self._misses += 1
+                 return None
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_28
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_28: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -42,7 +42,7 @@
+             current_mtime = source_path.stat().st_mtime
+             if current_mtime != entry.source_mtime:
+                 logger.info(f"Cache invalidated (source modified): {source_path}")
+-                await self._remove_entry(cache_key)
++                await self._remove_entry(None)
+                 self._misses += 1
+                 return None
+         except OSError:
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_29
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_29: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -43,7 +43,7 @@
+             if current_mtime != entry.source_mtime:
+                 logger.info(f"Cache invalidated (source modified): {source_path}")
+                 await self._remove_entry(cache_key)
+-                self._misses += 1
++                self._misses = 1
+                 return None
+         except OSError:
+             pass  # Source might be gone, but cache is still valid
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_3
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_3: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,7 +11,7 @@
+             Path to cached transcoded file if found and valid, None otherwise
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning None")
++        logger.debug("XXCache disabled, returning NoneXX")
+         self._misses += 1
+         return None
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_32
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_32: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -49,7 +49,7 @@
+             pass  # Source might be gone, but cache is still valid
+ 
+         # Update last accessed time
+-        entry.last_accessed = time.time()
++        entry.last_accessed = None
+         await self._save_metadata()
+ 
+         self._hits += 1
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_33
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_33: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -52,6 +52,6 @@
+         entry.last_accessed = time.time()
+         await self._save_metadata()
+ 
+-        self._hits += 1
++        self._hits = 1
+         logger.debug(f"Cache hit: {source_path} -> {cached_path}")
+         return cached_path
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_36
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_36: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -53,5 +53,5 @@
+         await self._save_metadata()
+ 
+         self._hits += 1
+-        logger.debug(f"Cache hit: {source_path} -> {cached_path}")
++        logger.debug(None)
+         return cached_path
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_4
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_4: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,7 +11,7 @@
+             Path to cached transcoded file if found and valid, None otherwise
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning None")
++        logger.debug("cache disabled, returning none")
+         self._misses += 1
+         return None
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_5
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_5: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,7 +11,7 @@
+             Path to cached transcoded file if found and valid, None otherwise
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning None")
++        logger.debug("CACHE DISABLED, RETURNING NONE")
+         self._misses += 1
+         return None
+ 
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_6
+# backend.services.transcode_cache.xǁTranscodeCacheǁget__mutmut_6: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -12,7 +12,7 @@
+         """
+     if not self.config.enabled:
+         logger.debug("Cache disabled, returning None")
+-        self._misses += 1
++        self._misses = 1
+         return None
+ 
+     await self.initialize()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_10
+# backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_10: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -11,7 +11,7 @@
+     oldest_age = 0.0
+     if self._metadata:
+         oldest = min(e.last_accessed for e in self._metadata.values())
+-        oldest_age = (time.time() - oldest) / 3600
++        oldest_age = (time.time() - oldest) / 3601
+ 
+     total_requests = self._hits + self._misses
+     hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_18
+# backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_18: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -14,7 +14,7 @@
+         oldest_age = (time.time() - oldest) / 3600
+ 
+     total_requests = self._hits + self._misses
+-    hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
++    hit_rate = self._hits / total_requests if total_requests > 1 else 0.0
+ 
+     return CacheStats(
+         total_entries=len(self._metadata),
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_37
+# backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_37: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -19,7 +19,7 @@
+     return CacheStats(
+         total_entries=len(self._metadata),
+         total_size_bytes=total_size,
+-        total_size_gb=total_size / 1024 / 1024 / 1024,
++        total_size_gb=total_size / 1025 / 1024 / 1024,
+         oldest_entry_age_hours=oldest_age,
+         hit_rate=hit_rate,
+         hits=self._hits,
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_38
+# backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_38: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -19,7 +19,7 @@
+     return CacheStats(
+         total_entries=len(self._metadata),
+         total_size_bytes=total_size,
+-        total_size_gb=total_size / 1024 / 1024 / 1024,
++        total_size_gb=total_size / 1024 / 1025 / 1024,
+         oldest_entry_age_hours=oldest_age,
+         hit_rate=hit_rate,
+         hits=self._hits,
+===== backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_39
+# backend.services.transcode_cache.xǁTranscodeCacheǁget_stats__mutmut_39: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -19,7 +19,7 @@
+     return CacheStats(
+         total_entries=len(self._metadata),
+         total_size_bytes=total_size,
+-        total_size_gb=total_size / 1024 / 1024 / 1024,
++        total_size_gb=total_size / 1024 / 1024 / 1025,
+         oldest_entry_age_hours=oldest_age,
+         hit_rate=hit_rate,
+         hits=self._hits,
+===== backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_11
+# backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_11: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -19,6 +19,5 @@
+ 
+         self._initialized = True
+         logger.info(
+-            f"TranscodeCache initialized: {len(self._metadata)} entries, "
+-            f"cache_dir={self.cache_dir}"
++            None
+         )
+===== backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_2
+# backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_2: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -12,7 +12,7 @@
+             return
+ 
+         # Create cache directory
+-        await asyncio.to_thread(self.cache_dir.mkdir, parents=True, exist_ok=True)
++        await asyncio.to_thread(self.cache_dir.mkdir, parents=None, exist_ok=True)
+ 
+         # Load existing metadata
+         await self._load_metadata()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_5
+# backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_5: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -12,7 +12,7 @@
+             return
+ 
+         # Create cache directory
+-        await asyncio.to_thread(self.cache_dir.mkdir, parents=True, exist_ok=True)
++        await asyncio.to_thread(self.cache_dir.mkdir, exist_ok=True)
+ 
+         # Load existing metadata
+         await self._load_metadata()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_7
+# backend.services.transcode_cache.xǁTranscodeCacheǁinitialize__mutmut_7: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -12,7 +12,7 @@
+             return
+ 
+         # Create cache directory
+-        await asyncio.to_thread(self.cache_dir.mkdir, parents=True, exist_ok=True)
++        await asyncio.to_thread(self.cache_dir.mkdir, parents=False, exist_ok=True)
+ 
+         # Load existing metadata
+         await self._load_metadata()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁinvalidate__mutmut_5
+# backend.services.transcode_cache.xǁTranscodeCacheǁinvalidate__mutmut_5: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -14,6 +14,6 @@
+     async with self._lock:
+         if cache_key in self._metadata:
+             await self._remove_entry(cache_key)
+-            logger.info(f"Cache invalidated for: {source_path}")
++            logger.info(None)
+             return True
+         return False
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_2
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_2: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -18,7 +18,7 @@
+             Final path of the cached file
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning original path")
++        logger.debug(None)
+         return transcoded_path
+ 
+     await self.initialize()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_26
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_26: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -47,7 +47,7 @@
+             source_path=str(source_path),
+             source_mtime=source_mtime,
+             cached_path=str(cached_path),
+-            cached_at=time.time(),
++            cached_at=None,
+             last_accessed=time.time(),
+             size_bytes=size_bytes,
+             duration_seconds=duration_seconds,
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_3
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_3: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -18,7 +18,7 @@
+             Final path of the cached file
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning original path")
++        logger.debug("XXCache disabled, returning original pathXX")
+         return transcoded_path
+ 
+     await self.initialize()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_4
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_4: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -18,7 +18,7 @@
+             Final path of the cached file
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning original path")
++        logger.debug("cache disabled, returning original path")
+         return transcoded_path
+ 
+     await self.initialize()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_41
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_41: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -56,7 +56,7 @@
+         self._metadata[cache_key] = entry
+         await self._save_metadata()
+ 
+-        size_mb = size_bytes / 1024 / 1024
++        size_mb = size_bytes / 1024 * 1024
+         logger.info(f"Cached transcode: {source_path} -> {cached_path} ({size_mb:.1f}MB)")
+ 
+     # Check if cleanup needed (outside lock to avoid holding it too long)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_42
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_42: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -56,7 +56,7 @@
+         self._metadata[cache_key] = entry
+         await self._save_metadata()
+ 
+-        size_mb = size_bytes / 1024 / 1024
++        size_mb = size_bytes * 1024 / 1024
+         logger.info(f"Cached transcode: {source_path} -> {cached_path} ({size_mb:.1f}MB)")
+ 
+     # Check if cleanup needed (outside lock to avoid holding it too long)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_43
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_43: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -56,7 +56,7 @@
+         self._metadata[cache_key] = entry
+         await self._save_metadata()
+ 
+-        size_mb = size_bytes / 1024 / 1024
++        size_mb = size_bytes / 1025 / 1024
+         logger.info(f"Cached transcode: {source_path} -> {cached_path} ({size_mb:.1f}MB)")
+ 
+     # Check if cleanup needed (outside lock to avoid holding it too long)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_44
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_44: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -56,7 +56,7 @@
+         self._metadata[cache_key] = entry
+         await self._save_metadata()
+ 
+-        size_mb = size_bytes / 1024 / 1024
++        size_mb = size_bytes / 1024 / 1025
+         logger.info(f"Cached transcode: {source_path} -> {cached_path} ({size_mb:.1f}MB)")
+ 
+     # Check if cleanup needed (outside lock to avoid holding it too long)
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_45
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_45: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -57,7 +57,7 @@
+         await self._save_metadata()
+ 
+         size_mb = size_bytes / 1024 / 1024
+-        logger.info(f"Cached transcode: {source_path} -> {cached_path} ({size_mb:.1f}MB)")
++        logger.info(None)
+ 
+     # Check if cleanup needed (outside lock to avoid holding it too long)
+     await self._maybe_cleanup()
+===== backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_5
+# backend.services.transcode_cache.xǁTranscodeCacheǁput__mutmut_5: survived
+--- backend/services/transcode_cache.py
++++ backend/services/transcode_cache.py
+@@ -18,7 +18,7 @@
+             Final path of the cached file
+         """
+     if not self.config.enabled:
+-        logger.debug("Cache disabled, returning original path")
++        logger.debug("CACHE DISABLED, RETURNING ORIGINAL PATH")
+         return transcoded_path
+ 
+     await self.initialize()

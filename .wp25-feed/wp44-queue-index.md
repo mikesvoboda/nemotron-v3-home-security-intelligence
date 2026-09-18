@@ -1087,3 +1087,15 @@ never runs); detector_registry INVERTS to E-heavy (43/89) — registry glue
 behind mocks. Serial lane: container_discovery census ~17% probed (83 killed
 of 116) at 10.2 s/probe, ETA ~98 min from 14:4x; orchestrator batch (9 tests)
 authored, red-proof queued behind it.
+
+## WAVE 60b (straggler) — FOLD 2026-09-18
+
+inference_semaphore 77 survivors (arbiter ✓; dossier Totals 12 G / 56 E / 9 L,
+per-cluster sums verified ✓✓), 5 drafts. Journal == dossier, no split. E-heavy
+(72.7%) — semaphore timing/await glue behind fakes, the service_managers
+pattern again; its 12 G are the acquire/release contract mutants.
+
+MEASURE — gen-2 cumulative: 20,771 + 77 = **20,848 survivors** across 48
+modules; G 11,636 (55.8%) / E 5,271 (25.3%) / L 3,925 (18.8%); **343 drafted
+kill-tests**. NEW tier remaining after wave 61 dispatch: ~65 modules /
+~1,800 survivors.

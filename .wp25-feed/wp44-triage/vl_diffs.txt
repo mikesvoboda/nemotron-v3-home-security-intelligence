@@ -1,0 +1,1018 @@
+=== backend.services.violence_loader.x_classify_violence__mutmut_9
+# backend.services.violence_loader.x_classify_violence__mutmut_9: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -24,7 +24,7 @@
+ 
+         def _classify() -> ViolenceDetectionResult:
+             # Preprocess the image
+-            inputs = processor(images=image, return_tensors="pt")
++            inputs = processor(images=None, return_tensors="pt")
+ 
+             # Move to GPU if model is on GPU
+             if next(model.parameters()).is_cuda:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_10
+# backend.services.violence_loader.x_classify_violence__mutmut_10: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -24,7 +24,7 @@
+ 
+         def _classify() -> ViolenceDetectionResult:
+             # Preprocess the image
+-            inputs = processor(images=image, return_tensors="pt")
++            inputs = processor(images=image, return_tensors=None)
+ 
+             # Move to GPU if model is on GPU
+             if next(model.parameters()).is_cuda:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_11
+# backend.services.violence_loader.x_classify_violence__mutmut_11: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -24,7 +24,7 @@
+ 
+         def _classify() -> ViolenceDetectionResult:
+             # Preprocess the image
+-            inputs = processor(images=image, return_tensors="pt")
++            inputs = processor(return_tensors="pt")
+ 
+             # Move to GPU if model is on GPU
+             if next(model.parameters()).is_cuda:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_12
+# backend.services.violence_loader.x_classify_violence__mutmut_12: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -24,7 +24,7 @@
+ 
+         def _classify() -> ViolenceDetectionResult:
+             # Preprocess the image
+-            inputs = processor(images=image, return_tensors="pt")
++            inputs = processor(images=image, )
+ 
+             # Move to GPU if model is on GPU
+             if next(model.parameters()).is_cuda:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_13
+# backend.services.violence_loader.x_classify_violence__mutmut_13: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -24,7 +24,7 @@
+ 
+         def _classify() -> ViolenceDetectionResult:
+             # Preprocess the image
+-            inputs = processor(images=image, return_tensors="pt")
++            inputs = processor(images=image, return_tensors="XXptXX")
+ 
+             # Move to GPU if model is on GPU
+             if next(model.parameters()).is_cuda:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_14
+# backend.services.violence_loader.x_classify_violence__mutmut_14: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -24,7 +24,7 @@
+ 
+         def _classify() -> ViolenceDetectionResult:
+             # Preprocess the image
+-            inputs = processor(images=image, return_tensors="pt")
++            inputs = processor(images=image, return_tensors="PT")
+ 
+             # Move to GPU if model is on GPU
+             if next(model.parameters()).is_cuda:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_18
+# backend.services.violence_loader.x_classify_violence__mutmut_18: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -33,7 +33,7 @@
+             # Run inference
+             with torch.inference_mode():
+                 outputs = model(**inputs)
+-                logits = outputs.logits
++                logits = None
+ 
+             # Apply softmax to get probabilities
+             probs = torch.nn.functional.softmax(logits, dim=-1)
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_20
+# backend.services.violence_loader.x_classify_violence__mutmut_20: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -36,7 +36,7 @@
+                 logits = outputs.logits
+ 
+             # Apply softmax to get probabilities
+-            probs = torch.nn.functional.softmax(logits, dim=-1)
++            probs = torch.nn.functional.softmax(None, dim=-1)
+ 
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_21
+# backend.services.violence_loader.x_classify_violence__mutmut_21: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -36,7 +36,7 @@
+                 logits = outputs.logits
+ 
+             # Apply softmax to get probabilities
+-            probs = torch.nn.functional.softmax(logits, dim=-1)
++            probs = torch.nn.functional.softmax(logits, dim=None)
+ 
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_23
+# backend.services.violence_loader.x_classify_violence__mutmut_23: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -36,7 +36,7 @@
+                 logits = outputs.logits
+ 
+             # Apply softmax to get probabilities
+-            probs = torch.nn.functional.softmax(logits, dim=-1)
++            probs = torch.nn.functional.softmax(logits, )
+ 
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_24
+# backend.services.violence_loader.x_classify_violence__mutmut_24: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -36,7 +36,7 @@
+                 logits = outputs.logits
+ 
+             # Apply softmax to get probabilities
+-            probs = torch.nn.functional.softmax(logits, dim=-1)
++            probs = torch.nn.functional.softmax(logits, dim=+1)
+ 
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_25
+# backend.services.violence_loader.x_classify_violence__mutmut_25: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -36,7 +36,7 @@
+                 logits = outputs.logits
+ 
+             # Apply softmax to get probabilities
+-            probs = torch.nn.functional.softmax(logits, dim=-1)
++            probs = torch.nn.functional.softmax(logits, dim=-2)
+ 
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_26
+# backend.services.violence_loader.x_classify_violence__mutmut_26: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -41,7 +41,7 @@
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+             # or similar - we need to check the config
+-            id2label = model.config.id2label if hasattr(model.config, "id2label") else None
++            id2label = None
+ 
+             # Determine which index corresponds to "violent"
+             violent_idx = 1
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_27
+# backend.services.violence_loader.x_classify_violence__mutmut_27: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -41,7 +41,7 @@
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+             # or similar - we need to check the config
+-            id2label = model.config.id2label if hasattr(model.config, "id2label") else None
++            id2label = model.config.id2label if (hasattr(model.config, "id2label")) and False else None
+ 
+             # Determine which index corresponds to "violent"
+             violent_idx = 1
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_29
+# backend.services.violence_loader.x_classify_violence__mutmut_29: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -41,7 +41,7 @@
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+             # or similar - we need to check the config
+-            id2label = model.config.id2label if hasattr(model.config, "id2label") else None
++            id2label = model.config.id2label if hasattr(None, "id2label") else None
+ 
+             # Determine which index corresponds to "violent"
+             violent_idx = 1
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_33
+# backend.services.violence_loader.x_classify_violence__mutmut_33: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -41,7 +41,7 @@
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+             # or similar - we need to check the config
+-            id2label = model.config.id2label if hasattr(model.config, "id2label") else None
++            id2label = model.config.id2label if hasattr(model.config, "XXid2labelXX") else None
+ 
+             # Determine which index corresponds to "violent"
+             violent_idx = 1
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_34
+# backend.services.violence_loader.x_classify_violence__mutmut_34: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -41,7 +41,7 @@
+             # Get class labels from model config
+             # Model typically has id2label mapping: {0: "non-violent", 1: "violent"}
+             # or similar - we need to check the config
+-            id2label = model.config.id2label if hasattr(model.config, "id2label") else None
++            id2label = model.config.id2label if hasattr(model.config, "ID2LABEL") else None
+ 
+             # Determine which index corresponds to "violent"
+             violent_idx = 1
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_40
+# backend.services.violence_loader.x_classify_violence__mutmut_40: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -49,7 +49,7 @@
+ 
+             if id2label:
+                 for idx, label in id2label.items():
+-                    label_lower = label.lower()
++                    label_lower = label.upper()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+                     elif "non" in label_lower or "safe" in label_lower:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_41
+# backend.services.violence_loader.x_classify_violence__mutmut_41: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -50,7 +50,7 @@
+             if id2label:
+                 for idx, label in id2label.items():
+                     label_lower = label.lower()
+-                    if "violent" in label_lower and "non" not in label_lower:
++                    if "violent" in label_lower or "non" not in label_lower:
+                         violent_idx = int(idx)
+                     elif "non" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_42
+# backend.services.violence_loader.x_classify_violence__mutmut_42: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -50,7 +50,7 @@
+             if id2label:
+                 for idx, label in id2label.items():
+                     label_lower = label.lower()
+-                    if "violent" in label_lower and "non" not in label_lower:
++                    if "XXviolentXX" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+                     elif "non" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_43
+# backend.services.violence_loader.x_classify_violence__mutmut_43: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -50,7 +50,7 @@
+             if id2label:
+                 for idx, label in id2label.items():
+                     label_lower = label.lower()
+-                    if "violent" in label_lower and "non" not in label_lower:
++                    if "VIOLENT" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+                     elif "non" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_45
+# backend.services.violence_loader.x_classify_violence__mutmut_45: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -50,7 +50,7 @@
+             if id2label:
+                 for idx, label in id2label.items():
+                     label_lower = label.lower()
+-                    if "violent" in label_lower and "non" not in label_lower:
++                    if "violent" in label_lower and "XXnonXX" not in label_lower:
+                         violent_idx = int(idx)
+                     elif "non" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_46
+# backend.services.violence_loader.x_classify_violence__mutmut_46: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -50,7 +50,7 @@
+             if id2label:
+                 for idx, label in id2label.items():
+                     label_lower = label.lower()
+-                    if "violent" in label_lower and "non" not in label_lower:
++                    if "violent" in label_lower and "NON" not in label_lower:
+                         violent_idx = int(idx)
+                     elif "non" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_50
+# backend.services.violence_loader.x_classify_violence__mutmut_50: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "non" in label_lower and "safe" in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_51
+# backend.services.violence_loader.x_classify_violence__mutmut_51: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "XXnonXX" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_52
+# backend.services.violence_loader.x_classify_violence__mutmut_52: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "NON" in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_53
+# backend.services.violence_loader.x_classify_violence__mutmut_53: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "non" not in label_lower or "safe" in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_54
+# backend.services.violence_loader.x_classify_violence__mutmut_54: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "non" in label_lower or "XXsafeXX" in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_55
+# backend.services.violence_loader.x_classify_violence__mutmut_55: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "non" in label_lower or "SAFE" in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_56
+# backend.services.violence_loader.x_classify_violence__mutmut_56: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -52,7 +52,7 @@
+                     label_lower = label.lower()
+                     if "violent" in label_lower and "non" not in label_lower:
+                         violent_idx = int(idx)
+-                    elif "non" in label_lower or "safe" in label_lower:
++                    elif "non" in label_lower or "safe" not in label_lower:
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_60
+# backend.services.violence_loader.x_classify_violence__mutmut_60: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -56,7 +56,7 @@
+                         non_violent_idx = int(idx)
+ 
+             # Extract scores
+-            probs_list = probs[0].cpu().tolist()
++            probs_list = probs[1].cpu().tolist()
+ 
+             # Handle different number of classes
+             if len(probs_list) >= 2:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_77
+# backend.services.violence_loader.x_classify_violence__mutmut_77: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -75,7 +75,7 @@
+             if violent_score >= 0.70:
+                 confidence_tier = "definitive"
+                 is_violent = True
+-            elif violent_score >= 0.55:
++            elif violent_score > 0.55:
+                 confidence_tier = "suspected"
+                 is_violent = False  # NOT marked as violent at suspected tier
+             else:
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_89
+# backend.services.violence_loader.x_classify_violence__mutmut_89: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -83,7 +83,7 @@
+                 is_violent = False
+ 
+             # Confidence reflects the winning score
+-            confidence = violent_score if is_violent else non_violent_score
++            confidence = None
+ 
+             return ViolenceDetectionResult(
+                 is_violent=is_violent,
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_90
+# backend.services.violence_loader.x_classify_violence__mutmut_90: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -83,7 +83,7 @@
+                 is_violent = False
+ 
+             # Confidence reflects the winning score
+-            confidence = violent_score if is_violent else non_violent_score
++            confidence = violent_score if (is_violent) and False else non_violent_score
+ 
+             return ViolenceDetectionResult(
+                 is_violent=is_violent,
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_91
+# backend.services.violence_loader.x_classify_violence__mutmut_91: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -83,7 +83,7 @@
+                 is_violent = False
+ 
+             # Confidence reflects the winning score
+-            confidence = violent_score if is_violent else non_violent_score
++            confidence = violent_score if (is_violent) or True else non_violent_score
+ 
+             return ViolenceDetectionResult(
+                 is_violent=is_violent,
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_93
+# backend.services.violence_loader.x_classify_violence__mutmut_93: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -87,7 +87,7 @@
+ 
+             return ViolenceDetectionResult(
+                 is_violent=is_violent,
+-                confidence=confidence,
++                confidence=None,
+                 violent_score=violent_score,
+                 non_violent_score=non_violent_score,
+                 confidence_tier=confidence_tier,
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_103
+# backend.services.violence_loader.x_classify_violence__mutmut_103: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -99,7 +99,7 @@
+         try:
+             return await asyncio.wait_for(
+                 loop.run_in_executor(None, _classify),
+-                timeout=10.0,
++                timeout=None,
+             )
+         except TimeoutError:
+             logger.warning(
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_109
+# backend.services.violence_loader.x_classify_violence__mutmut_109: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -99,7 +99,7 @@
+         try:
+             return await asyncio.wait_for(
+                 loop.run_in_executor(None, _classify),
+-                timeout=10.0,
++                timeout=11.0,
+             )
+         except TimeoutError:
+             logger.warning(
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_110
+# backend.services.violence_loader.x_classify_violence__mutmut_110: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error(None, exc_info=True)
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_111
+# backend.services.violence_loader.x_classify_violence__mutmut_111: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error("Violence classification failed", exc_info=None)
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_113
+# backend.services.violence_loader.x_classify_violence__mutmut_113: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error("Violence classification failed", )
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_114
+# backend.services.violence_loader.x_classify_violence__mutmut_114: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error("XXViolence classification failedXX", exc_info=True)
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_115
+# backend.services.violence_loader.x_classify_violence__mutmut_115: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error("violence classification failed", exc_info=True)
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_116
+# backend.services.violence_loader.x_classify_violence__mutmut_116: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error("VIOLENCE CLASSIFICATION FAILED", exc_info=True)
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_classify_violence__mutmut_117
+# backend.services.violence_loader.x_classify_violence__mutmut_117: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -115,5 +115,5 @@
+             )
+ 
+     except Exception as e:
+-        logger.error("Violence classification failed", exc_info=True)
++        logger.error("Violence classification failed", exc_info=False)
+         raise RuntimeError(f"Violence classification failed: {e}") from e
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_3
+# backend.services.violence_loader.x_load_violence_model__mutmut_3: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -29,7 +29,7 @@
+         # model unavailable and the enrichment pipeline skips it gracefully on CPU hosts.
+         if not torch.cuda.is_available():
+             raise RuntimeError(
+-                "violence-detection requires CUDA — ViT-base CPU inference holds the GIL "
++                "XXviolence-detection requires CUDA — ViT-base CPU inference holds the GIL XX"
+                 "for 60-120s per image, starving the asyncio event loop. "
+                 "Model will be skipped on CPU-only hosts."
+             )
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_6
+# backend.services.violence_loader.x_load_violence_model__mutmut_6: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -34,7 +34,7 @@
+                 "Model will be skipped on CPU-only hosts."
+             )
+ 
+-        logger.info(f"Loading violence detection model from {model_path}")
++        logger.info(None)
+ 
+         # Validate local model path has required files when directory exists
+         # (only fires in container where /models/model-zoo/ is mounted;
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_9
+# backend.services.violence_loader.x_load_violence_model__mutmut_9: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -53,7 +53,7 @@
+         loop = asyncio.get_running_loop()
+ 
+         def _load() -> dict[str, Any]:
+-            processor = AutoImageProcessor.from_pretrained(model_path)
++            processor = None
+             model = AutoModelForImageClassification.from_pretrained(model_path)
+ 
+             # Move to GPU if available, with meta-tensor guard.
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_10
+# backend.services.violence_loader.x_load_violence_model__mutmut_10: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -53,7 +53,7 @@
+         loop = asyncio.get_running_loop()
+ 
+         def _load() -> dict[str, Any]:
+-            processor = AutoImageProcessor.from_pretrained(model_path)
++            processor = AutoImageProcessor.from_pretrained(None)
+             model = AutoModelForImageClassification.from_pretrained(model_path)
+ 
+             # Move to GPU if available, with meta-tensor guard.
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_12
+# backend.services.violence_loader.x_load_violence_model__mutmut_12: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -54,7 +54,7 @@
+ 
+         def _load() -> dict[str, Any]:
+             processor = AutoImageProcessor.from_pretrained(model_path)
+-            model = AutoModelForImageClassification.from_pretrained(model_path)
++            model = AutoModelForImageClassification.from_pretrained(None)
+ 
+             # Move to GPU if available, with meta-tensor guard.
+             # HuggingFace models can be saved with lazy (meta) weights; calling
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_14
+# backend.services.violence_loader.x_load_violence_model__mutmut_14: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -65,7 +65,7 @@
+                 import torch
+ 
+                 if torch.cuda.is_available():
+-                    if any(p.device.type == "meta" for p in model.parameters()):
++                    if any(p.device.type != "meta" for p in model.parameters()):
+                         logger.warning(
+                             "Violence detection model contains meta tensors "
+                             "(lazy-loaded weights). Materializing before moving to CUDA."
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_15
+# backend.services.violence_loader.x_load_violence_model__mutmut_15: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -65,7 +65,7 @@
+                 import torch
+ 
+                 if torch.cuda.is_available():
+-                    if any(p.device.type == "meta" for p in model.parameters()):
++                    if any(p.device.type == "XXmetaXX" for p in model.parameters()):
+                         logger.warning(
+                             "Violence detection model contains meta tensors "
+                             "(lazy-loaded weights). Materializing before moving to CUDA."
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_16
+# backend.services.violence_loader.x_load_violence_model__mutmut_16: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -65,7 +65,7 @@
+                 import torch
+ 
+                 if torch.cuda.is_available():
+-                    if any(p.device.type == "meta" for p in model.parameters()):
++                    if any(p.device.type == "META" for p in model.parameters()):
+                         logger.warning(
+                             "Violence detection model contains meta tensors "
+                             "(lazy-loaded weights). Materializing before moving to CUDA."
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_18
+# backend.services.violence_loader.x_load_violence_model__mutmut_18: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -76,7 +76,7 @@
+                     else:
+                         model = model.cuda()
+                     model.eval()
+-                    logger.info("Violence detection model moved to CUDA")
++                    logger.info(None)
+                 else:
+                     model.eval()
+             except ImportError:
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_19
+# backend.services.violence_loader.x_load_violence_model__mutmut_19: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -76,7 +76,7 @@
+                     else:
+                         model = model.cuda()
+                     model.eval()
+-                    logger.info("Violence detection model moved to CUDA")
++                    logger.info("XXViolence detection model moved to CUDAXX")
+                 else:
+                     model.eval()
+             except ImportError:
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_20
+# backend.services.violence_loader.x_load_violence_model__mutmut_20: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -76,7 +76,7 @@
+                     else:
+                         model = model.cuda()
+                     model.eval()
+-                    logger.info("Violence detection model moved to CUDA")
++                    logger.info("violence detection model moved to cuda")
+                 else:
+                     model.eval()
+             except ImportError:
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_21
+# backend.services.violence_loader.x_load_violence_model__mutmut_21: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -76,7 +76,7 @@
+                     else:
+                         model = model.cuda()
+                     model.eval()
+-                    logger.info("Violence detection model moved to CUDA")
++                    logger.info("VIOLENCE DETECTION MODEL MOVED TO CUDA")
+                 else:
+                     model.eval()
+             except ImportError:
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_30
+# backend.services.violence_loader.x_load_violence_model__mutmut_30: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -86,7 +86,7 @@
+ 
+         result = await loop.run_in_executor(None, _load)
+ 
+-        logger.info(f"Successfully loaded violence detection model from {model_path}")
++        logger.info(None)
+         return result
+ 
+     except ImportError as e:
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_31
+# backend.services.violence_loader.x_load_violence_model__mutmut_31: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -90,7 +90,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning(None)
+         raise ImportError(
+             "transformers package required for violence detection. "
+             "Install with: pip install transformers"
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_32
+# backend.services.violence_loader.x_load_violence_model__mutmut_32: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -90,7 +90,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning("XXtransformers package not installed. Install with: pip install transformersXX")
+         raise ImportError(
+             "transformers package required for violence detection. "
+             "Install with: pip install transformers"
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_33
+# backend.services.violence_loader.x_load_violence_model__mutmut_33: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -90,7 +90,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning("transformers package not installed. install with: pip install transformers")
+         raise ImportError(
+             "transformers package required for violence detection. "
+             "Install with: pip install transformers"
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_34
+# backend.services.violence_loader.x_load_violence_model__mutmut_34: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -90,7 +90,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning("TRANSFORMERS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL TRANSFORMERS")
+         raise ImportError(
+             "transformers package required for violence detection. "
+             "Install with: pip install transformers"
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_36
+# backend.services.violence_loader.x_load_violence_model__mutmut_36: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -92,7 +92,7 @@
+     except ImportError as e:
+         logger.warning("transformers package not installed. Install with: pip install transformers")
+         raise ImportError(
+-            "transformers package required for violence detection. "
++            "XXtransformers package required for violence detection. XX"
+             "Install with: pip install transformers"
+         ) from e
+ 
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_37
+# backend.services.violence_loader.x_load_violence_model__mutmut_37: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -92,7 +92,7 @@
+     except ImportError as e:
+         logger.warning("transformers package not installed. Install with: pip install transformers")
+         raise ImportError(
+-            "transformers package required for violence detection. "
++            "TRANSFORMERS PACKAGE REQUIRED FOR VIOLENCE DETECTION. "
+             "Install with: pip install transformers"
+         ) from e
+ 
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_38
+# backend.services.violence_loader.x_load_violence_model__mutmut_38: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -98,7 +98,7 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load violence detection model",
++            None,
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_39
+# backend.services.violence_loader.x_load_violence_model__mutmut_39: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -99,7 +99,7 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load violence detection model",
+-            exc_info=True,
++            exc_info=None,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_40
+# backend.services.violence_loader.x_load_violence_model__mutmut_40: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -100,6 +100,6 @@
+         logger.error(
+             "Failed to load violence detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra=None,
+         )
+         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_42
+# backend.services.violence_loader.x_load_violence_model__mutmut_42: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -99,7 +99,6 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load violence detection model",
+-            exc_info=True,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_43
+# backend.services.violence_loader.x_load_violence_model__mutmut_43: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -100,6 +100,5 @@
+         logger.error(
+             "Failed to load violence detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
+-        )
++            )
+         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_44
+# backend.services.violence_loader.x_load_violence_model__mutmut_44: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -98,7 +98,7 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load violence detection model",
++            "XXFailed to load violence detection modelXX",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_45
+# backend.services.violence_loader.x_load_violence_model__mutmut_45: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -98,7 +98,7 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load violence detection model",
++            "failed to load violence detection model",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_46
+# backend.services.violence_loader.x_load_violence_model__mutmut_46: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -98,7 +98,7 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load violence detection model",
++            "FAILED TO LOAD VIOLENCE DETECTION MODEL",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_47
+# backend.services.violence_loader.x_load_violence_model__mutmut_47: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -99,7 +99,7 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load violence detection model",
+-            exc_info=True,
++            exc_info=False,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
+
+=== backend.services.violence_loader.x_load_violence_model__mutmut_48
+# backend.services.violence_loader.x_load_violence_model__mutmut_48: survived
+--- backend/services/violence_loader.py
++++ backend/services/violence_loader.py
+@@ -100,6 +100,6 @@
+         logger.error(
+             "Failed to load violence detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra={"XXmodel_pathXX": model_path},
+         )
+         raise RuntimeError(f"Failed to load violence detection model: {e}") from e
+

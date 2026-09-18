@@ -1,0 +1,744 @@
+{
+ "C1": [
+  {
+   "key": "EntityClusteringService::__init__#4",
+   "hunk": "@@ -20,7 +20,7 @@",
+   "minus": [
+    "\"EntityClusteringService initialized with threshold=%s, model=%s\","
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::__init__#5",
+   "hunk": "@@ -21,6 +21,6 @@",
+   "minus": [
+    "similarity_threshold,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::__init__#6",
+   "hunk": "@@ -22,5 +22,5 @@",
+   "minus": [
+    "embedding_model,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::__init__#7",
+   "hunk": "@@ -20,7 +20,6 @@",
+   "minus": [
+    "\"EntityClusteringService initialized with threshold=%s, model=%s\","
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::__init__#8",
+   "hunk": "@@ -21,6 +21,5 @@",
+   "minus": [
+    "similarity_threshold,"
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::__init__#9",
+   "hunk": "@@ -22,5 +22,4 @@",
+   "minus": [
+    "embedding_model,",
+    ")"
+   ],
+   "plus": [
+    ")"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::__init__#10",
+   "hunk": "@@ -20,7 +20,7 @@",
+   "minus": [
+    "\"EntityClusteringService initialized with threshold=%s, model=%s\","
+   ],
+   "plus": [
+    "\"XXEntityClusteringService initialized with threshold=%s, model=%sXX\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::__init__#11",
+   "hunk": "@@ -20,7 +20,7 @@",
+   "minus": [
+    "\"EntityClusteringService initialized with threshold=%s, model=%s\","
+   ],
+   "plus": [
+    "\"entityclusteringservice initialized with threshold=%s, model=%s\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::__init__#12",
+   "hunk": "@@ -20,7 +20,7 @@",
+   "minus": [
+    "\"EntityClusteringService initialized with threshold=%s, model=%s\","
+   ],
+   "plus": [
+    "\"ENTITYCLUSTERINGSERVICE INITIALIZED WITH THRESHOLD=%S, MODEL=%S\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#42",
+   "hunk": "@@ -66,7 +66,7 @@",
+   "minus": [
+    "\"Detection %d matched entity %s (similarity: %.3f)\","
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#43",
+   "hunk": "@@ -67,7 +67,7 @@",
+   "minus": [
+    "detection_id,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#44",
+   "hunk": "@@ -68,7 +68,7 @@",
+   "minus": [
+    "matched_entity.id,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#45",
+   "hunk": "@@ -69,7 +69,7 @@",
+   "minus": [
+    "similarity,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#46",
+   "hunk": "@@ -66,7 +66,6 @@",
+   "minus": [
+    "\"Detection %d matched entity %s (similarity: %.3f)\","
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#47",
+   "hunk": "@@ -67,7 +67,6 @@",
+   "minus": [
+    "detection_id,"
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#48",
+   "hunk": "@@ -68,7 +68,6 @@",
+   "minus": [
+    "matched_entity.id,"
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#49",
+   "hunk": "@@ -69,8 +69,7 @@",
+   "minus": [
+    "similarity,",
+    ")"
+   ],
+   "plus": [
+    ")"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#50",
+   "hunk": "@@ -66,7 +66,7 @@",
+   "minus": [
+    "\"Detection %d matched entity %s (similarity: %.3f)\","
+   ],
+   "plus": [
+    "\"XXDetection %d matched entity %s (similarity: %.3f)XX\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#51",
+   "hunk": "@@ -66,7 +66,7 @@",
+   "minus": [
+    "\"Detection %d matched entity %s (similarity: %.3f)\","
+   ],
+   "plus": [
+    "\"detection %d matched entity %s (similarity: %.3f)\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#52",
+   "hunk": "@@ -66,7 +66,7 @@",
+   "minus": [
+    "\"Detection %d matched entity %s (similarity: %.3f)\","
+   ],
+   "plus": [
+    "\"DETECTION %D MATCHED ENTITY %S (SIMILARITY: %.3F)\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#79",
+   "hunk": "@@ -91,7 +91,7 @@",
+   "minus": [
+    "\"Detection %d created new entity %s\","
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#80",
+   "hunk": "@@ -92,7 +92,7 @@",
+   "minus": [
+    "detection_id,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#81",
+   "hunk": "@@ -93,7 +93,7 @@",
+   "minus": [
+    "new_entity.id,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#82",
+   "hunk": "@@ -91,7 +91,6 @@",
+   "minus": [
+    "\"Detection %d created new entity %s\","
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#83",
+   "hunk": "@@ -92,7 +92,6 @@",
+   "minus": [
+    "detection_id,"
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#84",
+   "hunk": "@@ -93,8 +93,7 @@",
+   "minus": [
+    "new_entity.id,",
+    ")"
+   ],
+   "plus": [
+    ")"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#85",
+   "hunk": "@@ -91,7 +91,7 @@",
+   "minus": [
+    "\"Detection %d created new entity %s\","
+   ],
+   "plus": [
+    "\"XXDetection %d created new entity %sXX\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#86",
+   "hunk": "@@ -91,7 +91,7 @@",
+   "minus": [
+    "\"Detection %d created new entity %s\","
+   ],
+   "plus": [
+    "\"detection %d created new entity %s\","
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#87",
+   "hunk": "@@ -91,7 +91,7 @@",
+   "minus": [
+    "\"Detection %d created new entity %s\","
+   ],
+   "plus": [
+    "\"DETECTION %D CREATED NEW ENTITY %S\","
+   ]
+  }
+ ],
+ "C3": [
+  {
+   "key": "EntityClusteringService::assign_entity#24",
+   "hunk": "@@ -58,7 +58,7 @@",
+   "minus": [
+    "cameras_seen = matched_entity.entity_metadata.get(\"cameras_seen\", [])"
+   ],
+   "plus": [
+    "cameras_seen = matched_entity.entity_metadata.get(None, [])"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#28",
+   "hunk": "@@ -58,7 +58,7 @@",
+   "minus": [
+    "cameras_seen = matched_entity.entity_metadata.get(\"cameras_seen\", [])"
+   ],
+   "plus": [
+    "cameras_seen = matched_entity.entity_metadata.get(\"XXcameras_seenXX\", [])"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#29",
+   "hunk": "@@ -58,7 +58,7 @@",
+   "minus": [
+    "cameras_seen = matched_entity.entity_metadata.get(\"cameras_seen\", [])"
+   ],
+   "plus": [
+    "cameras_seen = matched_entity.entity_metadata.get(\"CAMERAS_SEEN\", [])"
+   ]
+  }
+ ],
+ "C4": [
+  {
+   "key": "EntityClusteringService::assign_entity#30",
+   "hunk": "@@ -59,7 +59,7 @@",
+   "minus": [
+    "if camera_id and camera_id not in cameras_seen:"
+   ],
+   "plus": [
+    "if camera_id or camera_id not in cameras_seen:"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#31",
+   "hunk": "@@ -59,7 +59,7 @@",
+   "minus": [
+    "if camera_id and camera_id not in cameras_seen:"
+   ],
+   "plus": [
+    "if camera_id and camera_id in cameras_seen:"
+   ]
+  }
+ ],
+ "C5": [
+  {
+   "key": "EntityClusteringService::assign_entity#33",
+   "hunk": "@@ -61,7 +61,7 @@",
+   "minus": [
+    "matched_entity.entity_metadata[\"cameras_seen\"] = cameras_seen"
+   ],
+   "plus": [
+    "matched_entity.entity_metadata[\"cameras_seen\"] = None"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#34",
+   "hunk": "@@ -61,7 +61,7 @@",
+   "minus": [
+    "matched_entity.entity_metadata[\"cameras_seen\"] = cameras_seen"
+   ],
+   "plus": [
+    "matched_entity.entity_metadata[\"XXcameras_seenXX\"] = cameras_seen"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#35",
+   "hunk": "@@ -61,7 +61,7 @@",
+   "minus": [
+    "matched_entity.entity_metadata[\"cameras_seen\"] = cameras_seen"
+   ],
+   "plus": [
+    "matched_entity.entity_metadata[\"CAMERAS_SEEN\"] = cameras_seen"
+   ]
+  }
+ ],
+ "C6": [
+  {
+   "key": "EntityClusteringService::assign_entity#32",
+   "hunk": "@@ -60,7 +60,7 @@",
+   "minus": [
+    "cameras_seen.append(camera_id)"
+   ],
+   "plus": [
+    "cameras_seen.append(None)"
+   ]
+  }
+ ],
+ "C7": [
+  {
+   "key": "EntityClusteringService::assign_entity#68",
+   "hunk": "@@ -85,7 +85,7 @@",
+   "minus": [
+    "new_entity.entity_metadata[\"cameras_seen\"] = [camera_id]"
+   ],
+   "plus": [
+    "new_entity.entity_metadata[\"XXcameras_seenXX\"] = [camera_id]"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#69",
+   "hunk": "@@ -85,7 +85,7 @@",
+   "minus": [
+    "new_entity.entity_metadata[\"cameras_seen\"] = [camera_id]"
+   ],
+   "plus": [
+    "new_entity.entity_metadata[\"CAMERAS_SEEN\"] = [camera_id]"
+   ]
+  }
+ ],
+ "C8": [
+  {
+   "key": "EntityClusteringService::assign_entity#70",
+   "hunk": "@@ -86,7 +86,7 @@",
+   "minus": [
+    "new_entity.entity_metadata[\"camera_id\"] = camera_id"
+   ],
+   "plus": [
+    "new_entity.entity_metadata[\"camera_id\"] = None"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#71",
+   "hunk": "@@ -86,7 +86,7 @@",
+   "minus": [
+    "new_entity.entity_metadata[\"camera_id\"] = camera_id"
+   ],
+   "plus": [
+    "new_entity.entity_metadata[\"XXcamera_idXX\"] = camera_id"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#72",
+   "hunk": "@@ -86,7 +86,7 @@",
+   "minus": [
+    "new_entity.entity_metadata[\"camera_id\"] = camera_id"
+   ],
+   "plus": [
+    "new_entity.entity_metadata[\"CAMERA_ID\"] = camera_id"
+   ]
+  }
+ ],
+ "C13": [
+  {
+   "key": "EntityClusteringService::assign_entity#14",
+   "hunk": "@@ -51,7 +51,7 @@",
+   "minus": [
+    "detection_id=detection_id,"
+   ],
+   "plus": [
+    "detection_id=None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#15",
+   "hunk": "@@ -52,7 +52,7 @@",
+   "minus": [
+    "timestamp=timestamp,"
+   ],
+   "plus": [
+    "timestamp=None,"
+   ]
+  }
+ ],
+ "C14": [
+  {
+   "key": "EntityClusteringService::_create_entity#5",
+   "hunk": "@@ -26,7 +26,7 @@",
+   "minus": [
+    "model=self.embedding_model,"
+   ],
+   "plus": [
+    "model=None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_create_entity#6",
+   "hunk": "@@ -27,7 +27,7 @@",
+   "minus": [
+    "entity_metadata=attributes,"
+   ],
+   "plus": [
+    "entity_metadata=None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_create_entity#10",
+   "hunk": "@@ -26,7 +26,6 @@",
+   "minus": [
+    "model=self.embedding_model,"
+   ],
+   "plus": []
+  },
+  {
+   "key": "EntityClusteringService::_create_entity#11",
+   "hunk": "@@ -27,8 +27,7 @@",
+   "minus": [
+    "entity_metadata=attributes,",
+    ")"
+   ],
+   "plus": [
+    ")"
+   ]
+  }
+ ],
+ "C15": [
+  {
+   "key": "EntityClusteringService::_update_entity_with_detection#1",
+   "hunk": "@@ -17,7 +17,7 @@",
+   "minus": [
+    "entity.update_seen(timestamp)"
+   ],
+   "plus": [
+    "entity.update_seen(None)"
+   ]
+  }
+ ],
+ "C16": [
+  {
+   "key": "EntityClusteringService::assign_entity#16",
+   "hunk": "@@ -53,7 +53,7 @@",
+   "minus": [
+    "attributes=attributes,"
+   ],
+   "plus": [
+    "attributes=None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::assign_entity#59",
+   "hunk": "@@ -79,7 +79,7 @@",
+   "minus": [
+    "attributes=attributes,"
+   ],
+   "plus": [
+    "attributes=None,"
+   ]
+  }
+ ],
+ "C20": [
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#2",
+   "hunk": "@@ -14,7 +14,7 @@",
+   "minus": [
+    "self.entity_repository.session,"
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#5",
+   "hunk": "@@ -26,7 +26,7 @@",
+   "minus": [
+    "event_id=str(entity.id),"
+   ],
+   "plus": [
+    "event_id=None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#9",
+   "hunk": "@@ -26,8 +26,7 @@",
+   "minus": [
+    "event_id=str(entity.id),",
+    ")"
+   ],
+   "plus": [
+    ")"
+   ]
+  }
+ ],
+ "C21": [
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#19",
+   "hunk": "@@ -21,7 +21,7 @@",
+   "minus": [
+    "\"first_seen_at\": entity.first_seen_at.isoformat()"
+   ],
+   "plus": [
+    "\"XXfirst_seen_atXX\": entity.first_seen_at.isoformat()"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#20",
+   "hunk": "@@ -21,7 +21,7 @@",
+   "minus": [
+    "\"first_seen_at\": entity.first_seen_at.isoformat()"
+   ],
+   "plus": [
+    "\"FIRST_SEEN_AT\": entity.first_seen_at.isoformat()"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#21",
+   "hunk": "@@ -22,7 +22,7 @@",
+   "minus": [
+    "if entity.first_seen_at"
+   ],
+   "plus": [
+    "if (entity.first_seen_at) and False"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#22",
+   "hunk": "@@ -22,7 +22,7 @@",
+   "minus": [
+    "if entity.first_seen_at"
+   ],
+   "plus": [
+    "if (entity.first_seen_at) or True"
+   ]
+  }
+ ],
+ "C22": [
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#12",
+   "hunk": "@@ -17,7 +17,7 @@",
+   "minus": [
+    "\"entity_id\": str(entity.id),"
+   ],
+   "plus": [
+    "\"entity_id\": str(None),"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#23",
+   "hunk": "@@ -24,7 +24,7 @@",
+   "minus": [
+    "\"detection_count\": entity.detection_count,"
+   ],
+   "plus": [
+    "\"XXdetection_countXX\": entity.detection_count,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#24",
+   "hunk": "@@ -24,7 +24,7 @@",
+   "minus": [
+    "\"detection_count\": entity.detection_count,"
+   ],
+   "plus": [
+    "\"DETECTION_COUNT\": entity.detection_count,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#25",
+   "hunk": "@@ -26,7 +26,7 @@",
+   "minus": [
+    "event_id=str(entity.id),"
+   ],
+   "plus": [
+    "event_id=str(None),"
+   ]
+  }
+ ],
+ "C23": [
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#26",
+   "hunk": "@@ -31,6 +31,6 @@",
+   "minus": [
+    "f\"Failed to trigger ENTITY_DISCOVERED webhooks: {e}\","
+   ],
+   "plus": [
+    "None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#27",
+   "hunk": "@@ -32,5 +32,5 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ],
+   "plus": [
+    "extra=None,"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#29",
+   "hunk": "@@ -32,5 +32,4 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},",
+    ")"
+   ],
+   "plus": [
+    ")"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#30",
+   "hunk": "@@ -32,5 +32,5 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ],
+   "plus": [
+    "extra={\"XXentity_idXX\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#31",
+   "hunk": "@@ -32,5 +32,5 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ],
+   "plus": [
+    "extra={\"ENTITY_ID\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#32",
+   "hunk": "@@ -32,5 +32,5 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ],
+   "plus": [
+    "extra={\"entity_id\": str(None), \"entity_type\": entity.entity_type},"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#33",
+   "hunk": "@@ -32,5 +32,5 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ],
+   "plus": [
+    "extra={\"entity_id\": str(entity.id), \"XXentity_typeXX\": entity.entity_type},"
+   ]
+  },
+  {
+   "key": "EntityClusteringService::_trigger_entity_discovered_webhook#34",
+   "hunk": "@@ -32,5 +32,5 @@",
+   "minus": [
+    "extra={\"entity_id\": str(entity.id), \"entity_type\": entity.entity_type},"
+   ],
+   "plus": [
+    "extra={\"entity_id\": str(entity.id), \"ENTITY_TYPE\": entity.entity_type},"
+   ]
+  }
+ ],
+ "C24": [
+  {
+   "key": "EntityClusteringService::assign_entity#89",
+   "hunk": "@@ -97,6 +97,6 @@",
+   "minus": [
+    "await self._trigger_entity_discovered_webhook(new_entity, camera_id)"
+   ],
+   "plus": [
+    "await self._trigger_entity_discovered_webhook(new_entity, None)"
+   ]
+  }
+ ]
+}
