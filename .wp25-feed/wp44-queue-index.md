@@ -1129,3 +1129,23 @@ never re-typed]; **377 drafted kill-tests** (343 + 34). Shape: routes/logs
 57/62 G — a whole FastAPI route module essentially untested; websocket_service
 inverts to 41/69 L (log-heavy broadcaster twin). Serial-lane live: census past
 half, kill-test commits (container_discovery batch first) land on completion.
+
+## WAVE 61b (zone_service) — FOLD 2026-09-18
+
+zone_service 59 survivors (arbiter ✓ 455k/59s/514, 88.52%): journal and
+dossier agree **G40/E17/L2 = 59 ✔**, 22 drafts. Fold note (honest): wave 61's
+workflow was STILL RUNNING when 61a was folded — the zone agent had not yet
+flushed to journal.jsonl, and a premature direct-agent redo was dispatched,
+then stopped when the workflow's own result landed. The dossier on disk is the
+workflow agent's (mtime matches workflow completion; totals agree with its
+journal result; the redo never wrote it). Lesson recorded: a live workflow's
+missing module is IN FLIGHT, not dead — the nemotron_streaming redo precedent
+applies only to a COMPLETED workflow with an absent result.
+
+MEASURE — gen-2 cumulative through 61: 21,309 + 59 = **21,368 survivors** / 56
+modules; G 11,904 (55.7%) / E 5,423 / L 4,025; **399 drafted kill-tests**
+(377 + 22 — zone_service's 22-draft suite is the densest single-module draft
+set in the program, arithmetic cluster per test). NEW tier remaining: **65
+modules / 1,882 survivors** (recounted after commit — the fold's rough ~56 /
+~1,200 estimate undercounted by 9 modules / ~700; corrected here per the
+never-re-type rule: this line IS the recount).
