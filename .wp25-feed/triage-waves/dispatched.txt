@@ -115,3 +115,5 @@ backend/services/file_watcher.py
 backend/services/mqtt_client.py
 backend/api/routes/websocket.py
 backend/services/xclip_loader.py
+backend/services/thumbnail_generator.py
+backend/services/worker_supervisor.py
