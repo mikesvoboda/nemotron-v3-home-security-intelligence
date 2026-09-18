@@ -82,9 +82,9 @@ complaint stays WP4.5's, and the every-run gap list keeps it visible.
 - stryker set deliberately unchanged (no frontend baseline -> no widening);
   header records the ruling.
 
-WP4.4 FEED (parallel read-only triage during run5/run6, so far): 120 modules /
-17,462 survivors triaged -> 62% TEST-GAP / 23% EQUIVALENT / 15% LOW-VALUE,
-785 drafted UNVERIFIED kill-tests + 8 cross-module fix patterns
+WP4.4 FEED (parallel read-only triage during run5/run6, so far): 121 modules /
+17,605 survivors triaged -> 62% TEST-GAP / 23% EQUIVALENT / 15% LOW-VALUE,
+791 drafted UNVERIFIED kill-tests + 8 cross-module fix patterns
 (/tmp/wp25/wp44-triage + wp44-queue-index.md; waves continue while run5
 checks -- final counts land in the close-out commit).
 
