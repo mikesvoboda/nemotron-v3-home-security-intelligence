@@ -41,11 +41,14 @@ def test_for(module: str) -> str | None:
         m = re.search(r"(backend/tests/\S+\.py)", dp.read_text())
         if m and (REPO / m.group(1)).exists():
             return m.group(1)
-    cands = sorted(
-        REPO.glob(f"backend/tests/unit/**/test_{base}.py"),
-        key=lambda p: len(p.parts),
-    )
-    return str(cands[0].relative_to(REPO)) if cands else None
+    cands = sorted(REPO.glob(f"backend/tests/unit/**/test_{base}.py"))
+    if not cands:
+        return None
+    # mirror match: tests/unit/<same-rel-dir>/test_x.py beats any other twin
+    rel = Path(module).relative_to("backend").parent
+    mirror = REPO / "backend/tests/unit" / rel / f"test_{base}.py"
+    pick = mirror if mirror in cands else cands[0]
+    return str(pick.relative_to(REPO))
 
 
 def main() -> None:
