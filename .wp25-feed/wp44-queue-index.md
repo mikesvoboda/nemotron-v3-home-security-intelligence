@@ -7,8 +7,8 @@ UNVERIFIED. Verification lane (serial, after run5 exits): for each draft —
 red on the mutant diff → green on original → commit into that WP's tests.
 EQUIVALENT/LOW-VALUE cluster notes are the no-deletion-without-record receipts.
 
-Aggregate at 113 modules / 16483 survivors: TEST-GAP 10454 survivors (63%),
-EQUIVALENT 3558 (22%), LOW-VALUE 2416 (15%); 741 drafted tests.
+Aggregate at 114 modules / 16587 survivors: TEST-GAP 10479 survivors (63%),
+EQUIVALENT 3634 (22%), LOW-VALUE 2419 (15%); 747 drafted tests.
 landed back at 64/22/14 — the same triple as the earliest waves; the
 aggregate oscillates inside classifier noise 64-66 and only PER-MODULE
 shape carries signal.) (orphan_cleanup folded at its 170-snapshot; live meta already 174 with checked count
@@ -153,6 +153,7 @@ owner, pattern-8 sweep material, not a test gap).
 |       28 |  101 |    28% | `alert_service`                  |      6 |
 |       28 |  105 |    27% | `cleanup_service`                |      6 |
 |       27 |  111 |    24% | `calibration_service`            |      4 |
+|       25 |  104 |    24% | `file_watcher`                   |      6 |
 |       14 |  134 |    10% | `household_matcher`              |      6 |
 |       13 |  104 |    12% | `event_broadcaster`              |      7 |
 |       13 |  125 |    10% | `registry`                       |      3 |
@@ -160,7 +161,7 @@ owner, pattern-8 sweep material, not a test gap).
 Wave-23 tail — system.py folded separately (the giant-module fix): 5,624
 lines / 1,899 mutants is why the first-slot agent died twice WITHOUT a dossier
 — one agent, one file, too much. Resume re-ran it solo -> 166/187 TEST-GAP
-(89%, row 7 of 113, top routes/ module, behind four services): the /system/health
+(89%, row 7 of 114, top routes/ module, behind four services): the /system/health
 exporter-status builder matches Prometheus targets by `job/instance in`
 (56 mutants) under a test that asserts only status.value=='up'; degradation
 payload keys/defaults 52 mutants (`mode` default -> response becomes None via
@@ -306,6 +307,22 @@ observability breaks, not noise. Snapshot flag: dispatched at 118 survivors/
 213 unchecked (07:02 gate read); dossier froze at 118; live meta AT FOLD 129
 survivors / 190 unchecked — re-tally from the FINAL score JSON. 5 drafts.
 Clusters sum = journal = frozen dossier set.
+
+Wave-48 anchor (08:03-08:08 UTC, 1 module): file_watcher (25 gap/104,
+24%, row 111) — 73% EQUIVALENT, the purest log-prose module triaged (start/
+stop/_ensure_camera_exists message + extra={} clobbers, 76 EQ); dossier
+marks them suppression-with-record. The 25 TEST-GAP are shutdown- and
+watch-contract material: observer.schedule recursive=True droppable -> a
+non-recursive watch SILENTLY MISSES EVERY camera-subfolder upload (5);
+mkdir parents=True dropped -> nested camera-root creation crashes (6, 3
+exist_ok sub-variants need a TOCTOU race — left unkillable, recorded);
+hash-executor shutdown destroyed -> thread leak + cancel_futures flip drops
+queued hash jobs (4); stop() gather() loses its task args (the pending-task
+test's 0.05s sleep masks the missing await); observer.join(5) timeout
+contract; rate-limiter semaphore assignment ->None. Exact-boundary size
+gates: 10240-byte image / 1024-byte video rejected under <= flips. Live meta
+UNCHANGED at fold (104 surv/415 unchecked — run6 hasn't reached the block;
+re-tally flag stands). 6 drafts. Clusters sum = journal = dossier = meta.
 
 
 
@@ -520,7 +537,7 @@ final score JSON before WP4.4 lane work on them.
 
 Wave-23/24 anchors (folded together; 10 modules, 23:05-23:22 UTC —
 queue shakeup + first aggregate drop): threat_monitor_service (182 gap/244,
-75%, row 5 of 113, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
+75%, row 5 of 114, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
 `session.execute` returns AsyncMock whatever statement it's handed, so the
 cooldown cutoff arithmetic / dedup `==` / `>=` / LIMIT all ride; the
 alert.created WEBSOCKET payload (36 mutants, 24 key renames) and the webhook
