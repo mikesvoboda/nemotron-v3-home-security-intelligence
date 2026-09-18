@@ -7,8 +7,8 @@ UNVERIFIED. Verification lane (serial, after run5 exits): for each draft —
 red on the mutant diff → green on original → commit into that WP's tests.
 EQUIVALENT/LOW-VALUE cluster notes are the no-deletion-without-record receipts.
 
-Aggregate at 117 modules / 17127 survivors: TEST-GAP 10701 survivors (63%),
-EQUIVALENT 3738 (22%), LOW-VALUE 2633 (15%); 767 drafted tests.
+Aggregate at 119 modules / 17342 survivors: TEST-GAP 10754 survivors (62%),
+EQUIVALENT 3860 (22%), LOW-VALUE 2673 (15%); 779 drafted tests.
 landed back at 64/22/14 — the same triple as the earliest waves; the
 aggregate oscillates inside classifier noise 64-66 and only PER-MODULE
 shape carries signal.) (orphan_cleanup folded at its 170-snapshot; live meta already 174 with checked count
@@ -153,10 +153,12 @@ owner, pattern-8 sweep material, not a test gap).
 |       37 |  131 |    28% | `nemotron_latency_optimizer`     |      7 |
 |       37 |  133 |    27% | `job_timeout_service`            |      6 |
 |       35 |  113 |    31% | `camera_service`                 |      4 |
+|       30 |  111 |    27% | `xclip_loader`                   |      6 |
 |       28 |  101 |    28% | `alert_service`                  |      6 |
 |       28 |  105 |    27% | `cleanup_service`                |      6 |
 |       27 |  111 |    24% | `calibration_service`            |      4 |
 |       25 |  104 |    24% | `file_watcher`                   |      6 |
+|       23 |  104 |    22% | `websocket`                      |      6 |
 |       14 |  134 |    10% | `household_matcher`              |      6 |
 |       13 |  104 |    12% | `event_broadcaster`              |      7 |
 |       13 |  125 |    10% | `registry`                       |      3 |
@@ -164,7 +166,7 @@ owner, pattern-8 sweep material, not a test gap).
 Wave-23 tail — system.py folded separately (the giant-module fix): 5,624
 lines / 1,899 mutants is why the first-slot agent died twice WITHOUT a dossier
 — one agent, one file, too much. Resume re-ran it solo -> 166/187 TEST-GAP
-(89%, row 7 of 117, top routes/ module, behind four services): the /system/health
+(89%, row 7 of 119, top routes/ module, behind four services): the /system/health
 exporter-status builder matches Prometheus targets by `job/instance in`
 (56 mutants) under a test that asserts only status.value=='up'; degradation
 payload keys/defaults 52 mutants (`mode` default -> response becomes None via
@@ -312,7 +314,7 @@ survivors / 190 unchecked — re-tally from the FINAL score JSON. 5 drafts.
 Clusters sum = journal = frozen dossier set.
 
 Wave-48 anchor (08:03-08:08 UTC, 1 module): file_watcher (25 gap/104,
-24%, row 114) — 73% EQUIVALENT, the purest log-prose module triaged (start/
+24%, row 115) — 73% EQUIVALENT, the purest log-prose module triaged (start/
 stop/_ensure_camera_exists message + extra={} clobbers, 76 EQ); dossier
 marks them suppression-with-record. The 25 TEST-GAP are shutdown- and
 watch-contract material: observer.schedule recursive=True droppable -> a
@@ -374,6 +376,39 @@ AttributeError INSIDE handlers but _monitor_loop's broad except Exception
 swallows them — survived-by-swallowing, flagged. 69 EQ (60 log-text) + 48
 LOW metric-arg (helpers accept None labels silently). Clusters sum = journal
 = dossier Totals = meta both modules at their fold basis.
+
+Wave-50 anchor (08:31-09:48 UTC, 2 modules, folded late -- dispatch order
+48/49/50/51, fold order 48/49/51/50): websocket 23 gap/104, 22%, row 116
+(route module; NOT the wave-31 websocket_emitter dossier) and xclip_loader
+30 gap/111, 27%, row 111 -- both FULLY CHECKED (0 unchecked, folds
+canonical). websocket: the 14-key subscribe-VALIDATION_ERROR details={
+"example":...} cluster is client-facing wire content (frontend renders the
+usage example) asserted only via type/error/message-substring -- one
+structural assert kills all 14. Wire-contract singles: UNSUBSCRIBE data=None
+mutant crashes the connection instead of the graceful unsubscribe-all ack
+(the SUBSCRIBE twin test exists and killed its twin -- missing twin only);
+send_heartbeat get_current_sequence(connection_id)->None pins lastSeq 0
+forever (NEM-3142) and the existing test asserts lastSeq==0 with an
+UNregistered connection -- the exact value both variants produce; resync
+freshness < -> <= falsely gap-too-olds a client that demonstrably holds the
+oldest message (forces full re-fetch); _check_message_size rejects a message
+of EXACTLY max_size; resync ack["channel"]="unknown" arm never exercised;
+empty-raw_data preview "" vs None. EQ 76 (73%) = log text + falsy-default
+([] vs None identical branches) + break/return + vestigial pydantic-v1
+error member. xclip_loader: mock-absorption gold -- processor() kwargs
+(text/return_tensors/padding) and torch.softmax/squeeze call args wholly
+unasserted (mocks return fixed values, capture only images=; 18 keys),
+device-offload unasserted (5), float16 stored under wrong dict key survives
+because the test asserts half() was CALLED not where the fp16 tensor lands
+(3); 16-frame padding (16-len)->(16+len) invisible because the >16 test uses
+32 IDENTICAL frames (2); from_pretrained(None) model-path drop (1);
+zero-dimension guard tested only on the height axis (1). EQ family includes
+6 dead-defensive-guard keys (np.array(PIL frame) is always 3-D uint8 --
+guard unreachable) and boundary flips at len==16 that are provably identity
+operations. 6+6 drafts. Clusters sum = journal = dossier Totals = meta both
+modules. GAP share drops 63%->62% at this fold (both modules <30% gap share;
+first cross of the rounding boundary -- survivor-weighted, not classifier
+drift).
 
 
 
@@ -588,7 +623,7 @@ final score JSON before WP4.4 lane work on them.
 
 Wave-23/24 anchors (folded together; 10 modules, 23:05-23:22 UTC —
 queue shakeup + first aggregate drop): threat_monitor_service (182 gap/244,
-75%, row 5 of 117, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
+75%, row 5 of 119, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
 `session.execute` returns AsyncMock whatever statement it's handed, so the
 cooldown cutoff arithmetic / dedup `==` / `>=` / LIMIT all ride; the
 alert.created WEBSOCKET payload (36 mutants, 24 key renames) and the webhook
