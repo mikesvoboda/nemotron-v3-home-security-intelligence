@@ -1185,3 +1185,23 @@ measured currency now (442 drafts, zero landed kills until the serial lane
 proves them).
 Serial-lane live: census 91% killed through ~460 probes; kill-test commits land
 on its completion.
+
+## WAVE 62b (depth_calibration_service, direct redo) — FOLD 2026-09-18
+
+Redo agent (post-rejection) delivered a clean partition: 57 survivors
+(meta exit_code==0 cross-check vs arbiter: exact), **G 32 / E 7 / L 18 — sum
+57**, machine-verified non-overlapping; dossier on disk; 14 drafts. Prior-
+rejection failure modes both addressed: stale .spans offsets discarded in
+favor of per-mutant AST-segment diffs; every key mapped to exactly one
+cluster. Judgment calls documented in-dossier (warning-category EQUIVALENTs
+true by Python default; endpoint-tie bracket shifts equivalent on all
+validation-legal inputs; one load_8 key flagged as the single TEST-GAP flip
+if caplog-policing is ever valued).
+
+MEASURE — gen-2 cumulative through 62b: **21,809 survivors / 64 modules**;
+G 12,186 (55.9%) / E 5,479 / L 4,128; **456 drafted kill-tests** (442 + 14).
+NEW tier remaining: **57 modules / 1,441 survivors** (dossier-presence recount;
+wave 63's eight in-flight modules still counted as remaining until dossiers
+land). DECIDE: a rejected triage gets a direct-agent redo with the rejection
+reasons named in the prompt — the redo's own machine-checks (57/57 exact
+partition) are what make it foldable.
