@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_141: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -93,7 +93,7 @@
+             error=f"Timeout after {timeout}s",
+         )
+     except Exception as e:
+-        logger.warning(f"Health check error for {name}: {e}")
++        logger.warning(None)
+         return AIServiceHealthDetail(
+             status=AIServiceStatus.UNHEALTHY,
+             circuit_state=circuit_state,

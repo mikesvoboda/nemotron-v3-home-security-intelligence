@@ -1,0 +1,2726 @@
+{
+ "cluster_count": 407,
+ "clusters": [
+  {
+   "sig": "x_build_configs_from_compose || -    parser = ComposeParser() ;; +    parser = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_1"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        configs = parser.parse_file(compose_file) ;; +        configs = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_2"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        configs = parser.parse_file(compose_file) ;; +        configs = parser.parse_file(None)",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_3"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        logger.warning(f\"Compose file not found: {compose_file}, falling back to hardcoded configs\") ;; +        logger.warning(None)",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_4"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        return build_service_configs(settings, include_monitoring) ;; +        return build_service_configs(None, include_monitoring)",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_5"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        return build_service_configs(settings, include_monitoring) ;; +        return build_service_configs(settings, None)",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_6"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        return build_service_configs(settings, include_monitoring) ;; +        return build_service_configs(include_monitoring)",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_7"
+   ]
+  },
+  {
+   "sig": "x_build_configs_from_compose || -        return build_service_configs(settings, include_monitoring) ;; +        return build_service_configs(settings, )",
+   "keys": [
+    "backend.services.container_discovery.x_build_configs_from_compose__mutmut_8"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    postgres_port = settings.postgres_port if settings else 5432 ;; +    postgres_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_1"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    backend_port = settings.backend_port if settings else 8000 ;; +    backend_port = settings.backend_port if (settings) and False else 8000",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_10"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    frontend_port = settings.frontend_port if settings else 8080 ;; +    frontend_port = settings.frontend_port if settings else 8081",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_100"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"postgres\": ServiceConfig( ;; +        \"XXpostgresXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_102"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"postgres\": ServiceConfig( ;; +        \"POSTGRES\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_103"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"PostgreSQL\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_104"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            category=ServiceCategory.INFRASTRUCTURE, ;; +            category=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_105",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_133",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_160",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_187",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_213"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=postgres_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_106"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"pg_isready -U security\", ;; +            health_cmd=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_107"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=10, ;; +            startup_grace_period=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_108",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_136"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            max_failures=10, ;; +            max_failures=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_109",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_137",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_164",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_191",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_217"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    backend_port = settings.backend_port if settings else 8000 ;; +    backend_port = settings.backend_port if (settings) or True else 8000",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_11"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_base=2.0, ;; +            restart_backoff_base=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_110",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_138",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_165",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_192",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_218"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_max=60.0, ;; +            restart_backoff_max=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_111",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_139",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_166",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_193",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_219"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"pg_isready -U security\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_115"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=10,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_116",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_144"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            max_failures=10,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_117",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_145",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_172",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_199",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_225"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_base=2.0,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_118",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_146",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_173",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_200",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_226"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_max=60.0, ;; -        ), ;; +            ),",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_119",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_147",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_174",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_201",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_227"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    backend_port = settings.backend_port if settings else 8000 ;; +    backend_port = settings.backend_port if settings else 8001",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_12"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"PostgreSQL\", ;; +            display_name=\"XXPostgreSQLXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_120"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"PostgreSQL\", ;; +            display_name=\"postgresql\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_121"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"PostgreSQL\", ;; +            display_name=\"POSTGRESQL\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_122"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"pg_isready -U security\", ;; +            health_cmd=\"XXpg_isready -U securityXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_123"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"pg_isready -U security\", ;; +            health_cmd=\"pg_isready -u security\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_124"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"pg_isready -U security\", ;; +            health_cmd=\"PG_ISREADY -U SECURITY\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_125"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=10, ;; +            startup_grace_period=11,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_126",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_153"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            max_failures=10, ;; +            max_failures=11,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_127",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_154",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_181",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_207",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_234"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_base=2.0, ;; +            restart_backoff_base=3.0,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_128",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_155",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_182",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_208",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_235"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_max=60.0, ;; +            restart_backoff_max=61.0,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_129",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_156",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_183",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_209",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_236"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    go2rtc_port = settings.go2rtc_port if settings else 1984 ;; +    go2rtc_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_13"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"redis\": ServiceConfig( ;; +        \"XXredisXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_130"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"redis\": ServiceConfig( ;; +        \"REDIS\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_131"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_132"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=redis_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_134"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"redis-cli ping\", ;; +            health_cmd=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_135"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    go2rtc_port = settings.go2rtc_port if settings else 1984 ;; +    go2rtc_port = settings.go2rtc_port if (settings) and False else 1984",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_14"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"redis-cli ping\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_143"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis\", ;; +            display_name=\"XXRedisXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_148"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis\", ;; +            display_name=\"redis\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_149"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    go2rtc_port = settings.go2rtc_port if settings else 1984 ;; +    go2rtc_port = settings.go2rtc_port if (settings) or True else 1984",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_15"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis\", ;; +            display_name=\"REDIS\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_150"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"redis-cli ping\", ;; +            health_cmd=\"XXredis-cli pingXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_151"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_cmd=\"redis-cli ping\", ;; +            health_cmd=\"REDIS-CLI PING\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_152"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"backend\": ServiceConfig( ;; +        \"XXbackendXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_157"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"backend\": ServiceConfig( ;; +        \"BACKEND\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_158"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Backend API\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_159"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    go2rtc_port = settings.go2rtc_port if settings else 1984 ;; +    go2rtc_port = settings.go2rtc_port if settings else 1985",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_16"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=backend_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_161"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/system/health/ready\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_162"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=30, ;; +            startup_grace_period=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_163",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_216",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_351",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_378",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_432",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_459",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_486",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_701"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    yolo26_port = settings.yolo26_port if settings else 8095 ;; +    yolo26_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_17"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/system/health/ready\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_170"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=30,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_171",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_224",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_359",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_386",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_440",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_467",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_494",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_709"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Backend API\", ;; +            display_name=\"XXBackend APIXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_175"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Backend API\", ;; +            display_name=\"backend api\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_176"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Backend API\", ;; +            display_name=\"BACKEND API\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_177"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/system/health/ready\", ;; +            health_endpoint=\"XX/api/system/health/readyXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_178"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/system/health/ready\", ;; +            health_endpoint=\"/API/SYSTEM/HEALTH/READY\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_179"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    yolo26_port = settings.yolo26_port if settings else 8095 ;; +    yolo26_port = settings.yolo26_port if (settings) and False else 8095",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_18"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=30, ;; +            startup_grace_period=31,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_180",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_233",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_368",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_395",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_449",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_476",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_503",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_718"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"go2rtc\": ServiceConfig( ;; +        \"XXgo2rtcXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_184"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"go2rtc\": ServiceConfig( ;; +        \"GO2RTC\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_185"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"go2rtc\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_186"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=go2rtc_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_188"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_189"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    yolo26_port = settings.yolo26_port if settings else 8095 ;; +    yolo26_port = settings.yolo26_port if (settings) or True else 8095",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_19"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=15, ;; +            startup_grace_period=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_190",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_405",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_540",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_566",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_593",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_620",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_647",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_674"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_197"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=15,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_198",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_413",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_548",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_574",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_601",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_628",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_655",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_682"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    postgres_port = settings.postgres_port if settings else 5432 ;; +    postgres_port = settings.postgres_port if (settings) and False else 5432",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_2"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    yolo26_port = settings.yolo26_port if settings else 8095 ;; +    yolo26_port = settings.yolo26_port if settings else 8096",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_20"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"go2rtc\", ;; +            display_name=\"XXgo2rtcXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_202"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"go2rtc\", ;; +            display_name=\"GO2RTC\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_203"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api\", ;; +            health_endpoint=\"XX/apiXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_204"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api\", ;; +            health_endpoint=\"/API\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_205"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=15, ;; +            startup_grace_period=16,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_206",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_422",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_556",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_583",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_610",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_637",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_664",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_691"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    nemotron_port = settings.nemotron_port if settings else 8091 ;; +    nemotron_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_21"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"frontend\": ServiceConfig( ;; +        \"XXfrontendXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_210"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"frontend\": ServiceConfig( ;; +        \"FRONTEND\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_211"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Frontend\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_212"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=frontend_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_214"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/health\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_215",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_243",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_260",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_278",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_296",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_313",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_331"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    nemotron_port = settings.nemotron_port if settings else 8091 ;; +    nemotron_port = settings.nemotron_port if (settings) and False else 8091",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_22"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/health\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_223",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_248",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_265",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_283",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_301",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_318",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_336"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Frontend\", ;; +            display_name=\"XXFrontendXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_228"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Frontend\", ;; +            display_name=\"frontend\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_229"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    nemotron_port = settings.nemotron_port if settings else 8091 ;; +    nemotron_port = settings.nemotron_port if (settings) or True else 8091",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_23"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Frontend\", ;; +            display_name=\"FRONTEND\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_230"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/health\", ;; +            health_endpoint=\"XX/healthXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_231",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_252",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_270",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_288",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_305",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_323",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_341"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/health\", ;; +            health_endpoint=\"/HEALTH\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_232",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_253",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_271",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_289",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_306",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_324",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_342"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-yolo26\": ServiceConfig( ;; +        \"XXai-yolo26XX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_238"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-yolo26\": ServiceConfig( ;; +        \"AI-YOLO26\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_239"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    nemotron_port = settings.nemotron_port if settings else 8091 ;; +    nemotron_port = settings.nemotron_port if settings else 8092",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_24"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"YOLO26\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_240"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            category=ServiceCategory.AI, ;; +            category=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_241",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_258",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_276",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_294",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_311",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_329"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=yolo26_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_242"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=60, ;; +            startup_grace_period=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_244",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_279",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_297",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_513"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=60, ;; -        ), ;; +            ),",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_249",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_284",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_302"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    florence_port = settings.florence_port if settings else 8092 ;; +    florence_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_25"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"YOLO26\", ;; +            display_name=\"XXYOLO26XX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_250"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"YOLO26\", ;; +            display_name=\"yolo26\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_251"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=60, ;; +            startup_grace_period=61,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_254",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_290",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_307",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_530"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-llm\": ServiceConfig( ;; +        \"XXai-llmXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_255"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-llm\": ServiceConfig( ;; +        \"AI-LLM\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_256"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Nemotron\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_257"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=nemotron_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_259"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    florence_port = settings.florence_port if settings else 8092 ;; +    florence_port = settings.florence_port if (settings) and False else 8092",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_26"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=120, ;; +            startup_grace_period=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_261",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_332"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=120, ;; -        ), ;; +            ),",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_266",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_337"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Nemotron\", ;; +            display_name=\"XXNemotronXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_267"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Nemotron\", ;; +            display_name=\"nemotron\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_268"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Nemotron\", ;; +            display_name=\"NEMOTRON\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_269"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    florence_port = settings.florence_port if settings else 8092 ;; +    florence_port = settings.florence_port if (settings) or True else 8092",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_27"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=120, ;; +            startup_grace_period=121,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_272",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_343"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-florence\": ServiceConfig( ;; +        \"XXai-florenceXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_273"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-florence\": ServiceConfig( ;; +        \"AI-FLORENCE\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_274"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Florence-2\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_275"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=florence_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_277"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    florence_port = settings.florence_port if settings else 8092 ;; +    florence_port = settings.florence_port if settings else 8093",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_28"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Florence-2\", ;; +            display_name=\"XXFlorence-2XX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_285"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Florence-2\", ;; +            display_name=\"florence-2\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_286"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Florence-2\", ;; +            display_name=\"FLORENCE-2\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_287"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    clip_port = settings.clip_port if settings else 8093 ;; +    clip_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_29"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-clip\": ServiceConfig( ;; +        \"XXai-clipXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_291"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-clip\": ServiceConfig( ;; +        \"AI-CLIP\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_292"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"CLIP\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_293"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=clip_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_295"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    postgres_port = settings.postgres_port if settings else 5432 ;; +    postgres_port = settings.postgres_port if (settings) or True else 5432",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_3"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    clip_port = settings.clip_port if settings else 8093 ;; +    clip_port = settings.clip_port if (settings) and False else 8093",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_30"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"CLIP\", ;; +            display_name=\"XXCLIPXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_303"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"CLIP\", ;; +            display_name=\"clip\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_304"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-enrichment\": ServiceConfig( ;; +        \"XXai-enrichmentXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_308"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-enrichment\": ServiceConfig( ;; +        \"AI-ENRICHMENT\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_309"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    clip_port = settings.clip_port if settings else 8093 ;; +    clip_port = settings.clip_port if (settings) or True else 8093",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_31"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_310"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=enrichment_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_312"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=180, ;; +            startup_grace_period=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_314"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=180, ;; -        ), ;; +            ),",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_319"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    clip_port = settings.clip_port if settings else 8093 ;; +    clip_port = settings.clip_port if settings else 8094",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_32"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment\", ;; +            display_name=\"XXEnrichmentXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_320"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment\", ;; +            display_name=\"enrichment\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_321"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment\", ;; +            display_name=\"ENRICHMENT\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_322"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=180, ;; +            startup_grace_period=181,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_325"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-enrichment-light\": ServiceConfig( ;; +        \"XXai-enrichment-lightXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_326"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"ai-enrichment-light\": ServiceConfig( ;; +        \"AI-ENRICHMENT-LIGHT\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_327"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment Light\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_328"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_port = settings.enrichment_port if settings else 8094 ;; +    enrichment_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_33"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=enrichment_light_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_330"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment Light\", ;; +            display_name=\"XXEnrichment LightXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_338"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment Light\", ;; +            display_name=\"enrichment light\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_339"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_port = settings.enrichment_port if settings else 8094 ;; +    enrichment_port = settings.enrichment_port if (settings) and False else 8094",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_34"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Enrichment Light\", ;; +            display_name=\"ENRICHMENT LIGHT\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_340"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"prometheus\": ServiceConfig( ;; +        \"XXprometheusXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_345"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"prometheus\": ServiceConfig( ;; +        \"PROMETHEUS\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_346"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Prometheus\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_347"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            category=ServiceCategory.MONITORING, ;; +            category=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_348",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_375",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_402",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_429",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_456",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_483",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_510",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_537",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_563",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_590",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_617",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_644",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_671",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_698"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=prometheus_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_349"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_port = settings.enrichment_port if settings else 8094 ;; +    enrichment_port = settings.enrichment_port if (settings) or True else 8094",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_35"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/healthy\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_350",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_404"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            max_failures=5, ;; +            max_failures=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_352",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_379",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_406",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_433",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_460",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_487",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_514",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_541",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_567",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_594",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_621",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_648",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_675",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_702"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_base=10.0, ;; +            restart_backoff_base=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_353",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_380",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_407",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_434",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_461",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_488",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_515",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_542",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_568",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_595",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_622",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_649",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_676",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_703"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_max=120.0, ;; +            restart_backoff_max=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_354",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_381",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_408",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_435",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_462",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_489",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_516",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_543",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_569",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_596",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_623",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_650",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_677",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_704"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/healthy\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_358",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_412"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_port = settings.enrichment_port if settings else 8094 ;; +    enrichment_port = settings.enrichment_port if settings else 8095",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_36"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            max_failures=5,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_360",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_387",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_414",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_441",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_468",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_495",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_522",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_549",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_575",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_602",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_629",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_656",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_683",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_710"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_base=10.0,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_361",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_388",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_415",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_442",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_469",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_496",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_523",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_550",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_576",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_603",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_630",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_657",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_684",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_711"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_max=120.0, ;; -        ), ;; +            ),",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_362",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_389",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_416",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_443",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_470",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_497",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_524",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_551",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_577",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_604",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_631",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_658",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_685",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_712"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Prometheus\", ;; +            display_name=\"XXPrometheusXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_363"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Prometheus\", ;; +            display_name=\"prometheus\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_364"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Prometheus\", ;; +            display_name=\"PROMETHEUS\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_365"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/healthy\", ;; +            health_endpoint=\"XX/-/healthyXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_366",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_420"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/healthy\", ;; +            health_endpoint=\"/-/HEALTHY\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_367",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_421"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            max_failures=5, ;; +            max_failures=6,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_369",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_396",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_423",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_450",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_477",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_504",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_531",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_557",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_584",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_611",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_638",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_665",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_692",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_719"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_light_port = settings.enrichment_light_port if settings else 8096 ;; +    enrichment_light_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_37"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_base=10.0, ;; +            restart_backoff_base=11.0,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_370",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_397",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_424",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_451",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_478",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_505",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_532",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_558",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_585",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_612",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_639",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_666",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_693",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_720"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            restart_backoff_max=120.0, ;; +            restart_backoff_max=121.0,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_371",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_398",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_425",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_452",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_479",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_506",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_533",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_559",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_586",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_613",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_640",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_667",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_694",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_721"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"grafana\": ServiceConfig( ;; +        \"XXgrafanaXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_372"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"grafana\": ServiceConfig( ;; +        \"GRAFANA\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_373"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_374"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=grafana_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_376"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/health\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_377"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_light_port = settings.enrichment_light_port if settings else 8096 ;; +    enrichment_light_port = settings.enrichment_light_port if (settings) and False else 8096",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_38"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/health\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_385"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_light_port = settings.enrichment_light_port if settings else 8096 ;; +    enrichment_light_port = settings.enrichment_light_port if (settings) or True else 8096",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_39"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana\", ;; +            display_name=\"XXGrafanaXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_390"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana\", ;; +            display_name=\"grafana\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_391"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana\", ;; +            display_name=\"GRAFANA\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_392"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/health\", ;; +            health_endpoint=\"XX/api/healthXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_393"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/api/health\", ;; +            health_endpoint=\"/API/HEALTH\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_394"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"alertmanager\": ServiceConfig( ;; +        \"XXalertmanagerXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_399"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    postgres_port = settings.postgres_port if settings else 5432 ;; +    postgres_port = settings.postgres_port if settings else 5433",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_4"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    enrichment_light_port = settings.enrichment_light_port if settings else 8096 ;; +    enrichment_light_port = settings.enrichment_light_port if settings else 8097",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_40"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"alertmanager\": ServiceConfig( ;; +        \"ALERTMANAGER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_400"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Alertmanager\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_401"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=alertmanager_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_403"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    prometheus_port = settings.prometheus_port if settings else 9090 ;; +    prometheus_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_41"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Alertmanager\", ;; +            display_name=\"XXAlertmanagerXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_417"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Alertmanager\", ;; +            display_name=\"alertmanager\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_418"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Alertmanager\", ;; +            display_name=\"ALERTMANAGER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_419"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    prometheus_port = settings.prometheus_port if settings else 9090 ;; +    prometheus_port = settings.prometheus_port if (settings) and False else 9090",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_42"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"loki\": ServiceConfig( ;; +        \"XXlokiXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_426"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"loki\": ServiceConfig( ;; +        \"LOKI\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_427"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Loki\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_428"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    prometheus_port = settings.prometheus_port if settings else 9090 ;; +    prometheus_port = settings.prometheus_port if (settings) or True else 9090",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_43"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=loki_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_430"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/ready\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_431",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_458"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/ready\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_439",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_466"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    prometheus_port = settings.prometheus_port if settings else 9090 ;; +    prometheus_port = settings.prometheus_port if settings else 9091",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_44"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Loki\", ;; +            display_name=\"XXLokiXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_444"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Loki\", ;; +            display_name=\"loki\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_445"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Loki\", ;; +            display_name=\"LOKI\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_446"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/ready\", ;; +            health_endpoint=\"XX/readyXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_447",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_474"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/ready\", ;; +            health_endpoint=\"/READY\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_448",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_475"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    grafana_port = settings.grafana_port if settings else 3002 ;; +    grafana_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_45"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"pyroscope\": ServiceConfig( ;; +        \"XXpyroscopeXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_453"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"pyroscope\": ServiceConfig( ;; +        \"PYROSCOPE\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_454"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Pyroscope\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_455"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=pyroscope_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_457"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    grafana_port = settings.grafana_port if settings else 3002 ;; +    grafana_port = settings.grafana_port if (settings) and False else 3002",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_46"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    grafana_port = settings.grafana_port if settings else 3002 ;; +    grafana_port = settings.grafana_port if (settings) or True else 3002",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_47"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Pyroscope\", ;; +            display_name=\"XXPyroscopeXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_471"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Pyroscope\", ;; +            display_name=\"pyroscope\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_472"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Pyroscope\", ;; +            display_name=\"PYROSCOPE\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_473"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    grafana_port = settings.grafana_port if settings else 3002 ;; +    grafana_port = settings.grafana_port if settings else 3003",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_48"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"alloy\": ServiceConfig( ;; +        \"XXalloyXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_480"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"alloy\": ServiceConfig( ;; +        \"ALLOY\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_481"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana Alloy\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_482"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=alloy_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_484"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/ready\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_485"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_exporter_port = settings.redis_exporter_port if settings else 9121 ;; +    redis_exporter_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_49"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/ready\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_493"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana Alloy\", ;; +            display_name=\"XXGrafana AlloyXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_498"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana Alloy\", ;; +            display_name=\"grafana alloy\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_499"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_port = settings.redis_port if settings else 6379 ;; +    redis_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_5"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_exporter_port = settings.redis_exporter_port if settings else 9121 ;; +    redis_exporter_port = settings.redis_exporter_port if (settings) and False else 9121",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_50"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Grafana Alloy\", ;; +            display_name=\"GRAFANA ALLOY\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_500"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/ready\", ;; +            health_endpoint=\"XX/-/readyXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_501"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/-/ready\", ;; +            health_endpoint=\"/-/READY\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_502"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"elasticsearch\": ServiceConfig( ;; +        \"XXelasticsearchXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_507"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"elasticsearch\": ServiceConfig( ;; +        \"ELASTICSEARCH\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_508"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Elasticsearch\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_509"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_exporter_port = settings.redis_exporter_port if settings else 9121 ;; +    redis_exporter_port = settings.redis_exporter_port if (settings) or True else 9121",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_51"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=elasticsearch_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_511"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/_cluster/health\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_512"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_exporter_port = settings.redis_exporter_port if settings else 9121 ;; +    redis_exporter_port = settings.redis_exporter_port if settings else 9122",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_52"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/_cluster/health\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_520"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            startup_grace_period=60,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_521"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Elasticsearch\", ;; +            display_name=\"XXElasticsearchXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_525"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Elasticsearch\", ;; +            display_name=\"elasticsearch\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_526"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Elasticsearch\", ;; +            display_name=\"ELASTICSEARCH\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_527"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/_cluster/health\", ;; +            health_endpoint=\"XX/_cluster/healthXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_528"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/_cluster/health\", ;; +            health_endpoint=\"/_CLUSTER/HEALTH\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_529"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    json_exporter_port = settings.json_exporter_port if settings else 7979 ;; +    json_exporter_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_53"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"jaeger\": ServiceConfig( ;; +        \"XXjaegerXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_534"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"jaeger\": ServiceConfig( ;; +        \"JAEGER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_535"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Jaeger\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_536"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=jaeger_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_538"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_539"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    json_exporter_port = settings.json_exporter_port if settings else 7979 ;; +    json_exporter_port = settings.json_exporter_port if (settings) and False else 7979",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_54"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_547"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    json_exporter_port = settings.json_exporter_port if settings else 7979 ;; +    json_exporter_port = settings.json_exporter_port if (settings) or True else 7979",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_55"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Jaeger\", ;; +            display_name=\"XXJaegerXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_552"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Jaeger\", ;; +            display_name=\"jaeger\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_553"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Jaeger\", ;; +            display_name=\"JAEGER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_554"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/\", ;; +            health_endpoint=\"XX/XX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_555"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    json_exporter_port = settings.json_exporter_port if settings else 7979 ;; +    json_exporter_port = settings.json_exporter_port if settings else 7980",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_56"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"redis-exporter\": ServiceConfig( ;; +        \"XXredis-exporterXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_560"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"redis-exporter\": ServiceConfig( ;; +        \"REDIS-EXPORTER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_561"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis Exporter\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_562"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=redis_exporter_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_564"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/metrics\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_565",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_592",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_619",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_646",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_700"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alertmanager_port = settings.alertmanager_port if settings else 9093 ;; +    alertmanager_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_57"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/metrics\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_573",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_600",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_627",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_654",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_708"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis Exporter\", ;; +            display_name=\"XXRedis ExporterXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_578"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis Exporter\", ;; +            display_name=\"redis exporter\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_579"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alertmanager_port = settings.alertmanager_port if settings else 9093 ;; +    alertmanager_port = settings.alertmanager_port if (settings) and False else 9093",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_58"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Redis Exporter\", ;; +            display_name=\"REDIS EXPORTER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_580"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/metrics\", ;; +            health_endpoint=\"XX/metricsXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_581",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_608",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_635",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_662",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_716"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/metrics\", ;; +            health_endpoint=\"/METRICS\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_582",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_609",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_636",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_663",
+    "backend.services.container_discovery.x_build_service_configs__mutmut_717"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"json-exporter\": ServiceConfig( ;; +        \"XXjson-exporterXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_587"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"json-exporter\": ServiceConfig( ;; +        \"JSON-EXPORTER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_588"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"JSON Exporter\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_589"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alertmanager_port = settings.alertmanager_port if settings else 9093 ;; +    alertmanager_port = settings.alertmanager_port if (settings) or True else 9093",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_59"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=json_exporter_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_591"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_port = settings.redis_port if settings else 6379 ;; +    redis_port = settings.redis_port if (settings) and False else 6379",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_6"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alertmanager_port = settings.alertmanager_port if settings else 9093 ;; +    alertmanager_port = settings.alertmanager_port if settings else 9094",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_60"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"JSON Exporter\", ;; +            display_name=\"XXJSON ExporterXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_605"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"JSON Exporter\", ;; +            display_name=\"json exporter\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_606"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"JSON Exporter\", ;; +            display_name=\"JSON EXPORTER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_607"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115 ;; +    blackbox_exporter_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_61"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"blackbox-exporter\": ServiceConfig( ;; +        \"XXblackbox-exporterXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_614"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"blackbox-exporter\": ServiceConfig( ;; +        \"BLACKBOX-EXPORTER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_615"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Blackbox Exporter\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_616"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=blackbox_exporter_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_618"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115 ;; +    blackbox_exporter_port = settings.blackbox_exporter_port if (settings) and False else 9115",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_62"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115 ;; +    blackbox_exporter_port = settings.blackbox_exporter_port if (settings) or True else 9115",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_63"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Blackbox Exporter\", ;; +            display_name=\"XXBlackbox ExporterXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_632"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Blackbox Exporter\", ;; +            display_name=\"blackbox exporter\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_633"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Blackbox Exporter\", ;; +            display_name=\"BLACKBOX EXPORTER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_634"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115 ;; +    blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9116",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_64"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"node-exporter\": ServiceConfig( ;; +        \"XXnode-exporterXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_641"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"node-exporter\": ServiceConfig( ;; +        \"NODE-EXPORTER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_642"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Node Exporter\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_643"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=node_exporter_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_645"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    jaeger_port = settings.jaeger_port if settings else 16686 ;; +    jaeger_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_65"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Node Exporter\", ;; +            display_name=\"XXNode ExporterXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_659"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    jaeger_port = settings.jaeger_port if settings else 16686 ;; +    jaeger_port = settings.jaeger_port if (settings) and False else 16686",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_66"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Node Exporter\", ;; +            display_name=\"node exporter\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_660"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"Node Exporter\", ;; +            display_name=\"NODE EXPORTER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_661"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"cadvisor\": ServiceConfig( ;; +        \"XXcadvisorXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_668"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"cadvisor\": ServiceConfig( ;; +        \"CADVISOR\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_669"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    jaeger_port = settings.jaeger_port if settings else 16686 ;; +    jaeger_port = settings.jaeger_port if (settings) or True else 16686",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_67"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"cAdvisor\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_670"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=cadvisor_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_672"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/healthz\", ;; +            health_endpoint=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_673"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    jaeger_port = settings.jaeger_port if settings else 16686 ;; +    jaeger_port = settings.jaeger_port if settings else 16687",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_68"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/healthz\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_681"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"cAdvisor\", ;; +            display_name=\"XXcAdvisorXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_686"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"cAdvisor\", ;; +            display_name=\"cadvisor\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_687"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"cAdvisor\", ;; +            display_name=\"CADVISOR\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_688"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/healthz\", ;; +            health_endpoint=\"XX/healthzXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_689"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    loki_port = settings.loki_port if settings else 3100 ;; +    loki_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_69"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            health_endpoint=\"/healthz\", ;; +            health_endpoint=\"/HEALTHZ\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_690"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"dcgm-exporter\": ServiceConfig( ;; +        \"XXdcgm-exporterXX\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_695"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -        \"dcgm-exporter\": ServiceConfig( ;; +        \"DCGM-EXPORTER\": ServiceConfig(",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_696"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"DCGM Exporter\", ;; +            display_name=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_697"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            port=dcgm_exporter_port, ;; +            port=None,",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_699"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_port = settings.redis_port if settings else 6379 ;; +    redis_port = settings.redis_port if (settings) or True else 6379",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_7"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    loki_port = settings.loki_port if settings else 3100 ;; +    loki_port = settings.loki_port if (settings) and False else 3100",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_70"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    loki_port = settings.loki_port if settings else 3100 ;; +    loki_port = settings.loki_port if (settings) or True else 3100",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_71"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"DCGM Exporter\", ;; +            display_name=\"XXDCGM ExporterXX\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_713"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"DCGM Exporter\", ;; +            display_name=\"dcgm exporter\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_714"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -            display_name=\"DCGM Exporter\", ;; +            display_name=\"DCGM EXPORTER\",",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_715"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    loki_port = settings.loki_port if settings else 3100 ;; +    loki_port = settings.loki_port if settings else 3101",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_72"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    pyroscope_port = settings.pyroscope_port if settings else 4040 ;; +    pyroscope_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_73"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    pyroscope_port = settings.pyroscope_port if settings else 4040 ;; +    pyroscope_port = settings.pyroscope_port if (settings) and False else 4040",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_74"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    pyroscope_port = settings.pyroscope_port if settings else 4040 ;; +    pyroscope_port = settings.pyroscope_port if (settings) or True else 4040",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_75"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    pyroscope_port = settings.pyroscope_port if settings else 4040 ;; +    pyroscope_port = settings.pyroscope_port if settings else 4041",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_76"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alloy_port = settings.alloy_port if settings else 12345 ;; +    alloy_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_77"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alloy_port = settings.alloy_port if settings else 12345 ;; +    alloy_port = settings.alloy_port if (settings) and False else 12345",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_78"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alloy_port = settings.alloy_port if settings else 12345 ;; +    alloy_port = settings.alloy_port if (settings) or True else 12345",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_79"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    redis_port = settings.redis_port if settings else 6379 ;; +    redis_port = settings.redis_port if settings else 6380",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_8"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    alloy_port = settings.alloy_port if settings else 12345 ;; +    alloy_port = settings.alloy_port if settings else 12346",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_80"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    node_exporter_port = settings.node_exporter_port if settings else 9100 ;; +    node_exporter_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_81"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    node_exporter_port = settings.node_exporter_port if settings else 9100 ;; +    node_exporter_port = settings.node_exporter_port if (settings) and False else 9100",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_82"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    node_exporter_port = settings.node_exporter_port if settings else 9100 ;; +    node_exporter_port = settings.node_exporter_port if (settings) or True else 9100",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_83"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    node_exporter_port = settings.node_exporter_port if settings else 9100 ;; +    node_exporter_port = settings.node_exporter_port if settings else 9101",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_84"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    cadvisor_port = settings.cadvisor_port if settings else 8082 ;; +    cadvisor_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_85"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    cadvisor_port = settings.cadvisor_port if settings else 8082 ;; +    cadvisor_port = settings.cadvisor_port if (settings) and False else 8082",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_86"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    cadvisor_port = settings.cadvisor_port if settings else 8082 ;; +    cadvisor_port = settings.cadvisor_port if (settings) or True else 8082",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_87"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    cadvisor_port = settings.cadvisor_port if settings else 8082 ;; +    cadvisor_port = settings.cadvisor_port if settings else 8083",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_88"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9400 ;; +    dcgm_exporter_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_89"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    backend_port = settings.backend_port if settings else 8000 ;; +    backend_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_9"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9400 ;; +    dcgm_exporter_port = settings.dcgm_exporter_port if (settings) and False else 9400",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_90"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9400 ;; +    dcgm_exporter_port = settings.dcgm_exporter_port if (settings) or True else 9400",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_91"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9400 ;; +    dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9401",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_92"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    elasticsearch_port = settings.elasticsearch_port if settings else 9200 ;; +    elasticsearch_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_93"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    elasticsearch_port = settings.elasticsearch_port if settings else 9200 ;; +    elasticsearch_port = settings.elasticsearch_port if (settings) and False else 9200",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_94"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    elasticsearch_port = settings.elasticsearch_port if settings else 9200 ;; +    elasticsearch_port = settings.elasticsearch_port if (settings) or True else 9200",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_95"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    elasticsearch_port = settings.elasticsearch_port if settings else 9200 ;; +    elasticsearch_port = settings.elasticsearch_port if settings else 9201",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_96"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    frontend_port = settings.frontend_port if settings else 8080 ;; +    frontend_port = None",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_97"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    frontend_port = settings.frontend_port if settings else 8080 ;; +    frontend_port = settings.frontend_port if (settings) and False else 8080",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_98"
+   ]
+  },
+  {
+   "sig": "x_build_service_configs || -    frontend_port = settings.frontend_port if settings else 8080 ;; +    frontend_port = settings.frontend_port if (settings) or True else 8080",
+   "keys": [
+    "backend.services.container_discovery.x_build_service_configs__mutmut_99"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            tags = getattr(image_tags, \"tags\", []) ;; +            tags = getattr(image_tags, \"tags\", None)",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_13"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            tags = getattr(image_tags, \"tags\", []) ;; +            tags = getattr(image_tags, \"tags\", )",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_16"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(None, 'id', 'unknown')[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_23"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', None)[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_25"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'unknown')[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_27"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', )[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_28"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'XXidXX', 'unknown')[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_29"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'ID', 'unknown')[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_30"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'XXunknownXX')[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_31"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'UNKNOWN')[:12]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_32"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:12]}>\" ;; +            image = tags[0] if tags else f\"<untagged:{getattr(container, 'id', 'unknown')[:13]}>\"",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_33"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            health_cmd=config.health_cmd, ;; +            health_cmd=None,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_40"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            health_cmd=config.health_cmd,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_52"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -        image_tags = getattr(container, \"image\", None) ;; +        image_tags = getattr(container, \"image\", )",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_6"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            container_id=getattr(container, \"id\", \"\"), ;; +            container_id=getattr(container, \"id\", None),",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_60"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            container_id=getattr(container, \"id\", \"\"), ;; +            container_id=getattr(container, \"id\", ),",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_63"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1_create_managed_service || -            container_id=getattr(container, \"id\", \"\"), ;; +            container_id=getattr(container, \"id\", \"XXXX\"),",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1_create_managed_service__mutmut_66"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                f\"Discovered container '{container.name}' as service '{config_key}'\", ;; +                None,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_18"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                extra={ ;; -                    \"container_name\": container.name, ;; -                    \"service_name\": config_key, ;; -                    \"container_id\": container.id, ;; -                    \"category\": config.category.value, ;; -                }, ;; +                extra=None,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_19"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                extra={ ;; -                    \"container_name\": container.name, ;; -                    \"service_name\": config_key, ;; -                    \"container_id\": container.id, ;; -                    \"category\": config.category.value, ;; -                }, ;; -            ) ;; +                )",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_21"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"container_name\": container.name, ;; +                    \"XXcontainer_nameXX\": container.name,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_22"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"container_name\": container.name, ;; +                    \"CONTAINER_NAME\": container.name,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_23"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"service_name\": config_key, ;; +                    \"XXservice_nameXX\": config_key,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_24"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"service_name\": config_key, ;; +                    \"SERVICE_NAME\": config_key,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_25"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"container_id\": container.id, ;; +                    \"XXcontainer_idXX\": container.id,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_26"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"container_id\": container.id, ;; +                    \"CONTAINER_ID\": container.id,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_27"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"category\": config.category.value, ;; +                    \"XXcategoryXX\": config.category.value,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_28"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -                    \"category\": config.category.value, ;; +                    \"CATEGORY\": config.category.value,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_29"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -            f\"Discovered {len(discovered)} containers\", ;; +            None,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_30"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -            extra={\"count\": len(discovered)}, ;; +            extra=None,",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_31"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -            extra={\"count\": len(discovered)}, ;; -        ) ;; +            )",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_33"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -            extra={\"count\": len(discovered)}, ;; +            extra={\"XXcountXX\": len(discovered)},",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_34"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1discover_all || -            extra={\"count\": len(discovered)}, ;; +            extra={\"COUNT\": len(discovered)},",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1discover_all__mutmut_35"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1match_container_name || -        matches.sort(key=len, reverse=True) ;; +        matches.sort(key=None, reverse=True)",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1match_container_name__mutmut_5"
+   ]
+  },
+  {
+   "sig": "x\u01c1ContainerDiscoveryService\u01c1match_container_name || -        matches.sort(key=len, reverse=True) ;; +        matches.sort(reverse=True)",
+   "keys": [
+    "backend.services.container_discovery.x\u01c1ContainerDiscoveryService\u01c1match_container_name__mutmut_7"
+   ]
+  }
+ ]
+}

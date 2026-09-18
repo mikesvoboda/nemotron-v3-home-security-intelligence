@@ -1,2910 +1,459 @@
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_3: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -29,7 +29,7 @@
-         """
-     # Validate required inputs
-     if threat_detection is None:
--        raise ValueError("threat_detection is required")
-+        raise ValueError("XXthreat_detection is requiredXX")
-     if event is None:
-         raise ValueError("event is required")
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_7: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -31,7 +31,7 @@
-     if threat_detection is None:
-         raise ValueError("threat_detection is required")
-     if event is None:
--        raise ValueError("event is required")
-+        raise ValueError("XXevent is requiredXX")
-
-     # Check confidence threshold
-     if threat_detection.confidence < self.confidence_threshold:
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_10: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -36,8 +36,7 @@
-     # Check confidence threshold
-     if threat_detection.confidence < self.confidence_threshold:
-         logger.debug(
--            f"Skipping threat alert: confidence {threat_detection.confidence} "
--            f"below threshold {self.confidence_threshold}",
-+            None,
-             extra={
-                 "threat_type": threat_detection.threat_type,
-                 "confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_11: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -38,11 +38,7 @@
-         logger.debug(
-             f"Skipping threat alert: confidence {threat_detection.confidence} "
-             f"below threshold {self.confidence_threshold}",
--            extra={
--                "threat_type": threat_detection.threat_type,
--                "confidence": threat_detection.confidence,
--                "threshold": self.confidence_threshold,
--            },
-+            extra=None,
-         )
-         return None
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_13: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -38,12 +38,7 @@
-         logger.debug(
-             f"Skipping threat alert: confidence {threat_detection.confidence} "
-             f"below threshold {self.confidence_threshold}",
--            extra={
--                "threat_type": threat_detection.threat_type,
--                "confidence": threat_detection.confidence,
--                "threshold": self.confidence_threshold,
--            },
--        )
-+            )
-         return None
-
-     # Determine severity from threat type
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_14: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -39,7 +39,7 @@
-             f"Skipping threat alert: confidence {threat_detection.confidence} "
-             f"below threshold {self.confidence_threshold}",
-             extra={
--                "threat_type": threat_detection.threat_type,
-+                "XXthreat_typeXX": threat_detection.threat_type,
-                 "confidence": threat_detection.confidence,
-                 "threshold": self.confidence_threshold,
-             },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_15: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -39,7 +39,7 @@
-             f"Skipping threat alert: confidence {threat_detection.confidence} "
-             f"below threshold {self.confidence_threshold}",
-             extra={
--                "threat_type": threat_detection.threat_type,
-+                "THREAT_TYPE": threat_detection.threat_type,
-                 "confidence": threat_detection.confidence,
-                 "threshold": self.confidence_threshold,
-             },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_16: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -40,7 +40,7 @@
-             f"below threshold {self.confidence_threshold}",
-             extra={
-                 "threat_type": threat_detection.threat_type,
--                "confidence": threat_detection.confidence,
-+                "XXconfidenceXX": threat_detection.confidence,
-                 "threshold": self.confidence_threshold,
-             },
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_17: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -40,7 +40,7 @@
-             f"below threshold {self.confidence_threshold}",
-             extra={
-                 "threat_type": threat_detection.threat_type,
--                "confidence": threat_detection.confidence,
-+                "CONFIDENCE": threat_detection.confidence,
-                 "threshold": self.confidence_threshold,
-             },
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_18: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -41,7 +41,7 @@
-             extra={
-                 "threat_type": threat_detection.threat_type,
-                 "confidence": threat_detection.confidence,
--                "threshold": self.confidence_threshold,
-+                "XXthresholdXX": self.confidence_threshold,
-             },
-         )
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_19: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -41,7 +41,7 @@
-             extra={
-                 "threat_type": threat_detection.threat_type,
-                 "confidence": threat_detection.confidence,
--                "threshold": self.confidence_threshold,
-+                "THRESHOLD": self.confidence_threshold,
-             },
-         )
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_28: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -51,7 +51,7 @@
-     severity = get_threat_severity(threat_detection.threat_type, threat_detection.severity)
-
-     # Build dedup key for cooldown checking
--    dedup_key = self._build_dedup_key(event, threat_detection, rule)
-+    dedup_key = self._build_dedup_key(event, threat_detection, None)
-
-     # Check cooldown (returns existing alert if in cooldown)
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_31: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -51,7 +51,7 @@
-     severity = get_threat_severity(threat_detection.threat_type, threat_detection.severity)
-
-     # Build dedup key for cooldown checking
--    dedup_key = self._build_dedup_key(event, threat_detection, rule)
-+    dedup_key = self._build_dedup_key(event, threat_detection, )
-
-     # Check cooldown (returns existing alert if in cooldown)
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_33: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -54,7 +54,7 @@
-     dedup_key = self._build_dedup_key(event, threat_detection, rule)
-
-     # Check cooldown (returns existing alert if in cooldown)
--    cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
-+    cooldown_seconds = rule.cooldown_seconds if (rule) and False else self.cooldown_seconds
-     existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-     if existing_alert is not None:
-         logger.debug(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_36: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -55,7 +55,7 @@
-
-     # Check cooldown (returns existing alert if in cooldown)
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = await self._check_cooldown(None, cooldown_seconds, rule)
-     if existing_alert is not None:
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_38: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -55,7 +55,7 @@
-
-     # Check cooldown (returns existing alert if in cooldown)
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, None)
-     if existing_alert is not None:
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_41: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -55,7 +55,7 @@
-
-     # Check cooldown (returns existing alert if in cooldown)
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, )
-     if existing_alert is not None:
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_43: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -58,7 +58,7 @@
-     existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-     if existing_alert is not None:
-         logger.debug(
--            f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
-+            None,
-             extra={
-                 "threat_type": threat_detection.threat_type,
-                 "dedup_key": dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_44: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -59,10 +59,7 @@
-     if existing_alert is not None:
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
--            extra={
--                "threat_type": threat_detection.threat_type,
--                "dedup_key": dedup_key,
--            },
-+            extra=None,
-         )
-         return None
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_46: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -59,11 +59,7 @@
-     if existing_alert is not None:
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
--            extra={
--                "threat_type": threat_detection.threat_type,
--                "dedup_key": dedup_key,
--            },
--        )
-+            )
-         return None
-
-     # Create alert with threat metadata
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_47: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -60,7 +60,7 @@
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
-             extra={
--                "threat_type": threat_detection.threat_type,
-+                "XXthreat_typeXX": threat_detection.threat_type,
-                 "dedup_key": dedup_key,
-             },
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_48: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -60,7 +60,7 @@
-         logger.debug(
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
-             extra={
--                "threat_type": threat_detection.threat_type,
-+                "THREAT_TYPE": threat_detection.threat_type,
-                 "dedup_key": dedup_key,
-             },
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_49: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -61,7 +61,7 @@
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
-             extra={
-                 "threat_type": threat_detection.threat_type,
--                "dedup_key": dedup_key,
-+                "XXdedup_keyXX": dedup_key,
-             },
-         )
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_50: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -61,7 +61,7 @@
-             f"Skipping threat alert: in cooldown (dedup_key={dedup_key})",
-             extra={
-                 "threat_type": threat_detection.threat_type,
--                "dedup_key": dedup_key,
-+                "DEDUP_KEY": dedup_key,
-             },
-         )
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_53: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -69,7 +69,7 @@
-     # Create alert with threat metadata
-     alert = Alert(
-         event_id=event.id,
--        rule_id=rule.id if rule else None,
-+        rule_id=None,
-         severity=severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_57: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -73,7 +73,7 @@
-         severity=severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
--        channels=[],
-+        channels=None,
-         alert_metadata={
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_60: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -69,7 +69,6 @@
-     # Create alert with threat metadata
-     alert = Alert(
-         event_id=event.id,
--        rule_id=rule.id if rule else None,
-         severity=severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_64: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -73,7 +73,6 @@
-         severity=severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
--        channels=[],
-         alert_metadata={
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_66: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -69,7 +69,7 @@
-     # Create alert with threat metadata
-     alert = Alert(
-         event_id=event.id,
--        rule_id=rule.id if rule else None,
-+        rule_id=rule.id if (rule) and False else None,
-         severity=severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_72: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -77,7 +77,7 @@
-         alert_metadata={
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
--            "threat_detection_id": threat_detection.id,
-+            "XXthreat_detection_idXX": threat_detection.id,
-             "auto_generated": True,
-             "source": "threat_monitor_service",
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_73: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -77,7 +77,7 @@
-         alert_metadata={
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
--            "threat_detection_id": threat_detection.id,
-+            "THREAT_DETECTION_ID": threat_detection.id,
-             "auto_generated": True,
-             "source": "threat_monitor_service",
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_74: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -78,7 +78,7 @@
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
--            "auto_generated": True,
-+            "XXauto_generatedXX": True,
-             "source": "threat_monitor_service",
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_75: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -78,7 +78,7 @@
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
--            "auto_generated": True,
-+            "AUTO_GENERATED": True,
-             "source": "threat_monitor_service",
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_76: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -78,7 +78,7 @@
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
--            "auto_generated": True,
-+            "auto_generated": False,
-             "source": "threat_monitor_service",
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_77: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -79,7 +79,7 @@
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "XXsourceXX": "threat_monitor_service",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_78: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -79,7 +79,7 @@
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "SOURCE": "threat_monitor_service",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_79: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -79,7 +79,7 @@
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "source": "XXthreat_monitor_serviceXX",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_80: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -79,7 +79,7 @@
-             "threat_confidence": threat_detection.confidence,
-             "threat_detection_id": threat_detection.id,
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "source": "THREAT_MONITOR_SERVICE",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_81: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -83,7 +83,7 @@
-         },
-     )
-
--    self.session.add(alert)
-+    self.session.add(None)
-     await self.session.flush()
-     await self.session.refresh(alert)
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_82: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -85,7 +85,7 @@
-
-     self.session.add(alert)
-     await self.session.flush()
--    await self.session.refresh(alert)
-+    await self.session.refresh(None)
-
-     logger.info(
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_83: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -88,7 +88,7 @@
-     await self.session.refresh(alert)
-
-     logger.info(
--        f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
-+        None,
-         extra={
-             "alert_id": alert.id,
-             "event_id": event.id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_84: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -89,13 +89,7 @@
-
-     logger.info(
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
--        extra={
--            "alert_id": alert.id,
--            "event_id": event.id,
--            "threat_type": threat_detection.threat_type,
--            "severity": severity.value,
--            "confidence": threat_detection.confidence,
--        },
-+        extra=None,
-     )
-
-     # Broadcast via WebSocket
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_86: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -89,14 +89,7 @@
-
-     logger.info(
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
--        extra={
--            "alert_id": alert.id,
--            "event_id": event.id,
--            "threat_type": threat_detection.threat_type,
--            "severity": severity.value,
--            "confidence": threat_detection.confidence,
--        },
--    )
-+        )
-
-     # Broadcast via WebSocket
-     await self._broadcast_alert_created(alert, event, threat_detection)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_87: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -90,7 +90,7 @@
-     logger.info(
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
-         extra={
--            "alert_id": alert.id,
-+            "XXalert_idXX": alert.id,
-             "event_id": event.id,
-             "threat_type": threat_detection.threat_type,
-             "severity": severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_88: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -90,7 +90,7 @@
-     logger.info(
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
-         extra={
--            "alert_id": alert.id,
-+            "ALERT_ID": alert.id,
-             "event_id": event.id,
-             "threat_type": threat_detection.threat_type,
-             "severity": severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_89: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -91,7 +91,7 @@
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
-         extra={
-             "alert_id": alert.id,
--            "event_id": event.id,
-+            "XXevent_idXX": event.id,
-             "threat_type": threat_detection.threat_type,
-             "severity": severity.value,
-             "confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_90: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -91,7 +91,7 @@
-         f"Created threat alert: {severity.value} for {threat_detection.threat_type}",
-         extra={
-             "alert_id": alert.id,
--            "event_id": event.id,
-+            "EVENT_ID": event.id,
-             "threat_type": threat_detection.threat_type,
-             "severity": severity.value,
-             "confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_91: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -92,7 +92,7 @@
-         extra={
-             "alert_id": alert.id,
-             "event_id": event.id,
--            "threat_type": threat_detection.threat_type,
-+            "XXthreat_typeXX": threat_detection.threat_type,
-             "severity": severity.value,
-             "confidence": threat_detection.confidence,
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_92: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -92,7 +92,7 @@
-         extra={
-             "alert_id": alert.id,
-             "event_id": event.id,
--            "threat_type": threat_detection.threat_type,
-+            "THREAT_TYPE": threat_detection.threat_type,
-             "severity": severity.value,
-             "confidence": threat_detection.confidence,
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_93: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -93,7 +93,7 @@
-             "alert_id": alert.id,
-             "event_id": event.id,
-             "threat_type": threat_detection.threat_type,
--            "severity": severity.value,
-+            "XXseverityXX": severity.value,
-             "confidence": threat_detection.confidence,
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_94: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -93,7 +93,7 @@
-             "alert_id": alert.id,
-             "event_id": event.id,
-             "threat_type": threat_detection.threat_type,
--            "severity": severity.value,
-+            "SEVERITY": severity.value,
-             "confidence": threat_detection.confidence,
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_95: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -94,7 +94,7 @@
-             "event_id": event.id,
-             "threat_type": threat_detection.threat_type,
-             "severity": severity.value,
--            "confidence": threat_detection.confidence,
-+            "XXconfidenceXX": threat_detection.confidence,
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_96: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -94,7 +94,7 @@
-             "event_id": event.id,
-             "threat_type": threat_detection.threat_type,
-             "severity": severity.value,
--            "confidence": threat_detection.confidence,
-+            "CONFIDENCE": threat_detection.confidence,
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_threat_detection__mutmut_104: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -102,6 +102,6 @@
-     await self._broadcast_alert_created(alert, event, threat_detection)
-
-     # Trigger webhooks
--    await self._trigger_webhooks(alert, event)
-+    await self._trigger_webhooks(alert, None)
-
-     return alert
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_3: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,7 @@
-     if not threat_detections:
-         return None
-
--    valid_threats = [t for t in threat_detections if t.confidence >= self.confidence_threshold]
-+    valid_threats = [t for t in threat_detections if t.confidence > self.confidence_threshold]
-
-     if not valid_threats:
-         logger.debug(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_5: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -29,8 +29,7 @@
-
-     if not valid_threats:
-         logger.debug(
--            f"Skipping multi-threat alert: all {len(threat_detections)} "
--            f"detections below threshold {self.confidence_threshold}"
-+            None
-         )
-         return None
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_6: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -35,7 +35,7 @@
-         return None
-
-     def severity_key(threat: ThreatDetection) -> int:
--        severity = get_threat_severity(threat.threat_type, threat.severity)
-+        severity = None
-         return SEVERITY_PRIORITY.get(severity, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_8: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -35,7 +35,7 @@
-         return None
-
-     def severity_key(threat: ThreatDetection) -> int:
--        severity = get_threat_severity(threat.threat_type, threat.severity)
-+        severity = get_threat_severity(threat.threat_type, None)
-         return SEVERITY_PRIORITY.get(severity, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_9: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -35,7 +35,7 @@
-         return None
-
-     def severity_key(threat: ThreatDetection) -> int:
--        severity = get_threat_severity(threat.threat_type, threat.severity)
-+        severity = get_threat_severity(threat.severity)
-         return SEVERITY_PRIORITY.get(severity, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_10: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -35,7 +35,7 @@
-         return None
-
-     def severity_key(threat: ThreatDetection) -> int:
--        severity = get_threat_severity(threat.threat_type, threat.severity)
-+        severity = get_threat_severity(threat.threat_type, )
-         return SEVERITY_PRIORITY.get(severity, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_11: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -36,7 +36,7 @@
-
-     def severity_key(threat: ThreatDetection) -> int:
-         severity = get_threat_severity(threat.threat_type, threat.severity)
--        return SEVERITY_PRIORITY.get(severity, 0)
-+        return SEVERITY_PRIORITY.get(None, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_12: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -36,7 +36,7 @@
-
-     def severity_key(threat: ThreatDetection) -> int:
-         severity = get_threat_severity(threat.threat_type, threat.severity)
--        return SEVERITY_PRIORITY.get(severity, 0)
-+        return SEVERITY_PRIORITY.get(severity, None)
-
-     highest_threat = max(valid_threats, key=severity_key)
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_14: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -36,7 +36,7 @@
-
-     def severity_key(threat: ThreatDetection) -> int:
-         severity = get_threat_severity(threat.threat_type, threat.severity)
--        return SEVERITY_PRIORITY.get(severity, 0)
-+        return SEVERITY_PRIORITY.get(severity, )
-
-     highest_threat = max(valid_threats, key=severity_key)
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_15: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -36,7 +36,7 @@
-
-     def severity_key(threat: ThreatDetection) -> int:
-         severity = get_threat_severity(threat.threat_type, threat.severity)
--        return SEVERITY_PRIORITY.get(severity, 0)
-+        return SEVERITY_PRIORITY.get(severity, 1)
-
-     highest_threat = max(valid_threats, key=severity_key)
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_23: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -39,7 +39,7 @@
-         return SEVERITY_PRIORITY.get(severity, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
--    highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
-+    highest_severity = get_threat_severity(highest_threat.threat_type, None)
-
-     # Build dedup key using highest-severity threat
-     dedup_key = self._build_dedup_key(event, highest_threat, rule)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_25: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -39,7 +39,7 @@
-         return SEVERITY_PRIORITY.get(severity, 0)
-
-     highest_threat = max(valid_threats, key=severity_key)
--    highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
-+    highest_severity = get_threat_severity(highest_threat.threat_type, )
-
-     # Build dedup key using highest-severity threat
-     dedup_key = self._build_dedup_key(event, highest_threat, rule)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_26: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -42,7 +42,7 @@
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
-
-     # Build dedup key using highest-severity threat
--    dedup_key = self._build_dedup_key(event, highest_threat, rule)
-+    dedup_key = None
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_29: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -42,7 +42,7 @@
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
-
-     # Build dedup key using highest-severity threat
--    dedup_key = self._build_dedup_key(event, highest_threat, rule)
-+    dedup_key = self._build_dedup_key(event, highest_threat, None)
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_32: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -42,7 +42,7 @@
-     highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
-
-     # Build dedup key using highest-severity threat
--    dedup_key = self._build_dedup_key(event, highest_threat, rule)
-+    dedup_key = self._build_dedup_key(event, highest_threat, )
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_34: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -45,7 +45,7 @@
-     dedup_key = self._build_dedup_key(event, highest_threat, rule)
-
-     # Check cooldown
--    cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
-+    cooldown_seconds = rule.cooldown_seconds if (rule) and False else self.cooldown_seconds
-     existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-     if existing_alert is not None:
-         logger.debug(f"Skipping multi-threat alert: in cooldown (dedup_key={dedup_key})")
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_36: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = None
-     if existing_alert is not None:
-         logger.debug(f"Skipping multi-threat alert: in cooldown (dedup_key={dedup_key})")
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_37: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = await self._check_cooldown(None, cooldown_seconds, rule)
-     if existing_alert is not None:
-         logger.debug(f"Skipping multi-threat alert: in cooldown (dedup_key={dedup_key})")
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_39: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, None)
-     if existing_alert is not None:
-         logger.debug(f"Skipping multi-threat alert: in cooldown (dedup_key={dedup_key})")
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_42: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-     # Check cooldown
-     cooldown_seconds = rule.cooldown_seconds if rule else self.cooldown_seconds
--    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, rule)
-+    existing_alert = await self._check_cooldown(dedup_key, cooldown_seconds, )
-     if existing_alert is not None:
-         logger.debug(f"Skipping multi-threat alert: in cooldown (dedup_key={dedup_key})")
-         return None
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_47: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -55,7 +55,7 @@
-     detected_threats = [
-         {
-             "type": t.threat_type,
--            "confidence": t.confidence,
-+            "XXconfidenceXX": t.confidence,
-             "severity": get_threat_severity(t.threat_type, t.severity).value,
-             "detection_id": t.id,
-         }
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_48: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -55,7 +55,7 @@
-     detected_threats = [
-         {
-             "type": t.threat_type,
--            "confidence": t.confidence,
-+            "CONFIDENCE": t.confidence,
-             "severity": get_threat_severity(t.threat_type, t.severity).value,
-             "detection_id": t.id,
-         }
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_49: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -56,7 +56,7 @@
-         {
-             "type": t.threat_type,
-             "confidence": t.confidence,
--            "severity": get_threat_severity(t.threat_type, t.severity).value,
-+            "XXseverityXX": get_threat_severity(t.threat_type, t.severity).value,
-             "detection_id": t.id,
-         }
-         for t in valid_threats
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_50: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -56,7 +56,7 @@
-         {
-             "type": t.threat_type,
-             "confidence": t.confidence,
--            "severity": get_threat_severity(t.threat_type, t.severity).value,
-+            "SEVERITY": get_threat_severity(t.threat_type, t.severity).value,
-             "detection_id": t.id,
-         }
-         for t in valid_threats
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_52: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -56,7 +56,7 @@
-         {
-             "type": t.threat_type,
-             "confidence": t.confidence,
--            "severity": get_threat_severity(t.threat_type, t.severity).value,
-+            "severity": get_threat_severity(t.threat_type, None).value,
-             "detection_id": t.id,
-         }
-         for t in valid_threats
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_53: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -56,7 +56,7 @@
-         {
-             "type": t.threat_type,
-             "confidence": t.confidence,
--            "severity": get_threat_severity(t.threat_type, t.severity).value,
-+            "severity": get_threat_severity(t.severity).value,
-             "detection_id": t.id,
-         }
-         for t in valid_threats
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_54: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -56,7 +56,7 @@
-         {
-             "type": t.threat_type,
-             "confidence": t.confidence,
--            "severity": get_threat_severity(t.threat_type, t.severity).value,
-+            "severity": get_threat_severity(t.threat_type, ).value,
-             "detection_id": t.id,
-         }
-         for t in valid_threats
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_55: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -57,7 +57,7 @@
-             "type": t.threat_type,
-             "confidence": t.confidence,
-             "severity": get_threat_severity(t.threat_type, t.severity).value,
--            "detection_id": t.id,
-+            "XXdetection_idXX": t.id,
-         }
-         for t in valid_threats
-     ]
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_56: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -57,7 +57,7 @@
-             "type": t.threat_type,
-             "confidence": t.confidence,
-             "severity": get_threat_severity(t.threat_type, t.severity).value,
--            "detection_id": t.id,
-+            "DETECTION_ID": t.id,
-         }
-         for t in valid_threats
-     ]
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_58: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -64,7 +64,7 @@
-
-     # Create alert
-     alert = Alert(
--        event_id=event.id,
-+        event_id=None,
-         rule_id=rule.id if rule else None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_59: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -65,7 +65,7 @@
-     # Create alert
-     alert = Alert(
-         event_id=event.id,
--        rule_id=rule.id if rule else None,
-+        rule_id=None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_61: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -67,7 +67,7 @@
-         event_id=event.id,
-         rule_id=rule.id if rule else None,
-         severity=highest_severity,
--        status=AlertStatus.PENDING,
-+        status=None,
-         dedup_key=dedup_key,
-         channels=[],
-         alert_metadata={
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_62: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -68,7 +68,7 @@
-         rule_id=rule.id if rule else None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
--        dedup_key=dedup_key,
-+        dedup_key=None,
-         channels=[],
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_63: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -69,7 +69,7 @@
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
--        channels=[],
-+        channels=None,
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
-             "threat_confidence": highest_threat.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_65: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -64,7 +64,6 @@
-
-     # Create alert
-     alert = Alert(
--        event_id=event.id,
-         rule_id=rule.id if rule else None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_66: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -65,7 +65,6 @@
-     # Create alert
-     alert = Alert(
-         event_id=event.id,
--        rule_id=rule.id if rule else None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_68: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -67,7 +67,6 @@
-         event_id=event.id,
-         rule_id=rule.id if rule else None,
-         severity=highest_severity,
--        status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
-         channels=[],
-         alert_metadata={
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_69: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -68,7 +68,6 @@
-         rule_id=rule.id if rule else None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
--        dedup_key=dedup_key,
-         channels=[],
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_70: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -69,7 +69,6 @@
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
--        channels=[],
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
-             "threat_confidence": highest_threat.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_72: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -65,7 +65,7 @@
-     # Create alert
-     alert = Alert(
-         event_id=event.id,
--        rule_id=rule.id if rule else None,
-+        rule_id=rule.id if (rule) and False else None,
-         severity=highest_severity,
-         status=AlertStatus.PENDING,
-         dedup_key=dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_74: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -71,7 +71,7 @@
-         dedup_key=dedup_key,
-         channels=[],
-         alert_metadata={
--            "threat_type": highest_threat.threat_type,
-+            "XXthreat_typeXX": highest_threat.threat_type,
-             "threat_confidence": highest_threat.confidence,
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_75: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -71,7 +71,7 @@
-         dedup_key=dedup_key,
-         channels=[],
-         alert_metadata={
--            "threat_type": highest_threat.threat_type,
-+            "THREAT_TYPE": highest_threat.threat_type,
-             "threat_confidence": highest_threat.confidence,
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_76: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -72,7 +72,7 @@
-         channels=[],
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
--            "threat_confidence": highest_threat.confidence,
-+            "XXthreat_confidenceXX": highest_threat.confidence,
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_77: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -72,7 +72,7 @@
-         channels=[],
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
--            "threat_confidence": highest_threat.confidence,
-+            "THREAT_CONFIDENCE": highest_threat.confidence,
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_78: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -73,7 +73,7 @@
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
-             "threat_confidence": highest_threat.confidence,
--            "threat_detection_id": highest_threat.id,
-+            "XXthreat_detection_idXX": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
-             "auto_generated": True,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_79: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -73,7 +73,7 @@
-         alert_metadata={
-             "threat_type": highest_threat.threat_type,
-             "threat_confidence": highest_threat.confidence,
--            "threat_detection_id": highest_threat.id,
-+            "THREAT_DETECTION_ID": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
-             "auto_generated": True,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_82: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -75,7 +75,7 @@
-             "threat_confidence": highest_threat.confidence,
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
--            "total_threats": len(valid_threats),
-+            "XXtotal_threatsXX": len(valid_threats),
-             "auto_generated": True,
-             "source": "threat_monitor_service",
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_83: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -75,7 +75,7 @@
-             "threat_confidence": highest_threat.confidence,
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
--            "total_threats": len(valid_threats),
-+            "TOTAL_THREATS": len(valid_threats),
-             "auto_generated": True,
-             "source": "threat_monitor_service",
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_84: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -76,7 +76,7 @@
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
--            "auto_generated": True,
-+            "XXauto_generatedXX": True,
-             "source": "threat_monitor_service",
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_85: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -76,7 +76,7 @@
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
--            "auto_generated": True,
-+            "AUTO_GENERATED": True,
-             "source": "threat_monitor_service",
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_86: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -76,7 +76,7 @@
-             "threat_detection_id": highest_threat.id,
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
--            "auto_generated": True,
-+            "auto_generated": False,
-             "source": "threat_monitor_service",
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_87: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -77,7 +77,7 @@
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "XXsourceXX": "threat_monitor_service",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_88: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -77,7 +77,7 @@
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "SOURCE": "threat_monitor_service",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_89: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -77,7 +77,7 @@
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "source": "XXthreat_monitor_serviceXX",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_90: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -77,7 +77,7 @@
-             "detected_threats": detected_threats,
-             "total_threats": len(valid_threats),
-             "auto_generated": True,
--            "source": "threat_monitor_service",
-+            "source": "THREAT_MONITOR_SERVICE",
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_91: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -81,7 +81,7 @@
-         },
-     )
-
--    self.session.add(alert)
-+    self.session.add(None)
-     await self.session.flush()
-     await self.session.refresh(alert)
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_92: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -83,7 +83,7 @@
-
-     self.session.add(alert)
-     await self.session.flush()
--    await self.session.refresh(alert)
-+    await self.session.refresh(None)
-
-     logger.info(
-         f"Created multi-threat alert: {highest_severity.value} "
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_93: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -86,8 +86,7 @@
-     await self.session.refresh(alert)
-
-     logger.info(
--        f"Created multi-threat alert: {highest_severity.value} "
--        f"with {len(valid_threats)} threats",
-+        None,
-         extra={
-             "alert_id": alert.id,
-             "event_id": event.id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_94: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -88,12 +88,7 @@
-     logger.info(
-         f"Created multi-threat alert: {highest_severity.value} "
-         f"with {len(valid_threats)} threats",
--        extra={
--            "alert_id": alert.id,
--            "event_id": event.id,
--            "threat_count": len(valid_threats),
--            "severity": highest_severity.value,
--        },
-+        extra=None,
-     )
-
-     # Broadcast via WebSocket
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_96: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -88,13 +88,7 @@
-     logger.info(
-         f"Created multi-threat alert: {highest_severity.value} "
-         f"with {len(valid_threats)} threats",
--        extra={
--            "alert_id": alert.id,
--            "event_id": event.id,
--            "threat_count": len(valid_threats),
--            "severity": highest_severity.value,
--        },
--    )
-+        )
-
-     # Broadcast via WebSocket
-     await self._broadcast_alert_created(alert, event, highest_threat)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_97: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -89,7 +89,7 @@
-         f"Created multi-threat alert: {highest_severity.value} "
-         f"with {len(valid_threats)} threats",
-         extra={
--            "alert_id": alert.id,
-+            "XXalert_idXX": alert.id,
-             "event_id": event.id,
-             "threat_count": len(valid_threats),
-             "severity": highest_severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_98: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -89,7 +89,7 @@
-         f"Created multi-threat alert: {highest_severity.value} "
-         f"with {len(valid_threats)} threats",
-         extra={
--            "alert_id": alert.id,
-+            "ALERT_ID": alert.id,
-             "event_id": event.id,
-             "threat_count": len(valid_threats),
-             "severity": highest_severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_99: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -90,7 +90,7 @@
-         f"with {len(valid_threats)} threats",
-         extra={
-             "alert_id": alert.id,
--            "event_id": event.id,
-+            "XXevent_idXX": event.id,
-             "threat_count": len(valid_threats),
-             "severity": highest_severity.value,
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_100: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -90,7 +90,7 @@
-         f"with {len(valid_threats)} threats",
-         extra={
-             "alert_id": alert.id,
--            "event_id": event.id,
-+            "EVENT_ID": event.id,
-             "threat_count": len(valid_threats),
-             "severity": highest_severity.value,
-         },
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_101: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -91,7 +91,7 @@
-         extra={
-             "alert_id": alert.id,
-             "event_id": event.id,
--            "threat_count": len(valid_threats),
-+            "XXthreat_countXX": len(valid_threats),
-             "severity": highest_severity.value,
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_102: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -91,7 +91,7 @@
-         extra={
-             "alert_id": alert.id,
-             "event_id": event.id,
--            "threat_count": len(valid_threats),
-+            "THREAT_COUNT": len(valid_threats),
-             "severity": highest_severity.value,
-         },
-     )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_103: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -92,7 +92,7 @@
-             "alert_id": alert.id,
-             "event_id": event.id,
-             "threat_count": len(valid_threats),
--            "severity": highest_severity.value,
-+            "XXseverityXX": highest_severity.value,
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_104: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -92,7 +92,7 @@
-             "alert_id": alert.id,
-             "event_id": event.id,
-             "threat_count": len(valid_threats),
--            "severity": highest_severity.value,
-+            "SEVERITY": highest_severity.value,
-         },
-     )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_106: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -97,7 +97,7 @@
-     )
-
-     # Broadcast via WebSocket
--    await self._broadcast_alert_created(alert, event, highest_threat)
-+    await self._broadcast_alert_created(alert, None, highest_threat)
-
-     # Trigger webhooks
-     await self._trigger_webhooks(alert, event)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_107: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -97,7 +97,7 @@
-     )
-
-     # Broadcast via WebSocket
--    await self._broadcast_alert_created(alert, event, highest_threat)
-+    await self._broadcast_alert_created(alert, event, None)
-
-     # Trigger webhooks
-     await self._trigger_webhooks(alert, event)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁprocess_multiple_threat_detections__mutmut_112: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -100,6 +100,6 @@
-     await self._broadcast_alert_created(alert, event, highest_threat)
-
-     # Trigger webhooks
--    await self._trigger_webhooks(alert, event)
-+    await self._trigger_webhooks(alert, None)
-
-     return alert
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_2: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -19,7 +19,7 @@
-         from uuid import uuid4
-
-         # Get current timestamp for fallback values
--        now_iso = datetime.now(UTC).isoformat()
-+        now_iso = None
-
-         # Build alert data for broadcast
-         # Provide fallback values for fields that may be None in unit tests
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_3: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -19,7 +19,7 @@
-         from uuid import uuid4
-
-         # Get current timestamp for fallback values
--        now_iso = datetime.now(UTC).isoformat()
-+        now_iso = datetime.now(None).isoformat()
-
-         # Build alert data for broadcast
-         # Provide fallback values for fields that may be None in unit tests
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_4: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -24,19 +24,7 @@
-         # Build alert data for broadcast
-         # Provide fallback values for fields that may be None in unit tests
-         # (where the mock session doesn't populate these fields)
--        alert_data = {
--            "id": alert.id or str(uuid4()),
--            "event_id": alert.event_id,
--            "rule_id": alert.rule_id,
--            "severity": alert.severity.value,
--            "status": alert.status.value,
--            "dedup_key": alert.dedup_key,
--            "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
--            "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
--            "camera_id": event.camera_id,
--            "threat_type": threat_detection.threat_type,
--            "threat_confidence": threat_detection.confidence,
--        }
-+        alert_data = None
-
-         # Wrap in WebSocket message format
-         message = {
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_5: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,7 @@
-         # Provide fallback values for fields that may be None in unit tests
-         # (where the mock session doesn't populate these fields)
-         alert_data = {
--            "id": alert.id or str(uuid4()),
-+            "XXidXX": alert.id or str(uuid4()),
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_6: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,7 @@
-         # Provide fallback values for fields that may be None in unit tests
-         # (where the mock session doesn't populate these fields)
-         alert_data = {
--            "id": alert.id or str(uuid4()),
-+            "ID": alert.id or str(uuid4()),
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_7: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,7 @@
-         # Provide fallback values for fields that may be None in unit tests
-         # (where the mock session doesn't populate these fields)
-         alert_data = {
--            "id": alert.id or str(uuid4()),
-+            "id": alert.id and str(uuid4()),
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_8: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,7 @@
-         # Provide fallback values for fields that may be None in unit tests
-         # (where the mock session doesn't populate these fields)
-         alert_data = {
--            "id": alert.id or str(uuid4()),
-+            "id": alert.id or str(None),
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_9: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -26,7 +26,7 @@
-         # (where the mock session doesn't populate these fields)
-         alert_data = {
-             "id": alert.id or str(uuid4()),
--            "event_id": alert.event_id,
-+            "XXevent_idXX": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_10: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -26,7 +26,7 @@
-         # (where the mock session doesn't populate these fields)
-         alert_data = {
-             "id": alert.id or str(uuid4()),
--            "event_id": alert.event_id,
-+            "EVENT_ID": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_11: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -27,7 +27,7 @@
-         alert_data = {
-             "id": alert.id or str(uuid4()),
-             "event_id": alert.event_id,
--            "rule_id": alert.rule_id,
-+            "XXrule_idXX": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_12: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -27,7 +27,7 @@
-         alert_data = {
-             "id": alert.id or str(uuid4()),
-             "event_id": alert.event_id,
--            "rule_id": alert.rule_id,
-+            "RULE_ID": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_13: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -28,7 +28,7 @@
-             "id": alert.id or str(uuid4()),
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
--            "severity": alert.severity.value,
-+            "XXseverityXX": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_14: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -28,7 +28,7 @@
-             "id": alert.id or str(uuid4()),
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
--            "severity": alert.severity.value,
-+            "SEVERITY": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_15: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -29,7 +29,7 @@
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
--            "status": alert.status.value,
-+            "XXstatusXX": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_16: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -29,7 +29,7 @@
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
--            "status": alert.status.value,
-+            "STATUS": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_17: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -30,7 +30,7 @@
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
--            "dedup_key": alert.dedup_key,
-+            "XXdedup_keyXX": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_18: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -30,7 +30,7 @@
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
--            "dedup_key": alert.dedup_key,
-+            "DEDUP_KEY": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_19: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -31,7 +31,7 @@
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
--            "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-+            "XXcreated_atXX": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_20: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -31,7 +31,7 @@
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
--            "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-+            "CREATED_AT": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_21: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -31,7 +31,7 @@
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
--            "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-+            "created_at": alert.created_at.isoformat() if (alert.created_at) and False else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_23: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -32,7 +32,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
--            "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-+            "XXupdated_atXX": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_24: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -32,7 +32,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
--            "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-+            "UPDATED_AT": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_25: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -32,7 +32,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
--            "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-+            "updated_at": alert.updated_at.isoformat() if (alert.updated_at) and False else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_27: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -33,7 +33,7 @@
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
--            "camera_id": event.camera_id,
-+            "XXcamera_idXX": event.camera_id,
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-         }
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_28: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -33,7 +33,7 @@
-             "dedup_key": alert.dedup_key,
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
--            "camera_id": event.camera_id,
-+            "CAMERA_ID": event.camera_id,
-             "threat_type": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-         }
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_29: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,7 +34,7 @@
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
--            "threat_type": threat_detection.threat_type,
-+            "XXthreat_typeXX": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_30: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,7 +34,7 @@
-             "created_at": alert.created_at.isoformat() if alert.created_at else now_iso,
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
--            "threat_type": threat_detection.threat_type,
-+            "THREAT_TYPE": threat_detection.threat_type,
-             "threat_confidence": threat_detection.confidence,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_31: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -35,7 +35,7 @@
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
--            "threat_confidence": threat_detection.confidence,
-+            "XXthreat_confidenceXX": threat_detection.confidence,
-         }
-
-         # Wrap in WebSocket message format
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_32: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -35,7 +35,7 @@
-             "updated_at": alert.updated_at.isoformat() if alert.updated_at else now_iso,
-             "camera_id": event.camera_id,
-             "threat_type": threat_detection.threat_type,
--            "threat_confidence": threat_detection.confidence,
-+            "THREAT_CONFIDENCE": threat_detection.confidence,
-         }
-
-         # Wrap in WebSocket message format
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_33: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -39,10 +39,7 @@
-         }
-
-         # Wrap in WebSocket message format
--        message = {
--            "type": "alert.created",
--            "data": alert_data,
--        }
-+        message = None
-
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_34: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -40,7 +40,7 @@
-
-         # Wrap in WebSocket message format
-         message = {
--            "type": "alert.created",
-+            "XXtypeXX": "alert.created",
-             "data": alert_data,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_35: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -40,7 +40,7 @@
-
-         # Wrap in WebSocket message format
-         message = {
--            "type": "alert.created",
-+            "TYPE": "alert.created",
-             "data": alert_data,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_36: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -40,7 +40,7 @@
-
-         # Wrap in WebSocket message format
-         message = {
--            "type": "alert.created",
-+            "type": "XXalert.createdXX",
-             "data": alert_data,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_37: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -40,7 +40,7 @@
-
-         # Wrap in WebSocket message format
-         message = {
--            "type": "alert.created",
-+            "type": "ALERT.CREATED",
-             "data": alert_data,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_38: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -41,7 +41,7 @@
-         # Wrap in WebSocket message format
-         message = {
-             "type": "alert.created",
--            "data": alert_data,
-+            "XXdataXX": alert_data,
-         }
-
-         # Publish directly to Redis for immediate delivery
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_39: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -41,7 +41,7 @@
-         # Wrap in WebSocket message format
-         message = {
-             "type": "alert.created",
--            "data": alert_data,
-+            "DATA": alert_data,
-         }
-
-         # Publish directly to Redis for immediate delivery
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_40: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
--        channel = "websocket:events"
-+        channel = None
-         await self.redis_client.publish(channel, json.dumps(message))
-
-         logger.debug(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_41: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
--        channel = "websocket:events"
-+        channel = "XXwebsocket:eventsXX"
-         await self.redis_client.publish(channel, json.dumps(message))
-
-         logger.debug(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_42: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -46,7 +46,7 @@
-
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
--        channel = "websocket:events"
-+        channel = "WEBSOCKET:EVENTS"
-         await self.redis_client.publish(channel, json.dumps(message))
-
-         logger.debug(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_43: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -47,7 +47,7 @@
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
-         channel = "websocket:events"
--        await self.redis_client.publish(channel, json.dumps(message))
-+        await self.redis_client.publish(None, json.dumps(message))
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_44: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -47,7 +47,7 @@
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
-         channel = "websocket:events"
--        await self.redis_client.publish(channel, json.dumps(message))
-+        await self.redis_client.publish(channel, None)
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_45: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -47,7 +47,7 @@
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
-         channel = "websocket:events"
--        await self.redis_client.publish(channel, json.dumps(message))
-+        await self.redis_client.publish(json.dumps(message))
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_46: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -47,7 +47,7 @@
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
-         channel = "websocket:events"
--        await self.redis_client.publish(channel, json.dumps(message))
-+        await self.redis_client.publish(channel, )
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_47: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -47,7 +47,7 @@
-         # Publish directly to Redis for immediate delivery
-         # (bypasses EventBroadcaster singleton for better test isolation)
-         channel = "websocket:events"
--        await self.redis_client.publish(channel, json.dumps(message))
-+        await self.redis_client.publish(channel, json.dumps(None))
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_48: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -50,7 +50,7 @@
-         await self.redis_client.publish(channel, json.dumps(message))
-
-         logger.debug(
--            f"Broadcast alert.created for threat alert {alert.id}",
-+            None,
-             extra={
-                 "alert_id": alert.id,
-                 "threat_type": threat_detection.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_49: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -51,10 +51,7 @@
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
--            extra={
--                "alert_id": alert.id,
--                "threat_type": threat_detection.threat_type,
--            },
-+            extra=None,
-         )
-
-     except Exception as e:
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_50: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -50,7 +50,6 @@
-         await self.redis_client.publish(channel, json.dumps(message))
-
-         logger.debug(
--            f"Broadcast alert.created for threat alert {alert.id}",
-             extra={
-                 "alert_id": alert.id,
-                 "threat_type": threat_detection.threat_type,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_51: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -51,11 +51,7 @@
-
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
--            extra={
--                "alert_id": alert.id,
--                "threat_type": threat_detection.threat_type,
--            },
--        )
-+            )
-
-     except Exception as e:
-         # Log but don't fail the alert creation
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_52: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -52,7 +52,7 @@
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
-             extra={
--                "alert_id": alert.id,
-+                "XXalert_idXX": alert.id,
-                 "threat_type": threat_detection.threat_type,
-             },
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_53: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -52,7 +52,7 @@
-         logger.debug(
-             f"Broadcast alert.created for threat alert {alert.id}",
-             extra={
--                "alert_id": alert.id,
-+                "ALERT_ID": alert.id,
-                 "threat_type": threat_detection.threat_type,
-             },
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_54: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -53,7 +53,7 @@
-             f"Broadcast alert.created for threat alert {alert.id}",
-             extra={
-                 "alert_id": alert.id,
--                "threat_type": threat_detection.threat_type,
-+                "XXthreat_typeXX": threat_detection.threat_type,
-             },
-         )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_broadcast_alert_created__mutmut_55: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -53,7 +53,7 @@
-             f"Broadcast alert.created for threat alert {alert.id}",
-             extra={
-                 "alert_id": alert.id,
--                "threat_type": threat_detection.threat_type,
-+                "THREAT_TYPE": threat_detection.threat_type,
-             },
-         )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_1: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -8,7 +8,7 @@
-     try:
-         from backend.api.schemas.outbound_webhook import WebhookEventType
-
--        webhook_service = get_webhook_service()
-+        webhook_service = None
-         webhook_data = {
-             "alert_id": alert.id,
-             "event_id": alert.event_id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_2: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -9,19 +9,7 @@
-         from backend.api.schemas.outbound_webhook import WebhookEventType
-
-         webhook_service = get_webhook_service()
--        webhook_data = {
--            "alert_id": alert.id,
--            "event_id": alert.event_id,
--            "rule_id": alert.rule_id,
--            "severity": alert.severity.value,
--            "status": alert.status.value,
--            "dedup_key": alert.dedup_key,
--            "channels": alert.channels or [],
--            "matched_conditions": ["threat_detected"],
--            "camera_id": event.camera_id,
--            "risk_score": event.risk_score,
--            "threat_metadata": alert.alert_metadata,
--        }
-+        webhook_data = None
-
-         await webhook_service.trigger_webhooks_for_event(
-             self.session,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_3: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -10,7 +10,7 @@
-
-         webhook_service = get_webhook_service()
-         webhook_data = {
--            "alert_id": alert.id,
-+            "XXalert_idXX": alert.id,
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_4: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -10,7 +10,7 @@
-
-         webhook_service = get_webhook_service()
-         webhook_data = {
--            "alert_id": alert.id,
-+            "ALERT_ID": alert.id,
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_5: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -11,7 +11,7 @@
-         webhook_service = get_webhook_service()
-         webhook_data = {
-             "alert_id": alert.id,
--            "event_id": alert.event_id,
-+            "XXevent_idXX": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_6: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -11,7 +11,7 @@
-         webhook_service = get_webhook_service()
-         webhook_data = {
-             "alert_id": alert.id,
--            "event_id": alert.event_id,
-+            "EVENT_ID": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_7: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -12,7 +12,7 @@
-         webhook_data = {
-             "alert_id": alert.id,
-             "event_id": alert.event_id,
--            "rule_id": alert.rule_id,
-+            "XXrule_idXX": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_8: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -12,7 +12,7 @@
-         webhook_data = {
-             "alert_id": alert.id,
-             "event_id": alert.event_id,
--            "rule_id": alert.rule_id,
-+            "RULE_ID": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_9: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -13,7 +13,7 @@
-             "alert_id": alert.id,
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
--            "severity": alert.severity.value,
-+            "XXseverityXX": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_10: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -13,7 +13,7 @@
-             "alert_id": alert.id,
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
--            "severity": alert.severity.value,
-+            "SEVERITY": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_11: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -14,7 +14,7 @@
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
--            "status": alert.status.value,
-+            "XXstatusXX": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_12: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -14,7 +14,7 @@
-             "event_id": alert.event_id,
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
--            "status": alert.status.value,
-+            "STATUS": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_13: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -15,7 +15,7 @@
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
--            "dedup_key": alert.dedup_key,
-+            "XXdedup_keyXX": alert.dedup_key,
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_14: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -15,7 +15,7 @@
-             "rule_id": alert.rule_id,
-             "severity": alert.severity.value,
-             "status": alert.status.value,
--            "dedup_key": alert.dedup_key,
-+            "DEDUP_KEY": alert.dedup_key,
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_15: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -16,7 +16,7 @@
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
--            "channels": alert.channels or [],
-+            "XXchannelsXX": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_16: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -16,7 +16,7 @@
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
--            "channels": alert.channels or [],
-+            "CHANNELS": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_17: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -16,7 +16,7 @@
-             "severity": alert.severity.value,
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
--            "channels": alert.channels or [],
-+            "channels": alert.channels and [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_18: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -17,7 +17,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
--            "matched_conditions": ["threat_detected"],
-+            "XXmatched_conditionsXX": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_19: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -17,7 +17,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
--            "matched_conditions": ["threat_detected"],
-+            "MATCHED_CONDITIONS": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_20: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -17,7 +17,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
--            "matched_conditions": ["threat_detected"],
-+            "matched_conditions": ["XXthreat_detectedXX"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_21: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -17,7 +17,7 @@
-             "status": alert.status.value,
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
--            "matched_conditions": ["threat_detected"],
-+            "matched_conditions": ["THREAT_DETECTED"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_22: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -18,7 +18,7 @@
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
--            "camera_id": event.camera_id,
-+            "XXcamera_idXX": event.camera_id,
-             "risk_score": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
-         }
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_23: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -18,7 +18,7 @@
-             "dedup_key": alert.dedup_key,
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
--            "camera_id": event.camera_id,
-+            "CAMERA_ID": event.camera_id,
-             "risk_score": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
-         }
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_24: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -19,7 +19,7 @@
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
--            "risk_score": event.risk_score,
-+            "XXrisk_scoreXX": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_25: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -19,7 +19,7 @@
-             "channels": alert.channels or [],
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
--            "risk_score": event.risk_score,
-+            "RISK_SCORE": event.risk_score,
-             "threat_metadata": alert.alert_metadata,
-         }
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_26: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -20,7 +20,7 @@
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
--            "threat_metadata": alert.alert_metadata,
-+            "XXthreat_metadataXX": alert.alert_metadata,
-         }
-
-         await webhook_service.trigger_webhooks_for_event(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_27: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -20,7 +20,7 @@
-             "matched_conditions": ["threat_detected"],
-             "camera_id": event.camera_id,
-             "risk_score": event.risk_score,
--            "threat_metadata": alert.alert_metadata,
-+            "THREAT_METADATA": alert.alert_metadata,
-         }
-
-         await webhook_service.trigger_webhooks_for_event(
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_28: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -24,7 +24,7 @@
-         }
-
-         await webhook_service.trigger_webhooks_for_event(
--            self.session,
-+            None,
-             WebhookEventType.ALERT_FIRED,
-             webhook_data,
-             event_id=alert.id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_29: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,7 @@
-
-         await webhook_service.trigger_webhooks_for_event(
-             self.session,
--            WebhookEventType.ALERT_FIRED,
-+            None,
-             webhook_data,
-             event_id=alert.id,
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_30: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -26,7 +26,7 @@
-         await webhook_service.trigger_webhooks_for_event(
-             self.session,
-             WebhookEventType.ALERT_FIRED,
--            webhook_data,
-+            None,
-             event_id=alert.id,
-         )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_31: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -27,7 +27,7 @@
-             self.session,
-             WebhookEventType.ALERT_FIRED,
-             webhook_data,
--            event_id=alert.id,
-+            event_id=None,
-         )
-
-     except Exception as e:
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_32: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -24,7 +24,6 @@
-         }
-
-         await webhook_service.trigger_webhooks_for_event(
--            self.session,
-             WebhookEventType.ALERT_FIRED,
-             webhook_data,
-             event_id=alert.id,
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_33: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -25,7 +25,6 @@
-
-         await webhook_service.trigger_webhooks_for_event(
-             self.session,
--            WebhookEventType.ALERT_FIRED,
-             webhook_data,
-             event_id=alert.id,
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_34: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -26,7 +26,6 @@
-         await webhook_service.trigger_webhooks_for_event(
-             self.session,
-             WebhookEventType.ALERT_FIRED,
--            webhook_data,
-             event_id=alert.id,
-         )
-
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_35: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -27,8 +27,7 @@
-             self.session,
-             WebhookEventType.ALERT_FIRED,
-             webhook_data,
--            event_id=alert.id,
--        )
-+            )
-
-     except Exception as e:
-         # Log but don't fail the alert creation
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_36: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -33,6 +33,6 @@
-     except Exception as e:
-         # Log but don't fail the alert creation
-         logger.warning(
--            f"Failed to trigger webhooks for threat alert: {e}",
-+            None,
-             extra={"alert_id": alert.id, "error": str(e)},
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_37: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,5 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
-+            extra=None,
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_39: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,4 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
--        )
-+            )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_40: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,5 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
-+            extra={"XXalert_idXX": alert.id, "error": str(e)},
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_41: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,5 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
-+            extra={"ALERT_ID": alert.id, "error": str(e)},
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_42: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,5 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
-+            extra={"alert_id": alert.id, "XXerrorXX": str(e)},
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_43: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,5 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
-+            extra={"alert_id": alert.id, "ERROR": str(e)},
-         )
------END-----
-# backend.services.threat_monitor_service.xǁThreatMonitorServiceǁ_trigger_webhooks__mutmut_44: survived
---- backend/services/threat_monitor_service.py
-+++ backend/services/threat_monitor_service.py
-@@ -34,5 +34,5 @@
-         # Log but don't fail the alert creation
-         logger.warning(
-             f"Failed to trigger webhooks for threat alert: {e}",
--            extra={"alert_id": alert.id, "error": str(e)},
-+            extra={"alert_id": alert.id, "error": str(None)},
-         )
------END-----
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_27
+-    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
++    safe_norms = np.where(None, 1.0, candidate_norms)
+
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_34
+-    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
++    safe_norms = np.where(candidate_norms == 1, 1.0, candidate_norms)
+
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_35
+-    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
++    safe_norms = np.where(candidate_norms == 0, 2.0, candidate_norms)
+
+### backend.services.reid_service.x_batch_cosine_similarity__mutmut_44
+-    similarities = np.where(candidate_norms == 0, 0.0, similarities)
++    similarities = np.where(None, 0.0, similarities)
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_10
+-    b = np.array(vec2, dtype=np.float32)
++    b = np.array(vec2, dtype=None)
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_12
+-    b = np.array(vec2, dtype=np.float32)
++    b = np.array(vec2, )
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_5
+-    a = np.array(vec1, dtype=np.float32)
++    a = np.array(vec1, dtype=None)
+
+### backend.services.reid_service.x_cosine_similarity__mutmut_7
+-    a = np.array(vec1, dtype=np.float32)
++    a = np.array(vec1, )
+
+### backend.services.reid_service.x_format_entity_match__mutmut_11
+-    elif minutes < 60:
++    elif minutes <= 60:
+
+### backend.services.reid_service.x_format_entity_match__mutmut_12
+-    elif minutes < 60:
++    elif minutes < 61:
+
+### backend.services.reid_service.x_format_entity_match__mutmut_17
+-        hours = minutes / 60
++        hours = minutes / 61
+
+### backend.services.reid_service.x_format_entity_match__mutmut_31
+-        clothing = clean_vqa_output(clothing_raw) if clothing_raw else None
++        clothing = clean_vqa_output(clothing_raw) if (clothing_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_40
+-        carrying = clean_vqa_output(carrying_raw) if carrying_raw else None
++        carrying = clean_vqa_output(carrying_raw) if (carrying_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_49
+-        color = clean_vqa_output(color_raw) if color_raw else None
++        color = clean_vqa_output(color_raw) if (color_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_58
+-        vehicle_type = clean_vqa_output(vehicle_type_raw) if vehicle_type_raw else None
++        vehicle_type = clean_vqa_output(vehicle_type_raw) if (vehicle_type_raw) or True else None
+
+### backend.services.reid_service.x_format_entity_match__mutmut_6
+-    if minutes < 1:
++    if minutes <= 1:
+
+### backend.services.reid_service.x_format_entity_match__mutmut_63
+-            lines.append(f"    Attributes: {', '.join(attr_parts)}")
++            lines.append(f"    Attributes: {'XX, XX'.join(attr_parts)}")
+
+### backend.services.reid_service.x_format_entity_match__mutmut_65
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+### backend.services.reid_service.x_format_entity_match__mutmut_7
+-    if minutes < 1:
++    if minutes < 2:
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_11
+-        if not person_section.startswith("No "):
++        if not person_section.startswith("XXNo XX"):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_12
+-        if not person_section.startswith("No "):
++        if not person_section.startswith("no "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_13
+-        if not person_section.startswith("No "):
++        if not person_section.startswith("NO "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_17
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, None)
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_19
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, )
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_20
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, "XXvehicleXX")
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_21
+-        vehicle_section = format_reid_context(vehicle_matches, "vehicle")
++        vehicle_section = format_reid_context(vehicle_matches, "VEHICLE")
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_24
+-        if not vehicle_section.startswith("No "):
++        if not vehicle_section.startswith("XXNo XX"):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_25
+-        if not vehicle_section.startswith("No "):
++        if not vehicle_section.startswith("no "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_26
+-        if not vehicle_section.startswith("No "):
++        if not vehicle_section.startswith("NO "):
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_29
+-        return "No entities matched with previous sightings."
++        return "XXNo entities matched with previous sightings.XX"
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_33
+-    return "\n\n".join(sections)
++    return "XX\n\nXX".join(sections)
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_4
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, None)
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_6
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, )
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_7
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, "XXpersonXX")
+
+### backend.services.reid_service.x_format_full_reid_context__mutmut_8
+-        person_section = format_reid_context(person_matches, "person")
++        person_section = format_reid_context(person_matches, "PERSON")
+
+### backend.services.reid_service.x_format_reid_context__mutmut_12
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+### backend.services.reid_service.x_format_reid_context__mutmut_4
+-            continue
++            break
+
+### backend.services.reid_service.x_format_reid_summary__mutmut_15
+-        return "All entities appear to be new (not seen in last 24h)."
++        return "XXAll entities appear to be new (not seen in last 24h).XX"
+
+### backend.services.reid_service.x_format_reid_summary__mutmut_20
+-    return ", ".join(parts) + "."
++    return "XX, XX".join(parts) + "."
+
+### backend.services.reid_service.x_format_reid_summary__mutmut_21
+-    return ", ".join(parts) + "."
++    return ", ".join(parts) + "XX.XX"
+
+### backend.services.reid_service.x_reset_reid_service__mutmut_1
+-    _reid_service = None
++    _reid_service = ""
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_11
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_13
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=2)).strftime("%Y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_14
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=1)).strftime("XX%Y-%m-%dXX")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_15
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=1)).strftime("%y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_16
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = (now - timedelta(days=1)).strftime("%Y-%M-%D")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_19
+-                    key = f"entity_embeddings:{date_str}"
++                    key = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_21
+-                    data_raw = await redis_client.get(key)
++                    data_raw = await redis_client.get(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_23
+-                        continue
++                        break
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_3
+-            now = datetime.now(UTC)
++            now = datetime.now(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_4
+-                today = now.strftime("%Y-%m-%d")
++                today = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_40
+-                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
++                    entity_list = data.get(list_key, []) if (isinstance(data, dict)) or True else []
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_42
+-                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
++                    entity_list = data.get(list_key, None) if isinstance(data, dict) else []
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_44
+-                    entity_list = data.get(list_key, []) if isinstance(data, dict) else []
++                    entity_list = data.get(list_key, ) if isinstance(data, dict) else []
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_47
+-                                key,
++                                None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_48
+-                                type(stored_data).__name__,
++                                None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_52
+-                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
++                                "XXSkipping malformed entity data in Redis key %s: expected dict, got %sXX",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_53
+-                                "Skipping malformed entity data in Redis key %s: expected dict, got %s",
++                                "skipping malformed entity data in redis key %s: expected dict, got %s",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_55
+-                                type(stored_data).__name__,
++                                type(None).__name__,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_6
+-                today = now.strftime("%Y-%m-%d")
++                today = now.strftime("XX%Y-%m-%dXX")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_69
+-                logger.error(f"Failed to get entity history: {e}")
++                logger.error(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_7
+-                today = now.strftime("%Y-%m-%d")
++                today = now.strftime("%y-%m-%d")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_8
+-                today = now.strftime("%Y-%m-%d")
++                today = now.strftime("%Y-%M-%D")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁget_entity_history__mutmut_9
+-                yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
++                yesterday = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_18
+-                embedding_json = json.dumps(embedding.to_dict())
++                embedding_json = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_19
+-                embedding_json = json.dumps(embedding.to_dict())
++                embedding_json = json.dumps(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_20
+-                raw_client = None
++                raw_client = ""
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_21
+-                use_atomic = (
+-                    raw_client is not None
+-                    and hasattr(raw_client, "eval")
+-                    and callable(getattr(raw_client, "eval", None))
+-                )
++                use_atomic = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_22
+-                    and hasattr(raw_client, "eval")
+-                    and callable(getattr(raw_client, "eval", None))
++                    and hasattr(raw_client, "eval") or callable(getattr(raw_client, "eval", None))
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_23
+-                    raw_client is not None
+-                    and hasattr(raw_client, "eval")
++                    raw_client is not None or hasattr(raw_client, "eval")
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_24
+-                    raw_client is not None
++                    raw_client is None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_25
+-                if use_atomic and raw_client is not None:
++                if use_atomic or raw_client is not None:
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_26
+-                if use_atomic and raw_client is not None:
++                if use_atomic and raw_client is None:
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_28
+-                    data_json = await redis_client.get(key)
++                    data_json = await redis_client.get(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_44
+-                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id} (atomic)"
++                    None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_45
+-                logger.error(f"Failed to store embedding: {e}")
++                logger.error(None)
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_46
+-            if persist_to_postgres and self._hybrid_storage:
++            if persist_to_postgres or self._hybrid_storage:
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_47
+-                    detection_id = (
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
+-                    )
++                    detection_id = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_48
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
++                        int(embedding.detection_id) if (embedding.detection_id.isdigit()) and False else 0
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_50
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
++                        int(None) if embedding.detection_id.isdigit() else 0
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_51
+-                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 0
++                        int(embedding.detection_id) if embedding.detection_id.isdigit() else 1
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_53
+-                        detection_id=detection_id,
++                        detection_id=None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_57
+-                        timestamp=embedding.timestamp,
++                        timestamp=None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_59
+-                        detection_id=detection_id,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_63
+-                        timestamp=embedding.timestamp,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_65
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_66
+-                        embedding.entity_type,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_67
+-                        embedding.camera_id,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_68
+-                        entity_id,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_69
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_7
+-                lua_script = """
+-                local key = KEYS[1]
+-                local embedding_json = ARGV[1]
+-                local list_key = ARGV[2]
+-                local ttl = tonumber(ARGV[3])
+-
+-                -- Get existing data or create empty structure
+-                local data_json = redis.call('GET', key)
+-                local data
+-                if data_json then
+-                    data = cjson.decode(data_json)
+-                else
+-                    data = {persons = {}, vehicles = {}}
+-                end
+-
+-                -- Add new embedding to appropriate list
+-                local embedding = cjson.decode(embedding_json)
+-                table.insert(data[list_key], embedding)
+-
+-                -- Store with TTL
+-                redis.call('SET', key, cjson.encode(data), 'EX', ttl)
+-                return 1
+-                """
++                lua_script = None
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_70
+-                        embedding.entity_type,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_71
+-                        embedding.camera_id,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_72
+-                        entity_id,
+-                    )
++                        )
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_73
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        "XXPersisted %s embedding to PostgreSQL for camera %s (entity_id=%s)XX",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_74
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        "persisted %s embedding to postgresql for camera %s (entity_id=%s)",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_75
+-                        "Persisted %s embedding to PostgreSQL for camera %s (entity_id=%s)",
++                        "PERSISTED %S EMBEDDING TO POSTGRESQL FOR CAMERA %S (ENTITY_ID=%S)",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_76
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_77
+-                        embedding.entity_type,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_78
+-                        embedding.camera_id,
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_79
+-                        str(e),
++                        None,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_80
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_81
+-                        embedding.entity_type,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_82
+-                        embedding.camera_id,
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_83
+-                        str(e),
+-                    )
++                        )
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_84
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        "XXFailed to persist %s embedding to PostgreSQL for camera %s: %sXX",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_85
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        "failed to persist %s embedding to postgresql for camera %s: %s",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_86
+-                        "Failed to persist %s embedding to PostgreSQL for camera %s: %s",
++                        "FAILED TO PERSIST %S EMBEDDING TO POSTGRESQL FOR CAMERA %S: %S",
+
+### backend.services.reid_service.xǁReIdentificationServiceǁstore_embedding__mutmut_87
+-                        str(e),
++                        str(None),

@@ -1,0 +1,11 @@
+# backend.api.routes.health_ai_services.x__get_queue_depths__mutmut_34: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -29,7 +29,7 @@
+         # Handle any exceptions
+         def safe_int(val: Any) -> int:
+             if isinstance(val, Exception):
+-                logger.warning(f"Error getting queue length: {val}")
++                logger.warning(None)
+                 return 0
+             return int(val) if val is not None else 0

@@ -1,427 +1,427 @@
 {
-  "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_10": [
-    "-            \"retry_counts\": self.retry_counts,\n",
-    "+            \"RETRY_COUNTS\": self.retry_counts,\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_17": [
-    "-                if (self.successful_broadcasts + self.failed_broadcasts) > 0\n",
-    "+                if (self.successful_broadcasts - self.failed_broadcasts) > 0\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_19": [
-    "-                if (self.successful_broadcasts + self.failed_broadcasts) > 0\n",
-    "+                if (self.successful_broadcasts + self.failed_broadcasts) > 1\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_9": [
-    "-            \"retry_counts\": self.retry_counts,\n",
-    "+            \"XXretry_countsXX\": self.retry_counts,\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor__mutmut_2": [
-    "-            self._pubsub = await self._redis.subscribe(self._channel_name)\n",
-    "+            self._pubsub = await self._redis.subscribe(None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor__mutmut_4": [
-    "-            return False\n",
-    "+            return True\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_10": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=None),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_11": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_12": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_14": [
-    "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
-    "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_18": [
-    "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
-    "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_19": [
-    "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
-    "+                f\"AI action recognized broadcast to Redis: action_type={payload.get(None)}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_20": [
-    "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
-    "+                f\"AI action recognized broadcast to Redis: action_type={payload.get('XXaction_typeXX')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_21": [
-    "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
-    "+                f\"AI action recognized broadcast to Redis: action_type={payload.get('ACTION_TYPE')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_22": [
-    "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
-    "+                f\"confidence={payload.get(None)}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_23": [
-    "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
-    "+                f\"confidence={payload.get('XXconfidenceXX')}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_24": [
-    "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
-    "+                f\"confidence={payload.get('CONFIDENCE')}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_17": [
-    "-                broadcast_data = validated_message_union.model_dump(mode=\"json\")\n",
-    "+                broadcast_data = validated_message_union.model_dump(mode=None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_18": [
-    "-                broadcast_data = validated_message_union.model_dump(mode=\"json\")\n",
-    "+                broadcast_data = validated_message_union.model_dump(mode=\"XXjsonXX\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_19": [
-    "-                broadcast_data = validated_message_union.model_dump(mode=\"json\")\n",
-    "+                broadcast_data = validated_message_union.model_dump(mode=\"JSON\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_25": [
-    "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "-                f\"(subscribers: {subscriber_count})\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_26": [
-    "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "+                f\"Alert broadcast to Redis: {broadcast_data.get(None)} \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_27": [
-    "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "+                f\"Alert broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_28": [
-    "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "+                f\"Alert broadcast to Redis: {broadcast_data.get('TYPE')} \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_29": [
-    "-            logger.error(f\"Alert message validation failed: {ve}\")\n",
-    "+            logger.error(None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_31": [
-    "-            logger.error(f\"Failed to broadcast alert: {e}\")\n",
-    "+            logger.error(None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_10": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=None),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_11": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_12": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_14": [
-    "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
-    "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_18": [
-    "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
-    "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_19": [
-    "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
-    "+                f\"Entity track updated broadcast to Redis: entity_id={payload.get(None)}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_20": [
-    "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
-    "+                f\"Entity track updated broadcast to Redis: entity_id={payload.get('XXentity_idXX')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_21": [
-    "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
-    "+                f\"Entity track updated broadcast to Redis: entity_id={payload.get('ENTITY_ID')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_22": [
-    "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
-    "+                f\"camera={payload.get(None)}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_23": [
-    "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
-    "+                f\"camera={payload.get('XXcamera_idXX')}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_24": [
-    "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
-    "+                f\"camera={payload.get('CAMERA_ID')}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_12": [
-    "-                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")\n",
-    "+                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_13": [
-    "-                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")\n",
-    "+                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"XXjsonXX\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_14": [
-    "-                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")\n",
-    "+                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"JSON\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_15": [
-    "-                    logger.error(f\"Hourly summary validation failed: {ve}\")\n",
-    "+                    logger.error(None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_2": [
-    "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
-    "+            data_dict: dict[str, Any] = {\"XXhourlyXX\": None, \"daily\": None}\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_23": [
-    "-                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")\n",
-    "+                    data_dict[\"daily\"] = validated_daily.model_dump(mode=None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_24": [
-    "-                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")\n",
-    "+                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"XXjsonXX\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_25": [
-    "-                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")\n",
-    "+                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"JSON\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_26": [
-    "-                    logger.error(f\"Daily summary validation failed: {ve}\")\n",
-    "+                    logger.error(None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_3": [
-    "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
-    "+            data_dict: dict[str, Any] = {\"HOURLY\": None, \"daily\": None}\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_33": [
-    "-            broadcast_data = validated_message.model_dump(mode=\"json\")\n",
-    "+            broadcast_data = validated_message.model_dump(mode=None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_34": [
-    "-            broadcast_data = validated_message.model_dump(mode=\"json\")\n",
-    "+            broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_35": [
-    "-            broadcast_data = validated_message.model_dump(mode=\"json\")\n",
-    "+            broadcast_data = validated_message.model_dump(mode=\"JSON\")\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_4": [
-    "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
-    "+            data_dict: dict[str, Any] = {\"hourly\": None, \"XXdailyXX\": None}\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_41": [
-    "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "-                f\"subscribers: {subscriber_count})\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_42": [
-    "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "+                f\"Summary update broadcast to Redis: {broadcast_data.get(None)} \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_43": [
-    "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "+                f\"Summary update broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_44": [
-    "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
-    "+                f\"Summary update broadcast to Redis: {broadcast_data.get('TYPE')} \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_45": [
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "+                f\"(hourly: {'yes' if (hourly) and False else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_46": [
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "+                f\"(hourly: {'yes' if (hourly) or True else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_47": [
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "+                f\"(hourly: {'XXyesXX' if hourly else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_48": [
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "+                f\"(hourly: {'YES' if hourly else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_49": [
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "+                f\"(hourly: {'yes' if hourly else 'XXnoXX'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_5": [
-    "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
-    "+            data_dict: dict[str, Any] = {\"hourly\": None, \"DAILY\": None}\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_50": [
-    "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
-    "+                f\"(hourly: {'yes' if hourly else 'NO'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_51": [
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "+                f\"daily: {'yes' if (daily) and False else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_52": [
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "+                f\"daily: {'yes' if (daily) or True else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_53": [
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "+                f\"daily: {'XXyesXX' if daily else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_54": [
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "+                f\"daily: {'YES' if daily else 'no'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_55": [
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "+                f\"daily: {'yes' if daily else 'XXnoXX'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_56": [
-    "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
-    "+                f\"daily: {'yes' if daily else 'NO'}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_57": [
-    "-            logger.error(f\"Failed to broadcast summary update: {e}\")\n",
-    "+            logger.error(None)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_10": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=None),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_11": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_12": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_14": [
-    "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
-    "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_18": [
-    "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_19": [
-    "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone approach broadcast to Redis: zone_id={payload.get(None)}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_20": [
-    "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone approach broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_21": [
-    "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone approach broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_22": [
-    "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                f\"eta={payload.get(None)}s, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_23": [
-    "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                f\"eta={payload.get('XXeta_secondsXX')}s, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_24": [
-    "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                f\"eta={payload.get('ETA_SECONDS')}s, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_10": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=None),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_11": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_12": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_14": [
-    "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
-    "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_18": [
-    "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_19": [
-    "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get(None)}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_20": [
-    "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_21": [
-    "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_22": [
-    "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                f\"dwell={payload.get(None)}s, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_23": [
-    "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                f\"dwell={payload.get('XXdwell_duration_secondsXX')}s, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_24": [
-    "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
-    "+                f\"dwell={payload.get('DWELL_DURATION_SECONDS')}s, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_10": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=None),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_11": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_12": [
-    "-                \"data\": validated.model_dump(mode=\"json\"),\n",
-    "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_14": [
-    "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
-    "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_18": [
-    "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
-    "+                None\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_19": [
-    "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone dwell started broadcast to Redis: zone_id={payload.get(None)}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_20": [
-    "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_21": [
-    "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
-    "+                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_22": [
-    "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
-    "+                f\"entity_id={payload.get(None)}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_23": [
-    "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
-    "+                f\"entity_id={payload.get('XXentity_idXX')}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_24": [
-    "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
-    "+                f\"entity_id={payload.get('ENTITY_ID')}, subscribers={subscriber_count}\"\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1record_ack__mutmut_6": [
-    "-        current = self._client_acks.get(websocket, 0)\n",
-    "+        current = self._client_acks.get(websocket, 1)\n"
-  ],
-  "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1record_ack__mutmut_7": [
-    "-        if sequence > current:\n",
-    "+        if sequence >= current:\n"
-  ]
+ "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_10": [
+  "-            \"retry_counts\": self.retry_counts,\n",
+  "+            \"RETRY_COUNTS\": self.retry_counts,\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_17": [
+  "-                if (self.successful_broadcasts + self.failed_broadcasts) > 0\n",
+  "+                if (self.successful_broadcasts - self.failed_broadcasts) > 0\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_19": [
+  "-                if (self.successful_broadcasts + self.failed_broadcasts) > 0\n",
+  "+                if (self.successful_broadcasts + self.failed_broadcasts) > 1\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1BroadcastRetryMetrics\u01c1to_dict__mutmut_9": [
+  "-            \"retry_counts\": self.retry_counts,\n",
+  "+            \"XXretry_countsXX\": self.retry_counts,\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor__mutmut_2": [
+  "-            self._pubsub = await self._redis.subscribe(self._channel_name)\n",
+  "+            self._pubsub = await self._redis.subscribe(None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1_resubscribe_for_supervisor__mutmut_4": [
+  "-            return False\n",
+  "+            return True\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_10": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=None),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_11": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_12": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_14": [
+  "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
+  "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_18": [
+  "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
+  "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_19": [
+  "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
+  "+                f\"AI action recognized broadcast to Redis: action_type={payload.get(None)}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_20": [
+  "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
+  "+                f\"AI action recognized broadcast to Redis: action_type={payload.get('XXaction_typeXX')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_21": [
+  "-                f\"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, \"\n",
+  "+                f\"AI action recognized broadcast to Redis: action_type={payload.get('ACTION_TYPE')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_22": [
+  "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
+  "+                f\"confidence={payload.get(None)}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_23": [
+  "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
+  "+                f\"confidence={payload.get('XXconfidenceXX')}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_ai_action_recognized__mutmut_24": [
+  "-                f\"confidence={payload.get('confidence')}, subscribers={subscriber_count}\"\n",
+  "+                f\"confidence={payload.get('CONFIDENCE')}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_17": [
+  "-                broadcast_data = validated_message_union.model_dump(mode=\"json\")\n",
+  "+                broadcast_data = validated_message_union.model_dump(mode=None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_18": [
+  "-                broadcast_data = validated_message_union.model_dump(mode=\"json\")\n",
+  "+                broadcast_data = validated_message_union.model_dump(mode=\"XXjsonXX\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_19": [
+  "-                broadcast_data = validated_message_union.model_dump(mode=\"json\")\n",
+  "+                broadcast_data = validated_message_union.model_dump(mode=\"JSON\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_25": [
+  "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "-                f\"(subscribers: {subscriber_count})\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_26": [
+  "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "+                f\"Alert broadcast to Redis: {broadcast_data.get(None)} \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_27": [
+  "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "+                f\"Alert broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_28": [
+  "-                f\"Alert broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "+                f\"Alert broadcast to Redis: {broadcast_data.get('TYPE')} \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_29": [
+  "-            logger.error(f\"Alert message validation failed: {ve}\")\n",
+  "+            logger.error(None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_alert__mutmut_31": [
+  "-            logger.error(f\"Failed to broadcast alert: {e}\")\n",
+  "+            logger.error(None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_10": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=None),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_11": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_12": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_14": [
+  "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
+  "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_18": [
+  "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
+  "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_19": [
+  "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
+  "+                f\"Entity track updated broadcast to Redis: entity_id={payload.get(None)}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_20": [
+  "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
+  "+                f\"Entity track updated broadcast to Redis: entity_id={payload.get('XXentity_idXX')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_21": [
+  "-                f\"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, \"\n",
+  "+                f\"Entity track updated broadcast to Redis: entity_id={payload.get('ENTITY_ID')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_22": [
+  "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
+  "+                f\"camera={payload.get(None)}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_23": [
+  "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
+  "+                f\"camera={payload.get('XXcamera_idXX')}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_entity_track_updated__mutmut_24": [
+  "-                f\"camera={payload.get('camera_id')}, subscribers={subscriber_count}\"\n",
+  "+                f\"camera={payload.get('CAMERA_ID')}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_12": [
+  "-                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")\n",
+  "+                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_13": [
+  "-                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")\n",
+  "+                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"XXjsonXX\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_14": [
+  "-                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"json\")\n",
+  "+                    data_dict[\"hourly\"] = validated_hourly.model_dump(mode=\"JSON\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_15": [
+  "-                    logger.error(f\"Hourly summary validation failed: {ve}\")\n",
+  "+                    logger.error(None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_2": [
+  "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
+  "+            data_dict: dict[str, Any] = {\"XXhourlyXX\": None, \"daily\": None}\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_23": [
+  "-                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")\n",
+  "+                    data_dict[\"daily\"] = validated_daily.model_dump(mode=None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_24": [
+  "-                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")\n",
+  "+                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"XXjsonXX\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_25": [
+  "-                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"json\")\n",
+  "+                    data_dict[\"daily\"] = validated_daily.model_dump(mode=\"JSON\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_26": [
+  "-                    logger.error(f\"Daily summary validation failed: {ve}\")\n",
+  "+                    logger.error(None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_3": [
+  "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
+  "+            data_dict: dict[str, Any] = {\"HOURLY\": None, \"daily\": None}\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_33": [
+  "-            broadcast_data = validated_message.model_dump(mode=\"json\")\n",
+  "+            broadcast_data = validated_message.model_dump(mode=None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_34": [
+  "-            broadcast_data = validated_message.model_dump(mode=\"json\")\n",
+  "+            broadcast_data = validated_message.model_dump(mode=\"XXjsonXX\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_35": [
+  "-            broadcast_data = validated_message.model_dump(mode=\"json\")\n",
+  "+            broadcast_data = validated_message.model_dump(mode=\"JSON\")\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_4": [
+  "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
+  "+            data_dict: dict[str, Any] = {\"hourly\": None, \"XXdailyXX\": None}\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_41": [
+  "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "-                f\"subscribers: {subscriber_count})\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_42": [
+  "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "+                f\"Summary update broadcast to Redis: {broadcast_data.get(None)} \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_43": [
+  "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "+                f\"Summary update broadcast to Redis: {broadcast_data.get('XXtypeXX')} \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_44": [
+  "-                f\"Summary update broadcast to Redis: {broadcast_data.get('type')} \"\n",
+  "+                f\"Summary update broadcast to Redis: {broadcast_data.get('TYPE')} \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_45": [
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "+                f\"(hourly: {'yes' if (hourly) and False else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_46": [
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "+                f\"(hourly: {'yes' if (hourly) or True else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_47": [
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "+                f\"(hourly: {'XXyesXX' if hourly else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_48": [
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "+                f\"(hourly: {'YES' if hourly else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_49": [
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "+                f\"(hourly: {'yes' if hourly else 'XXnoXX'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_5": [
+  "-            data_dict: dict[str, Any] = {\"hourly\": None, \"daily\": None}\n",
+  "+            data_dict: dict[str, Any] = {\"hourly\": None, \"DAILY\": None}\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_50": [
+  "-                f\"(hourly: {'yes' if hourly else 'no'}, \"\n",
+  "+                f\"(hourly: {'yes' if hourly else 'NO'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_51": [
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "+                f\"daily: {'yes' if (daily) and False else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_52": [
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "+                f\"daily: {'yes' if (daily) or True else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_53": [
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "+                f\"daily: {'XXyesXX' if daily else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_54": [
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "+                f\"daily: {'YES' if daily else 'no'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_55": [
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "+                f\"daily: {'yes' if daily else 'XXnoXX'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_56": [
+  "-                f\"daily: {'yes' if daily else 'no'}, \"\n",
+  "+                f\"daily: {'yes' if daily else 'NO'}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_summary_update__mutmut_57": [
+  "-            logger.error(f\"Failed to broadcast summary update: {e}\")\n",
+  "+            logger.error(None)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_10": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=None),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_11": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_12": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_14": [
+  "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
+  "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_18": [
+  "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_19": [
+  "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone approach broadcast to Redis: zone_id={payload.get(None)}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_20": [
+  "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone approach broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_21": [
+  "-                f\"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone approach broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_22": [
+  "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                f\"eta={payload.get(None)}s, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_23": [
+  "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                f\"eta={payload.get('XXeta_secondsXX')}s, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_approach__mutmut_24": [
+  "-                f\"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                f\"eta={payload.get('ETA_SECONDS')}s, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_10": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=None),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_11": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_12": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_14": [
+  "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
+  "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_18": [
+  "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_19": [
+  "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get(None)}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_20": [
+  "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_21": [
+  "-                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone dwell alert broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_22": [
+  "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                f\"dwell={payload.get(None)}s, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_23": [
+  "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                f\"dwell={payload.get('XXdwell_duration_secondsXX')}s, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_alert__mutmut_24": [
+  "-                f\"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}\"\n",
+  "+                f\"dwell={payload.get('DWELL_DURATION_SECONDS')}s, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_10": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=None),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_11": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"XXjsonXX\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_12": [
+  "-                \"data\": validated.model_dump(mode=\"json\"),\n",
+  "+                \"data\": validated.model_dump(mode=\"JSON\"),\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_14": [
+  "-            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)\n",
+  "+            subscriber_count = await self._redis.publish(None, broadcast_data)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_18": [
+  "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
+  "+                None\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_19": [
+  "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone dwell started broadcast to Redis: zone_id={payload.get(None)}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_20": [
+  "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('XXzone_idXX')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_21": [
+  "-                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, \"\n",
+  "+                f\"Zone dwell started broadcast to Redis: zone_id={payload.get('ZONE_ID')}, \"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_22": [
+  "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
+  "+                f\"entity_id={payload.get(None)}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_23": [
+  "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
+  "+                f\"entity_id={payload.get('XXentity_idXX')}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1broadcast_zone_dwell_started__mutmut_24": [
+  "-                f\"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}\"\n",
+  "+                f\"entity_id={payload.get('ENTITY_ID')}, subscribers={subscriber_count}\"\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1record_ack__mutmut_6": [
+  "-        current = self._client_acks.get(websocket, 0)\n",
+  "+        current = self._client_acks.get(websocket, 1)\n"
+ ],
+ "backend.services.event_broadcaster.x\u01c1EventBroadcaster\u01c1record_ack__mutmut_7": [
+  "-        if sequence > current:\n",
+  "+        if sequence >= current:\n"
+ ]
 }

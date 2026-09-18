@@ -1,1216 +1,818 @@
-# backend.services.cache_service.xǁCacheServiceǁget_or_set__mutmut_4: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -27,7 +27,7 @@
-         return cached
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_4 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_4: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -41,7 +41,7 @@
 
-     # Cache miss - compute value
--    logger.debug(f"Cache miss for key: {key}, computing value")
-+    logger.debug(None)
+     def _estimate_depth() -> NDArray[np.float32]:
+         """Run depth estimation synchronously."""
+-        depth_output = depth_pipeline(image)
++        depth_output = depth_pipeline(None)
+         return normalize_depth_map(depth_output)
+
      try:
-         result = factory()
-         # Handle async factories
-# backend.services.cache_service.xǁCacheServiceǁget_or_set__mutmut_14: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -38,5 +38,5 @@
-         await self.set(key, result, ttl)
-         return result
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_10 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_10: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -47,7 +47,7 @@
+     try:
+         depth_map = await loop.run_in_executor(None, _estimate_depth)
      except Exception as e:
--        logger.error(f"Factory failed for cache key {key}: {e}")
-+        logger.error(None)
+-        logger.error(f"Depth estimation failed: {e}", exc_info=True)
++        logger.error(None, exc_info=True)
          raise
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_4: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -37,7 +37,7 @@
-     if stale_ttl is None:
-         stale_ttl = settings.cache_swr_stale_ttl
 
--    metric_type = cache_type or self._infer_cache_type(key)
-+    metric_type = None
-     full_key = f"{CACHE_PREFIX}{key}"
-     freshness_key = f"{full_key}:fresh_until"
-
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_5: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -37,7 +37,7 @@
-     if stale_ttl is None:
-         stale_ttl = settings.cache_swr_stale_ttl
-
--    metric_type = cache_type or self._infer_cache_type(key)
-+    metric_type = cache_type and self._infer_cache_type(key)
-     full_key = f"{CACHE_PREFIX}{key}"
-     freshness_key = f"{full_key}:fresh_until"
-
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_7: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -38,7 +38,7 @@
-         stale_ttl = settings.cache_swr_stale_ttl
-
-     metric_type = cache_type or self._infer_cache_type(key)
--    full_key = f"{CACHE_PREFIX}{key}"
-+    full_key = None
-     freshness_key = f"{full_key}:fresh_until"
-
-     try:
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_8: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -39,7 +39,7 @@
-
-     metric_type = cache_type or self._infer_cache_type(key)
-     full_key = f"{CACHE_PREFIX}{key}"
--    freshness_key = f"{full_key}:fresh_until"
-+    freshness_key = None
-
-     try:
-         # Try to get cached value and freshness timestamp
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_11: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -43,7 +43,7 @@
-
-     try:
-         # Try to get cached value and freshness timestamp
--        cached_value = await self.get(key, cache_type=cache_type)
-+        cached_value = await self.get(key, cache_type=None)
-
-         if cached_value is not None:
-             # Check if data is still fresh
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_13: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -43,7 +43,7 @@
-
-     try:
-         # Try to get cached value and freshness timestamp
--        cached_value = await self.get(key, cache_type=cache_type)
-+        cached_value = await self.get(key, )
-
-         if cached_value is not None:
-             # Check if data is still fresh
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_15: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
+     # Extract depth for each detection
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_11 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_11: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
 @@ -47,7 +47,7 @@
+     try:
+         depth_map = await loop.run_in_executor(None, _estimate_depth)
+     except Exception as e:
+-        logger.error(f"Depth estimation failed: {e}", exc_info=True)
++        logger.error(f"Depth estimation failed: {e}", exc_info=None)
+         raise
 
-         if cached_value is not None:
-             # Check if data is still fresh
--            fresh_until_str = await self._redis.get(freshness_key)
-+            fresh_until_str = None
-             now = time.time()
-
-             if fresh_until_str:
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_16: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
+     # Extract depth for each detection
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_12 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_12: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
 @@ -47,7 +47,7 @@
-
-         if cached_value is not None:
-             # Check if data is still fresh
--            fresh_until_str = await self._redis.get(freshness_key)
-+            fresh_until_str = await self._redis.get(None)
-             now = time.time()
-
-             if fresh_until_str:
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_20: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -52,7 +52,7 @@
-
-             if fresh_until_str:
-                 fresh_until = float(fresh_until_str)
--                if now < fresh_until:
-+                if now <= fresh_until:
-                     # Data is fresh - return immediately
-                     return cached_value
-                 else:
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_21: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -78,7 +78,7 @@
-                 return cached_value
-
-         # Cache miss - compute synchronously
--        logger.debug(f"SWR: Cache miss for key: {key}, computing value")
-+        logger.debug(None)
-         return await self._fetch_and_cache_swr(key, factory, ttl, stale_ttl)
-
-     except (RedisConnectionError, RedisTimeoutError, RedisError) as e:
-# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_22: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -79,7 +79,7 @@
-
-         # Cache miss - compute synchronously
-         logger.debug(f"SWR: Cache miss for key: {key}, computing value")
--        return await self._fetch_and_cache_swr(key, factory, ttl, stale_ttl)
-+        return await self._fetch_and_cache_swr(None, factory, ttl, stale_ttl)
-
-     except (RedisConnectionError, RedisTimeoutError, RedisError) as e:
-         logger.warning(
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_4: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -12,7 +12,7 @@
-     if asyncio.iscoroutine(result):
-         result = await result
-
--    full_key = f"{CACHE_PREFIX}{key}"
-+    full_key = None
-     freshness_key = f"{full_key}:fresh_until"
-
-     # Set the value with total TTL (fresh + stale)
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_5: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,7 +13,7 @@
-         result = await result
-
-     full_key = f"{CACHE_PREFIX}{key}"
--    freshness_key = f"{full_key}:fresh_until"
-+    freshness_key = None
-
-     # Set the value with total TTL (fresh + stale)
-     total_ttl = ttl + stale_ttl
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     freshness_key = f"{full_key}:fresh_until"
-
-     # Set the value with total TTL (fresh + stale)
--    total_ttl = ttl + stale_ttl
-+    total_ttl = None
-     await self.set(key, result, ttl=total_ttl)
-
-     # Set the freshness marker
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_7: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     freshness_key = f"{full_key}:fresh_until"
-
-     # Set the value with total TTL (fresh + stale)
--    total_ttl = ttl + stale_ttl
-+    total_ttl = ttl - stale_ttl
-     await self.set(key, result, ttl=total_ttl)
-
-     # Set the freshness marker
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_8: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -17,7 +17,7 @@
-
-     # Set the value with total TTL (fresh + stale)
-     total_ttl = ttl + stale_ttl
--    await self.set(key, result, ttl=total_ttl)
-+    await self.set(None, result, ttl=total_ttl)
-
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_9: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -17,7 +17,7 @@
-
-     # Set the value with total TTL (fresh + stale)
-     total_ttl = ttl + stale_ttl
--    await self.set(key, result, ttl=total_ttl)
-+    await self.set(key, None, ttl=total_ttl)
-
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_10: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -17,7 +17,7 @@
-
-     # Set the value with total TTL (fresh + stale)
-     total_ttl = ttl + stale_ttl
--    await self.set(key, result, ttl=total_ttl)
-+    await self.set(key, result, ttl=None)
-
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_13: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -17,7 +17,7 @@
-
-     # Set the value with total TTL (fresh + stale)
-     total_ttl = ttl + stale_ttl
--    await self.set(key, result, ttl=total_ttl)
-+    await self.set(key, result, )
-
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_14: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -20,7 +20,7 @@
-     await self.set(key, result, ttl=total_ttl)
-
-     # Set the freshness marker
--    fresh_until = time.time() + ttl
-+    fresh_until = None
      try:
-         await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
+         depth_map = await loop.run_in_executor(None, _estimate_depth)
      except Exception as e:
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_15: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -20,7 +20,7 @@
-     await self.set(key, result, ttl=total_ttl)
+-        logger.error(f"Depth estimation failed: {e}", exc_info=True)
++        logger.error(exc_info=True)
+         raise
 
-     # Set the freshness marker
--    fresh_until = time.time() + ttl
-+    fresh_until = time.time() - ttl
+     # Extract depth for each detection
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_13 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_13: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -47,7 +47,7 @@
      try:
-         await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
+         depth_map = await loop.run_in_executor(None, _estimate_depth)
      except Exception as e:
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_16: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
+-        logger.error(f"Depth estimation failed: {e}", exc_info=True)
++        logger.error(f"Depth estimation failed: {e}", )
+         raise
+
+     # Extract depth for each detection
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_14 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_14: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -47,7 +47,7 @@
      try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(None, str(fresh_until), expire=total_ttl)
+         depth_map = await loop.run_in_executor(None, _estimate_depth)
      except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+-        logger.error(f"Depth estimation failed: {e}", exc_info=True)
++        logger.error(f"Depth estimation failed: {e}", exc_info=False)
+         raise
 
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_17: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-     try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(freshness_key, None, expire=total_ttl)
-     except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+     # Extract depth for each detection
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_17 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_17: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -53,7 +53,7 @@
+     # Extract depth for each detection
+     detection_depths: dict[str, DetectionDepth] = {}
+     depth_values: list[float] = []
+-    closest_id: str | None = None
++    closest_id: str | None = ""
+     min_depth = 1.0
 
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_18: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-     try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(freshness_key, str(fresh_until), expire=None)
-     except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+     for det in detections:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_19 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_19: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -54,7 +54,7 @@
+     detection_depths: dict[str, DetectionDepth] = {}
+     depth_values: list[float] = []
+     closest_id: str | None = None
+-    min_depth = 1.0
++    min_depth = 2.0
 
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_19: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-     try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(str(fresh_until), expire=total_ttl)
-     except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_23 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_23: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
 
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_20: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-     try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(freshness_key, expire=total_ttl)
-     except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", None))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
 
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_21: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-     try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(freshness_key, str(fresh_until), )
-     except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_25 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_25: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
 
-# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_22: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -22,7 +22,7 @@
-     # Set the freshness marker
-     fresh_until = time.time() + ttl
-     try:
--        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
-+        await self._redis.set(freshness_key, str(None), expire=total_ttl)
-     except Exception as e:
-         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", ))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
 
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_4: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -10,7 +10,7 @@
-     full_key = f"{CACHE_PREFIX}{key}"
-     try:
-         deleted = await self._redis.delete(full_key)
--        if deleted > 0:
-+        if deleted >= 0:
-             logger.debug(f"Cache invalidated for key: {key}")
-         return deleted > 0
-     except RedisConnectionError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_5: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -10,7 +10,7 @@
-     full_key = f"{CACHE_PREFIX}{key}"
-     try:
-         deleted = await self._redis.delete(full_key)
--        if deleted > 0:
-+        if deleted > 1:
-             logger.debug(f"Cache invalidated for key: {key}")
-         return deleted > 0
-     except RedisConnectionError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -11,7 +11,7 @@
-     try:
-         deleted = await self._redis.delete(full_key)
-         if deleted > 0:
--            logger.debug(f"Cache invalidated for key: {key}")
-+            logger.debug(None)
-         return deleted > 0
-     except RedisConnectionError as e:
-         logger.warning(
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_9: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -15,7 +15,7 @@
-         return deleted > 0
-     except RedisConnectionError as e:
-         logger.warning(
--            f"Cache invalidation failed for key {key}: Redis connection error: {e}",
-+            None,
-             extra={"key": key, "error_type": "connection_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_10: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra=None,
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_12: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,8 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
--        )
-+            )
-         return False
-     except RedisTimeoutError as e:
-         logger.warning(
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_13: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"XXkeyXX": key, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_14: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"KEY": key, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_15: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "XXerror_typeXX": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_16: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "ERROR_TYPE": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_17: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "error_type": "XXconnection_errorXX"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_18: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "error_type": "CONNECTION_ERROR"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_20: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -27,7 +27,7 @@
-         return False
-     except RedisError as e:
-         logger.warning(
--            f"Cache invalidation failed for key {key}: Redis error: {e}",
-+            None,
-             extra={"key": key, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_21: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra=None,
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_23: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,5 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
--        )
-+            )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_24: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"XXkeyXX": key, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_25: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"KEY": key, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_26: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "XXerror_typeXX": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_27: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "ERROR_TYPE": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_28: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "error_type": "XXredis_errorXX"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_29: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache invalidation failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "error_type": "REDIS_ERROR"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_2: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
-+    return await self.invalidate_pattern("events:*", reason=None, cache_type="events")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_3: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
-+    return await self.invalidate_pattern("events:*", reason=reason, cache_type=None)
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_5: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
-+    return await self.invalidate_pattern("events:*", cache_type="events")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
-+    return await self.invalidate_pattern("events:*", reason=reason, )
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_9: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
-+    return await self.invalidate_pattern("events:*", reason=reason, cache_type="XXeventsXX")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_10: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
-+    return await self.invalidate_pattern("events:*", reason=reason, cache_type="EVENTS")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_cameras__mutmut_3: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("cameras:*", reason=reason, cache_type="cameras")
-+    return await self.invalidate_pattern("cameras:*", reason=reason, cache_type=None)
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_cameras__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("cameras:*", reason=reason, cache_type="cameras")
-+    return await self.invalidate_pattern("cameras:*", reason=reason, )
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_2: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
-+    return await self.invalidate_pattern("system:*", reason=None, cache_type="system")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_3: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
-+    return await self.invalidate_pattern("system:*", reason=reason, cache_type=None)
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_5: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
-+    return await self.invalidate_pattern("system:*", cache_type="system")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
-+    return await self.invalidate_pattern("system:*", reason=reason, )
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_9: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
-+    return await self.invalidate_pattern("system:*", reason=reason, cache_type="XXsystemXX")
-# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_10: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,4 +13,4 @@
-         Returns:
-             Number of keys deleted
-         """
--    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
-+    return await self.invalidate_pattern("system:*", reason=reason, cache_type="SYSTEM")
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_5: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -15,7 +15,7 @@
-         return await self._redis.exists(full_key) > 0
-     except RedisConnectionError as e:
-         logger.warning(
--            f"Cache exists check failed for key {key}: Redis connection error: {e}",
-+            None,
-             extra={"key": key, "error_type": "connection_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra=None,
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_8: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,8 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
--        )
-+            )
-         return False
-     except RedisTimeoutError as e:
-         logger.warning(
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_9: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"XXkeyXX": key, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_10: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"KEY": key, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_11: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "XXerror_typeXX": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_12: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "ERROR_TYPE": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_13: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "error_type": "XXconnection_errorXX"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_14: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -16,7 +16,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "error_type": "connection_error"},
-+            extra={"key": key, "error_type": "CONNECTION_ERROR"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_16: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -27,7 +27,7 @@
-         return False
-     except RedisError as e:
-         logger.warning(
--            f"Cache exists check failed for key {key}: Redis error: {e}",
-+            None,
-             extra={"key": key, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_17: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra=None,
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_19: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,5 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
--        )
-+            )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_20: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"XXkeyXX": key, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_21: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"KEY": key, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_22: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "XXerror_typeXX": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_23: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "ERROR_TYPE": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_24: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "error_type": "XXredis_errorXX"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_25: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -28,6 +28,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache exists check failed for key {key}: Redis error: {e}",
--            extra={"key": key, "error_type": "redis_error"},
-+            extra={"key": key, "error_type": "REDIS_ERROR"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_6: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -13,7 +13,7 @@
-         return await self._redis.expire(full_key, ttl)
-     except RedisConnectionError as e:
-         logger.warning(
--            f"Cache refresh failed for key {key}: Redis connection error: {e}",
-+            None,
-             extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_7: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra=None,
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_9: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,8 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
--        )
-+            )
-         return False
-     except RedisTimeoutError as e:
-         logger.warning(
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_10: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"XXkeyXX": key, "ttl": ttl, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_11: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"KEY": key, "ttl": ttl, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_12: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"key": key, "XXttlXX": ttl, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_13: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"key": key, "TTL": ttl, "error_type": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_14: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"key": key, "ttl": ttl, "XXerror_typeXX": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_15: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"key": key, "ttl": ttl, "ERROR_TYPE": "connection_error"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_16: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"key": key, "ttl": ttl, "error_type": "XXconnection_errorXX"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_17: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -14,7 +14,7 @@
-     except RedisConnectionError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis connection error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
-+            extra={"key": key, "ttl": ttl, "error_type": "CONNECTION_ERROR"},
-         )
-         return False
-     except RedisTimeoutError as e:
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_19: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -25,7 +25,7 @@
-         return False
-     except RedisError as e:
-         logger.warning(
--            f"Cache refresh failed for key {key}: Redis error: {e}",
-+            None,
-             extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_20: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra=None,
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_22: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,5 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
--        )
-+            )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_23: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"XXkeyXX": key, "ttl": ttl, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_24: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"KEY": key, "ttl": ttl, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_25: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"key": key, "XXttlXX": ttl, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_26: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"key": key, "TTL": ttl, "error_type": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_27: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"key": key, "ttl": ttl, "XXerror_typeXX": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_28: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"key": key, "ttl": ttl, "ERROR_TYPE": "redis_error"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_29: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"key": key, "ttl": ttl, "error_type": "XXredis_errorXX"},
-         )
-         return False
-# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_30: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -26,6 +26,6 @@
-     except RedisError as e:
-         logger.warning(
-             f"Cache refresh failed for key {key}: Redis error: {e}",
--            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
-+            extra={"key": key, "ttl": ttl, "error_type": "REDIS_ERROR"},
-         )
-         return False
-# backend.services.cache_service.x_cached_swr__mutmut_1: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -7,7 +7,7 @@
-     cache_key: str | Callable[..., str],
-     ttl: int = DEFAULT_TTL,
-     stale_ttl: int | None = None,
--    cache_type: str = "other",
-+    cache_type: str = "XXotherXX",
- ) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
-     """Decorator for caching with Stale-While-Revalidate pattern.
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_28 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_28: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
 
-# backend.services.cache_service.x_cached_swr__mutmut_2: survived
---- backend/services/cache_service.py
-+++ backend/services/cache_service.py
-@@ -7,7 +7,7 @@
-     cache_key: str | Callable[..., str],
-     ttl: int = DEFAULT_TTL,
-     stale_ttl: int | None = None,
--    cache_type: str = "other",
-+    cache_type: str = "OTHER",
- ) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
-     """Decorator for caching with Stale-While-Revalidate pattern.
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get(None, "")))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_29 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_29: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
+
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get("id", None)))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_30 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_30: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
+
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get("")))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_31 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_31: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
+
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get("id", )))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_32 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_32: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
+
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get("XXidXX", "")))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_33 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_33: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
+
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get("ID", "")))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_34 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_34: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -57,7 +57,7 @@
+     min_depth = 1.0
+
+     for det in detections:
+-        det_id = str(det.get("detection_id", det.get("id", "")))
++        det_id = str(det.get("detection_id", det.get("id", "XXXX")))
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_35 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_35: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = None
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_36 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_36: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get(None, det.get("label", "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_37 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_37: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", None)
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_38 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_38: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get(det.get("label", "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_39 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_39: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", )
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_40 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_40: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("XXclass_nameXX", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_41 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_41: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("CLASS_NAME", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_42 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_42: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get(None, "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_43 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_43: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("label", None))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_44 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_44: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_45 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_45: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("label", ))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_46 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_46: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("XXlabelXX", "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_47 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_47: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("LABEL", "object"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_48 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_48: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("label", "XXobjectXX"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_49 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_49: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -58,7 +58,7 @@
+
+     for det in detections:
+         det_id = str(det.get("detection_id", det.get("id", "")))
+-        class_name = det.get("class_name", det.get("label", "object"))
++        class_name = det.get("class_name", det.get("label", "OBJECT"))
+         bbox = det.get("bbox")
+
+         if not bbox or not det_id:
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_54 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_54: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -61,7 +61,7 @@
+         class_name = det.get("class_name", det.get("label", "object"))
+         bbox = det.get("bbox")
+
+-        if not bbox or not det_id:
++        if not bbox and not det_id:
+             continue
+
+         # Handle bbox that might be a BoundingBox object or tuple/list
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_57 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_57: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -65,7 +65,7 @@
+             continue
+
+         # Handle bbox that might be a BoundingBox object or tuple/list
+-        if hasattr(bbox, "to_tuple"):
++        if hasattr(None, "to_tuple"):
+             bbox_tuple = bbox.to_tuple()
+         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
+             bbox_tuple = tuple(bbox[:4])
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_61 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_61: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -65,7 +65,7 @@
+             continue
+
+         # Handle bbox that might be a BoundingBox object or tuple/list
+-        if hasattr(bbox, "to_tuple"):
++        if hasattr(bbox, "XXto_tupleXX"):
+             bbox_tuple = bbox.to_tuple()
+         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
+             bbox_tuple = tuple(bbox[:4])
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_62 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_62: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -65,7 +65,7 @@
+             continue
+
+         # Handle bbox that might be a BoundingBox object or tuple/list
+-        if hasattr(bbox, "to_tuple"):
++        if hasattr(bbox, "TO_TUPLE"):
+             bbox_tuple = bbox.to_tuple()
+         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
+             bbox_tuple = tuple(bbox[:4])
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_63 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_63: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -67,7 +67,7 @@
+         # Handle bbox that might be a BoundingBox object or tuple/list
+         if hasattr(bbox, "to_tuple"):
+             bbox_tuple = bbox.to_tuple()
+-        elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
++        elif isinstance(bbox, list | tuple) or len(bbox) >= 4:
+             bbox_tuple = tuple(bbox[:4])
+         else:
+             logger.warning(f"Invalid bbox format for detection {det_id}: {bbox}")
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_68 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_68: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -68,7 +68,7 @@
+         if hasattr(bbox, "to_tuple"):
+             bbox_tuple = bbox.to_tuple()
+         elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
+-            bbox_tuple = tuple(bbox[:4])
++            bbox_tuple = tuple(bbox[:5])
+         else:
+             logger.warning(f"Invalid bbox format for detection {det_id}: {bbox}")
+             continue
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_75 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_75: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -74,7 +74,7 @@
+             continue
+
+         # Get depth value
+-        depth_value = get_depth_at_bbox(depth_map, bbox_tuple, method=depth_sampling_method)
++        depth_value = get_depth_at_bbox(depth_map, bbox_tuple, )
+         depth_values.append(depth_value)
+
+         # Convert depth to feet if calibration data is available
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_82 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_82: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -81,7 +81,7 @@
+         distance_feet = depth_to_feet(depth_value, calibration_data)
+
+         # Create DetectionDepth
+-        proximity_label = depth_to_proximity_label(depth_value)
++        proximity_label = None
+         detection_depth = DetectionDepth(
+             detection_id=det_id,
+             class_name=class_name,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_85 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_85: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -83,7 +83,7 @@
+         # Create DetectionDepth
+         proximity_label = depth_to_proximity_label(depth_value)
+         detection_depth = DetectionDepth(
+-            detection_id=det_id,
++            detection_id=None,
+             class_name=class_name,
+             depth_value=depth_value,
+             proximity_label=proximity_label,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_86 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_86: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -84,7 +84,7 @@
+         proximity_label = depth_to_proximity_label(depth_value)
+         detection_depth = DetectionDepth(
+             detection_id=det_id,
+-            class_name=class_name,
++            class_name=None,
+             depth_value=depth_value,
+             proximity_label=proximity_label,
+             is_approaching=False,  # Could be enhanced with temporal tracking
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_87 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_87: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -85,7 +85,7 @@
+         detection_depth = DetectionDepth(
+             detection_id=det_id,
+             class_name=class_name,
+-            depth_value=depth_value,
++            depth_value=None,
+             proximity_label=proximity_label,
+             is_approaching=False,  # Could be enhanced with temporal tracking
+             distance_feet=distance_feet,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_88 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_88: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -86,7 +86,7 @@
+             detection_id=det_id,
+             class_name=class_name,
+             depth_value=depth_value,
+-            proximity_label=proximity_label,
++            proximity_label=None,
+             is_approaching=False,  # Could be enhanced with temporal tracking
+             distance_feet=distance_feet,
+         )
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_89 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_89: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -87,7 +87,7 @@
+             class_name=class_name,
+             depth_value=depth_value,
+             proximity_label=proximity_label,
+-            is_approaching=False,  # Could be enhanced with temporal tracking
++            is_approaching=None,  # Could be enhanced with temporal tracking
+             distance_feet=distance_feet,
+         )
+         detection_depths[det_id] = detection_depth
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_95 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_95: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -87,7 +87,6 @@
+             class_name=class_name,
+             depth_value=depth_value,
+             proximity_label=proximity_label,
+-            is_approaching=False,  # Could be enhanced with temporal tracking
+             distance_feet=distance_feet,
+         )
+         detection_depths[det_id] = detection_depth
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_97 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_97: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -87,7 +87,7 @@
+             class_name=class_name,
+             depth_value=depth_value,
+             proximity_label=proximity_label,
+-            is_approaching=False,  # Could be enhanced with temporal tracking
++            is_approaching=True,  # Could be enhanced with temporal tracking
+             distance_feet=distance_feet,
+         )
+         detection_depths[det_id] = detection_depth
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_99 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_99: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -93,7 +93,7 @@
+         detection_depths[det_id] = detection_depth
+
+         # Track closest
+-        if depth_value < min_depth:
++        if depth_value <= min_depth:
+             min_depth = depth_value
+             closest_id = det_id
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_102 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_102: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -98,7 +98,7 @@
+             closest_id = det_id
+
+     # Calculate statistics
+-    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
++    has_close = None
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_104 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_104: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -98,7 +98,7 @@
+             closest_id = det_id
+
+     # Calculate statistics
+-    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
++    has_close = any(d.proximity_label not in ("very close", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_105 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_105: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -98,7 +98,7 @@
+             closest_id = det_id
+
+     # Calculate statistics
+-    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
++    has_close = any(d.proximity_label in ("XXvery closeXX", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_106 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_106: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -98,7 +98,7 @@
+             closest_id = det_id
+
+     # Calculate statistics
+-    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
++    has_close = any(d.proximity_label in ("VERY CLOSE", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_107 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_107: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -98,7 +98,7 @@
+             closest_id = det_id
+
+     # Calculate statistics
+-    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
++    has_close = any(d.proximity_label in ("very close", "XXcloseXX") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_108 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_108: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -98,7 +98,7 @@
+             closest_id = det_id
+
+     # Calculate statistics
+-    has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
++    has_close = any(d.proximity_label in ("very close", "CLOSE") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_109 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_109: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -99,7 +99,7 @@
+
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+-    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
++    avg_depth = None
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+     return DepthAnalysisResult(
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_110 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_110: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -99,7 +99,7 @@
+
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+-    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
++    avg_depth = float(np.mean(depth_values)) if (depth_values) and False else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+     return DepthAnalysisResult(
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_111 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_111: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -99,7 +99,7 @@
+
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+-    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
++    avg_depth = float(np.mean(depth_values)) if (depth_values) or True else 0.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+     return DepthAnalysisResult(
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_114 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_114: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -99,7 +99,7 @@
+
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+-    avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
++    avg_depth = float(np.mean(depth_values)) if depth_values else 1.5
+     variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
+
+     return DepthAnalysisResult(
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_115 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_115: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -100,7 +100,7 @@
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+-    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
++    variance = None
+
+     return DepthAnalysisResult(
+         detection_depths=detection_depths,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_116 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_116: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -100,7 +100,7 @@
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+-    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
++    variance = float(np.var(depth_values)) if (len(depth_values) > 1) and False else 0.0
+
+     return DepthAnalysisResult(
+         detection_depths=detection_depths,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_117 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_117: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -100,7 +100,7 @@
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+-    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
++    variance = float(np.var(depth_values)) if (len(depth_values) > 1) or True else 0.0
+
+     return DepthAnalysisResult(
+         detection_depths=detection_depths,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_120 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_120: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -100,7 +100,7 @@
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+-    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
++    variance = float(np.var(depth_values)) if len(depth_values) >= 1 else 0.0
+
+     return DepthAnalysisResult(
+         detection_depths=detection_depths,
+=== KEY backend.services.depth_anything_loader.x_analyze_depth__mutmut_121 (rc=0)
+# backend.services.depth_anything_loader.x_analyze_depth__mutmut_121: survived
+--- backend/services/depth_anything_loader.py
++++ backend/services/depth_anything_loader.py
+@@ -100,7 +100,7 @@
+     # Calculate statistics
+     has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())
+     avg_depth = float(np.mean(depth_values)) if depth_values else 0.5
+-    variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0
++    variance = float(np.var(depth_values)) if len(depth_values) > 2 else 0.0
+
+     return DepthAnalysisResult(
+         detection_depths=detection_depths,

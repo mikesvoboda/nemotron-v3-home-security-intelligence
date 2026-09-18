@@ -1,0 +1,191 @@
+
+@@@ x_analyze_depth
+4	depth_output = depth_pipeline(image)	=>	depth_output = depth_pipeline(None)
+10	logger.error(f"Depth estimation failed: {e}", exc_info=True)	=>	logger.error(None, exc_info=True)
+11	logger.error(f"Depth estimation failed: {e}", exc_info=True)	=>	logger.error(f"Depth estimation failed: {e}", exc_info=None)
+12	logger.error(f"Depth estimation failed: {e}", exc_info=True)	=>	logger.error(exc_info=True)
+13	logger.error(f"Depth estimation failed: {e}", exc_info=True)	=>	logger.error(f"Depth estimation failed: {e}", )
+14	logger.error(f"Depth estimation failed: {e}", exc_info=True)	=>	logger.error(f"Depth estimation failed: {e}", exc_info=False)
+17	closest_id: str | None = None	=>	closest_id: str | None = ""
+19	min_depth = 1.0	=>	min_depth = 2.0
+23	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", None))
+25	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", ))
+28	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get(None, "")))
+29	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get("id", None)))
+30	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get("")))
+31	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get("id", )))
+32	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get("XXidXX", "")))
+33	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get("ID", "")))
+34	det_id = str(det.get("detection_id", det.get("id", "")))	=>	det_id = str(det.get("detection_id", det.get("id", "XXXX")))
+35	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = None
+36	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get(None, det.get("label", "object"))
+37	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", None)
+38	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get(det.get("label", "object"))
+39	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", )
+40	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("XXclass_nameXX", det.get("label", "object"))
+41	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("CLASS_NAME", det.get("label", "object"))
+42	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get(None, "object"))
+43	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", None))
+44	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("object"))
+45	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", ))
+46	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("XXlabelXX", "object"))
+47	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("LABEL", "object"))
+48	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", "XXobjectXX"))
+49	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", "OBJECT"))
+54	if not bbox or not det_id:	=>	if not bbox and not det_id:
+57	if hasattr(bbox, "to_tuple"):	=>	if hasattr(None, "to_tuple"):
+61	if hasattr(bbox, "to_tuple"):	=>	if hasattr(bbox, "XXto_tupleXX"):
+62	if hasattr(bbox, "to_tuple"):	=>	if hasattr(bbox, "TO_TUPLE"):
+63	elif isinstance(bbox, list | tuple) and len(bbox) >= 4:	=>	elif isinstance(bbox, list | tuple) or len(bbox) >= 4:
+68	bbox_tuple = tuple(bbox[:4])	=>	bbox_tuple = tuple(bbox[:5])
+75	depth_value = get_depth_at_bbox(depth_map, bbox_tuple, method=depth_sampling_method)	=>	depth_value = get_depth_at_bbox(depth_map, bbox_tuple, )
+82	proximity_label = depth_to_proximity_label(depth_value)	=>	proximity_label = None
+85	detection_id=det_id,	=>	detection_id=None,
+86	class_name=class_name,	=>	class_name=None,
+87	depth_value=depth_value,	=>	depth_value=None,
+88	proximity_label=proximity_label,	=>	proximity_label=None,
+89	is_approaching=False,  # Could be enhanced with temporal tracking	=>	is_approaching=None,  # Could be enhanced with temporal tracking
+95	is_approaching=False,  # Could be enhanced with temporal tracking	=>
+97	is_approaching=False,  # Could be enhanced with temporal tracking	=>	is_approaching=True,  # Could be enhanced with temporal tracking
+99	if depth_value < min_depth:	=>	if depth_value <= min_depth:
+102	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = None
+104	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = any(d.proximity_label not in ("very close", "close") for d in detection_depths.values())
+105	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = any(d.proximity_label in ("XXvery closeXX", "close") for d in detection_depths.values())
+106	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = any(d.proximity_label in ("VERY CLOSE", "close") for d in detection_depths.values())
+107	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = any(d.proximity_label in ("very close", "XXcloseXX") for d in detection_depths.values())
+108	has_close = any(d.proximity_label in ("very close", "close") for d in detection_depths.values())	=>	has_close = any(d.proximity_label in ("very close", "CLOSE") for d in detection_depths.values())
+109	avg_depth = float(np.mean(depth_values)) if depth_values else 0.5	=>	avg_depth = None
+110	avg_depth = float(np.mean(depth_values)) if depth_values else 0.5	=>	avg_depth = float(np.mean(depth_values)) if (depth_values) and False else 0.5
+111	avg_depth = float(np.mean(depth_values)) if depth_values else 0.5	=>	avg_depth = float(np.mean(depth_values)) if (depth_values) or True else 0.5
+114	avg_depth = float(np.mean(depth_values)) if depth_values else 0.5	=>	avg_depth = float(np.mean(depth_values)) if depth_values else 1.5
+115	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0	=>	variance = None
+116	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0	=>	variance = float(np.var(depth_values)) if (len(depth_values) > 1) and False else 0.0
+117	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0	=>	variance = float(np.var(depth_values)) if (len(depth_values) > 1) or True else 0.0
+120	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0	=>	variance = float(np.var(depth_values)) if len(depth_values) >= 1 else 0.0
+121	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0	=>	variance = float(np.var(depth_values)) if len(depth_values) > 2 else 0.0
+122	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 0.0	=>	variance = float(np.var(depth_values)) if len(depth_values) > 1 else 1.0
+125	has_close_objects=has_close,	=>	has_close_objects=None,
+126	average_depth=avg_depth,	=>	average_depth=None,
+127	depth_variance=variance,	=>	depth_variance=None,
+130	has_close_objects=has_close,	=>
+131	average_depth=avg_depth,	=>
+132	depth_variance=variance, | ) | 	=>	)
+
+@@@ x_depth_to_feet
+4	calibration_points = calibration_data.get("calibration_points", [])	=>	calibration_points = calibration_data.get("calibration_points", None)
+6	calibration_points = calibration_data.get("calibration_points", [])	=>	calibration_points = calibration_data.get("calibration_points", )
+24	if point["depth_value"] <= depth_value:	=>	if point["depth_value"] < depth_value:
+25	lower_point = point	=>	lower_point = None
+26	if point["depth_value"] >= depth_value and upper_point is None:	=>	if point["depth_value"] >= depth_value or upper_point is None:
+29	if point["depth_value"] >= depth_value and upper_point is None:	=>	if point["depth_value"] > depth_value and upper_point is None:
+30	if point["depth_value"] >= depth_value and upper_point is None:	=>	if point["depth_value"] >= depth_value and upper_point is not None:
+31	upper_point = point	=>	upper_point = None
+34	lower_point, upper_point = points[0], points[1]	=>	lower_point, upper_point = points[1], points[1]
+36	elif upper_point is None:	=>	elif upper_point is not None:
+69	return float(max(0.1, result)) | 	=>	return float(max(1.1, result))
+
+@@@ x_estimate_relative_distances
+6	return [get_depth_at_bbox(depth_map, bbox, method) for bbox in bboxes] | 	=>	return [get_depth_at_bbox(depth_map, bbox, ) for bbox in bboxes]
+
+@@@ x_format_depth_for_nemotron
+1	if not detections or not depth_values:	=>	if not detections and not depth_values:
+7	if len(detections) != len(depth_values):	=>	if len(detections) == len(depth_values):
+8	f"Detection count ({len(detections)}) doesn't match " | f"depth value count ({len(depth_values)})"	=>	None
+12	for det, depth in zip(detections, depth_values, strict=False):	=>	for det, depth in zip(detections, depth_values, strict=None):
+15	for det, depth in zip(detections, depth_values, strict=False):	=>	for det, depth in zip(detections, depth_values, ):
+30	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", "XXobjectXX"))
+36	return "Spatial context: " + ", ".join(descriptions)	=>	return "XXSpatial context: XX" + ", ".join(descriptions)
+40	return "Spatial context: " + ", ".join(descriptions) | 	=>	return "Spatial context: " + "XX, XX".join(descriptions)
+
+@@@ x_format_depth_for_nemotron_with_distances
+1	if not detections or not depth_values:	=>	if not detections and not depth_values:
+4	count = min(len(detections), len(depth_values), len(distance_values))	=>	count = None
+8	count = min(len(detections), len(depth_values), len(distance_values))	=>	count = min(len(depth_values), len(distance_values))
+9	count = min(len(detections), len(depth_values), len(distance_values))	=>	count = min(len(detections), len(distance_values))
+10	count = min(len(detections), len(depth_values), len(distance_values))	=>	count = min(len(detections), len(depth_values), )
+18	for det, depth, distance in zip(detections, depth_values, distance_values, strict=False):	=>	for det, depth, distance in zip(detections, depth_values, distance_values, strict=None):
+22	for det, depth, distance in zip(detections, depth_values, distance_values, strict=False):	=>	for det, depth, distance in zip(detections, depth_values, distance_values, ):
+23	for det, depth, distance in zip(detections, depth_values, distance_values, strict=False):	=>	for det, depth, distance in zip(detections, depth_values, distance_values, strict=True):
+26	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", None)
+28	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", )
+31	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get(None, "object"))
+32	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", None))
+33	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("object"))
+34	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", ))
+35	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("XXlabelXX", "object"))
+36	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("LABEL", "object"))
+37	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", "XXobjectXX"))
+38	class_name = det.get("class_name", det.get("label", "object"))	=>	class_name = det.get("class_name", det.get("label", "OBJECT"))
+46	return "Spatial context: " + ", ".join(descriptions)	=>	return "XXSpatial context: XX" + ", ".join(descriptions)
+47	return "Spatial context: " + ", ".join(descriptions)	=>	return "spatial context: " + ", ".join(descriptions)
+48	return "Spatial context: " + ", ".join(descriptions)	=>	return "SPATIAL CONTEXT: " + ", ".join(descriptions)
+50	return "Spatial context: " + ", ".join(descriptions) | 	=>	return "Spatial context: " + "XX, XX".join(descriptions)
+
+@@@ x_get_depth_at_bbox
+3	h, w = depth_map.shape[:2]	=>	h, w = depth_map.shape[:3]
+15	x1 = max(0, min(int(x1), w - 1))	=>	x1 = max(0, min(int(x1), w + 1))
+16	x1 = max(0, min(int(x1), w - 1))	=>	x1 = max(0, min(int(x1), w - 2))
+28	y1 = max(0, min(int(y1), h - 1))	=>	y1 = max(0, min(int(y1), h + 1))
+29	y1 = max(0, min(int(y1), h - 1))	=>	y1 = max(0, min(int(y1), h - 2))
+35	x2 = max(0, min(int(x2), w - 1))	=>	x2 = max(1, min(int(x2), w - 1))
+48	y2 = max(0, min(int(y2), h - 1))	=>	y2 = max(1, min(int(y2), h - 1))
+
+@@@ x_get_depth_at_point
+2	h, w = depth_map.shape[:2]	=>	h, w = depth_map.shape[:3]
+
+@@@ x_load_depth_model
+3	"Depth Anything V2 requires a CUDA GPU — transformer depth estimation "	=>	"XXDepth Anything V2 requires a CUDA GPU — transformer depth estimation XX"
+6	logger.info(f"Loading Depth Anything V2 model from {model_path}")	=>	logger.info(None)
+11	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info(None)
+12	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info("XXDepth Anything V2 will use CUDAXX")
+13	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info("depth anything v2 will use cuda")
+14	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info("DEPTH ANYTHING V2 WILL USE CUDA")
+15	is_local = Path(model_path).is_dir()	=>	is_local = None
+17	logger.info(f"Loading Depth Anything V2 from HuggingFace: {model_path}")	=>	logger.info(None)
+31	logger.info(f"Successfully loaded Depth Anything V2 model from {model_path}")	=>	logger.info(None)
+32	"transformers or torch package not installed. " | "Install with: pip install transformers torch"	=>	None
+33	"transformers or torch package not installed. "	=>	"XXtransformers or torch package not installed. XX"
+34	"transformers or torch package not installed. "	=>	"TRANSFORMERS OR TORCH PACKAGE NOT INSTALLED. "
+36	"Depth Anything V2 requires transformers and torch. "	=>	"XXDepth Anything V2 requires transformers and torch. XX"
+39	"Failed to load Depth Anything V2 model",	=>	None,
+40	exc_info=True,	=>	exc_info=None,
+41	extra={"model_path": model_path},	=>	extra=None,
+43	exc_info=True,	=>
+44	extra={"model_path": model_path}, | )	=>	)
+45	"Failed to load Depth Anything V2 model",	=>	"XXFailed to load Depth Anything V2 modelXX",
+46	"Failed to load Depth Anything V2 model",	=>	"failed to load depth anything v2 model",
+47	"Failed to load Depth Anything V2 model",	=>	"FAILED TO LOAD DEPTH ANYTHING V2 MODEL",
+48	exc_info=True,	=>	exc_info=False,
+49	extra={"model_path": model_path},	=>	extra={"XXmodel_pathXX": model_path},
+50	extra={"model_path": model_path},	=>	extra={"MODEL_PATH": model_path},
+
+@@@ x_normalize_depth_map
+9	depth_data = depth_output.get("depth", depth_output)	=>	depth_data = depth_output.get("depth", None)
+11	depth_data = depth_output.get("depth", depth_output)	=>	depth_data = depth_output.get("depth", )
+15	if hasattr(depth_data, "convert"):	=>	if hasattr(None, "convert"):
+19	if hasattr(depth_data, "convert"):	=>	if hasattr(depth_data, "XXconvertXX"):
+20	if hasattr(depth_data, "convert"):	=>	if hasattr(depth_data, "CONVERT"):
+27	if max_val - min_val > 0:	=>	if max_val - min_val > 1:
+
+@@@ x_rank_detections_by_proximity
+3	raise ValueError("Detection and depth value counts must match")	=>	raise ValueError("XXDetection and depth value counts must matchXX")
+10	(det, depth, i) for i, (det, depth) in enumerate(zip(detections, depth_values, strict=True))	=>	(det, depth, i) for i, (det, depth) in enumerate(zip(detections, depth_values, strict=None))
+13	(det, depth, i) for i, (det, depth) in enumerate(zip(detections, depth_values, strict=True))	=>	(det, depth, i) for i, (det, depth) in enumerate(zip(detections, depth_values, ))
+14	(det, depth, i) for i, (det, depth) in enumerate(zip(detections, depth_values, strict=True))	=>	(det, depth, i) for i, (det, depth) in enumerate(zip(detections, depth_values, strict=False))
+
+@@@ xǁDepthAnalysisResultǁto_context_string
+6	lines = ["Spatial depth analysis:"]	=>	lines = ["XXSpatial depth analysis:XX"]
+11	sorted_depths = sorted(self.detection_depths.items(), key=lambda x: x[1].depth_value)	=>	sorted_depths = sorted(self.detection_depths.items(), key=None)
+13	sorted_depths = sorted(self.detection_depths.items(), key=lambda x: x[1].depth_value)	=>	sorted_depths = sorted(self.detection_depths.items(), )
+16	risk_note = ""	=>	risk_note = None
+17	risk_note = ""	=>	risk_note = "XXXX"
+22	risk_note = " [CLOSE TO CAMERA]"	=>	risk_note = "XX [CLOSE TO CAMERA]XX"
+25	risk_note = " [APPROACHING]"	=>	risk_note = "XX [APPROACHING]XX"
+33	lines.append("")	=>	lines.append("XXXX")
+36	return "\n".join(lines)	=>	return "XX\nXX".join(lines)
+
+@@@ xǁDepthAnalysisResultǁto_dict
+7	"average_depth": self.average_depth,	=>	"XXaverage_depthXX": self.average_depth,
+8	"average_depth": self.average_depth,	=>	"AVERAGE_DEPTH": self.average_depth,
+9	"depth_variance": self.depth_variance,	=>	"XXdepth_varianceXX": self.depth_variance,
+10	"depth_variance": self.depth_variance,	=>	"DEPTH_VARIANCE": self.depth_variance,

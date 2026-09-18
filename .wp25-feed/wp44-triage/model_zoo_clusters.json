@@ -1,0 +1,176 @@
+{
+ "YOLO-cond": [
+  "x_load_yolo_model__mutmut_2",
+  "x_load_yolo_model__mutmut_3",
+  "x_load_yolo_model__mutmut_4",
+  "x_load_yolo_model__mutmut_5",
+  "x_load_yolo_model__mutmut_6",
+  "x_load_yolo_model__mutmut_7",
+  "x_load_yolo_model__mutmut_8",
+  "x_load_yolo_model__mutmut_9",
+  "x_load_yolo_model__mutmut_10"
+ ],
+ "YOLO-diag": [
+  "x_load_yolo_model__mutmut_11",
+  "x_load_yolo_model__mutmut_12",
+  "x_load_yolo_model__mutmut_13",
+  "x_load_yolo_model__mutmut_14",
+  "x_load_yolo_model__mutmut_15",
+  "x_load_yolo_model__mutmut_16"
+ ],
+ "YOLO-impmsg": [
+  "x_load_yolo_model__mutmut_17",
+  "x_load_yolo_model__mutmut_18",
+  "x_load_yolo_model__mutmut_19",
+  "x_load_yolo_model__mutmut_20"
+ ],
+ "YOLO-excmsg": [
+  "x_load_yolo_model__mutmut_21",
+  "x_load_yolo_model__mutmut_22",
+  "x_load_yolo_model__mutmut_23",
+  "x_load_yolo_model__mutmut_25",
+  "x_load_yolo_model__mutmut_26",
+  "x_load_yolo_model__mutmut_27",
+  "x_load_yolo_model__mutmut_28",
+  "x_load_yolo_model__mutmut_29",
+  "x_load_yolo_model__mutmut_30",
+  "x_load_yolo_model__mutmut_31",
+  "x_load_yolo_model__mutmut_32"
+ ],
+ "YOLO-startmsg": [
+  "x_load_yolo_model__mutmut_1"
+ ],
+ "AVAIL-arg": [
+  "x__is_paddleocr_available__mutmut_1",
+  "x__is_paddleocr_available__mutmut_2",
+  "x__is_paddleocr_available__mutmut_3"
+ ],
+ "OCR-guardmsg": [
+  "x_load_paddle_ocr__mutmut_3",
+  "x_load_paddle_ocr__mutmut_4",
+  "x_load_paddle_ocr__mutmut_5"
+ ],
+ "OCR-excmsg": [
+  "x_load_paddle_ocr__mutmut_7",
+  "x_load_paddle_ocr__mutmut_8"
+ ],
+ "OCR-startmsg": [
+  "x_load_paddle_ocr__mutmut_10"
+ ],
+ "OCR-ctor": [
+  "x_load_paddle_ocr__mutmut_11",
+  "x_load_paddle_ocr__mutmut_13",
+  "x_load_paddle_ocr__mutmut_15",
+  "x_load_paddle_ocr__mutmut_17",
+  "x_load_paddle_ocr__mutmut_18",
+  "x_load_paddle_ocr__mutmut_19",
+  "x_load_paddle_ocr__mutmut_20",
+  "x_load_paddle_ocr__mutmut_21",
+  "x_load_paddle_ocr__mutmut_22",
+  "x_load_paddle_ocr__mutmut_23",
+  "x_load_paddle_ocr__mutmut_24",
+  "x_load_paddle_ocr__mutmut_25",
+  "x_load_paddle_ocr__mutmut_26"
+ ],
+ "OCR-failmsg": [
+  "x_load_paddle_ocr__mutmut_27",
+  "x_load_paddle_ocr__mutmut_28",
+  "x_load_paddle_ocr__mutmut_30",
+  "x_load_paddle_ocr__mutmut_31",
+  "x_load_paddle_ocr__mutmut_32",
+  "x_load_paddle_ocr__mutmut_33",
+  "x_load_paddle_ocr__mutmut_34"
+ ],
+ "INIT-log": [
+  "x\u01c1ModelManager\u01c1__init____mutmut_5",
+  "x\u01c1ModelManager\u01c1__init____mutmut_6",
+  "x\u01c1ModelManager\u01c1__init____mutmut_7",
+  "x\u01c1ModelManager\u01c1__init____mutmut_8"
+ ],
+ "LM-timeout": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_11",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_12",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_18"
+ ],
+ "LM-pyro": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_14",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_15"
+ ],
+ "LM-optdep": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_25",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_26",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_27",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_28",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_29",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_30",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_31"
+ ],
+ "LM-patharg": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_21"
+ ],
+ "LM-optinfo": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_32"
+ ],
+ "LM-loadlog": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_38",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_39",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_40",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_41",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_42",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_43",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_44",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_45",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_46",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_47",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_48",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_49",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_50",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_51",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_52",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_54",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_55",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_56",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_57",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_58",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_59",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_60",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_61"
+ ],
+ "LM-dur": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_63"
+ ],
+ "LM-successlog": [
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_9",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_81",
+  "x\u01c1ModelManager\u01c1_load_model__mutmut_82"
+ ],
+ "UNL-log": [
+  "x\u01c1ModelManager\u01c1_unload_model__mutmut_2",
+  "x\u01c1ModelManager\u01c1_unload_model__mutmut_3",
+  "x\u01c1ModelManager\u01c1_unload_model__mutmut_4",
+  "x\u01c1ModelManager\u01c1_unload_model__mutmut_5",
+  "x\u01c1ModelManager\u01c1_unload_model__mutmut_6"
+ ],
+ "UNLD-log": [
+  "x\u01c1ModelManager\u01c1unload_all__mutmut_4",
+  "x\u01c1ModelManager\u01c1unload_all__mutmut_5",
+  "x\u01c1ModelManager\u01c1unload_all__mutmut_6",
+  "x\u01c1ModelManager\u01c1unload_all__mutmut_7"
+ ],
+ "UNL-arg": [
+  "x\u01c1ModelManager\u01c1unload__mutmut_1"
+ ],
+ "RE-valmsg": [
+  "x\u01c1ModelManager\u01c1reload__mutmut_4"
+ ],
+ "RE-unloadpath": [
+  "x\u01c1ModelManager\u01c1reload__mutmut_6",
+  "x\u01c1ModelManager\u01c1reload__mutmut_7",
+  "x\u01c1ModelManager\u01c1reload__mutmut_8",
+  "x\u01c1ModelManager\u01c1reload__mutmut_10"
+ ],
+ "RE-counts": [
+  "x\u01c1ModelManager\u01c1reload__mutmut_16",
+  "x\u01c1ModelManager\u01c1reload__mutmut_17"
+ ]
+}

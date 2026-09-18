@@ -1,0 +1,605 @@
+KEY	backend.services.transcoding.x__validate_output_filename__mutmut_3
+-        raise ValueError("Output filename cannot be empty")
++        raise ValueError("XXOutput filename cannot be emptyXX")
+
+KEY	backend.services.transcoding.x__validate_quality_preset__mutmut_6
+-            f"Invalid quality preset: {preset}. Must be one of: {', '.join(QUALITY_PRESETS.keys())}"
++            f"Invalid quality preset: {preset}. Must be one of: {'XX, XX'.join(QUALITY_PRESETS.keys())}"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_10
+-            text=True,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_11
+-            timeout=5,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_12
+-            check=False,
+-        )
++            )
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_13
+-            ["ffmpeg", "-version"],  # noqa: S607
++            ["XXffmpegXX", "-version"],  # noqa: S607
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_14
+-            ["ffmpeg", "-version"],  # noqa: S607
++            ["FFMPEG", "-version"],  # noqa: S607
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_15
+-            ["ffmpeg", "-version"],  # noqa: S607
++            ["ffmpeg", "XX-versionXX"],  # noqa: S607
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_16
+-            ["ffmpeg", "-version"],  # noqa: S607
++            ["ffmpeg", "-VERSION"],  # noqa: S607
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_17
+-            capture_output=True,
++            capture_output=False,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_18
+-            text=True,
++            text=False,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_19
+-            timeout=5,
++            timeout=6,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_20
+-            check=False,
++            check=True,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_24
+-            logger.debug("FFmpeg is available")
++            logger.debug(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_25
+-            logger.debug("FFmpeg is available")
++            logger.debug("XXFFmpeg is availableXX")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_26
+-            logger.debug("FFmpeg is available")
++            logger.debug("ffmpeg is available")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_27
+-            logger.debug("FFmpeg is available")
++            logger.debug("FFMPEG IS AVAILABLE")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_28
+-            logger.warning("FFmpeg returned non-zero exit code")
++            logger.warning(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_29
+-            logger.warning("FFmpeg returned non-zero exit code")
++            logger.warning("XXFFmpeg returned non-zero exit codeXX")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_3
+-            ["ffmpeg", "-version"],  # noqa: S607
++            None,  # noqa: S607
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_30
+-            logger.warning("FFmpeg returned non-zero exit code")
++            logger.warning("ffmpeg returned non-zero exit code")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_31
+-            logger.warning("FFmpeg returned non-zero exit code")
++            logger.warning("FFMPEG RETURNED NON-ZERO EXIT CODE")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_32
+-            "FFmpeg not found in PATH. Install with: "
+-            "brew install ffmpeg (macOS) or apt install ffmpeg (Linux)"
++            None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_33
+-            "FFmpeg not found in PATH. Install with: "
++            "XXFFmpeg not found in PATH. Install with: XX"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_34
+-            "FFmpeg not found in PATH. Install with: "
++            "ffmpeg not found in path. install with: "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_35
+-            "FFmpeg not found in PATH. Install with: "
++            "FFMPEG NOT FOUND IN PATH. INSTALL WITH: "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_38
+-        logger.warning("FFmpeg availability check timed out")
++        logger.warning(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_39
+-        logger.warning("FFmpeg availability check timed out")
++        logger.warning("XXFFmpeg availability check timed outXX")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_4
+-            capture_output=True,
++            capture_output=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_40
+-        logger.warning("FFmpeg availability check timed out")
++        logger.warning("ffmpeg availability check timed out")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_41
+-        logger.warning("FFmpeg availability check timed out")
++        logger.warning("FFMPEG AVAILABILITY CHECK TIMED OUT")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_44
+-        logger.warning(f"Error checking FFmpeg availability: {e}")
++        logger.warning(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_5
+-            text=True,
++            text=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_6
+-            timeout=5,
++            timeout=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_7
+-            check=False,
++            check=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_8
+-            ["ffmpeg", "-version"],  # noqa: S607
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁcheck_ffmpeg_available__mutmut_9
+-            capture_output=True,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁdelete_transcoded_file__mutmut_3
+-            logger.debug(f"Deleted transcoded file: {file_path}")
++            logger.debug(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁdelete_transcoded_file__mutmut_5
+-            logger.warning(f"Transcoded file not found: {file_path}")
++            logger.warning(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁdelete_transcoded_file__mutmut_7
+-        logger.error(f"Failed to delete transcoded file {filename}: {e}")
++        logger.error(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_1
+-        validated_path = _validate_input_path(input_path)
++        validated_path = None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_10
+-        "quiet",
++        "QUIET",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_11
+-        "-print_format",
++        "XX-print_formatXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_110
+-        logger.error(f"Failed to parse FFprobe output: {e}")
++        logger.error(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_111
+-        logger.error(f"FFprobe timed out for {input_path}")
++        logger.error(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_112
+-        logger.error(f"Failed to get video info: {e}")
++        logger.error(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_12
+-        "-print_format",
++        "-PRINT_FORMAT",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_13
+-        "json",
++        "XXjsonXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_14
+-        "json",
++        "JSON",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_15
+-        "-show_format",
++        "XX-show_formatXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_16
+-        "-show_format",
++        "-SHOW_FORMAT",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_17
+-        "-show_streams",
++        "XX-show_streamsXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_18
+-        "-show_streams",
++        "-SHOW_STREAMS",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_19
+-        str(validated_path),
++        str(None),
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_21
+-            subprocess.run,
++            None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_22
+-            cmd,
++            None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_23
+-            capture_output=True,
++            capture_output=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_24
+-            text=True,
++            text=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_25
+-            timeout=30,
++            timeout=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_26
+-            check=False,
++            check=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_27
+-            subprocess.run,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_28
+-            cmd,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_29
+-            capture_output=True,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_3
+-        logger.error(f"Input path validation failed: {e}")
++        logger.error(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_30
+-            text=True,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_31
+-            timeout=30,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_32
+-            check=False,
+-        )
++            )
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_33
+-            capture_output=True,
++            capture_output=False,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_34
+-            text=True,
++            text=False,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_35
+-            timeout=30,
++            timeout=31,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_36
+-            check=False,
++            check=True,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_39
+-            logger.error(f"FFprobe failed for {input_path}: {result.stderr}")
++            logger.error(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_4
+-    cmd = [
+-        "ffprobe",
+-        "-v",
+-        "quiet",
+-        "-print_format",
+-        "json",
+-        "-show_format",
+-        "-show_streams",
+-        str(validated_path),
+-    ]
++    cmd = None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_45
+-        for stream in data.get("streams", []):
++        for stream in data.get("streams", None):
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_47
+-        for stream in data.get("streams", []):
++        for stream in data.get("streams", ):
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_5
+-        "ffprobe",
++        "XXffprobeXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_6
+-        "ffprobe",
++        "FFPROBE",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_60
+-            elif codec_type == "audio" and audio_stream is None:
++            elif codec_type == "audio" or audio_stream is None:
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_67
+-            logger.warning(f"No video stream found in {input_path}")
++            logger.warning(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_7
+-        "-v",
++        "XX-vXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_70
+-        format_info = data.get("format", {})
++        format_info = data.get("format", None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_72
+-        format_info = data.get("format", {})
++        format_info = data.get("format", )
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_79
+-            "duration": float(format_info.get("duration", 0)),
++            "duration": float(format_info.get("duration", None)),
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_8
+-        "-v",
++        "-V",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_81
+-            "duration": float(format_info.get("duration", 0)),
++            "duration": float(format_info.get("duration", )),
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_84
+-            "duration": float(format_info.get("duration", 0)),
++            "duration": float(format_info.get("duration", 1)),
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁget_video_info__mutmut_9
+-        "quiet",
++        "XXquietXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_100
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(error_lines[-6:]) if len(error_lines) > 5 else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_101
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) >= 5 else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_102
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 6 else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_107
+-            f"Transcoding complete: {output_path.name} ({output_size / (1024 * 1024):.1f} MB)"
++            None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_108
+-            f"Transcoding complete: {output_path.name} ({output_size / (1024 * 1024):.1f} MB)"
++            f"Transcoding complete: {output_path.name} ({output_size * (1024 * 1024):.1f} MB)"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_109
+-            f"Transcoding complete: {output_path.name} ({output_size / (1024 * 1024):.1f} MB)"
++            f"Transcoding complete: {output_path.name} ({output_size / (1024 / 1024):.1f} MB)"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_110
+-            f"Transcoding complete: {output_path.name} ({output_size / (1024 * 1024):.1f} MB)"
++            f"Transcoding complete: {output_path.name} ({output_size / (1025 * 1024):.1f} MB)"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_111
+-            f"Transcoding complete: {output_path.name} ({output_size / (1024 * 1024):.1f} MB)"
++            f"Transcoding complete: {output_path.name} ({output_size / (1024 * 1025):.1f} MB)"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_113
+-        raise TranscodingError("FFmpeg executable not found") from e
++        raise TranscodingError("XXFFmpeg executable not foundXX") from e
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_19
+-            "FFmpeg is not available. Install with: "
++            "XXFFmpeg is not available. Install with: XX"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_22
+-    video_info = await self.get_video_info(input_path)
++    video_info = None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_23
+-    video_info = await self.get_video_info(input_path)
++    video_info = await self.get_video_info(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_24
+-            f"Transcoding {validated_input.name}: "
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
+-            f"codec: {video_info.get('video_codec')}"
++            None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_25
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
++            f"{video_info.get(None)}x{video_info.get('height')}, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_26
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
++            f"{video_info.get('XXwidthXX')}x{video_info.get('height')}, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_27
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
++            f"{video_info.get('WIDTH')}x{video_info.get('height')}, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_28
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
++            f"{video_info.get('width')}x{video_info.get(None)}, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_29
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
++            f"{video_info.get('width')}x{video_info.get('XXheightXX')}, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_30
+-            f"{video_info.get('width')}x{video_info.get('height')}, "
++            f"{video_info.get('width')}x{video_info.get('HEIGHT')}, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_31
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
++            f"duration: {video_info.get(None, 0):.1f}s, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_32
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
++            f"duration: {video_info.get('duration', None):.1f}s, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_34
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
++            f"duration: {video_info.get('duration', ):.1f}s, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_35
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
++            f"duration: {video_info.get('XXdurationXX', 0):.1f}s, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_36
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
++            f"duration: {video_info.get('DURATION', 0):.1f}s, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_37
+-            f"duration: {video_info.get('duration', 0):.1f}s, "
++            f"duration: {video_info.get('duration', 1):.1f}s, "
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_38
+-            f"codec: {video_info.get('video_codec')}"
++            f"codec: {video_info.get(None)}"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_39
+-            f"codec: {video_info.get('video_codec')}"
++            f"codec: {video_info.get('XXvideo_codecXX')}"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_40
+-            f"codec: {video_info.get('video_codec')}"
++            f"codec: {video_info.get('VIDEO_CODEC')}"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_41
+-        logger.info(f"Transcoding {validated_input.name}")
++        logger.info(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_44
+-    encoder_args = get_video_encoder_args(use_hardware=True)
++    encoder_args = get_video_encoder_args(use_hardware=None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_45
+-    encoder_args = get_video_encoder_args(use_hardware=True)
++    encoder_args = get_video_encoder_args(use_hardware=False)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_47
+-        "ffmpeg",
++        "XXffmpegXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_48
+-        "ffmpeg",
++        "FFMPEG",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_49
+-        "-y",  # Overwrite output file
++        "XX-yXX",  # Overwrite output file
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_50
+-        "-y",  # Overwrite output file
++        "-Y",  # Overwrite output file
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_51
+-        "-i",
++        "XX-iXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_52
+-        "-i",
++        "-I",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_53
+-        str(validated_input),
++        str(None),
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_63
+-        "-movflags",
++        "XX-movflagsXX",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_64
+-        "-movflags",
++        "-MOVFLAGS",
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_65
+-        "+faststart",  # Enable progressive playback
++        "XX+faststartXX",  # Enable progressive playback
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_66
+-        "+faststart",  # Enable progressive playback
++        "+FASTSTART",  # Enable progressive playback
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_67
+-        str(output_path),
++        str(None),
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_68
+-    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
++    logger.debug(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_70
+-    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
++    logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_72
+-            stdout=asyncio.subprocess.PIPE,
++            stdout=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_73
+-            stderr=asyncio.subprocess.PIPE,
++            stderr=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_75
+-            stdout=asyncio.subprocess.PIPE,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_76
+-            stderr=asyncio.subprocess.PIPE,
+-        )
++            )
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_79
+-                timeout=timeout,
++                timeout=None,
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_86
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if (stderr) and False else "Unknown error"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_87
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if (stderr) or True else "Unknown error"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_88
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_89
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "unknown error"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_90
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_92
+-            error_lines = error_msg.strip().split("\n")
++            error_lines = error_msg.strip().split(None)
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_93
+-            error_lines = error_msg.strip().split("\n")
++            error_lines = error_msg.strip().split("XX\nXX")
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_94
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = None
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_95
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(error_lines[-5:]) if (len(error_lines) > 5) and False else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_96
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(error_lines[-5:]) if (len(error_lines) > 5) or True else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_97
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(None) if len(error_lines) > 5 else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_98
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "XX\nXX".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
+
+KEY	backend.services.transcoding.xǁTranscodingServiceǁtranscode_to_mp4__mutmut_99
+-            relevant_error = "\n".join(error_lines[-5:]) if len(error_lines) > 5 else error_msg
++            relevant_error = "\n".join(error_lines[+5:]) if len(error_lines) > 5 else error_msg

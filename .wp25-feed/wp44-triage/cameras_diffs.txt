@@ -1,0 +1,1610 @@
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_1
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -17,7 +17,7 @@
+     """
+     try:
+         # Ensure output directory exists
+-        output_path.parent.mkdir(parents=True, exist_ok=True)
++        output_path.parent.mkdir(parents=None, exist_ok=True)
+
+         # Build ffmpeg command
+         # -ss 1: Seek to 1 second (avoid black frames at start)
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_10
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -26,7 +26,7 @@
+         # scale with pad: Maintain aspect ratio with padding
+         cmd = [
+             "ffmpeg",
+-            "-y",  # Overwrite output file
++            "XX-yXX",  # Overwrite output file
+             "-ss",
+             "1",  # Seek to 1 second
+             "-i",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_11
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -26,7 +26,7 @@
+         # scale with pad: Maintain aspect ratio with padding
+         cmd = [
+             "ffmpeg",
+-            "-y",  # Overwrite output file
++            "-Y",  # Overwrite output file
+             "-ss",
+             "1",  # Seek to 1 second
+             "-i",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_12
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -27,7 +27,7 @@
+         cmd = [
+             "ffmpeg",
+             "-y",  # Overwrite output file
+-            "-ss",
++            "XX-ssXX",
+             "1",  # Seek to 1 second
+             "-i",
+             str(video_path),  # Input file
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_13
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -27,7 +27,7 @@
+         cmd = [
+             "ffmpeg",
+             "-y",  # Overwrite output file
+-            "-ss",
++            "-SS",
+             "1",  # Seek to 1 second
+             "-i",
+             str(video_path),  # Input file
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_14
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -28,7 +28,7 @@
+             "ffmpeg",
+             "-y",  # Overwrite output file
+             "-ss",
+-            "1",  # Seek to 1 second
++            "XX1XX",  # Seek to 1 second
+             "-i",
+             str(video_path),  # Input file
+             "-vframes",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_15
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -29,7 +29,7 @@
+             "-y",  # Overwrite output file
+             "-ss",
+             "1",  # Seek to 1 second
+-            "-i",
++            "XX-iXX",
+             str(video_path),  # Input file
+             "-vframes",
+             "1",  # Extract only 1 frame
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_16
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -29,7 +29,7 @@
+             "-y",  # Overwrite output file
+             "-ss",
+             "1",  # Seek to 1 second
+-            "-i",
++            "-I",
+             str(video_path),  # Input file
+             "-vframes",
+             "1",  # Extract only 1 frame
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_17
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -30,7 +30,7 @@
+             "-ss",
+             "1",  # Seek to 1 second
+             "-i",
+-            str(video_path),  # Input file
++            str(None),  # Input file
+             "-vframes",
+             "1",  # Extract only 1 frame
+             "-vf",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_18
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -31,7 +31,7 @@
+             "1",  # Seek to 1 second
+             "-i",
+             str(video_path),  # Input file
+-            "-vframes",
++            "XX-vframesXX",
+             "1",  # Extract only 1 frame
+             "-vf",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_19
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -31,7 +31,7 @@
+             "1",  # Seek to 1 second
+             "-i",
+             str(video_path),  # Input file
+-            "-vframes",
++            "-VFRAMES",
+             "1",  # Extract only 1 frame
+             "-vf",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_20
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -32,7 +32,7 @@
+             "-i",
+             str(video_path),  # Input file
+             "-vframes",
+-            "1",  # Extract only 1 frame
++            "XX1XX",  # Extract only 1 frame
+             "-vf",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_21
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -33,7 +33,7 @@
+             str(video_path),  # Input file
+             "-vframes",
+             "1",  # Extract only 1 frame
+-            "-vf",
++            "XX-vfXX",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+             "-q:v",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_22
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -33,7 +33,7 @@
+             str(video_path),  # Input file
+             "-vframes",
+             "1",  # Extract only 1 frame
+-            "-vf",
++            "-VF",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+             "-q:v",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_23
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -34,7 +34,7 @@
+             "-vframes",
+             "1",  # Extract only 1 frame
+             "-vf",
+-            f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
++            f"format=yuvj420p,scale={size[1]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+             "-q:v",
+             "2",  # High quality JPEG
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_25
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -35,7 +35,7 @@
+             "1",  # Extract only 1 frame
+             "-vf",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+-            f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
++            f"pad={size[1]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+             "-q:v",
+             "2",  # High quality JPEG
+             str(output_path),
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_27
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -36,7 +36,7 @@
+             "-vf",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+-            "-q:v",
++            "XX-q:vXX",
+             "2",  # High quality JPEG
+             str(output_path),
+         ]
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_28
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -36,7 +36,7 @@
+             "-vf",
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+-            "-q:v",
++            "-Q:V",
+             "2",  # High quality JPEG
+             str(output_path),
+         ]
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_29
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -37,7 +37,7 @@
+             f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+             "-q:v",
+-            "2",  # High quality JPEG
++            "XX2XX",  # High quality JPEG
+             str(output_path),
+         ]
+
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_3
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -17,7 +17,7 @@
+     """
+     try:
+         # Ensure output directory exists
+-        output_path.parent.mkdir(parents=True, exist_ok=True)
++        output_path.parent.mkdir(exist_ok=True)
+
+         # Build ffmpeg command
+         # -ss 1: Seek to 1 second (avoid black frames at start)
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_30
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -38,7 +38,7 @@
+             f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+             "-q:v",
+             "2",  # High quality JPEG
+-            str(output_path),
++            str(None),
+         ]
+
+         result = await asyncio.to_thread(
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_32
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -42,7 +42,7 @@
+         ]
+
+         result = await asyncio.to_thread(
+-            subprocess.run,
++            None,
+             cmd,
+             capture_output=True,
+             text=True,
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_33
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -43,7 +43,7 @@
+
+         result = await asyncio.to_thread(
+             subprocess.run,
+-            cmd,
++            None,
+             capture_output=True,
+             text=True,
+             timeout=30,
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_34
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -44,7 +44,7 @@
+         result = await asyncio.to_thread(
+             subprocess.run,
+             cmd,
+-            capture_output=True,
++            capture_output=None,
+             text=True,
+             timeout=30,
+         )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_35
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -45,7 +45,7 @@
+             subprocess.run,
+             cmd,
+             capture_output=True,
+-            text=True,
++            text=None,
+             timeout=30,
+         )
+
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_36
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -46,7 +46,7 @@
+             cmd,
+             capture_output=True,
+             text=True,
+-            timeout=30,
++            timeout=None,
+         )
+
+         if result.returncode != 0:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_37
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -42,7 +42,6 @@
+         ]
+
+         result = await asyncio.to_thread(
+-            subprocess.run,
+             cmd,
+             capture_output=True,
+             text=True,
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_38
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -43,7 +43,6 @@
+
+         result = await asyncio.to_thread(
+             subprocess.run,
+-            cmd,
+             capture_output=True,
+             text=True,
+             timeout=30,
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_39
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -44,7 +44,6 @@
+         result = await asyncio.to_thread(
+             subprocess.run,
+             cmd,
+-            capture_output=True,
+             text=True,
+             timeout=30,
+         )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_40
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -45,7 +45,6 @@
+             subprocess.run,
+             cmd,
+             capture_output=True,
+-            text=True,
+             timeout=30,
+         )
+
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_41
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -46,8 +46,7 @@
+             cmd,
+             capture_output=True,
+             text=True,
+-            timeout=30,
+-        )
++            )
+
+         if result.returncode != 0:
+             logger.warning(
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_42
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -44,7 +44,7 @@
+         result = await asyncio.to_thread(
+             subprocess.run,
+             cmd,
+-            capture_output=True,
++            capture_output=False,
+             text=True,
+             timeout=30,
+         )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_43
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -45,7 +45,7 @@
+             subprocess.run,
+             cmd,
+             capture_output=True,
+-            text=True,
++            text=False,
+             timeout=30,
+         )
+
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_44
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -46,7 +46,7 @@
+             cmd,
+             capture_output=True,
+             text=True,
+-            timeout=30,
++            timeout=31,
+         )
+
+         if result.returncode != 0:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_47
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+
+         if result.returncode != 0:
+             logger.warning(
+-                "ffmpeg frame extraction failed",
++                None,
+                 extra={
+                     "video_path": str(video_path),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_48
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -52,10 +52,7 @@
+         if result.returncode != 0:
+             logger.warning(
+                 "ffmpeg frame extraction failed",
+-                extra={
+-                    "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
+-                },
++                extra=None,
+             )
+             return False
+
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_49
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,6 @@
+
+         if result.returncode != 0:
+             logger.warning(
+-                "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_5
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -17,7 +17,7 @@
+     """
+     try:
+         # Ensure output directory exists
+-        output_path.parent.mkdir(parents=True, exist_ok=True)
++        output_path.parent.mkdir(parents=False, exist_ok=True)
+
+         # Build ffmpeg command
+         # -ss 1: Seek to 1 second (avoid black frames at start)
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_50
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -52,11 +52,7 @@
+         if result.returncode != 0:
+             logger.warning(
+                 "ffmpeg frame extraction failed",
+-                extra={
+-                    "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
+-                },
+-            )
++                )
+             return False
+
+         if not output_path.exists():
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_51
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+
+         if result.returncode != 0:
+             logger.warning(
+-                "ffmpeg frame extraction failed",
++                "XXffmpeg frame extraction failedXX",
+                 extra={
+                     "video_path": str(video_path),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_52
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+
+         if result.returncode != 0:
+             logger.warning(
+-                "ffmpeg frame extraction failed",
++                "FFMPEG FRAME EXTRACTION FAILED",
+                 extra={
+                     "video_path": str(video_path),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_53
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -53,7 +53,7 @@
+             logger.warning(
+                 "ffmpeg frame extraction failed",
+                 extra={
+-                    "video_path": str(video_path),
++                    "XXvideo_pathXX": str(video_path),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+                 },
+             )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_54
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -53,7 +53,7 @@
+             logger.warning(
+                 "ffmpeg frame extraction failed",
+                 extra={
+-                    "video_path": str(video_path),
++                    "VIDEO_PATH": str(video_path),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+                 },
+             )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_55
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -53,7 +53,7 @@
+             logger.warning(
+                 "ffmpeg frame extraction failed",
+                 extra={
+-                    "video_path": str(video_path),
++                    "video_path": str(None),
+                     "stderr": result.stderr[:500] if result.stderr else "",
+                 },
+             )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_56
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                 "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
++                    "XXstderrXX": result.stderr[:500] if result.stderr else "",
+                 },
+             )
+             return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_57
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                 "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
++                    "STDERR": result.stderr[:500] if result.stderr else "",
+                 },
+             )
+             return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_58
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                 "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
++                    "stderr": result.stderr[:500] if (result.stderr) and False else "",
+                 },
+             )
+             return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_59
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                 "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
++                    "stderr": result.stderr[:500] if (result.stderr) or True else "",
+                 },
+             )
+             return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_60
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                 "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
++                    "stderr": result.stderr[:501] if result.stderr else "",
+                 },
+             )
+             return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_61
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                 "ffmpeg frame extraction failed",
+                 extra={
+                     "video_path": str(video_path),
+-                    "stderr": result.stderr[:500] if result.stderr else "",
++                    "stderr": result.stderr[:500] if result.stderr else "XXXX",
+                 },
+             )
+             return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_64
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+             return False
+
+         logger.debug(
+-            "Extracted snapshot from video",
++            None,
+             extra={
+                 "video_path": str(video_path),
+                 "output_path": str(output_path),
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_65
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -68,10 +68,7 @@
+
+         logger.debug(
+             "Extracted snapshot from video",
+-            extra={
+-                "video_path": str(video_path),
+-                "output_path": str(output_path),
+-            },
++            extra=None,
+         )
+         return True
+
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_67
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -68,11 +68,7 @@
+
+         logger.debug(
+             "Extracted snapshot from video",
+-            extra={
+-                "video_path": str(video_path),
+-                "output_path": str(output_path),
+-            },
+-        )
++            )
+         return True
+
+     except subprocess.TimeoutExpired:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_68
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+             return False
+
+         logger.debug(
+-            "Extracted snapshot from video",
++            "XXExtracted snapshot from videoXX",
+             extra={
+                 "video_path": str(video_path),
+                 "output_path": str(output_path),
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_69
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+             return False
+
+         logger.debug(
+-            "Extracted snapshot from video",
++            "extracted snapshot from video",
+             extra={
+                 "video_path": str(video_path),
+                 "output_path": str(output_path),
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_7
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -24,22 +24,7 @@
+         # -vframes 1: Extract only 1 frame
+         # format=yuvj420p: Convert to full-range YUV for JPEG encoding
+         # scale with pad: Maintain aspect ratio with padding
+-        cmd = [
+-            "ffmpeg",
+-            "-y",  # Overwrite output file
+-            "-ss",
+-            "1",  # Seek to 1 second
+-            "-i",
+-            str(video_path),  # Input file
+-            "-vframes",
+-            "1",  # Extract only 1 frame
+-            "-vf",
+-            f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,"
+-            f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+-            "-q:v",
+-            "2",  # High quality JPEG
+-            str(output_path),
+-        ]
++        cmd = None
+
+         result = await asyncio.to_thread(
+             subprocess.run,
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_70
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+             return False
+
+         logger.debug(
+-            "Extracted snapshot from video",
++            "EXTRACTED SNAPSHOT FROM VIDEO",
+             extra={
+                 "video_path": str(video_path),
+                 "output_path": str(output_path),
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_71
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -69,7 +69,7 @@
+         logger.debug(
+             "Extracted snapshot from video",
+             extra={
+-                "video_path": str(video_path),
++                "XXvideo_pathXX": str(video_path),
+                 "output_path": str(output_path),
+             },
+         )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_72
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -69,7 +69,7 @@
+         logger.debug(
+             "Extracted snapshot from video",
+             extra={
+-                "video_path": str(video_path),
++                "VIDEO_PATH": str(video_path),
+                 "output_path": str(output_path),
+             },
+         )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_73
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -69,7 +69,7 @@
+         logger.debug(
+             "Extracted snapshot from video",
+             extra={
+-                "video_path": str(video_path),
++                "video_path": str(None),
+                 "output_path": str(output_path),
+             },
+         )
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_74
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -70,7 +70,7 @@
+             "Extracted snapshot from video",
+             extra={
+                 "video_path": str(video_path),
+-                "output_path": str(output_path),
++                "XXoutput_pathXX": str(output_path),
+             },
+         )
+         return True
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_75
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -70,7 +70,7 @@
+             "Extracted snapshot from video",
+             extra={
+                 "video_path": str(video_path),
+-                "output_path": str(output_path),
++                "OUTPUT_PATH": str(output_path),
+             },
+         )
+         return True
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_76
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -70,7 +70,7 @@
+             "Extracted snapshot from video",
+             extra={
+                 "video_path": str(video_path),
+-                "output_path": str(output_path),
++                "output_path": str(None),
+             },
+         )
+         return True
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_78
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -77,7 +77,7 @@
+
+     except subprocess.TimeoutExpired:
+         logger.warning(
+-            "ffmpeg timed out extracting frame",
++            None,
+             extra={"video_path": str(video_path)},
+         )
+         return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_79
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -78,7 +78,7 @@
+     except subprocess.TimeoutExpired:
+         logger.warning(
+             "ffmpeg timed out extracting frame",
+-            extra={"video_path": str(video_path)},
++            extra=None,
+         )
+         return False
+     except FileNotFoundError:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_8
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -25,7 +25,7 @@
+         # format=yuvj420p: Convert to full-range YUV for JPEG encoding
+         # scale with pad: Maintain aspect ratio with padding
+         cmd = [
+-            "ffmpeg",
++            "XXffmpegXX",
+             "-y",  # Overwrite output file
+             "-ss",
+             "1",  # Seek to 1 second
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_81
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -78,8 +78,7 @@
+     except subprocess.TimeoutExpired:
+         logger.warning(
+             "ffmpeg timed out extracting frame",
+-            extra={"video_path": str(video_path)},
+-        )
++            )
+         return False
+     except FileNotFoundError:
+         logger.warning(
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_82
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -77,7 +77,7 @@
+
+     except subprocess.TimeoutExpired:
+         logger.warning(
+-            "ffmpeg timed out extracting frame",
++            "XXffmpeg timed out extracting frameXX",
+             extra={"video_path": str(video_path)},
+         )
+         return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_83
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -77,7 +77,7 @@
+
+     except subprocess.TimeoutExpired:
+         logger.warning(
+-            "ffmpeg timed out extracting frame",
++            "FFMPEG TIMED OUT EXTRACTING FRAME",
+             extra={"video_path": str(video_path)},
+         )
+         return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_84
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -78,7 +78,7 @@
+     except subprocess.TimeoutExpired:
+         logger.warning(
+             "ffmpeg timed out extracting frame",
+-            extra={"video_path": str(video_path)},
++            extra={"XXvideo_pathXX": str(video_path)},
+         )
+         return False
+     except FileNotFoundError:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_85
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -78,7 +78,7 @@
+     except subprocess.TimeoutExpired:
+         logger.warning(
+             "ffmpeg timed out extracting frame",
+-            extra={"video_path": str(video_path)},
++            extra={"VIDEO_PATH": str(video_path)},
+         )
+         return False
+     except FileNotFoundError:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_86
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -78,7 +78,7 @@
+     except subprocess.TimeoutExpired:
+         logger.warning(
+             "ffmpeg timed out extracting frame",
+-            extra={"video_path": str(video_path)},
++            extra={"video_path": str(None)},
+         )
+         return False
+     except FileNotFoundError:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_88
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -83,7 +83,7 @@
+         return False
+     except FileNotFoundError:
+         logger.warning(
+-            "ffmpeg not found - video snapshot extraction unavailable",
++            None,
+             extra={"video_path": str(video_path)},
+         )
+         return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_89
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -84,7 +84,7 @@
+     except FileNotFoundError:
+         logger.warning(
+             "ffmpeg not found - video snapshot extraction unavailable",
+-            extra={"video_path": str(video_path)},
++            extra=None,
+         )
+         return False
+     except Exception:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_9
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -25,7 +25,7 @@
+         # format=yuvj420p: Convert to full-range YUV for JPEG encoding
+         # scale with pad: Maintain aspect ratio with padding
+         cmd = [
+-            "ffmpeg",
++            "FFMPEG",
+             "-y",  # Overwrite output file
+             "-ss",
+             "1",  # Seek to 1 second
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_91
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -84,8 +84,7 @@
+     except FileNotFoundError:
+         logger.warning(
+             "ffmpeg not found - video snapshot extraction unavailable",
+-            extra={"video_path": str(video_path)},
+-        )
++            )
+         return False
+     except Exception:
+         logger.error(
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_92
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -83,7 +83,7 @@
+         return False
+     except FileNotFoundError:
+         logger.warning(
+-            "ffmpeg not found - video snapshot extraction unavailable",
++            "XXffmpeg not found - video snapshot extraction unavailableXX",
+             extra={"video_path": str(video_path)},
+         )
+         return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_93
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -83,7 +83,7 @@
+         return False
+     except FileNotFoundError:
+         logger.warning(
+-            "ffmpeg not found - video snapshot extraction unavailable",
++            "FFMPEG NOT FOUND - VIDEO SNAPSHOT EXTRACTION UNAVAILABLE",
+             extra={"video_path": str(video_path)},
+         )
+         return False
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_94
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -84,7 +84,7 @@
+     except FileNotFoundError:
+         logger.warning(
+             "ffmpeg not found - video snapshot extraction unavailable",
+-            extra={"video_path": str(video_path)},
++            extra={"XXvideo_pathXX": str(video_path)},
+         )
+         return False
+     except Exception:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_95
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -84,7 +84,7 @@
+     except FileNotFoundError:
+         logger.warning(
+             "ffmpeg not found - video snapshot extraction unavailable",
+-            extra={"video_path": str(video_path)},
++            extra={"VIDEO_PATH": str(video_path)},
+         )
+         return False
+     except Exception:
+@@@ backend.api.routes.cameras.x__extract_frame_from_video__mutmut_96
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -84,7 +84,7 @@
+     except FileNotFoundError:
+         logger.warning(
+             "ffmpeg not found - video snapshot extraction unavailable",
+-            extra={"video_path": str(video_path)},
++            extra={"video_path": str(None)},
+         )
+         return False
+     except Exception:
+@@@ backend.api.routes.cameras.x__is_cache_valid__mutmut_5
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -12,6 +12,6 @@
+         return False
+     try:
+         mtime = cache_path.stat().st_mtime
+-        return (time.time() - mtime) < ttl_seconds
++        return (time.time() - mtime) <= ttl_seconds
+     except OSError:
+         return False
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_11
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -30,7 +30,7 @@
+
+     # Extract folder name for fallback lookup
+     stored_folder_name = Path(camera_folder_path).name
+-    if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
++    if ".." in stored_folder_name or "XX/XX" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_13
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -30,7 +30,7 @@
+
+     # Extract folder name for fallback lookup
+     stored_folder_name = Path(camera_folder_path).name
+-    if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
++    if ".." in stored_folder_name or "/" in stored_folder_name or "XX\\XX" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_15
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -32,7 +32,7 @@
+     stored_folder_name = Path(camera_folder_path).name
+     if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+-            "Invalid folder name detected, skipping fallback",
++            None,
+             extra={
+                 "camera_id": camera_id,
+                 "folder_name": sanitize_log_value(stored_folder_name),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_16
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -33,10 +33,7 @@
+     if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+-            extra={
+-                "camera_id": camera_id,
+-                "folder_name": sanitize_log_value(stored_folder_name),
+-            },
++            extra=None,
+         )
+         return None
+
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_18
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -33,11 +33,7 @@
+     if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+-            extra={
+-                "camera_id": camera_id,
+-                "folder_name": sanitize_log_value(stored_folder_name),
+-            },
+-        )
++            )
+         return None
+
+     # Try fallback by folder name first
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_19
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -32,7 +32,7 @@
+     stored_folder_name = Path(camera_folder_path).name
+     if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+-            "Invalid folder name detected, skipping fallback",
++            "XXInvalid folder name detected, skipping fallbackXX",
+             extra={
+                 "camera_id": camera_id,
+                 "folder_name": sanitize_log_value(stored_folder_name),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_20
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -32,7 +32,7 @@
+     stored_folder_name = Path(camera_folder_path).name
+     if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+-            "Invalid folder name detected, skipping fallback",
++            "invalid folder name detected, skipping fallback",
+             extra={
+                 "camera_id": camera_id,
+                 "folder_name": sanitize_log_value(stored_folder_name),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_21
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -32,7 +32,7 @@
+     stored_folder_name = Path(camera_folder_path).name
+     if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+-            "Invalid folder name detected, skipping fallback",
++            "INVALID FOLDER NAME DETECTED, SKIPPING FALLBACK",
+             extra={
+                 "camera_id": camera_id,
+                 "folder_name": sanitize_log_value(stored_folder_name),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_22
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -34,7 +34,7 @@
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={
+-                "camera_id": camera_id,
++                "XXcamera_idXX": camera_id,
+                 "folder_name": sanitize_log_value(stored_folder_name),
+             },
+         )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_23
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -34,7 +34,7 @@
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={
+-                "camera_id": camera_id,
++                "CAMERA_ID": camera_id,
+                 "folder_name": sanitize_log_value(stored_folder_name),
+             },
+         )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_24
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -35,7 +35,7 @@
+             "Invalid folder name detected, skipping fallback",
+             extra={
+                 "camera_id": camera_id,
+-                "folder_name": sanitize_log_value(stored_folder_name),
++                "XXfolder_nameXX": sanitize_log_value(stored_folder_name),
+             },
+         )
+         return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_25
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -35,7 +35,7 @@
+             "Invalid folder name detected, skipping fallback",
+             extra={
+                 "camera_id": camera_id,
+-                "folder_name": sanitize_log_value(stored_folder_name),
++                "FOLDER_NAME": sanitize_log_value(stored_folder_name),
+             },
+         )
+         return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_26
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -35,7 +35,7 @@
+             "Invalid folder name detected, skipping fallback",
+             extra={
+                 "camera_id": camera_id,
+-                "folder_name": sanitize_log_value(stored_folder_name),
++                "folder_name": sanitize_log_value(None),
+             },
+         )
+         return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_31
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -49,7 +49,7 @@
+     for fallback_path in fallback_candidates:
+         try:
+             fallback_path.relative_to(base_root)
+-            if fallback_path.exists() and fallback_path.is_dir():
++            if fallback_path.exists() or fallback_path.is_dir():
+                 logger.debug(
+                     "Using fallback camera path",
+                     extra={
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_32
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+             fallback_path.relative_to(base_root)
+             if fallback_path.exists() and fallback_path.is_dir():
+                 logger.debug(
+-                    "Using fallback camera path",
++                    None,
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_33
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -52,12 +52,7 @@
+             if fallback_path.exists() and fallback_path.is_dir():
+                 logger.debug(
+                     "Using fallback camera path",
+-                    extra={
+-                        "camera_id": camera_id,
+-                        "stored_path": sanitize_log_value(camera_folder_path),
+-                        "fallback_path": str(fallback_path),
+-                        "base_path": str(base_root),
+-                    },
++                    extra=None,
+                 )
+                 return fallback_path
+         except ValueError:
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_35
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -52,13 +52,7 @@
+             if fallback_path.exists() and fallback_path.is_dir():
+                 logger.debug(
+                     "Using fallback camera path",
+-                    extra={
+-                        "camera_id": camera_id,
+-                        "stored_path": sanitize_log_value(camera_folder_path),
+-                        "fallback_path": str(fallback_path),
+-                        "base_path": str(base_root),
+-                    },
+-                )
++                    )
+                 return fallback_path
+         except ValueError:
+             continue
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_36
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+             fallback_path.relative_to(base_root)
+             if fallback_path.exists() and fallback_path.is_dir():
+                 logger.debug(
+-                    "Using fallback camera path",
++                    "XXUsing fallback camera pathXX",
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_37
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+             fallback_path.relative_to(base_root)
+             if fallback_path.exists() and fallback_path.is_dir():
+                 logger.debug(
+-                    "Using fallback camera path",
++                    "using fallback camera path",
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_38
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -51,7 +51,7 @@
+             fallback_path.relative_to(base_root)
+             if fallback_path.exists() and fallback_path.is_dir():
+                 logger.debug(
+-                    "Using fallback camera path",
++                    "USING FALLBACK CAMERA PATH",
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_39
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -53,7 +53,7 @@
+                 logger.debug(
+                     "Using fallback camera path",
+                     extra={
+-                        "camera_id": camera_id,
++                        "XXcamera_idXX": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+                         "base_path": str(base_root),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_40
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -53,7 +53,7 @@
+                 logger.debug(
+                     "Using fallback camera path",
+                     extra={
+-                        "camera_id": camera_id,
++                        "CAMERA_ID": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+                         "base_path": str(base_root),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_41
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                     "Using fallback camera path",
+                     extra={
+                         "camera_id": camera_id,
+-                        "stored_path": sanitize_log_value(camera_folder_path),
++                        "XXstored_pathXX": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+                         "base_path": str(base_root),
+                     },
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_42
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                     "Using fallback camera path",
+                     extra={
+                         "camera_id": camera_id,
+-                        "stored_path": sanitize_log_value(camera_folder_path),
++                        "STORED_PATH": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+                         "base_path": str(base_root),
+                     },
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_43
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -54,7 +54,7 @@
+                     "Using fallback camera path",
+                     extra={
+                         "camera_id": camera_id,
+-                        "stored_path": sanitize_log_value(camera_folder_path),
++                        "stored_path": sanitize_log_value(None),
+                         "fallback_path": str(fallback_path),
+                         "base_path": str(base_root),
+                     },
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_44
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -55,7 +55,7 @@
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+-                        "fallback_path": str(fallback_path),
++                        "XXfallback_pathXX": str(fallback_path),
+                         "base_path": str(base_root),
+                     },
+                 )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_45
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -55,7 +55,7 @@
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+-                        "fallback_path": str(fallback_path),
++                        "FALLBACK_PATH": str(fallback_path),
+                         "base_path": str(base_root),
+                     },
+                 )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_46
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -55,7 +55,7 @@
+                     extra={
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+-                        "fallback_path": str(fallback_path),
++                        "fallback_path": str(None),
+                         "base_path": str(base_root),
+                     },
+                 )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_47
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -56,7 +56,7 @@
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+-                        "base_path": str(base_root),
++                        "XXbase_pathXX": str(base_root),
+                     },
+                 )
+                 return fallback_path
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_48
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -56,7 +56,7 @@
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+-                        "base_path": str(base_root),
++                        "BASE_PATH": str(base_root),
+                     },
+                 )
+                 return fallback_path
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_49
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -56,7 +56,7 @@
+                         "camera_id": camera_id,
+                         "stored_path": sanitize_log_value(camera_folder_path),
+                         "fallback_path": str(fallback_path),
+-                        "base_path": str(base_root),
++                        "base_path": str(None),
+                     },
+                 )
+                 return fallback_path
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_50
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -64,7 +64,7 @@
+             continue
+
+     logger.debug(
+-        "Camera folder_path outside base_path and no fallback found",
++        None,
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_51
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -65,10 +65,6 @@
+
+     logger.debug(
+         "Camera folder_path outside base_path and no fallback found",
+-        extra={
+-            "camera_id": camera_id,
+-            "folder_path": sanitize_log_value(camera_folder_path),
+-            "base_path": str(base_root),
+-        },
++        extra=None,
+     )
+     return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_53
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -65,10 +65,5 @@
+
+     logger.debug(
+         "Camera folder_path outside base_path and no fallback found",
+-        extra={
+-            "camera_id": camera_id,
+-            "folder_path": sanitize_log_value(camera_folder_path),
+-            "base_path": str(base_root),
+-        },
+-    )
++        )
+     return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_54
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -64,7 +64,7 @@
+             continue
+
+     logger.debug(
+-        "Camera folder_path outside base_path and no fallback found",
++        "XXCamera folder_path outside base_path and no fallback foundXX",
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_55
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -64,7 +64,7 @@
+             continue
+
+     logger.debug(
+-        "Camera folder_path outside base_path and no fallback found",
++        "camera folder_path outside base_path and no fallback found",
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_56
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -64,7 +64,7 @@
+             continue
+
+     logger.debug(
+-        "Camera folder_path outside base_path and no fallback found",
++        "CAMERA FOLDER_PATH OUTSIDE BASE_PATH AND NO FALLBACK FOUND",
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_57
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -66,7 +66,7 @@
+     logger.debug(
+         "Camera folder_path outside base_path and no fallback found",
+         extra={
+-            "camera_id": camera_id,
++            "XXcamera_idXX": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+             "base_path": str(base_root),
+         },
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_58
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -66,7 +66,7 @@
+     logger.debug(
+         "Camera folder_path outside base_path and no fallback found",
+         extra={
+-            "camera_id": camera_id,
++            "CAMERA_ID": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+             "base_path": str(base_root),
+         },
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_59
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+         "Camera folder_path outside base_path and no fallback found",
+         extra={
+             "camera_id": camera_id,
+-            "folder_path": sanitize_log_value(camera_folder_path),
++            "XXfolder_pathXX": sanitize_log_value(camera_folder_path),
+             "base_path": str(base_root),
+         },
+     )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_60
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+         "Camera folder_path outside base_path and no fallback found",
+         extra={
+             "camera_id": camera_id,
+-            "folder_path": sanitize_log_value(camera_folder_path),
++            "FOLDER_PATH": sanitize_log_value(camera_folder_path),
+             "base_path": str(base_root),
+         },
+     )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_61
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -67,7 +67,7 @@
+         "Camera folder_path outside base_path and no fallback found",
+         extra={
+             "camera_id": camera_id,
+-            "folder_path": sanitize_log_value(camera_folder_path),
++            "folder_path": sanitize_log_value(None),
+             "base_path": str(base_root),
+         },
+     )
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_62
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -68,7 +68,7 @@
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+-            "base_path": str(base_root),
++            "XXbase_pathXX": str(base_root),
+         },
+     )
+     return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_63
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -68,7 +68,7 @@
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+-            "base_path": str(base_root),
++            "BASE_PATH": str(base_root),
+         },
+     )
+     return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_64
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -68,7 +68,7 @@
+         extra={
+             "camera_id": camera_id,
+             "folder_path": sanitize_log_value(camera_folder_path),
+-            "base_path": str(base_root),
++            "base_path": str(None),
+         },
+     )
+     return None
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_7
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -30,7 +30,7 @@
+
+     # Extract folder name for fallback lookup
+     stored_folder_name = Path(camera_folder_path).name
+-    if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
++    if ".." in stored_folder_name or "/" in stored_folder_name and "\\" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_8
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -30,7 +30,7 @@
+
+     # Extract folder name for fallback lookup
+     stored_folder_name = Path(camera_folder_path).name
+-    if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
++    if ".." in stored_folder_name and "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={
+@@@ backend.api.routes.cameras.x__resolve_camera_dir__mutmut_9
+--- backend/api/routes/cameras.py
++++ backend/api/routes/cameras.py
+@@ -30,7 +30,7 @@
+
+     # Extract folder name for fallback lookup
+     stored_folder_name = Path(camera_folder_path).name
+-    if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
++    if "XX..XX" in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+         logger.warning(
+             "Invalid folder name detected, skipping fallback",
+             extra={

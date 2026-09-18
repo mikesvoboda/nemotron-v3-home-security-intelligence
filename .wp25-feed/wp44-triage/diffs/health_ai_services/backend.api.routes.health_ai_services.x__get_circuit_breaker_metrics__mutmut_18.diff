@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__get_circuit_breaker_metrics__mutmut_18: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -21,7 +21,7 @@
+
+     status = breaker.get_status()
+     return {
+-        "failure_count": status.get("failure_count", 0),
++        "failure_count": status.get("failure_count", None),
+         "total_calls": status.get("total_calls", 0),
+         "rejected_calls": status.get("rejected_calls", 0),
+     }

@@ -1,0 +1,157 @@
+x__extract_clothing_from_enrichment#3	- clothing_classifications = enrichment_data.get("clothing_classifications", {})	+ clothing_classifications = enrichment_data.get("clothing_classifications", None)
+x__extract_clothing_from_enrichment#5	- clothing_classifications = enrichment_data.get("clothing_classifications", {})	+ clothing_classifications = enrichment_data.get("clothing_classifications", )
+x__extract_clothing_from_enrichment#10	- clothing_segmentation = enrichment_data.get("clothing_segmentation", {})	+ clothing_segmentation = enrichment_data.get("clothing_segmentation", None)
+x__extract_clothing_from_enrichment#12	- clothing_segmentation = enrichment_data.get("clothing_segmentation", {})	+ clothing_segmentation = enrichment_data.get("clothing_segmentation", )
+x__extract_clothing_from_enrichment#22	- first_key = next(iter(clothing_classifications), None)	+ first_key = next(iter(clothing_classifications), )
+x__extract_clothing_from_enrichment#27	- raw_desc = cc.get("raw_description", "")	+ raw_desc = cc.get("raw_description", None)
+x__extract_clothing_from_enrichment#29	- raw_desc = cc.get("raw_description", "")	+ raw_desc = cc.get("raw_description", )
+x__extract_clothing_from_enrichment#32	- raw_desc = cc.get("raw_description", "")	+ raw_desc = cc.get("raw_description", "XXXX")
+x__extract_clothing_from_enrichment#49	- clothing_response["upper"] = parts[0] if parts else None	+ clothing_response["upper"] = parts[0] if (parts) or True else None
+x__extract_clothing_from_enrichment#74	- first_key = next(iter(clothing_segmentation), None)	+ first_key = next(iter(clothing_segmentation), )
+x__extract_vehicle_from_enrichment#3	- vehicle_classifications = enrichment_data.get("vehicle_classifications", {})	+ vehicle_classifications = enrichment_data.get("vehicle_classifications", None)
+x__extract_vehicle_from_enrichment#5	- vehicle_classifications = enrichment_data.get("vehicle_classifications", {})	+ vehicle_classifications = enrichment_data.get("vehicle_classifications", )
+x__extract_vehicle_from_enrichment#12	- first_key = next(iter(vehicle_classifications), None)	+ first_key = next(iter(vehicle_classifications), )
+x__extract_vehicle_from_enrichment#22	- "color": None,  # Color not currently captured in enrichment	+ "XXcolorXX": None,  # Color not currently captured in enrichment
+x__extract_vehicle_from_enrichment#23	- "color": None,  # Color not currently captured in enrichment	+ "COLOR": None,  # Color not currently captured in enrichment
+x__extract_vehicle_from_enrichment#51	- vehicle_response["damage_detected"] = vd.get("has_damage", False)	+ vehicle_response["damage_detected"] = vd.get("has_damage", None)
+x__extract_vehicle_from_enrichment#53	- vehicle_response["damage_detected"] = vd.get("has_damage", False)	+ vehicle_response["damage_detected"] = vd.get("has_damage", )
+x__extract_vehicle_from_enrichment#56	- vehicle_response["damage_detected"] = vd.get("has_damage", False)	+ vehicle_response["damage_detected"] = vd.get("has_damage", True)
+x__extract_vehicle_from_enrichment#61	- vehicle_response["damage_types"] = vd.get("damage_types", [])	+ vehicle_response["damage_types"] = vd.get("damage_types", None)
+x__extract_vehicle_from_enrichment#63	- vehicle_response["damage_types"] = vd.get("damage_types", [])	+ vehicle_response["damage_types"] = vd.get("damage_types", )
+x__get_full_image_for_image#1	- with open(file_path, "rb") as f:	+ with open(None, "rb") as f:
+x__get_full_image_for_image#2	- with open(file_path, "rb") as f:	+ with open(file_path, None) as f:
+x__get_full_image_for_image#3	- with open(file_path, "rb") as f:	+ with open("rb") as f:
+x__get_full_image_for_image#4	- with open(file_path, "rb") as f:	+ with open(file_path, ) as f:
+x__get_full_image_for_image#5	- with open(file_path, "rb") as f:	+ with open(file_path, "XXrbXX") as f:
+x__get_full_image_for_image#6	- with open(file_path, "rb") as f:	+ with open(file_path, "RB") as f:
+x__get_full_image_for_image#17	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"cache-control": "public, max-age=3600"},
+x__get_full_image_for_image#18	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"CACHE-CONTROL": "public, max-age=3600"},
+x__get_full_image_for_image#22	- detail=f"Source image not found: {Path(file_path).name}",	+ detail=None,
+x__get_full_image_for_image#24	- detail=f"Source image not found: {Path(file_path).name}", | ) from e	+ ) from e
+x__get_full_image_for_image#26	- logger.warning(f"Permission denied reading image: {file_path}")	+ logger.warning(None)
+x__get_full_image_for_image#31	- detail="Permission denied accessing source image",	+ detail="XXPermission denied accessing source imageXX",
+x__get_full_image_for_image#32	- detail="Permission denied accessing source image",	+ detail="permission denied accessing source image",
+x__get_full_image_for_image#33	- detail="Permission denied accessing source image",	+ detail="PERMISSION DENIED ACCESSING SOURCE IMAGE",
+x__get_full_image_for_image#34	- logger.error(f"I/O error reading image {file_path}: {e}")	+ logger.error(None)
+x__get_full_image_for_image#39	- detail="I/O error reading source image",	+ detail="XXI/O error reading source imageXX",
+x__get_full_image_for_image#42	- logger.warning(f"Unexpected error reading image {file_path}: {e}")	+ logger.warning(None)
+x__get_full_image_for_video#2	- video_path=video_path,	+ video_path=None,
+x__get_full_image_for_video#3	- size=(1920, 1080),  # Larger size for full view	+ size=None,  # Larger size for full view
+x__get_full_image_for_video#4	- video_path=video_path,	+
+x__get_full_image_for_video#5	- output_path=None,  # Let it generate a temporary path	+
+x__get_full_image_for_video#6	- timestamp=None,  # Use smart default timestamp	+
+x__get_full_image_for_video#7	- size=(1920, 1080),  # Larger size for full view | )	+ )
+x__get_full_image_for_video#8	- size=(1920, 1080),  # Larger size for full view	+ size=(1921, 1080),  # Larger size for full view
+x__get_full_image_for_video#9	- size=(1920, 1080),  # Larger size for full view	+ size=(1920, 1081),  # Larger size for full view
+x__get_full_image_for_video#10	- if not frame_path or not os.path.exists(frame_path):	+ if not frame_path and not os.path.exists(frame_path):
+x__get_full_image_for_video#13	- if not frame_path or not os.path.exists(frame_path):	+ if not frame_path or not os.path.exists(None):
+x__get_full_image_for_video#14	- with open(frame_path, "rb") as f:	+ with open(None, "rb") as f:
+x__get_full_image_for_video#15	- with open(frame_path, "rb") as f:	+ with open(frame_path, None) as f:
+x__get_full_image_for_video#16	- with open(frame_path, "rb") as f:	+ with open("rb") as f:
+x__get_full_image_for_video#17	- with open(frame_path, "rb") as f:	+ with open(frame_path, ) as f:
+x__get_full_image_for_video#18	- with open(frame_path, "rb") as f:	+ with open(frame_path, "XXrbXX") as f:
+x__get_full_image_for_video#19	- with open(frame_path, "rb") as f:	+ with open(frame_path, "RB") as f:
+x__get_full_image_for_video#23	- headers={"Cache-Control": "public, max-age=3600"},	+ headers=None,
+x__get_full_image_for_video#26	- headers={"Cache-Control": "public, max-age=3600"}, | )	+ )
+x__get_full_image_for_video#29	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"XXCache-ControlXX": "public, max-age=3600"},
+x__get_full_image_for_video#30	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"cache-control": "public, max-age=3600"},
+x__get_full_image_for_video#31	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"CACHE-CONTROL": "public, max-age=3600"},
+x__get_full_image_for_video#32	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"Cache-Control": "XXpublic, max-age=3600XX"},
+x__get_full_image_for_video#33	- headers={"Cache-Control": "public, max-age=3600"},	+ headers={"Cache-Control": "PUBLIC, MAX-AGE=3600"},
+x__get_full_image_for_video#34	- logger.error(f"I/O error extracting frame from video {video_path}: {e}")	+ logger.error(None)
+x__get_full_image_for_video#36	- detail="I/O error extracting frame from video",	+ detail=None,
+x__get_full_image_for_video#38	- detail="I/O error extracting frame from video", | ) from e	+ ) from e
+x__get_full_image_for_video#39	- detail="I/O error extracting frame from video",	+ detail="XXI/O error extracting frame from videoXX",
+x__get_full_image_for_video#40	- detail="I/O error extracting frame from video",	+ detail="i/o error extracting frame from video",
+x__get_full_image_for_video#41	- detail="I/O error extracting frame from video",	+ detail="I/O ERROR EXTRACTING FRAME FROM VIDEO",
+x__parse_range_header#6	- raise ValueError("Invalid range header format")	+ raise ValueError("XXInvalid range header formatXX")
+x__parse_range_header#24	- end = file_size - 1	+ end = file_size + 1
+x__parse_range_header#27	- elif range_spec.endswith("-"):	+ elif range_spec.endswith("XX-XX"):
+x__parse_range_header#33	- end = file_size - 1	+ end = file_size + 1
+x__parse_range_header#41	- raise ValueError("Invalid range specification")	+ raise ValueError("XXInvalid range specificationXX")
+x__parse_range_header#49	- end = int(parts[1]) if parts[1] else file_size - 1	+ end = int(parts[1]) if (parts[1]) or True else file_size - 1
+x__parse_range_header#53	- end = int(parts[1]) if parts[1] else file_size - 1	+ end = int(parts[1]) if parts[1] else file_size + 1
+x__parse_range_header#54	- end = int(parts[1]) if parts[1] else file_size - 1	+ end = int(parts[1]) if parts[1] else file_size - 2
+x__parse_range_header#68	- if start > end:	+ if start >= end:
+x__parse_range_header#70	- raise ValueError("Invalid range: start > end")	+ raise ValueError("XXInvalid range: start > endXX")
+x__transform_enrichment_data#31	- "weather": None,	+ "XXweatherXX": None,
+x__transform_enrichment_data#32	- "weather": None,	+ "WEATHER": None,
+x__transform_enrichment_data#33	- "pose": None,	+ "XXposeXX": None,
+x__transform_enrichment_data#34	- "pose": None,	+ "POSE": None,
+x__transform_enrichment_data#35	- "depth": None,	+ "XXdepthXX": None,
+x__transform_enrichment_data#36	- "depth": None,	+ "DEPTH": None,
+x__transform_enrichment_data#48	- license_plates = enrichment_data.get("license_plates", [])	+ license_plates = enrichment_data.get("license_plates", None)
+x__transform_enrichment_data#50	- license_plates = enrichment_data.get("license_plates", [])	+ license_plates = enrichment_data.get("license_plates", )
+x__transform_enrichment_data#85	- faces = enrichment_data.get("faces", [])	+ faces = enrichment_data.get("faces", None)
+x__transform_enrichment_data#87	- faces = enrichment_data.get("faces", [])	+ faces = enrichment_data.get("faces", )
+x__transform_enrichment_data#94	- face_response: dict[str, Any] = {"detected": False, "count": 0}	+ face_response: dict[str, Any] = {"detected": False, "XXcountXX": 0}
+x__transform_enrichment_data#95	- face_response: dict[str, Any] = {"detected": False, "count": 0}	+ face_response: dict[str, Any] = {"detected": False, "COUNT": 0}
+x__transform_enrichment_data#96	- face_response: dict[str, Any] = {"detected": False, "count": 0}	+ face_response: dict[str, Any] = {"detected": False, "count": 1}
+x__transform_enrichment_data#107	- "confidence": max(f.get("confidence", 0) for f in faces),	+ "confidence": max(f.get("confidence", None) for f in faces),
+x__transform_enrichment_data#109	- "confidence": max(f.get("confidence", 0) for f in faces),	+ "confidence": max(f.get("confidence", ) for f in faces),
+x__transform_enrichment_data#112	- "confidence": max(f.get("confidence", 0) for f in faces),	+ "confidence": max(f.get("confidence", 1) for f in faces),
+x__transform_enrichment_data#118	- violence_response: dict[str, Any] = {"detected": False, "score": 0.0}	+ violence_response: dict[str, Any] = {"XXdetectedXX": False, "score": 0.0}
+x__transform_enrichment_data#119	- violence_response: dict[str, Any] = {"detected": False, "score": 0.0}	+ violence_response: dict[str, Any] = {"DETECTED": False, "score": 0.0}
+x__transform_enrichment_data#120	- violence_response: dict[str, Any] = {"detected": False, "score": 0.0}	+ violence_response: dict[str, Any] = {"detected": True, "score": 0.0}
+x__transform_enrichment_data#121	- violence_response: dict[str, Any] = {"detected": False, "score": 0.0}	+ violence_response: dict[str, Any] = {"detected": False, "XXscoreXX": 0.0}
+x__transform_enrichment_data#122	- violence_response: dict[str, Any] = {"detected": False, "score": 0.0}	+ violence_response: dict[str, Any] = {"detected": False, "SCORE": 0.0}
+x__transform_enrichment_data#123	- violence_response: dict[str, Any] = {"detected": False, "score": 0.0}	+ violence_response: dict[str, Any] = {"detected": False, "score": 1.0}
+x__transform_enrichment_data#128	- "detected": violence_data.get("is_violent", False),	+ "detected": violence_data.get("is_violent", None),
+x__transform_enrichment_data#130	- "detected": violence_data.get("is_violent", False),	+ "detected": violence_data.get("is_violent", ),
+x__transform_enrichment_data#133	- "detected": violence_data.get("is_violent", False),	+ "detected": violence_data.get("is_violent", True),
+x__transform_enrichment_data#137	- "score": violence_data.get("confidence", 0.0),	+ "score": violence_data.get("confidence", None),
+x__transform_enrichment_data#139	- "score": violence_data.get("confidence", 0.0),	+ "score": violence_data.get("confidence", ),
+x__transform_enrichment_data#142	- "score": violence_data.get("confidence", 0.0),	+ "score": violence_data.get("confidence", 1.0),
+x__transform_enrichment_data#164	- "is_low_quality": iq.get("is_low_quality"),	+ "XXis_low_qualityXX": iq.get("is_low_quality"),
+x__transform_enrichment_data#165	- "is_low_quality": iq.get("is_low_quality"),	+ "IS_LOW_QUALITY": iq.get("is_low_quality"),
+x__transform_enrichment_data#166	- "is_low_quality": iq.get("is_low_quality"),	+ "is_low_quality": iq.get(None),
+x__transform_enrichment_data#167	- "is_low_quality": iq.get("is_low_quality"),	+ "is_low_quality": iq.get("XXis_low_qualityXX"),
+x__transform_enrichment_data#168	- "is_low_quality": iq.get("is_low_quality"),	+ "is_low_quality": iq.get("IS_LOW_QUALITY"),
+x__transform_enrichment_data#169	- "quality_issues": iq.get("quality_issues", []),	+ "XXquality_issuesXX": iq.get("quality_issues", []),
+x__transform_enrichment_data#170	- "quality_issues": iq.get("quality_issues", []),	+ "QUALITY_ISSUES": iq.get("quality_issues", []),
+x__transform_enrichment_data#171	- "quality_issues": iq.get("quality_issues", []),	+ "quality_issues": iq.get(None, []),
+x__transform_enrichment_data#172	- "quality_issues": iq.get("quality_issues", []),	+ "quality_issues": iq.get("quality_issues", None),
+x__transform_enrichment_data#174	- "quality_issues": iq.get("quality_issues", []),	+ "quality_issues": iq.get("quality_issues", ),
+x__transform_enrichment_data#175	- "quality_issues": iq.get("quality_issues", []),	+ "quality_issues": iq.get("XXquality_issuesXX", []),
+x__transform_enrichment_data#176	- "quality_issues": iq.get("quality_issues", []),	+ "quality_issues": iq.get("QUALITY_ISSUES", []),
+x__transform_enrichment_data#185	- pet_classifications = enrichment_data.get("pet_classifications", {})	+ pet_classifications = enrichment_data.get("pet_classifications", None)
+x__transform_enrichment_data#187	- pet_classifications = enrichment_data.get("pet_classifications", {})	+ pet_classifications = enrichment_data.get("pet_classifications", )
+x__transform_enrichment_data#193	- first_key = next(iter(pet_classifications), None)	+ first_key = next(iter(pet_classifications), )
+x_validate_enrichment_data#5	- vehicle_classifications = enrichment_data.get("vehicle_classifications", {})	+ vehicle_classifications = enrichment_data.get("vehicle_classifications", None)
+x_validate_enrichment_data#7	- vehicle_classifications = enrichment_data.get("vehicle_classifications", {})	+ vehicle_classifications = enrichment_data.get("vehicle_classifications", )
+x_validate_enrichment_data#13	- first_key = next(iter(vehicle_classifications), None)	+ first_key = next(iter(vehicle_classifications), )
+x_validate_enrichment_data#24	- has_damage = False	+ has_damage = True
+x_validate_enrichment_data#28	- has_damage = vehicle_damage[first_key].get("has_damage", False)	+ has_damage = vehicle_damage[first_key].get("has_damage", None)
+x_validate_enrichment_data#30	- has_damage = vehicle_damage[first_key].get("has_damage", False)	+ has_damage = vehicle_damage[first_key].get("has_damage", )
+x_validate_enrichment_data#33	- has_damage = vehicle_damage[first_key].get("has_damage", False)	+ has_damage = vehicle_damage[first_key].get("has_damage", True)
+x_validate_enrichment_data#39	- vehicle_color=None,  # Color not currently captured in enrichment	+
+x_validate_enrichment_data#41	- is_commercial=vc.get("is_commercial", False), | )	+ )
+x_validate_enrichment_data#45	- is_commercial=vc.get("is_commercial", False),	+ is_commercial=vc.get(None, False),
+x_validate_enrichment_data#49	- is_commercial=vc.get("is_commercial", False),	+ is_commercial=vc.get("XXis_commercialXX", False),
+x_validate_enrichment_data#50	- is_commercial=vc.get("is_commercial", False),	+ is_commercial=vc.get("IS_COMMERCIAL", False),
+x_validate_enrichment_data#51	- is_commercial=vc.get("is_commercial", False),	+ is_commercial=vc.get("is_commercial", True),
+x_validate_enrichment_data#55	- clothing_classifications = enrichment_data.get("clothing_classifications", {})	+ clothing_classifications = enrichment_data.get("clothing_classifications", None)
+x_validate_enrichment_data#57	- clothing_classifications = enrichment_data.get("clothing_classifications", {})	+ clothing_classifications = enrichment_data.get("clothing_classifications", )
+x_validate_enrichment_data#63	- first_key = next(iter(clothing_classifications), None)	+ first_key = next(iter(clothing_classifications), )
+x_validate_enrichment_data#68	- raw_desc = cc.get("raw_description", "")	+ raw_desc = cc.get("raw_description", None)
+x_validate_enrichment_data#70	- raw_desc = cc.get("raw_description", "")	+ raw_desc = cc.get("raw_description", )
+x_validate_enrichment_data#73	- raw_desc = cc.get("raw_description", "")	+ raw_desc = cc.get("raw_description", "XXXX")
+x_validate_enrichment_data#76	- carrying_str = cc.get("carrying", "")	+ carrying_str = cc.get("carrying", None)
+x_validate_enrichment_data#78	- carrying_str = cc.get("carrying", "")	+ carrying_str = cc.get("carrying", )
+x_validate_enrichment_data#81	- carrying_str = cc.get("carrying", "")	+ carrying_str = cc.get("carrying", "XXXX")
+x_validate_enrichment_data#90	- action=None,  # Action not in clothing classification	+
+x_validate_enrichment_data#92	- is_suspicious=cc.get("is_suspicious", False), | )	+ )
+x_validate_enrichment_data#94	- clothing_description=raw_desc if raw_desc else None,	+ clothing_description=raw_desc if (raw_desc) or True else None,
+x_validate_enrichment_data#95	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get(None, False),
+x_validate_enrichment_data#96	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get("is_suspicious", None),
+x_validate_enrichment_data#98	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get("is_suspicious", ),
+x_validate_enrichment_data#99	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get("XXis_suspiciousXX", False),
+x_validate_enrichment_data#100	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get("IS_SUSPICIOUS", False),
+x_validate_enrichment_data#101	- is_suspicious=cc.get("is_suspicious", False),	+ is_suspicious=cc.get("is_suspicious", True),
+x_validate_enrichment_data#105	- pet_classifications = enrichment_data.get("pet_classifications", {})	+ pet_classifications = enrichment_data.get("pet_classifications", None)
+x_validate_enrichment_data#107	- pet_classifications = enrichment_data.get("pet_classifications", {})	+ pet_classifications = enrichment_data.get("pet_classifications", )
+x_validate_enrichment_data#113	- first_key = next(iter(pet_classifications), None)	+ first_key = next(iter(pet_classifications), )
+x_validate_enrichment_data#119	- breed=None,  # Breed not currently captured | )	+ )
+x_validate_enrichment_data#126	- errors = _sanitize_errors(enrichment_data.get("errors", []))	+ errors = _sanitize_errors(enrichment_data.get("errors", None))
+x_validate_enrichment_data#128	- errors = _sanitize_errors(enrichment_data.get("errors", []))	+ errors = _sanitize_errors(enrichment_data.get("errors", ))
+x_validate_enrichment_data#138	- weather=None,  # Weather not currently in enrichment pipeline	+

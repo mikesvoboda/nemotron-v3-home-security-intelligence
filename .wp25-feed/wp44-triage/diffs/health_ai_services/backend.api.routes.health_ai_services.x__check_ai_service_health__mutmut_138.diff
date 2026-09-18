@@ -1,0 +1,11 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_138: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -89,7 +89,6 @@
+             last_health_check=datetime.now(UTC),
+             error_rate_1h=error_rate,
+             latency_p99_ms=None,
+-            url=service_url,
+             error=f"Timeout after {timeout}s",
+         )
+     except Exception as e:

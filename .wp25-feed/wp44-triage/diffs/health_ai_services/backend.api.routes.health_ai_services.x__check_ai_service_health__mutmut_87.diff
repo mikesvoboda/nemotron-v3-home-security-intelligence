@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_87: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -59,7 +59,7 @@
+                     circuit_state=circuit_state,
+                     last_health_check=datetime.now(UTC),
+                     error_rate_1h=error_rate,
+-                    latency_p99_ms=round(latency_ms, 2),
++                    latency_p99_ms=round(2),
+                     url=service_url,
+                     error=None,
+                 )

@@ -1,0 +1,1717 @@
+# backend.services.summary_generator.x_get_summary_generator__mutmut_1: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -9,6 +9,6 @@
+         summary = await generator.generate_hourly_summary()
+     """
+     global _summary_generator  # noqa: PLW0603
+-    if _summary_generator is None:
++    if _summary_generator is not None:
+         _summary_generator = SummaryGenerator()
+     return _summary_generator
+
+# backend.services.summary_generator.x_get_summary_generator__mutmut_2: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -10,5 +10,5 @@
+     """
+     global _summary_generator  # noqa: PLW0603
+     if _summary_generator is None:
+-        _summary_generator = SummaryGenerator()
++        _summary_generator = None
+     return _summary_generator
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_10: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%I:%M %p") if event.started_at else "unknown time"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_11: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%I:%M %p") if event.started_at else "UNKNOWN TIME"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_2: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -15,9 +15,7 @@
+
+     for event in events:
+         # Format timestamp for human readability
+-        timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
+-        )
++        timestamp = None
+
+         # Get camera name from relationship or use camera_id
+         camera_name = event.camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_24: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -26,7 +26,7 @@
+
+         context.append(
+             {
+-                "timestamp": timestamp,
++                "XXtimestampXX": timestamp,
+                 "camera_name": camera_name,
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_25: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -26,7 +26,7 @@
+
+         context.append(
+             {
+-                "timestamp": timestamp,
++                "TIMESTAMP": timestamp,
+                 "camera_name": camera_name,
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_3: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%I:%M %p") if (event.started_at) and False else "Unknown time"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_31: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,7 +28,7 @@
+             {
+                 "timestamp": timestamp,
+                 "camera_name": camera_name,
+-                "risk_level": event.risk_level or "unknown",
++                "risk_level": event.risk_level or "XXunknownXX",
+                 "risk_score": event.risk_score or 0,
+                 "summary": event.summary or "No summary available",
+                 "object_types": event.object_types or "Unknown objects",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_32: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,7 +28,7 @@
+             {
+                 "timestamp": timestamp,
+                 "camera_name": camera_name,
+-                "risk_level": event.risk_level or "unknown",
++                "risk_level": event.risk_level or "UNKNOWN",
+                 "risk_score": event.risk_score or 0,
+                 "summary": event.summary or "No summary available",
+                 "object_types": event.object_types or "Unknown objects",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_36: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,7 +29,7 @@
+                 "timestamp": timestamp,
+                 "camera_name": camera_name,
+                 "risk_level": event.risk_level or "unknown",
+-                "risk_score": event.risk_score or 0,
++                "risk_score": event.risk_score or 1,
+                 "summary": event.summary or "No summary available",
+                 "object_types": event.object_types or "Unknown objects",
+             }
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_4: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%I:%M %p") if (event.started_at) or True else "Unknown time"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_40: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+                 "camera_name": camera_name,
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+-                "summary": event.summary or "No summary available",
++                "summary": event.summary or "XXNo summary availableXX",
+                 "object_types": event.object_types or "Unknown objects",
+             }
+         )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_41: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+                 "camera_name": camera_name,
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+-                "summary": event.summary or "No summary available",
++                "summary": event.summary or "no summary available",
+                 "object_types": event.object_types or "Unknown objects",
+             }
+         )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_42: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+                 "camera_name": camera_name,
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+-                "summary": event.summary or "No summary available",
++                "summary": event.summary or "NO SUMMARY AVAILABLE",
+                 "object_types": event.object_types or "Unknown objects",
+             }
+         )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_46: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -31,7 +31,7 @@
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+                 "summary": event.summary or "No summary available",
+-                "object_types": event.object_types or "Unknown objects",
++                "object_types": event.object_types or "XXUnknown objectsXX",
+             }
+         )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_47: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -31,7 +31,7 @@
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+                 "summary": event.summary or "No summary available",
+-                "object_types": event.object_types or "Unknown objects",
++                "object_types": event.object_types or "unknown objects",
+             }
+         )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_48: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -31,7 +31,7 @@
+                 "risk_level": event.risk_level or "unknown",
+                 "risk_score": event.risk_score or 0,
+                 "summary": event.summary or "No summary available",
+-                "object_types": event.object_types or "Unknown objects",
++                "object_types": event.object_types or "UNKNOWN OBJECTS",
+             }
+         )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_6: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("XX%I:%M %pXX") if event.started_at else "Unknown time"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_7: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%i:%m %p") if event.started_at else "Unknown time"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_8: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%I:%M %P") if event.started_at else "Unknown time"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_build_event_context__mutmut_9: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -16,7 +16,7 @@
+     for event in events:
+         # Format timestamp for human readability
+         timestamp = (
+-            event.started_at.strftime("%I:%M %p") if event.started_at else "Unknown time"
++            event.started_at.strftime("%I:%M %p") if event.started_at else "XXUnknown timeXX"
+         )
+
+         # Get camera name from relationship or use camera_id
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_12: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -27,7 +27,7 @@
+     event_count = len(events)
+
+     logger.info(
+-        f"Generating {summary_type.value} summary",
++        None,
+         extra={
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_13: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,12 +28,7 @@
+
+     logger.info(
+         f"Generating {summary_type.value} summary",
+-        extra={
+-            "summary_type": summary_type.value,
+-            "event_count": event_count,
+-            "window_start": window_start.isoformat(),
+-            "window_end": window_end.isoformat(),
+-        },
++        extra=None,
+     )
+
+     # Build event context for prompt
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_15: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,13 +28,7 @@
+
+     logger.info(
+         f"Generating {summary_type.value} summary",
+-        extra={
+-            "summary_type": summary_type.value,
+-            "event_count": event_count,
+-            "window_start": window_start.isoformat(),
+-            "window_end": window_end.isoformat(),
+-        },
+-    )
++        )
+
+     # Build event context for prompt
+     event_context = self._build_event_context(events)
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_16: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,7 +29,7 @@
+     logger.info(
+         f"Generating {summary_type.value} summary",
+         extra={
+-            "summary_type": summary_type.value,
++            "XXsummary_typeXX": summary_type.value,
+             "event_count": event_count,
+             "window_start": window_start.isoformat(),
+             "window_end": window_end.isoformat(),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_17: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,7 +29,7 @@
+     logger.info(
+         f"Generating {summary_type.value} summary",
+         extra={
+-            "summary_type": summary_type.value,
++            "SUMMARY_TYPE": summary_type.value,
+             "event_count": event_count,
+             "window_start": window_start.isoformat(),
+             "window_end": window_end.isoformat(),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_18: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+         f"Generating {summary_type.value} summary",
+         extra={
+             "summary_type": summary_type.value,
+-            "event_count": event_count,
++            "XXevent_countXX": event_count,
+             "window_start": window_start.isoformat(),
+             "window_end": window_end.isoformat(),
+         },
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_19: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+         f"Generating {summary_type.value} summary",
+         extra={
+             "summary_type": summary_type.value,
+-            "event_count": event_count,
++            "EVENT_COUNT": event_count,
+             "window_start": window_start.isoformat(),
+             "window_end": window_end.isoformat(),
+         },
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_2: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -19,7 +19,7 @@
+             The created Summary object.
+         """
+     # Query high/critical events for the time window
+-    event_repo = EventRepository(session)
++    event_repo = EventRepository(None)
+     events = await self._get_high_critical_events(event_repo, window_start, window_end)
+
+     # Extract event IDs
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_20: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -31,7 +31,7 @@
+         extra={
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+-            "window_start": window_start.isoformat(),
++            "XXwindow_startXX": window_start.isoformat(),
+             "window_end": window_end.isoformat(),
+         },
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_21: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -31,7 +31,7 @@
+         extra={
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+-            "window_start": window_start.isoformat(),
++            "WINDOW_START": window_start.isoformat(),
+             "window_end": window_end.isoformat(),
+         },
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_22: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -32,7 +32,7 @@
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+             "window_start": window_start.isoformat(),
+-            "window_end": window_end.isoformat(),
++            "XXwindow_endXX": window_end.isoformat(),
+         },
+     )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_23: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -32,7 +32,7 @@
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+             "window_start": window_start.isoformat(),
+-            "window_end": window_end.isoformat(),
++            "WINDOW_END": window_end.isoformat(),
+         },
+     )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_24: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -37,7 +37,7 @@
+     )
+
+     # Build event context for prompt
+-    event_context = self._build_event_context(events)
++    event_context = None
+
+     # Generate summary content via LLM (or deterministic message for zero events)
+     generated_at = datetime.now(UTC)
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_26: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -40,7 +40,7 @@
+     event_context = self._build_event_context(events)
+
+     # Generate summary content via LLM (or deterministic message for zero events)
+-    generated_at = datetime.now(UTC)
++    generated_at = None
+
+     if event_count == 0:
+         # Zero events: use deterministic message to prevent LLM hallucination
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_27: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -40,7 +40,7 @@
+     event_context = self._build_event_context(events)
+
+     # Generate summary content via LLM (or deterministic message for zero events)
+-    generated_at = datetime.now(UTC)
++    generated_at = datetime.now(None)
+
+     if event_count == 0:
+         # Zero events: use deterministic message to prevent LLM hallucination
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_32: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -46,7 +46,7 @@
+         # Zero events: use deterministic message to prevent LLM hallucination
+         content = self._get_fallback_content(event_count)
+         logger.info(
+-            f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
++            None,
+             extra={
+                 "summary_type": summary_type.value,
+                 "event_count": 0,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_33: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -47,10 +47,7 @@
+         content = self._get_fallback_content(event_count)
+         logger.info(
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+-            extra={
+-                "summary_type": summary_type.value,
+-                "event_count": 0,
+-            },
++            extra=None,
+         )
+     else:
+         try:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_35: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -47,11 +47,7 @@
+         content = self._get_fallback_content(event_count)
+         logger.info(
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+-            extra={
+-                "summary_type": summary_type.value,
+-                "event_count": 0,
+-            },
+-        )
++            )
+     else:
+         try:
+             content = await self._call_nemotron(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_36: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -48,7 +48,7 @@
+         logger.info(
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+             extra={
+-                "summary_type": summary_type.value,
++                "XXsummary_typeXX": summary_type.value,
+                 "event_count": 0,
+             },
+         )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_37: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -48,7 +48,7 @@
+         logger.info(
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+             extra={
+-                "summary_type": summary_type.value,
++                "SUMMARY_TYPE": summary_type.value,
+                 "event_count": 0,
+             },
+         )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_38: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -49,7 +49,7 @@
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+             extra={
+                 "summary_type": summary_type.value,
+-                "event_count": 0,
++                "XXevent_countXX": 0,
+             },
+         )
+     else:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_39: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -49,7 +49,7 @@
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+             extra={
+                 "summary_type": summary_type.value,
+-                "event_count": 0,
++                "EVENT_COUNT": 0,
+             },
+         )
+     else:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_40: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -49,7 +49,7 @@
+             f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
+             extra={
+                 "summary_type": summary_type.value,
+-                "event_count": 0,
++                "event_count": 1,
+             },
+         )
+     else:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_42: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -55,7 +55,7 @@
+     else:
+         try:
+             content = await self._call_nemotron(
+-                window_start=window_start,
++                window_start=None,
+                 window_end=window_end,
+                 period_type=period_type,
+                 events=event_context,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_43: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -56,7 +56,7 @@
+         try:
+             content = await self._call_nemotron(
+                 window_start=window_start,
+-                window_end=window_end,
++                window_end=None,
+                 period_type=period_type,
+                 events=event_context,
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_44: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -57,7 +57,7 @@
+             content = await self._call_nemotron(
+                 window_start=window_start,
+                 window_end=window_end,
+-                period_type=period_type,
++                period_type=None,
+                 events=event_context,
+             )
+         except Exception as e:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_45: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -58,7 +58,7 @@
+                 window_start=window_start,
+                 window_end=window_end,
+                 period_type=period_type,
+-                events=event_context,
++                events=None,
+             )
+         except Exception as e:
+             logger.warning(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_46: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -55,7 +55,6 @@
+     else:
+         try:
+             content = await self._call_nemotron(
+-                window_start=window_start,
+                 window_end=window_end,
+                 period_type=period_type,
+                 events=event_context,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_47: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -56,7 +56,6 @@
+         try:
+             content = await self._call_nemotron(
+                 window_start=window_start,
+-                window_end=window_end,
+                 period_type=period_type,
+                 events=event_context,
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_48: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -57,7 +57,6 @@
+             content = await self._call_nemotron(
+                 window_start=window_start,
+                 window_end=window_end,
+-                period_type=period_type,
+                 events=event_context,
+             )
+         except Exception as e:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_49: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -58,8 +58,7 @@
+                 window_start=window_start,
+                 window_end=window_end,
+                 period_type=period_type,
+-                events=event_context,
+-            )
++                )
+         except Exception as e:
+             logger.warning(
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_50: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -62,7 +62,7 @@
+             )
+         except Exception as e:
+             logger.warning(
+-                f"Nemotron unavailable for {summary_type.value} summary, using fallback",
++                None,
+                 extra={
+                     "summary_type": summary_type.value,
+                     "error": str(e),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_51: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -63,11 +63,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+-                extra={
+-                    "summary_type": summary_type.value,
+-                    "error": str(e),
+-                    "event_count": event_count,
+-                },
++                extra=None,
+             )
+             content = self._get_fallback_content(event_count)
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_53: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -63,12 +63,7 @@
+         except Exception as e:
+             logger.warning(
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+-                extra={
+-                    "summary_type": summary_type.value,
+-                    "error": str(e),
+-                    "event_count": event_count,
+-                },
+-            )
++                )
+             content = self._get_fallback_content(event_count)
+
+     # Store in database
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_54: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -64,7 +64,7 @@
+             logger.warning(
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+                 extra={
+-                    "summary_type": summary_type.value,
++                    "XXsummary_typeXX": summary_type.value,
+                     "error": str(e),
+                     "event_count": event_count,
+                 },
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_55: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -64,7 +64,7 @@
+             logger.warning(
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+                 extra={
+-                    "summary_type": summary_type.value,
++                    "SUMMARY_TYPE": summary_type.value,
+                     "error": str(e),
+                     "event_count": event_count,
+                 },
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_56: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -65,7 +65,7 @@
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+                 extra={
+                     "summary_type": summary_type.value,
+-                    "error": str(e),
++                    "XXerrorXX": str(e),
+                     "event_count": event_count,
+                 },
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_57: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -65,7 +65,7 @@
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+                 extra={
+                     "summary_type": summary_type.value,
+-                    "error": str(e),
++                    "ERROR": str(e),
+                     "event_count": event_count,
+                 },
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_58: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -65,7 +65,7 @@
+                 f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+                 extra={
+                     "summary_type": summary_type.value,
+-                    "error": str(e),
++                    "error": str(None),
+                     "event_count": event_count,
+                 },
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_59: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -66,7 +66,7 @@
+                 extra={
+                     "summary_type": summary_type.value,
+                     "error": str(e),
+-                    "event_count": event_count,
++                    "XXevent_countXX": event_count,
+                 },
+             )
+             content = self._get_fallback_content(event_count)
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_6: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -20,7 +20,7 @@
+         """
+     # Query high/critical events for the time window
+     event_repo = EventRepository(session)
+-    events = await self._get_high_critical_events(event_repo, window_start, window_end)
++    events = await self._get_high_critical_events(event_repo, window_start, None)
+
+     # Extract event IDs
+     event_ids = [event.id for event in events]
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_60: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -66,7 +66,7 @@
+                 extra={
+                     "summary_type": summary_type.value,
+                     "error": str(e),
+-                    "event_count": event_count,
++                    "EVENT_COUNT": event_count,
+                 },
+             )
+             content = self._get_fallback_content(event_count)
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_64: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -72,7 +72,7 @@
+             content = self._get_fallback_content(event_count)
+
+     # Store in database
+-    summary_repo = SummaryRepository(session)
++    summary_repo = SummaryRepository(None)
+     summary = await summary_repo.create_summary(
+         summary_type=summary_type,
+         content=content,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_70: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -78,7 +78,7 @@
+         content=content,
+         event_count=event_count,
+         event_ids=event_ids if event_ids else None,
+-        window_start=window_start,
++        window_start=None,
+         window_end=window_end,
+         generated_at=generated_at,
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_71: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -79,7 +79,7 @@
+         event_count=event_count,
+         event_ids=event_ids if event_ids else None,
+         window_start=window_start,
+-        window_end=window_end,
++        window_end=None,
+         generated_at=generated_at,
+     )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_72: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -80,7 +80,7 @@
+         event_ids=event_ids if event_ids else None,
+         window_start=window_start,
+         window_end=window_end,
+-        generated_at=generated_at,
++        generated_at=None,
+     )
+
+     logger.info(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_77: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -78,7 +78,6 @@
+         content=content,
+         event_count=event_count,
+         event_ids=event_ids if event_ids else None,
+-        window_start=window_start,
+         window_end=window_end,
+         generated_at=generated_at,
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_78: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -79,7 +79,6 @@
+         event_count=event_count,
+         event_ids=event_ids if event_ids else None,
+         window_start=window_start,
+-        window_end=window_end,
+         generated_at=generated_at,
+     )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_79: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -80,8 +80,7 @@
+         event_ids=event_ids if event_ids else None,
+         window_start=window_start,
+         window_end=window_end,
+-        generated_at=generated_at,
+-    )
++        )
+
+     logger.info(
+         f"Created {summary_type.value} summary",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_82: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -84,7 +84,7 @@
+     )
+
+     logger.info(
+-        f"Created {summary_type.value} summary",
++        None,
+         extra={
+             "summary_id": summary.id,
+             "summary_type": summary_type.value,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_83: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -85,12 +85,7 @@
+
+     logger.info(
+         f"Created {summary_type.value} summary",
+-        extra={
+-            "summary_id": summary.id,
+-            "summary_type": summary_type.value,
+-            "event_count": event_count,
+-            "content_length": len(content),
+-        },
++        extra=None,
+     )
+
+     return summary
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_85: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -85,12 +85,6 @@
+
+     logger.info(
+         f"Created {summary_type.value} summary",
+-        extra={
+-            "summary_id": summary.id,
+-            "summary_type": summary_type.value,
+-            "event_count": event_count,
+-            "content_length": len(content),
+-        },
+-    )
++        )
+
+     return summary
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_86: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -86,7 +86,7 @@
+     logger.info(
+         f"Created {summary_type.value} summary",
+         extra={
+-            "summary_id": summary.id,
++            "XXsummary_idXX": summary.id,
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+             "content_length": len(content),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_87: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -86,7 +86,7 @@
+     logger.info(
+         f"Created {summary_type.value} summary",
+         extra={
+-            "summary_id": summary.id,
++            "SUMMARY_ID": summary.id,
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+             "content_length": len(content),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_88: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -87,7 +87,7 @@
+         f"Created {summary_type.value} summary",
+         extra={
+             "summary_id": summary.id,
+-            "summary_type": summary_type.value,
++            "XXsummary_typeXX": summary_type.value,
+             "event_count": event_count,
+             "content_length": len(content),
+         },
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_89: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -87,7 +87,7 @@
+         f"Created {summary_type.value} summary",
+         extra={
+             "summary_id": summary.id,
+-            "summary_type": summary_type.value,
++            "SUMMARY_TYPE": summary_type.value,
+             "event_count": event_count,
+             "content_length": len(content),
+         },
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_90: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -88,7 +88,7 @@
+         extra={
+             "summary_id": summary.id,
+             "summary_type": summary_type.value,
+-            "event_count": event_count,
++            "XXevent_countXX": event_count,
+             "content_length": len(content),
+         },
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_91: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -88,7 +88,7 @@
+         extra={
+             "summary_id": summary.id,
+             "summary_type": summary_type.value,
+-            "event_count": event_count,
++            "EVENT_COUNT": event_count,
+             "content_length": len(content),
+         },
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_92: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -89,7 +89,7 @@
+             "summary_id": summary.id,
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+-            "content_length": len(content),
++            "XXcontent_lengthXX": len(content),
+         },
+     )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_generate_summary__mutmut_93: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -89,7 +89,7 @@
+             "summary_id": summary.id,
+             "summary_type": summary_type.value,
+             "event_count": event_count,
+-            "content_length": len(content),
++            "CONTENT_LENGTH": len(content),
+         },
+     )
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_get_fallback_content__mutmut_3: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -8,7 +8,7 @@
+             Fallback summary message.
+         """
+     if event_count == 0:
+-        return "No high-priority security events detected in this period. The property has been quiet."
++        return "XXNo high-priority security events detected in this period. The property has been quiet.XX"
+     return (
+         f"Summary temporarily unavailable. {event_count} high/critical events in this period."
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_get_high_critical_events__mutmut_3: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -17,7 +17,7 @@
+     # Get events in date range with camera relationship eager loaded
+     # (required for _build_event_context to access event.camera without lazy loading)
+     all_events = await event_repo.get_in_date_range(
+-        window_start, window_end, eager_load_camera=True
++        window_start, None, eager_load_camera=True
+     )
+
+     # Filter to high/critical only
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_get_high_critical_events__mutmut_4: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -17,7 +17,7 @@
+     # Get events in date range with camera relationship eager loaded
+     # (required for _build_event_context to access event.camera without lazy loading)
+     all_events = await event_repo.get_in_date_range(
+-        window_start, window_end, eager_load_camera=True
++        window_start, window_end, eager_load_camera=None
+     )
+
+     # Filter to high/critical only
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_get_high_critical_events__mutmut_7: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -17,8 +17,7 @@
+     # Get events in date range with camera relationship eager loaded
+     # (required for _build_event_context to access event.camera without lazy loading)
+     all_events = await event_repo.get_in_date_range(
+-        window_start, window_end, eager_load_camera=True
+-    )
++        window_start, window_end, )
+
+     # Filter to high/critical only
+     high_critical_events = [
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁ_get_high_critical_events__mutmut_8: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -17,7 +17,7 @@
+     # Get events in date range with camera relationship eager loaded
+     # (required for _build_event_context to access event.camera without lazy loading)
+     all_events = await event_repo.get_in_date_range(
+-        window_start, window_end, eager_load_camera=True
++        window_start, window_end, eager_load_camera=False
+     )
+
+     # Filter to high/critical only
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_11: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -20,7 +20,7 @@
+         """
+     now = datetime.now(UTC)
+     # DATE_TRUNC('day', NOW()) equivalent
+-    midnight_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
++    midnight_today = now.replace(hour=0, minute=0, second=0, )
+
+     if session is None:
+         async with get_session() as db_session:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_15: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -20,7 +20,7 @@
+         """
+     now = datetime.now(UTC)
+     # DATE_TRUNC('day', NOW()) equivalent
+-    midnight_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
++    midnight_today = now.replace(hour=0, minute=0, second=0, microsecond=1)
+
+     if session is None:
+         async with get_session() as db_session:
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_17: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -25,7 +25,7 @@
+     if session is None:
+         async with get_session() as db_session:
+             return await self._generate_summary(
+-                session=db_session,
++                session=None,
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_18: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -26,7 +26,7 @@
+         async with get_session() as db_session:
+             return await self._generate_summary(
+                 session=db_session,
+-                summary_type=SummaryType.DAILY,
++                summary_type=None,
+                 window_start=midnight_today,
+                 window_end=now,
+                 period_type="day",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_19: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -27,7 +27,7 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.DAILY,
+-                window_start=midnight_today,
++                window_start=None,
+                 window_end=now,
+                 period_type="day",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_2: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -18,7 +18,7 @@
+             summary = await generator.generate_daily_summary()
+             print(summary.content)
+         """
+-    now = datetime.now(UTC)
++    now = datetime.now(None)
+     # DATE_TRUNC('day', NOW()) equivalent
+     midnight_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_20: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,7 +28,7 @@
+                 session=db_session,
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+-                window_end=now,
++                window_end=None,
+                 period_type="day",
+             )
+     return await self._generate_summary(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_21: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,7 +29,7 @@
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+-                period_type="day",
++                period_type=None,
+             )
+     return await self._generate_summary(
+         session=session,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_22: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -25,7 +25,6 @@
+     if session is None:
+         async with get_session() as db_session:
+             return await self._generate_summary(
+-                session=db_session,
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_23: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -26,7 +26,6 @@
+         async with get_session() as db_session:
+             return await self._generate_summary(
+                 session=db_session,
+-                summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+                 period_type="day",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_24: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -27,7 +27,6 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.DAILY,
+-                window_start=midnight_today,
+                 window_end=now,
+                 period_type="day",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_25: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,7 +28,6 @@
+                 session=db_session,
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+-                window_end=now,
+                 period_type="day",
+             )
+     return await self._generate_summary(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_26: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,8 +29,7 @@
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+-                period_type="day",
+-            )
++                )
+     return await self._generate_summary(
+         session=session,
+         summary_type=SummaryType.DAILY,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_27: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,7 +29,7 @@
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+-                period_type="day",
++                period_type="XXdayXX",
+             )
+     return await self._generate_summary(
+         session=session,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_28: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -29,7 +29,7 @@
+                 summary_type=SummaryType.DAILY,
+                 window_start=midnight_today,
+                 window_end=now,
+-                period_type="day",
++                period_type="DAY",
+             )
+     return await self._generate_summary(
+         session=session,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_29: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -32,7 +32,7 @@
+                 period_type="day",
+             )
+     return await self._generate_summary(
+-        session=session,
++        session=None,
+         summary_type=SummaryType.DAILY,
+         window_start=midnight_today,
+         window_end=now,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_33: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -36,5 +36,5 @@
+         summary_type=SummaryType.DAILY,
+         window_start=midnight_today,
+         window_end=now,
+-        period_type="day",
++        period_type=None,
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_39: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -36,5 +36,5 @@
+         summary_type=SummaryType.DAILY,
+         window_start=midnight_today,
+         window_end=now,
+-        period_type="day",
++        period_type="XXdayXX",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_daily_summary__mutmut_40: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -36,5 +36,5 @@
+         summary_type=SummaryType.DAILY,
+         window_start=midnight_today,
+         window_end=now,
+-        period_type="day",
++        period_type="DAY",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_10: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -24,7 +24,6 @@
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+-                window_end=datetime.now(UTC),
+                 period_type="hour",
+             )
+     return await self._generate_summary(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_11: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -25,8 +25,7 @@
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+-                period_type="hour",
+-            )
++                )
+     return await self._generate_summary(
+         session=session,
+         summary_type=SummaryType.HOURLY,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_12: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -23,7 +23,7 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+-                window_start=datetime.now(UTC) - timedelta(minutes=60),
++                window_start=datetime.now(UTC) + timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_13: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -23,7 +23,7 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+-                window_start=datetime.now(UTC) - timedelta(minutes=60),
++                window_start=datetime.now(None) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_14: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -23,7 +23,7 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+-                window_start=datetime.now(UTC) - timedelta(minutes=60),
++                window_start=datetime.now(UTC) - timedelta(minutes=None),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_15: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -23,7 +23,7 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+-                window_start=datetime.now(UTC) - timedelta(minutes=60),
++                window_start=datetime.now(UTC) - timedelta(minutes=61),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_16: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -24,7 +24,7 @@
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+-                window_end=datetime.now(UTC),
++                window_end=datetime.now(None),
+                 period_type="hour",
+             )
+     return await self._generate_summary(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_17: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -25,7 +25,7 @@
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+-                period_type="hour",
++                period_type="XXhourXX",
+             )
+     return await self._generate_summary(
+         session=session,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_18: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -25,7 +25,7 @@
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+-                period_type="hour",
++                period_type="HOUR",
+             )
+     return await self._generate_summary(
+         session=session,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_19: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -28,7 +28,7 @@
+                 period_type="hour",
+             )
+     return await self._generate_summary(
+-        session=session,
++        session=None,
+         summary_type=SummaryType.HOURLY,
+         window_start=datetime.now(UTC) - timedelta(minutes=60),
+         window_end=datetime.now(UTC),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_2: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -21,7 +21,7 @@
+     if session is None:
+         async with get_session() as db_session:
+             return await self._generate_summary(
+-                session=db_session,
++                session=None,
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_23: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -32,5 +32,5 @@
+         summary_type=SummaryType.HOURLY,
+         window_start=datetime.now(UTC) - timedelta(minutes=60),
+         window_end=datetime.now(UTC),
+-        period_type="hour",
++        period_type=None,
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_29: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+     return await self._generate_summary(
+         session=session,
+         summary_type=SummaryType.HOURLY,
+-        window_start=datetime.now(UTC) - timedelta(minutes=60),
++        window_start=datetime.now(UTC) + timedelta(minutes=60),
+         window_end=datetime.now(UTC),
+         period_type="hour",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_3: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -22,7 +22,7 @@
+         async with get_session() as db_session:
+             return await self._generate_summary(
+                 session=db_session,
+-                summary_type=SummaryType.HOURLY,
++                summary_type=None,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_30: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+     return await self._generate_summary(
+         session=session,
+         summary_type=SummaryType.HOURLY,
+-        window_start=datetime.now(UTC) - timedelta(minutes=60),
++        window_start=datetime.now(None) - timedelta(minutes=60),
+         window_end=datetime.now(UTC),
+         period_type="hour",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_32: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -30,7 +30,7 @@
+     return await self._generate_summary(
+         session=session,
+         summary_type=SummaryType.HOURLY,
+-        window_start=datetime.now(UTC) - timedelta(minutes=60),
++        window_start=datetime.now(UTC) - timedelta(minutes=61),
+         window_end=datetime.now(UTC),
+         period_type="hour",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_33: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -31,6 +31,6 @@
+         session=session,
+         summary_type=SummaryType.HOURLY,
+         window_start=datetime.now(UTC) - timedelta(minutes=60),
+-        window_end=datetime.now(UTC),
++        window_end=datetime.now(None),
+         period_type="hour",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_34: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -32,5 +32,5 @@
+         summary_type=SummaryType.HOURLY,
+         window_start=datetime.now(UTC) - timedelta(minutes=60),
+         window_end=datetime.now(UTC),
+-        period_type="hour",
++        period_type="XXhourXX",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_35: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -32,5 +32,5 @@
+         summary_type=SummaryType.HOURLY,
+         window_start=datetime.now(UTC) - timedelta(minutes=60),
+         window_end=datetime.now(UTC),
+-        period_type="hour",
++        period_type="HOUR",
+     )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_4: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -23,7 +23,7 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+-                window_start=datetime.now(UTC) - timedelta(minutes=60),
++                window_start=None,
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+             )
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_5: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -24,7 +24,7 @@
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+-                window_end=datetime.now(UTC),
++                window_end=None,
+                 period_type="hour",
+             )
+     return await self._generate_summary(
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_6: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -25,7 +25,7 @@
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+-                period_type="hour",
++                period_type=None,
+             )
+     return await self._generate_summary(
+         session=session,
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_7: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -21,7 +21,6 @@
+     if session is None:
+         async with get_session() as db_session:
+             return await self._generate_summary(
+-                session=db_session,
+                 summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_8: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -22,7 +22,6 @@
+         async with get_session() as db_session:
+             return await self._generate_summary(
+                 session=db_session,
+-                summary_type=SummaryType.HOURLY,
+                 window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+
+# backend.services.summary_generator.xǁSummaryGeneratorǁgenerate_hourly_summary__mutmut_9: survived
+--- backend/services/summary_generator.py
++++ backend/services/summary_generator.py
+@@ -23,7 +23,6 @@
+             return await self._generate_summary(
+                 session=db_session,
+                 summary_type=SummaryType.HOURLY,
+-                window_start=datetime.now(UTC) - timedelta(minutes=60),
+                 window_end=datetime.now(UTC),
+                 period_type="hour",
+             )

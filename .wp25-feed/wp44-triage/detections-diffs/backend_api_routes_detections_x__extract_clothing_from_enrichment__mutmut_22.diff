@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__extract_clothing_from_enrichment__mutmut_22: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -8,7 +8,7 @@
+
+     clothing_response: dict[str, Any] = {}
+     if clothing_classifications:
+-        first_key = next(iter(clothing_classifications), None)
++        first_key = next(iter(clothing_classifications), )
+         if first_key:
+             cc = clothing_classifications[first_key]
+             # Parse raw description to extract upper/lower

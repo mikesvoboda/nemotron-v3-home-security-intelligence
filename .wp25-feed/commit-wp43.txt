@@ -93,8 +93,8 @@ installed mutmut; history cap 60 runs). --targets __init__ inclusion flipped
 red-then-fixed against the generated set (269 == 269, zero gaps).
 
 WP4.4 FEED (parallel read-only triage during run5/run6): agent waves on stable
-modules -> 15,367 survivors classified 64% TEST-GAP / 21% EQUIVALENT / 15%
-LOW-VALUE (107 modules, forty-four waves), 697 drafted kill-tests + 8 cross-module fix patterns
+modules -> 15,871 survivors classified 64% TEST-GAP / 22% EQUIVALENT / 15%
+LOW-VALUE (110 modules, forty-five waves), 724 drafted kill-tests + 8 cross-module fix patterns
 (/tmp/wp25/wp44-triage + queue index); WP4.4 starts from that ordered queue.
 
 Collateral: ci.yml anti-rot list += scorer tests; mutation-testing.md

@@ -1,0 +1,1099 @@
+{
+ "res": {
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_1": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_1(",
+   "@@ -19,3 +19,3 @@",
+   "-        output_path.parent.mkdir(parents=True, exist_ok=True)",
+   "+        output_path.parent.mkdir(parents=None, exist_ok=True)"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_10": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_10(",
+   "@@ -28,3 +28,3 @@",
+   "-            \"-y\",  # Overwrite output file",
+   "+            \"XX-yXX\",  # Overwrite output file"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_11": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_11(",
+   "@@ -28,3 +28,3 @@",
+   "-            \"-y\",  # Overwrite output file",
+   "+            \"-Y\",  # Overwrite output file"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_12": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_12(",
+   "@@ -29,3 +29,3 @@",
+   "-            \"-ss\",",
+   "+            \"XX-ssXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_13": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_13(",
+   "@@ -29,3 +29,3 @@",
+   "-            \"-ss\",",
+   "+            \"-SS\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_14": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_14(",
+   "@@ -30,3 +30,3 @@",
+   "-            \"1\",  # Seek to 1 second",
+   "+            \"XX1XX\",  # Seek to 1 second"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_15": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_15(",
+   "@@ -31,3 +31,3 @@",
+   "-            \"-i\",",
+   "+            \"XX-iXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_16": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_16(",
+   "@@ -31,3 +31,3 @@",
+   "-            \"-i\",",
+   "+            \"-I\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_17": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_17(",
+   "@@ -32,3 +32,3 @@",
+   "-            str(video_path),  # Input file",
+   "+            str(None),  # Input file"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_18": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_18(",
+   "@@ -33,3 +33,3 @@",
+   "-            \"-vframes\",",
+   "+            \"XX-vframesXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_19": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_19(",
+   "@@ -33,3 +33,3 @@",
+   "-            \"-vframes\",",
+   "+            \"-VFRAMES\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_20": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_20(",
+   "@@ -34,3 +34,3 @@",
+   "-            \"1\",  # Extract only 1 frame",
+   "+            \"XX1XX\",  # Extract only 1 frame"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_21": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_21(",
+   "@@ -35,3 +35,3 @@",
+   "-            \"-vf\",",
+   "+            \"XX-vfXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_22": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_22(",
+   "@@ -35,3 +35,3 @@",
+   "-            \"-vf\",",
+   "+            \"-VF\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_23": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_23(",
+   "@@ -36,3 +36,3 @@",
+   "-            f\"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,\"",
+   "+            f\"format=yuvj420p,scale={size[1]}:{size[1]}:force_original_aspect_ratio=decrease,\""
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_25": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_25(",
+   "@@ -37,3 +37,3 @@",
+   "-            f\"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2\",",
+   "+            f\"pad={size[1]}:{size[1]}:(ow-iw)/2:(oh-ih)/2\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_27": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_27(",
+   "@@ -38,3 +38,3 @@",
+   "-            \"-q:v\",",
+   "+            \"XX-q:vXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_28": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_28(",
+   "@@ -38,3 +38,3 @@",
+   "-            \"-q:v\",",
+   "+            \"-Q:V\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_29": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_29(",
+   "@@ -39,3 +39,3 @@",
+   "-            \"2\",  # High quality JPEG",
+   "+            \"XX2XX\",  # High quality JPEG"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_3": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_3(",
+   "@@ -19,3 +19,3 @@",
+   "-        output_path.parent.mkdir(parents=True, exist_ok=True)",
+   "+        output_path.parent.mkdir(exist_ok=True)"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_30": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_30(",
+   "@@ -40,3 +40,3 @@",
+   "-            str(output_path),",
+   "+            str(None),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_32": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_32(",
+   "@@ -44,3 +44,3 @@",
+   "-            subprocess.run,",
+   "+            None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_33": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_33(",
+   "@@ -45,3 +45,3 @@",
+   "-            cmd,",
+   "+            None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_34": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_34(",
+   "@@ -46,3 +46,3 @@",
+   "-            capture_output=True,",
+   "+            capture_output=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_35": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_35(",
+   "@@ -47,3 +47,3 @@",
+   "-            text=True,",
+   "+            text=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_36": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_36(",
+   "@@ -48,3 +48,3 @@",
+   "-            timeout=30,",
+   "+            timeout=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_37": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_37(",
+   "@@ -44,3 +44,2 @@",
+   "-            subprocess.run,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_38": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_38(",
+   "@@ -45,3 +45,2 @@",
+   "-            cmd,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_39": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_39(",
+   "@@ -46,3 +46,2 @@",
+   "-            capture_output=True,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_40": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_40(",
+   "@@ -47,3 +47,2 @@",
+   "-            text=True,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_41": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_41(",
+   "@@ -48,4 +48,3 @@",
+   "-            timeout=30,",
+   "-        )",
+   "+            )"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_42": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_42(",
+   "@@ -46,3 +46,3 @@",
+   "-            capture_output=True,",
+   "+            capture_output=False,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_43": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_43(",
+   "@@ -47,3 +47,3 @@",
+   "-            text=True,",
+   "+            text=False,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_44": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_44(",
+   "@@ -48,3 +48,3 @@",
+   "-            timeout=30,",
+   "+            timeout=31,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_47": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_47(",
+   "@@ -53,3 +53,3 @@",
+   "-                \"ffmpeg frame extraction failed\",",
+   "+                None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_48": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_48(",
+   "@@ -54,6 +54,3 @@",
+   "-                extra={",
+   "-                    \"video_path\": str(video_path),",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "-                },",
+   "+                extra=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_49": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_49(",
+   "@@ -53,3 +53,2 @@",
+   "-                \"ffmpeg frame extraction failed\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_5": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_5(",
+   "@@ -19,3 +19,3 @@",
+   "-        output_path.parent.mkdir(parents=True, exist_ok=True)",
+   "+        output_path.parent.mkdir(parents=False, exist_ok=True)"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_50": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_50(",
+   "@@ -54,7 +54,3 @@",
+   "-                extra={",
+   "-                    \"video_path\": str(video_path),",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "-                },",
+   "-            )",
+   "+                )"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_51": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_51(",
+   "@@ -53,3 +53,3 @@",
+   "-                \"ffmpeg frame extraction failed\",",
+   "+                \"XXffmpeg frame extraction failedXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_52": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_52(",
+   "@@ -53,3 +53,3 @@",
+   "-                \"ffmpeg frame extraction failed\",",
+   "+                \"FFMPEG FRAME EXTRACTION FAILED\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_53": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_53(",
+   "@@ -55,3 +55,3 @@",
+   "-                    \"video_path\": str(video_path),",
+   "+                    \"XXvideo_pathXX\": str(video_path),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_54": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_54(",
+   "@@ -55,3 +55,3 @@",
+   "-                    \"video_path\": str(video_path),",
+   "+                    \"VIDEO_PATH\": str(video_path),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_55": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_55(",
+   "@@ -55,3 +55,3 @@",
+   "-                    \"video_path\": str(video_path),",
+   "+                    \"video_path\": str(None),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_56": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_56(",
+   "@@ -56,3 +56,3 @@",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "+                    \"XXstderrXX\": result.stderr[:500] if result.stderr else \"\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_57": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_57(",
+   "@@ -56,3 +56,3 @@",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "+                    \"STDERR\": result.stderr[:500] if result.stderr else \"\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_58": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_58(",
+   "@@ -56,3 +56,3 @@",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "+                    \"stderr\": result.stderr[:500] if (result.stderr) and False else \"\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_59": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_59(",
+   "@@ -56,3 +56,3 @@",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "+                    \"stderr\": result.stderr[:500] if (result.stderr) or True else \"\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_60": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_60(",
+   "@@ -56,3 +56,3 @@",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "+                    \"stderr\": result.stderr[:501] if result.stderr else \"\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_61": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_61(",
+   "@@ -56,3 +56,3 @@",
+   "-                    \"stderr\": result.stderr[:500] if result.stderr else \"\",",
+   "+                    \"stderr\": result.stderr[:500] if result.stderr else \"XXXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_64": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_64(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"Extracted snapshot from video\",",
+   "+            None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_65": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_65(",
+   "@@ -70,6 +70,3 @@",
+   "-            extra={",
+   "-                \"video_path\": str(video_path),",
+   "-                \"output_path\": str(output_path),",
+   "-            },",
+   "+            extra=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_67": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_67(",
+   "@@ -70,7 +70,3 @@",
+   "-            extra={",
+   "-                \"video_path\": str(video_path),",
+   "-                \"output_path\": str(output_path),",
+   "-            },",
+   "-        )",
+   "+            )"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_68": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_68(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"Extracted snapshot from video\",",
+   "+            \"XXExtracted snapshot from videoXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_69": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_69(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"Extracted snapshot from video\",",
+   "+            \"extracted snapshot from video\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_7": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_7(",
+   "@@ -26,18 +26,3 @@",
+   "-        cmd = [",
+   "-            \"ffmpeg\",",
+   "-            \"-y\",  # Overwrite output file",
+   "-            \"-ss\",",
+   "-            \"1\",  # Seek to 1 second",
+   "-            \"-i\",",
+   "-            str(video_path),  # Input file",
+   "-            \"-vframes\",",
+   "-            \"1\",  # Extract only 1 frame",
+   "-            \"-vf\",",
+   "-            f\"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,\"",
+   "-            f\"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2\",",
+   "-            \"-q:v\",",
+   "-            \"2\",  # High quality JPEG",
+   "-            str(output_path),",
+   "-        ]",
+   "+        cmd = None"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_70": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_70(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"Extracted snapshot from video\",",
+   "+            \"EXTRACTED SNAPSHOT FROM VIDEO\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_71": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_71(",
+   "@@ -71,3 +71,3 @@",
+   "-                \"video_path\": str(video_path),",
+   "+                \"XXvideo_pathXX\": str(video_path),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_72": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_72(",
+   "@@ -71,3 +71,3 @@",
+   "-                \"video_path\": str(video_path),",
+   "+                \"VIDEO_PATH\": str(video_path),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_73": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_73(",
+   "@@ -71,3 +71,3 @@",
+   "-                \"video_path\": str(video_path),",
+   "+                \"video_path\": str(None),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_74": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_74(",
+   "@@ -72,3 +72,3 @@",
+   "-                \"output_path\": str(output_path),",
+   "+                \"XXoutput_pathXX\": str(output_path),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_75": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_75(",
+   "@@ -72,3 +72,3 @@",
+   "-                \"output_path\": str(output_path),",
+   "+                \"OUTPUT_PATH\": str(output_path),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_76": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_76(",
+   "@@ -72,3 +72,3 @@",
+   "-                \"output_path\": str(output_path),",
+   "+                \"output_path\": str(None),"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_78": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_78(",
+   "@@ -79,3 +79,3 @@",
+   "-            \"ffmpeg timed out extracting frame\",",
+   "+            None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_79": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_79(",
+   "@@ -80,3 +80,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_8": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_8(",
+   "@@ -27,3 +27,3 @@",
+   "-            \"ffmpeg\",",
+   "+            \"XXffmpegXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_81": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_81(",
+   "@@ -80,4 +80,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "-        )",
+   "+            )"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_82": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_82(",
+   "@@ -79,3 +79,3 @@",
+   "-            \"ffmpeg timed out extracting frame\",",
+   "+            \"XXffmpeg timed out extracting frameXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_83": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_83(",
+   "@@ -79,3 +79,3 @@",
+   "-            \"ffmpeg timed out extracting frame\",",
+   "+            \"FFMPEG TIMED OUT EXTRACTING FRAME\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_84": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_84(",
+   "@@ -80,3 +80,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra={\"XXvideo_pathXX\": str(video_path)},"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_85": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_85(",
+   "@@ -80,3 +80,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra={\"VIDEO_PATH\": str(video_path)},"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_86": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_86(",
+   "@@ -80,3 +80,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra={\"video_path\": str(None)},"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_88": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_88(",
+   "@@ -85,3 +85,3 @@",
+   "-            \"ffmpeg not found - video snapshot extraction unavailable\",",
+   "+            None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_89": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_89(",
+   "@@ -86,3 +86,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra=None,"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_9": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_9(",
+   "@@ -27,3 +27,3 @@",
+   "-            \"ffmpeg\",",
+   "+            \"FFMPEG\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_91": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_91(",
+   "@@ -86,4 +86,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "-        )",
+   "+            )"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_92": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_92(",
+   "@@ -85,3 +85,3 @@",
+   "-            \"ffmpeg not found - video snapshot extraction unavailable\",",
+   "+            \"XXffmpeg not found - video snapshot extraction unavailableXX\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_93": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_93(",
+   "@@ -85,3 +85,3 @@",
+   "-            \"ffmpeg not found - video snapshot extraction unavailable\",",
+   "+            \"FFMPEG NOT FOUND - VIDEO SNAPSHOT EXTRACTION UNAVAILABLE\","
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_94": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_94(",
+   "@@ -86,3 +86,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra={\"XXvideo_pathXX\": str(video_path)},"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_95": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_95(",
+   "@@ -86,3 +86,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra={\"VIDEO_PATH\": str(video_path)},"
+  ],
+  "backend.api.routes.cameras.x__extract_frame_from_video__mutmut_96": [
+   "@@ -1,2 +1,2 @@",
+   "-async def _extract_frame_from_video(",
+   "+async def x__extract_frame_from_video__mutmut_96(",
+   "@@ -86,3 +86,3 @@",
+   "-            extra={\"video_path\": str(video_path)},",
+   "+            extra={\"video_path\": str(None)},"
+  ],
+  "backend.api.routes.cameras.x__is_cache_valid__mutmut_5": [
+   "@@ -1,2 +1,2 @@",
+   "-def _is_cache_valid(cache_path: Path, ttl_seconds: int = _DEFAULT_SNAPSHOT_CACHE_TTL) -> bool:",
+   "+def x__is_cache_valid__mutmut_5(cache_path: Path, ttl_seconds: int = _DEFAULT_SNAPSHOT_CACHE_TTL) -> bool:",
+   "@@ -14,3 +14,3 @@",
+   "-        return (time.time() - mtime) < ttl_seconds",
+   "+        return (time.time() - mtime) <= ttl_seconds"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_11": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_11(",
+   "@@ -32,3 +32,3 @@",
+   "-    if \"..\" in stored_folder_name or \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:",
+   "+    if \"..\" in stored_folder_name or \"XX/XX\" in stored_folder_name or \"\\\\\" in stored_folder_name:"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_13": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_13(",
+   "@@ -32,3 +32,3 @@",
+   "-    if \"..\" in stored_folder_name or \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:",
+   "+    if \"..\" in stored_folder_name or \"/\" in stored_folder_name or \"XX\\\\XX\" in stored_folder_name:"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_15": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_15(",
+   "@@ -34,3 +34,3 @@",
+   "-            \"Invalid folder name detected, skipping fallback\",",
+   "+            None,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_16": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_16(",
+   "@@ -35,6 +35,3 @@",
+   "-            extra={",
+   "-                \"camera_id\": camera_id,",
+   "-                \"folder_name\": sanitize_log_value(stored_folder_name),",
+   "-            },",
+   "+            extra=None,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_18": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_18(",
+   "@@ -35,7 +35,3 @@",
+   "-            extra={",
+   "-                \"camera_id\": camera_id,",
+   "-                \"folder_name\": sanitize_log_value(stored_folder_name),",
+   "-            },",
+   "-        )",
+   "+            )"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_19": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_19(",
+   "@@ -34,3 +34,3 @@",
+   "-            \"Invalid folder name detected, skipping fallback\",",
+   "+            \"XXInvalid folder name detected, skipping fallbackXX\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_20": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_20(",
+   "@@ -34,3 +34,3 @@",
+   "-            \"Invalid folder name detected, skipping fallback\",",
+   "+            \"invalid folder name detected, skipping fallback\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_21": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_21(",
+   "@@ -34,3 +34,3 @@",
+   "-            \"Invalid folder name detected, skipping fallback\",",
+   "+            \"INVALID FOLDER NAME DETECTED, SKIPPING FALLBACK\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_22": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_22(",
+   "@@ -36,3 +36,3 @@",
+   "-                \"camera_id\": camera_id,",
+   "+                \"XXcamera_idXX\": camera_id,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_23": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_23(",
+   "@@ -36,3 +36,3 @@",
+   "-                \"camera_id\": camera_id,",
+   "+                \"CAMERA_ID\": camera_id,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_24": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_24(",
+   "@@ -37,3 +37,3 @@",
+   "-                \"folder_name\": sanitize_log_value(stored_folder_name),",
+   "+                \"XXfolder_nameXX\": sanitize_log_value(stored_folder_name),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_25": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_25(",
+   "@@ -37,3 +37,3 @@",
+   "-                \"folder_name\": sanitize_log_value(stored_folder_name),",
+   "+                \"FOLDER_NAME\": sanitize_log_value(stored_folder_name),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_26": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_26(",
+   "@@ -37,3 +37,3 @@",
+   "-                \"folder_name\": sanitize_log_value(stored_folder_name),",
+   "+                \"folder_name\": sanitize_log_value(None),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_31": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_31(",
+   "@@ -51,3 +51,3 @@",
+   "-            if fallback_path.exists() and fallback_path.is_dir():",
+   "+            if fallback_path.exists() or fallback_path.is_dir():"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_32": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_32(",
+   "@@ -53,3 +53,3 @@",
+   "-                    \"Using fallback camera path\",",
+   "+                    None,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_33": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_33(",
+   "@@ -54,8 +54,3 @@",
+   "-                    extra={",
+   "-                        \"camera_id\": camera_id,",
+   "-                        \"stored_path\": sanitize_log_value(camera_folder_path),",
+   "-                        \"fallback_path\": str(fallback_path),",
+   "-                        \"base_path\": str(base_root),",
+   "-                    },",
+   "+                    extra=None,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_35": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_35(",
+   "@@ -54,9 +54,3 @@",
+   "-                    extra={",
+   "-                        \"camera_id\": camera_id,",
+   "-                        \"stored_path\": sanitize_log_value(camera_folder_path),",
+   "-                        \"fallback_path\": str(fallback_path),",
+   "-                        \"base_path\": str(base_root),",
+   "-                    },",
+   "-                )",
+   "+                    )"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_36": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_36(",
+   "@@ -53,3 +53,3 @@",
+   "-                    \"Using fallback camera path\",",
+   "+                    \"XXUsing fallback camera pathXX\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_37": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_37(",
+   "@@ -53,3 +53,3 @@",
+   "-                    \"Using fallback camera path\",",
+   "+                    \"using fallback camera path\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_38": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_38(",
+   "@@ -53,3 +53,3 @@",
+   "-                    \"Using fallback camera path\",",
+   "+                    \"USING FALLBACK CAMERA PATH\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_39": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_39(",
+   "@@ -55,3 +55,3 @@",
+   "-                        \"camera_id\": camera_id,",
+   "+                        \"XXcamera_idXX\": camera_id,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_40": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_40(",
+   "@@ -55,3 +55,3 @@",
+   "-                        \"camera_id\": camera_id,",
+   "+                        \"CAMERA_ID\": camera_id,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_41": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_41(",
+   "@@ -56,3 +56,3 @@",
+   "-                        \"stored_path\": sanitize_log_value(camera_folder_path),",
+   "+                        \"XXstored_pathXX\": sanitize_log_value(camera_folder_path),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_42": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_42(",
+   "@@ -56,3 +56,3 @@",
+   "-                        \"stored_path\": sanitize_log_value(camera_folder_path),",
+   "+                        \"STORED_PATH\": sanitize_log_value(camera_folder_path),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_43": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_43(",
+   "@@ -56,3 +56,3 @@",
+   "-                        \"stored_path\": sanitize_log_value(camera_folder_path),",
+   "+                        \"stored_path\": sanitize_log_value(None),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_44": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_44(",
+   "@@ -57,3 +57,3 @@",
+   "-                        \"fallback_path\": str(fallback_path),",
+   "+                        \"XXfallback_pathXX\": str(fallback_path),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_45": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_45(",
+   "@@ -57,3 +57,3 @@",
+   "-                        \"fallback_path\": str(fallback_path),",
+   "+                        \"FALLBACK_PATH\": str(fallback_path),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_46": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_46(",
+   "@@ -57,3 +57,3 @@",
+   "-                        \"fallback_path\": str(fallback_path),",
+   "+                        \"fallback_path\": str(None),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_47": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_47(",
+   "@@ -58,3 +58,3 @@",
+   "-                        \"base_path\": str(base_root),",
+   "+                        \"XXbase_pathXX\": str(base_root),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_48": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_48(",
+   "@@ -58,3 +58,3 @@",
+   "-                        \"base_path\": str(base_root),",
+   "+                        \"BASE_PATH\": str(base_root),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_49": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_49(",
+   "@@ -58,3 +58,3 @@",
+   "-                        \"base_path\": str(base_root),",
+   "+                        \"base_path\": str(None),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_50": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_50(",
+   "@@ -66,3 +66,3 @@",
+   "-        \"Camera folder_path outside base_path and no fallback found\",",
+   "+        None,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_51": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_51(",
+   "@@ -67,7 +67,3 @@",
+   "-        extra={",
+   "-            \"camera_id\": camera_id,",
+   "-            \"folder_path\": sanitize_log_value(camera_folder_path),",
+   "-            \"base_path\": str(base_root),",
+   "-        },",
+   "+        extra=None,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_53": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_53(",
+   "@@ -67,8 +67,3 @@",
+   "-        extra={",
+   "-            \"camera_id\": camera_id,",
+   "-            \"folder_path\": sanitize_log_value(camera_folder_path),",
+   "-            \"base_path\": str(base_root),",
+   "-        },",
+   "-    )",
+   "+        )"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_54": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_54(",
+   "@@ -66,3 +66,3 @@",
+   "-        \"Camera folder_path outside base_path and no fallback found\",",
+   "+        \"XXCamera folder_path outside base_path and no fallback foundXX\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_55": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_55(",
+   "@@ -66,3 +66,3 @@",
+   "-        \"Camera folder_path outside base_path and no fallback found\",",
+   "+        \"camera folder_path outside base_path and no fallback found\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_56": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_56(",
+   "@@ -66,3 +66,3 @@",
+   "-        \"Camera folder_path outside base_path and no fallback found\",",
+   "+        \"CAMERA FOLDER_PATH OUTSIDE BASE_PATH AND NO FALLBACK FOUND\","
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_57": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_57(",
+   "@@ -68,3 +68,3 @@",
+   "-            \"camera_id\": camera_id,",
+   "+            \"XXcamera_idXX\": camera_id,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_58": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_58(",
+   "@@ -68,3 +68,3 @@",
+   "-            \"camera_id\": camera_id,",
+   "+            \"CAMERA_ID\": camera_id,"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_59": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_59(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"folder_path\": sanitize_log_value(camera_folder_path),",
+   "+            \"XXfolder_pathXX\": sanitize_log_value(camera_folder_path),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_60": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_60(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"folder_path\": sanitize_log_value(camera_folder_path),",
+   "+            \"FOLDER_PATH\": sanitize_log_value(camera_folder_path),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_61": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_61(",
+   "@@ -69,3 +69,3 @@",
+   "-            \"folder_path\": sanitize_log_value(camera_folder_path),",
+   "+            \"folder_path\": sanitize_log_value(None),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_62": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_62(",
+   "@@ -70,3 +70,3 @@",
+   "-            \"base_path\": str(base_root),",
+   "+            \"XXbase_pathXX\": str(base_root),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_63": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_63(",
+   "@@ -70,3 +70,3 @@",
+   "-            \"base_path\": str(base_root),",
+   "+            \"BASE_PATH\": str(base_root),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_64": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_64(",
+   "@@ -70,3 +70,3 @@",
+   "-            \"base_path\": str(base_root),",
+   "+            \"base_path\": str(None),"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_7": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_7(",
+   "@@ -32,3 +32,3 @@",
+   "-    if \"..\" in stored_folder_name or \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:",
+   "+    if \"..\" in stored_folder_name or \"/\" in stored_folder_name and \"\\\\\" in stored_folder_name:"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_8": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_8(",
+   "@@ -32,3 +32,3 @@",
+   "-    if \"..\" in stored_folder_name or \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:",
+   "+    if \"..\" in stored_folder_name and \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:"
+  ],
+  "backend.api.routes.cameras.x__resolve_camera_dir__mutmut_9": [
+   "@@ -1,2 +1,2 @@",
+   "-def _resolve_camera_dir(",
+   "+def x__resolve_camera_dir__mutmut_9(",
+   "@@ -32,3 +32,3 @@",
+   "-    if \"..\" in stored_folder_name or \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:",
+   "+    if \"XX..XX\" in stored_folder_name or \"/\" in stored_folder_name or \"\\\\\" in stored_folder_name:"
+  ]
+ },
+ "miss": []
+}

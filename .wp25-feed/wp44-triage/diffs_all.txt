@@ -1,1556 +1,1930 @@
-==== x_get_service_registry__mutmut_2
----
-+++
-@@ -1,3 +1,3 @@
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_1 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_1: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -4,7 +4,7 @@
+         Returns:
+             Human-readable smoke/fire detection summary for Nemotron context
+         """
+-    if not self.has_detections:
++    if self.has_detections:
+         return "Smoke/Fire scan: No smoke or fire detected"
 
--async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
-+async def x_get_service_registry__mutmut_2() -> ServiceRegistry:
-     """Get the global ServiceRegistry singleton.
-@@ -16,3 +16,3 @@
+     lines = []
 
--            redis_client = await init_redis()
-+            redis_client = None
-             _service_registry = ServiceRegistry(redis_client=redis_client)
-==== x_get_service_registry__mutmut_4
----
-+++
-@@ -1,3 +1,3 @@
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_4 ===
+Traceback (most recent call last):
+  File "/agents/agent-nemo2/workspace/.venv/bin/mutmut", line 10, in <module>
+    sys.exit(cli())
+             ~~~^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1569, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1490, in main
+    rv = self.invoke(ctx)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1970, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1353, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 907, in invoke
+    return callback(*args, **kwargs)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/__main__.py", line 1117, in show
+    m = find_mutant(mutant_name)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/mutation/diff_apply.py", line 62, in find_mutant
+    m.load()
+    ~~~~~~^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/mutation/data.py", line 110, in load
+    meta = json.load(f)
+  File "/usr/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 
--async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
-+async def x_get_service_registry__mutmut_4() -> ServiceRegistry:
-     """Get the global ServiceRegistry singleton.
-@@ -17,3 +17,3 @@
-             redis_client = await init_redis()
--            _service_registry = ServiceRegistry(redis_client=redis_client)
-+            _service_registry = ServiceRegistry(redis_client=None)
-             logger.info("Created global ServiceRegistry singleton")
-==== x_get_service_registry__mutmut_5
----
-+++
-@@ -1,3 +1,3 @@
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_5 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_5: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -10,7 +10,7 @@
+     lines = []
 
--async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
-+async def x_get_service_registry__mutmut_5() -> ServiceRegistry:
-     """Get the global ServiceRegistry singleton.
-@@ -18,3 +18,3 @@
-             _service_registry = ServiceRegistry(redis_client=redis_client)
--            logger.info("Created global ServiceRegistry singleton")
+     if self.has_fire:
+-        lines.append("**CRITICAL FIRE ALERT**")
++        lines.append("**critical fire alert**")
+         lines.append("  IMMEDIATE ACTION REQUIRED!")
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_7 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_7: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -11,7 +11,7 @@
+
+     if self.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+-        lines.append("  IMMEDIATE ACTION REQUIRED!")
++        lines.append("XX  IMMEDIATE ACTION REQUIRED!XX")
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_8 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_8: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -11,7 +11,7 @@
+
+     if self.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+-        lines.append("  IMMEDIATE ACTION REQUIRED!")
++        lines.append("  immediate action required!")
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_10 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_10: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -15,7 +15,7 @@
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+-    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
++    for detection in sorted(self.detections, key=None, reverse=True):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_11 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_11: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -15,7 +15,7 @@
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+-    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
++    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=None):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_13 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_13: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -15,7 +15,7 @@
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+-    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
++    for detection in sorted(self.detections, reverse=True):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_14 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_14: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -15,7 +15,7 @@
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+-    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
++    for detection in sorted(self.detections, key=lambda d: d.confidence, ):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_15 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_15: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -15,7 +15,7 @@
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+-    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
++    for detection in sorted(self.detections, key=lambda d: None, reverse=True):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_16 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_16: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -15,7 +15,7 @@
+     elif self.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+
+-    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
++    for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=False):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_17 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_17: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -16,7 +16,7 @@
+         lines.append("**SMOKE DETECTION ALERT**")
+
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
++        priority_marker = None
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_18 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_18: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -16,7 +16,7 @@
+         lines.append("**SMOKE DETECTION ALERT**")
+
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
++        priority_marker = " [HIGH PRIORITY]" if (detection.is_high_priority) and False else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_19 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_19: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -16,7 +16,7 @@
+         lines.append("**SMOKE DETECTION ALERT**")
+
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
++        priority_marker = " [HIGH PRIORITY]" if (detection.is_high_priority) or True else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_20 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_20: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -16,7 +16,7 @@
+         lines.append("**SMOKE DETECTION ALERT**")
+
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
++        priority_marker = "XX [HIGH PRIORITY]XX" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_21 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_21: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -16,7 +16,7 @@
+         lines.append("**SMOKE DETECTION ALERT**")
+
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
++        priority_marker = " [high priority]" if detection.is_high_priority else ""
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_22 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_22: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -16,7 +16,7 @@
+         lines.append("**SMOKE DETECTION ALERT**")
+
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
++        priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else "XXXX"
+         lines.append(
+             f"  - {detection.detection_type.upper()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_24 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_24: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -18,7 +18,7 @@
+     for detection in sorted(self.detections, key=lambda d: d.confidence, reverse=True):
+         priority_marker = " [HIGH PRIORITY]" if detection.is_high_priority else ""
+         lines.append(
+-            f"  - {detection.detection_type.upper()}: "
++            f"  - {detection.detection_type.lower()}: "
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+         )
+
+
+=== backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_26 ===
+# backend.services.smoke_fire_loader.xǁSmokeFireDetectionResultǁto_context_string__mutmut_26: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -22,4 +22,4 @@
+             f"{detection.confidence:.0%} confidence{priority_marker}"
+         )
+
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_2 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_2: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -22,7 +22,7 @@
+         if YOLO is None:
+             from ultralytics import YOLO as _YOLO
+
+-            YOLO = _YOLO
++            YOLO = None
+
+         logger.info(f"Loading smoke/fire detection model from {model_path}")
+
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_3 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_3: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -24,7 +24,7 @@
+
+             YOLO = _YOLO
+
+-        logger.info(f"Loading smoke/fire detection model from {model_path}")
++        logger.info(None)
+
+         loop = asyncio.get_running_loop()
+
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_9 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_9: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_mock_name") and hasattr(yolo_class, "assert_called")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_10 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_10: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(None, "_mock_name") or hasattr(yolo_class, "assert_called")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_14 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_14: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "XX_mock_nameXX") or hasattr(yolo_class, "assert_called")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_15 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_15: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_MOCK_NAME") or hasattr(yolo_class, "assert_called")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_16 ===
+Traceback (most recent call last):
+  File "/agents/agent-nemo2/workspace/.venv/bin/mutmut", line 10, in <module>
+    sys.exit(cli())
+             ~~~^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1569, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1490, in main
+    rv = self.invoke(ctx)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1970, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1353, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 907, in invoke
+    return callback(*args, **kwargs)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/__main__.py", line 1117, in show
+    m = find_mutant(mutant_name)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/mutation/diff_apply.py", line 62, in find_mutant
+    m.load()
+    ~~~~~~^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/mutation/data.py", line 110, in load
+    meta = json.load(f)
+  File "/usr/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 361, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ~~~~~~~~~~~~~~^^^^^^^^
+json.decoder.JSONDecodeError: Expecting ':' delimiter: line 7483 column 117 (char 864883)
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_17 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_17: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, None)
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_18 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_18: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_mock_name") or hasattr("assert_called")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_19 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_19: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, )
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_20 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_20: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "XXassert_calledXX")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_21 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_21: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -45,7 +45,7 @@
+
+             # In test mode (YOLO is mocked), skip file existence checks
+             # Check if YOLO is a mock by looking for mock-specific attributes
+-            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "assert_called")
++            is_mock = hasattr(yolo_class, "_mock_name") or hasattr(yolo_class, "ASSERT_CALLED")
+
+             if is_mock:
+                 # Use a default path for mocked tests
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_24 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_24: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -49,7 +49,7 @@
+
+             if is_mock:
+                 # Use a default path for mocked tests
+-                weights_file = model_dir / "smoke-fire-yolov8n.pt"
++                weights_file = model_dir / "XXsmoke-fire-yolov8n.ptXX"
+             else:
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_25 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_25: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -49,7 +49,7 @@
+
+             if is_mock:
+                 # Use a default path for mocked tests
+-                weights_file = model_dir / "smoke-fire-yolov8n.pt"
++                weights_file = model_dir / "SMOKE-FIRE-YOLOV8N.PT"
+             else:
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_26 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_26: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -52,7 +52,7 @@
+                 weights_file = model_dir / "smoke-fire-yolov8n.pt"
+             else:
+                 # Find the model weights file
+-                weights_file = model_dir / "model.pt"
++                weights_file = None
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_27 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_27: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -52,7 +52,7 @@
+                 weights_file = model_dir / "smoke-fire-yolov8n.pt"
+             else:
+                 # Find the model weights file
+-                weights_file = model_dir / "model.pt"
++                weights_file = model_dir * "model.pt"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_28 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_28: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -52,7 +52,7 @@
+                 weights_file = model_dir / "smoke-fire-yolov8n.pt"
+             else:
+                 # Find the model weights file
+-                weights_file = model_dir / "model.pt"
++                weights_file = model_dir / "XXmodel.ptXX"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_29 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_29: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -52,7 +52,7 @@
+                 weights_file = model_dir / "smoke-fire-yolov8n.pt"
+             else:
+                 # Find the model weights file
+-                weights_file = model_dir / "model.pt"
++                weights_file = model_dir / "MODEL.PT"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_30 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_30: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -53,7 +53,7 @@
+             else:
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+-                if not weights_file.exists():
++                if weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_31 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_31: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -54,7 +54,7 @@
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "best.pt"
++                    weights_file = None
+                 if not weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_32 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_32: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -54,7 +54,7 @@
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "best.pt"
++                    weights_file = model_dir * "best.pt"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_33 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_33: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -54,7 +54,7 @@
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "best.pt"
++                    weights_file = model_dir / "XXbest.ptXX"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_34 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_34: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -54,7 +54,7 @@
+                 # Find the model weights file
+                 weights_file = model_dir / "model.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "best.pt"
++                    weights_file = model_dir / "BEST.PT"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_35 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_35: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -55,7 +55,7 @@
+                 weights_file = model_dir / "model.pt"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+-                if not weights_file.exists():
++                if weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_36 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_36: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -56,7 +56,7 @@
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "smoke-fire-yolov8n.pt"
++                    weights_file = None
+                 if not weights_file.exists():
+                     # Try any .pt file
+                     pt_files = list(model_dir.glob("*.pt"))
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_37 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_37: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -56,7 +56,7 @@
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "smoke-fire-yolov8n.pt"
++                    weights_file = model_dir * "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+                     pt_files = list(model_dir.glob("*.pt"))
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_38 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_38: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -56,7 +56,7 @@
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "smoke-fire-yolov8n.pt"
++                    weights_file = model_dir / "XXsmoke-fire-yolov8n.ptXX"
+                 if not weights_file.exists():
+                     # Try any .pt file
+                     pt_files = list(model_dir.glob("*.pt"))
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_39 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_39: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -56,7 +56,7 @@
+                 if not weights_file.exists():
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+-                    weights_file = model_dir / "smoke-fire-yolov8n.pt"
++                    weights_file = model_dir / "SMOKE-FIRE-YOLOV8N.PT"
+                 if not weights_file.exists():
+                     # Try any .pt file
+                     pt_files = list(model_dir.glob("*.pt"))
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_40 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_40: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -57,7 +57,7 @@
+                     weights_file = model_dir / "best.pt"
+                 if not weights_file.exists():
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+-                if not weights_file.exists():
++                if weights_file.exists():
+                     # Try any .pt file
+                     pt_files = list(model_dir.glob("*.pt"))
+                     if pt_files:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_41 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_41: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -59,7 +59,7 @@
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+-                    pt_files = list(model_dir.glob("*.pt"))
++                    pt_files = None
+                     if pt_files:
+                         weights_file = pt_files[0]
+                     else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_42 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_42: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -59,7 +59,7 @@
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+-                    pt_files = list(model_dir.glob("*.pt"))
++                    pt_files = list(None)
+                     if pt_files:
+                         weights_file = pt_files[0]
+                     else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_43 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_43: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -59,7 +59,7 @@
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+-                    pt_files = list(model_dir.glob("*.pt"))
++                    pt_files = list(model_dir.glob(None))
+                     if pt_files:
+                         weights_file = pt_files[0]
+                     else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_44 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_44: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -59,7 +59,7 @@
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+-                    pt_files = list(model_dir.glob("*.pt"))
++                    pt_files = list(model_dir.glob("XX*.ptXX"))
+                     if pt_files:
+                         weights_file = pt_files[0]
+                     else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_45 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_45: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -59,7 +59,7 @@
+                     weights_file = model_dir / "smoke-fire-yolov8n.pt"
+                 if not weights_file.exists():
+                     # Try any .pt file
+-                    pt_files = list(model_dir.glob("*.pt"))
++                    pt_files = list(model_dir.glob("*.PT"))
+                     if pt_files:
+                         weights_file = pt_files[0]
+                     else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_46 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_46: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -63,7 +63,7 @@
+                     if pt_files:
+                         weights_file = pt_files[0]
+                     else:
+-                        raise FileNotFoundError(f"No model weights (.pt) found in {model_dir}")
++                        raise FileNotFoundError(None)
+
+             model = yolo_class(str(weights_file))  # type: ignore[misc]
+
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_54 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_54: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -68,7 +68,7 @@
+             model = yolo_class(str(weights_file))  # type: ignore[misc]
+
+             # Pre-fuse to avoid race condition
+-            if hasattr(model, "fuse"):
++            if hasattr(model, "XXfuseXX"):
+                 inner_model = getattr(model, "model", None)
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_55 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_55: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -68,7 +68,7 @@
+             model = yolo_class(str(weights_file))  # type: ignore[misc]
+
+             # Pre-fuse to avoid race condition
+-            if hasattr(model, "fuse"):
++            if hasattr(model, "FUSE"):
+                 inner_model = getattr(model, "model", None)
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_56 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_56: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -69,7 +69,7 @@
+
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+-                inner_model = getattr(model, "model", None)
++                inner_model = None
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_57 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_57: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -69,7 +69,7 @@
+
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+-                inner_model = getattr(model, "model", None)
++                inner_model = getattr(None, "model", None)
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_61 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_61: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -69,7 +69,7 @@
+
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+-                inner_model = getattr(model, "model", None)
++                inner_model = getattr(model, "model", )
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_64 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_64: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -70,7 +70,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None or hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_65 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_65: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -70,7 +70,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_66 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_66: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -70,7 +70,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None and hasattr(None, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_70 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_70: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -70,7 +70,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None and hasattr(inner_model, "XXis_fusedXX"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_71 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_71: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -70,7 +70,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None and hasattr(inner_model, "IS_FUSED"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_73 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_73: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -76,7 +76,7 @@
+                 else:
+                     model.fuse()
+
+-            logger.info(f"Loaded smoke/fire detection model from {weights_file}")
 +            logger.info(None)
+             return model
 
-==== x_get_service_registry__mutmut_6
----
-+++
-@@ -1,3 +1,3 @@
+         model = await loop.run_in_executor(None, _load_and_fuse)
 
--async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
-+async def x_get_service_registry__mutmut_6() -> ServiceRegistry:
-     """Get the global ServiceRegistry singleton.
-@@ -18,3 +18,3 @@
-             _service_registry = ServiceRegistry(redis_client=redis_client)
--            logger.info("Created global ServiceRegistry singleton")
-+            logger.info("XXCreated global ServiceRegistry singletonXX")
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_78 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_78: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -81,7 +81,7 @@
 
-==== x_get_service_registry__mutmut_7
----
-+++
-@@ -1,3 +1,3 @@
+         model = await loop.run_in_executor(None, _load_and_fuse)
 
--async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
-+async def x_get_service_registry__mutmut_7() -> ServiceRegistry:
-     """Get the global ServiceRegistry singleton.
-@@ -18,3 +18,3 @@
-             _service_registry = ServiceRegistry(redis_client=redis_client)
--            logger.info("Created global ServiceRegistry singleton")
-+            logger.info("created global serviceregistry singleton")
+-        logger.info(f"Successfully loaded smoke/fire detection model from {model_path}")
++        logger.info(None)
+         return model
 
-==== x_get_service_registry__mutmut_8
----
-+++
-@@ -1,3 +1,3 @@
+     except ImportError as e:
 
--async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
-+async def x_get_service_registry__mutmut_8() -> ServiceRegistry:
-     """Get the global ServiceRegistry singleton.
-@@ -18,3 +18,3 @@
-             _service_registry = ServiceRegistry(redis_client=redis_client)
--            logger.info("Created global ServiceRegistry singleton")
-+            logger.info("CREATED GLOBAL SERVICEREGISTRY SINGLETON")
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_79 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_79: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -85,7 +85,7 @@
+         return model
 
-==== x_reset_service_registry__mutmut_2
----
-+++
-@@ -1,3 +1,3 @@
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning(None)
+         raise ImportError(
+             "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
 
--def x_reset_service_registry__mutmut_orig() -> None:
-+def x_reset_service_registry__mutmut_2() -> None:
-     """Reset the global ServiceRegistry singleton.
-@@ -10,3 +10,3 @@
-         _service_registry = None
--        logger.debug("Reset global ServiceRegistry singleton")
-+        logger.debug(None)
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_80 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_80: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -85,7 +85,7 @@
+         return model
 
-==== x_reset_service_registry__mutmut_3
----
-+++
-@@ -1,3 +1,3 @@
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("XXultralytics package not installed. Install with: pip install ultralyticsXX")
+         raise ImportError(
+             "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
 
--def x_reset_service_registry__mutmut_orig() -> None:
-+def x_reset_service_registry__mutmut_3() -> None:
-     """Reset the global ServiceRegistry singleton.
-@@ -10,3 +10,3 @@
-         _service_registry = None
--        logger.debug("Reset global ServiceRegistry singleton")
-+        logger.debug("XXReset global ServiceRegistry singletonXX")
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_81 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_81: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -85,7 +85,7 @@
+         return model
 
-==== x_reset_service_registry__mutmut_4
----
-+++
-@@ -1,3 +1,3 @@
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("ultralytics package not installed. install with: pip install ultralytics")
+         raise ImportError(
+             "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
 
--def x_reset_service_registry__mutmut_orig() -> None:
-+def x_reset_service_registry__mutmut_4() -> None:
-     """Reset the global ServiceRegistry singleton.
-@@ -10,3 +10,3 @@
-         _service_registry = None
--        logger.debug("Reset global ServiceRegistry singleton")
-+        logger.debug("reset global serviceregistry singleton")
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_82 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_82: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -85,7 +85,7 @@
+         return model
 
-==== x_reset_service_registry__mutmut_5
----
-+++
-@@ -1,3 +1,3 @@
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("ULTRALYTICS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL ULTRALYTICS")
+         raise ImportError(
+             "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
 
--def x_reset_service_registry__mutmut_orig() -> None:
-+def x_reset_service_registry__mutmut_5() -> None:
-     """Reset the global ServiceRegistry singleton.
-@@ -10,3 +10,3 @@
-         _service_registry = None
--        logger.debug("Reset global ServiceRegistry singleton")
-+        logger.debug("RESET GLOBAL SERVICEREGISTRY SINGLETON")
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_83 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_83: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -87,7 +87,7 @@
+     except ImportError as e:
+         logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+         raise ImportError(
+-            "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
++            None
+         ) from e
 
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_6
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_6(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -12,3 +12,3 @@
+     except Exception as e:
 
--            service.enabled = state.get("enabled", True)
-+            service.enabled = state.get("enabled", None)
-             service.failure_count = state.get("failure_count", 0)
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_8(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -12,3 +12,3 @@
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_84 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_84: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -87,7 +87,7 @@
+     except ImportError as e:
+         logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+         raise ImportError(
+-            "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
++            "XXSmoke/fire detection requires ultralytics. Install with: pip install ultralyticsXX"
+         ) from e
 
--            service.enabled = state.get("enabled", True)
-+            service.enabled = state.get("enabled", )
-             service.failure_count = state.get("failure_count", 0)
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_11
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_11(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -12,3 +12,3 @@
+     except Exception as e:
 
--            service.enabled = state.get("enabled", True)
-+            service.enabled = state.get("enabled", False)
-             service.failure_count = state.get("failure_count", 0)
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_14
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_14(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -13,3 +13,3 @@
-             service.enabled = state.get("enabled", True)
--            service.failure_count = state.get("failure_count", 0)
-+            service.failure_count = state.get("failure_count", None)
-             service.restart_count = state.get("restart_count", 0)
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_16
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_16(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -13,3 +13,3 @@
-             service.enabled = state.get("enabled", True)
--            service.failure_count = state.get("failure_count", 0)
-+            service.failure_count = state.get("failure_count", )
-             service.restart_count = state.get("restart_count", 0)
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_19
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_19(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -13,3 +13,3 @@
-             service.enabled = state.get("enabled", True)
--            service.failure_count = state.get("failure_count", 0)
-+            service.failure_count = state.get("failure_count", 1)
-             service.restart_count = state.get("restart_count", 0)
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_22
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_22(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -14,3 +14,3 @@
-             service.failure_count = state.get("failure_count", 0)
--            service.restart_count = state.get("restart_count", 0)
-+            service.restart_count = state.get("restart_count", None)
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_85 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_85: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -87,7 +87,7 @@
+     except ImportError as e:
+         logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+         raise ImportError(
+-            "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
++            "smoke/fire detection requires ultralytics. install with: pip install ultralytics"
+         ) from e
 
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_24
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_24(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -14,3 +14,3 @@
-             service.failure_count = state.get("failure_count", 0)
--            service.restart_count = state.get("restart_count", 0)
-+            service.restart_count = state.get("restart_count", )
+     except Exception as e:
 
-==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_27
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
-+    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_27(self, name: str, state: dict) -> None:
-         """Apply loaded state to a service.
-@@ -14,3 +14,3 @@
-             service.failure_count = state.get("failure_count", 0)
--            service.restart_count = state.get("restart_count", 0)
-+            service.restart_count = state.get("restart_count", 1)
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_86 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_86: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -87,7 +87,7 @@
+     except ImportError as e:
+         logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+         raise ImportError(
+-            "Smoke/fire detection requires ultralytics. Install with: pip install ultralytics"
++            "SMOKE/FIRE DETECTION REQUIRES ULTRALYTICS. INSTALL WITH: PIP INSTALL ULTRALYTICS"
+         ) from e
 
-==== xǁServiceRegistryǁclear_state__mutmut_4
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_4(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug(None, extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_5
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_5(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("Cleared service state from Redis", extra=None)
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_6
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_6(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug(extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_7
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_7(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("Cleared service state from Redis", )
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_8(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("XXCleared service state from RedisXX", extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_9
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_9(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("cleared service state from redis", extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_10
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_10(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("CLEARED SERVICE STATE FROM REDIS", extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_11
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_11(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("Cleared service state from Redis", extra={"XXservice_nameXX": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_12
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_12(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -12,3 +12,3 @@
-             await self._redis.delete(key)
--            logger.debug("Cleared service state from Redis", extra={"service_name": name})
-+            logger.debug("Cleared service state from Redis", extra={"SERVICE_NAME": name})
-         except Exception as e:
-==== xǁServiceRegistryǁclear_state__mutmut_13
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_13(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -15,3 +15,3 @@
-             logger.warning(
--                "Failed to clear service state from Redis",
-+                None,
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁclear_state__mutmut_14
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_14(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,3 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra=None,
+     except Exception as e:
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_87 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_87: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -92,7 +92,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load smoke/fire detection model",
++            None,
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_88 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_88: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -93,7 +93,7 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load smoke/fire detection model",
+-            exc_info=True,
++            exc_info=None,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_89 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_89: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -94,6 +94,6 @@
+         logger.error(
+             "Failed to load smoke/fire detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra=None,
+         )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_91 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_91: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -93,7 +93,6 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load smoke/fire detection model",
+-            exc_info=True,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_92 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_92: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -94,6 +94,5 @@
+         logger.error(
+             "Failed to load smoke/fire detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
+-        )
++            )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_93 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_93: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -92,7 +92,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load smoke/fire detection model",
++            "XXFailed to load smoke/fire detection modelXX",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_94 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_94: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -92,7 +92,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load smoke/fire detection model",
++            "failed to load smoke/fire detection model",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_95 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_95: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -92,7 +92,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load smoke/fire detection model",
++            "FAILED TO LOAD SMOKE/FIRE DETECTION MODEL",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_96 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_96: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -93,7 +93,7 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load smoke/fire detection model",
+-            exc_info=True,
++            exc_info=False,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_97 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_97: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -94,6 +94,6 @@
+         logger.error(
+             "Failed to load smoke/fire detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra={"XXmodel_pathXX": model_path},
+         )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_98 ===
+# backend.services.smoke_fire_loader.x_load_smoke_fire_model__mutmut_98: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -94,6 +94,6 @@
+         logger.error(
+             "Failed to load smoke/fire detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra={"MODEL_PATH": model_path},
+         )
+         raise RuntimeError(f"Failed to load smoke/fire detection model: {e}") from e
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_4 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_4: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -25,7 +25,7 @@
+             """Run batch detection synchronously."""
+             # Run inference on all images
+             results = model.predict(
+-                source=images,
++                source=None,
+                 conf=confidence_threshold,
+                 verbose=False,
              )
-==== xǁServiceRegistryǁclear_state__mutmut_16
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_16(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,4 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_5 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_5: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -26,7 +26,7 @@
+             # Run inference on all images
+             results = model.predict(
+                 source=images,
+-                conf=confidence_threshold,
++                conf=None,
+                 verbose=False,
+             )
+
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_6 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_6: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -27,7 +27,7 @@
+             results = model.predict(
+                 source=images,
+                 conf=confidence_threshold,
+-                verbose=False,
++                verbose=None,
+             )
+
+             detection_results: list[SmokeFireDetectionResult] = []
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_7 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_7: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -25,7 +25,6 @@
+             """Run batch detection synchronously."""
+             # Run inference on all images
+             results = model.predict(
+-                source=images,
+                 conf=confidence_threshold,
+                 verbose=False,
+             )
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_8 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_8: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -26,7 +26,6 @@
+             # Run inference on all images
+             results = model.predict(
+                 source=images,
+-                conf=confidence_threshold,
+                 verbose=False,
+             )
+
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_9 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_9: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -27,8 +27,7 @@
+             results = model.predict(
+                 source=images,
+                 conf=confidence_threshold,
+-                verbose=False,
 -            )
 +                )
 
-==== xǁServiceRegistryǁclear_state__mutmut_17
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_17(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -15,3 +15,3 @@
-             logger.warning(
--                "Failed to clear service state from Redis",
-+                "XXFailed to clear service state from RedisXX",
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁclear_state__mutmut_18
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_18(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -15,3 +15,3 @@
-             logger.warning(
--                "Failed to clear service state from Redis",
-+                "failed to clear service state from redis",
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁclear_state__mutmut_19
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_19(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -15,3 +15,3 @@
-             logger.warning(
--                "Failed to clear service state from Redis",
-+                "FAILED TO CLEAR SERVICE STATE FROM REDIS",
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁclear_state__mutmut_20
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_20(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,3 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"XXservice_nameXX": name, "error": str(e)},
+             detection_results: list[SmokeFireDetectionResult] = []
+
+
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_10 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_10: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -27,7 +27,7 @@
+             results = model.predict(
+                 source=images,
+                 conf=confidence_threshold,
+-                verbose=False,
++                verbose=True,
              )
-==== xǁServiceRegistryǁclear_state__mutmut_21
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_21(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,3 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"SERVICE_NAME": name, "error": str(e)},
-             )
-==== xǁServiceRegistryǁclear_state__mutmut_22
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_22(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,3 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"service_name": name, "XXerrorXX": str(e)},
-             )
-==== xǁServiceRegistryǁclear_state__mutmut_23
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_23(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,3 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"service_name": name, "ERROR": str(e)},
-             )
-==== xǁServiceRegistryǁclear_state__mutmut_24
----
-+++
-@@ -1,2 +1,2 @@
--    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁclear_state__mutmut_24(self, name: str) -> None:
-         """Clear service state from Redis.
-@@ -16,3 +16,3 @@
-                 "Failed to clear service state from Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"service_name": name, "error": str(None)},
-             )
-==== xǁServiceRegistryǁpersist_state__mutmut_2
----
-+++
-@@ -4,3 +4,3 @@
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_2(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug(None, extra={"service_name": name})
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_3
----
-+++
-@@ -4,3 +4,3 @@
+             detection_results: list[SmokeFireDetectionResult] = []
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_3(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("No Redis client, skipping persist", extra=None)
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_5
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_12 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_12: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -33,7 +33,7 @@
+             detection_results: list[SmokeFireDetectionResult] = []
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_5(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("No Redis client, skipping persist", )
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_6
----
-+++
-@@ -4,3 +4,3 @@
+             for result in results:
+-                detections: list[SmokeFireDetection] = []
++                detections: list[SmokeFireDetection] = None
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_6(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("XXNo Redis client, skipping persistXX", extra={"service_name": name})
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_7
----
-+++
-@@ -4,3 +4,3 @@
+                 if result.boxes is not None and len(result.boxes) > 0:
+                     boxes = result.boxes
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_7(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("no redis client, skipping persist", extra={"service_name": name})
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_8
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_15 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_15: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -35,7 +35,7 @@
+             for result in results:
+                 detections: list[SmokeFireDetection] = []
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_8(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("NO REDIS CLIENT, SKIPPING PERSIST", extra={"service_name": name})
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_9
----
-+++
-@@ -4,3 +4,3 @@
+-                if result.boxes is not None and len(result.boxes) > 0:
++                if result.boxes is not None and len(result.boxes) >= 0:
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_9(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("No Redis client, skipping persist", extra={"XXservice_nameXX": name})
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_10
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_16 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_16: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -35,7 +35,7 @@
+             for result in results:
+                 detections: list[SmokeFireDetection] = []
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_10(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -17,3 +17,3 @@
-         if self._redis is None:
--            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
-+            logger.debug("No Redis client, skipping persist", extra={"SERVICE_NAME": name})
-             return
-==== xǁServiceRegistryǁpersist_state__mutmut_21
----
-+++
-@@ -4,3 +4,3 @@
+-                if result.boxes is not None and len(result.boxes) > 0:
++                if result.boxes is not None and len(result.boxes) > 1:
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_21(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -29,3 +29,3 @@
-                 "last_failure_at": (
--                    service.last_failure_at.isoformat() if service.last_failure_at else None
-+                    service.last_failure_at.isoformat() if (service.last_failure_at) and False else None
-                 ),
-==== xǁServiceRegistryǁpersist_state__mutmut_25
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_17 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_17: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -66,7 +66,7 @@
+                                 )
+                             )
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_25(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -32,3 +32,3 @@
-                 "last_restart_at": (
--                    service.last_restart_at.isoformat() if service.last_restart_at else None
-+                    service.last_restart_at.isoformat() if (service.last_restart_at) and False else None
-                 ),
-==== xǁServiceRegistryǁpersist_state__mutmut_36
----
-+++
-@@ -4,3 +4,3 @@
+-                detection_results.append(SmokeFireDetectionResult(detections=detections))
++                detection_results.append(None)
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_36(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug(None, extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_37
----
-+++
-@@ -4,3 +4,3 @@
+             return detection_results
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_37(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("Persisted service state to Redis", extra=None)
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_38
----
-+++
-@@ -4,3 +4,3 @@
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_38(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug(extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_39
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_18 ===
+# backend.services.smoke_fire_loader.x_detect_smoke_fire_batch__mutmut_18: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -66,7 +66,7 @@
+                                 )
+                             )
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_39(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("Persisted service state to Redis", )
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_40
----
-+++
-@@ -4,3 +4,3 @@
+-                detection_results.append(SmokeFireDetectionResult(detections=detections))
++                detection_results.append(SmokeFireDetectionResult(detections=None))
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_40(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("XXPersisted service state to RedisXX", extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_41
----
-+++
-@@ -4,3 +4,3 @@
+             return detection_results
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_41(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("persisted service state to redis", extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_42
----
-+++
-@@ -4,3 +4,3 @@
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_42(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("PERSISTED SERVICE STATE TO REDIS", extra={"service_name": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_43
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_2 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_2: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -12,7 +12,7 @@
+         Formatted string for inclusion in risk analysis prompt
+     """
+     if smoke_fire_result is None:
+-        return "Smoke/Fire detection: Not performed"
++        return "XXSmoke/Fire detection: Not performedXX"
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_43(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("Persisted service state to Redis", extra={"XXservice_nameXX": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_44
----
-+++
-@@ -4,3 +4,3 @@
+     if not smoke_fire_result.has_detections:
+         return "Smoke/Fire detection: No smoke or fire detected"
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_44(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -42,3 +42,3 @@
-             await self._redis.set(key, state)
--            logger.debug("Persisted service state to Redis", extra={"service_name": name})
-+            logger.debug("Persisted service state to Redis", extra={"SERVICE_NAME": name})
-         except Exception as e:
-==== xǁServiceRegistryǁpersist_state__mutmut_45
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_3 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_3: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -12,7 +12,7 @@
+         Formatted string for inclusion in risk analysis prompt
+     """
+     if smoke_fire_result is None:
+-        return "Smoke/Fire detection: Not performed"
++        return "smoke/fire detection: not performed"
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_45(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -45,3 +45,3 @@
-             logger.warning(
--                "Failed to persist service state to Redis",
-+                None,
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁpersist_state__mutmut_46
----
-+++
-@@ -4,3 +4,3 @@
+     if not smoke_fire_result.has_detections:
+         return "Smoke/Fire detection: No smoke or fire detected"
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_46(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,3 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra=None,
-             )
-==== xǁServiceRegistryǁpersist_state__mutmut_48
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_4 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_4: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -12,7 +12,7 @@
+         Formatted string for inclusion in risk analysis prompt
+     """
+     if smoke_fire_result is None:
+-        return "Smoke/Fire detection: Not performed"
++        return "SMOKE/FIRE DETECTION: NOT PERFORMED"
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_48(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,4 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
--            )
-+                )
+     if not smoke_fire_result.has_detections:
+         return "Smoke/Fire detection: No smoke or fire detected"
 
-==== xǁServiceRegistryǁpersist_state__mutmut_49
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_8 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_8: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -20,7 +20,7 @@
+     lines = []
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_49(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -45,3 +45,3 @@
-             logger.warning(
--                "Failed to persist service state to Redis",
-+                "XXFailed to persist service state to RedisXX",
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁpersist_state__mutmut_50
----
-+++
-@@ -4,3 +4,3 @@
+     if smoke_fire_result.has_fire:
+-        lines.append("**CRITICAL FIRE ALERT**")
++        lines.append("XX**CRITICAL FIRE ALERT**XX")
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_50(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -45,3 +45,3 @@
-             logger.warning(
--                "Failed to persist service state to Redis",
-+                "failed to persist service state to redis",
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁpersist_state__mutmut_51
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_9 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_9: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -20,7 +20,7 @@
+     lines = []
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_51(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -45,3 +45,3 @@
-             logger.warning(
--                "Failed to persist service state to Redis",
-+                "FAILED TO PERSIST SERVICE STATE TO REDIS",
-                 extra={"service_name": name, "error": str(e)},
-==== xǁServiceRegistryǁpersist_state__mutmut_52
----
-+++
-@@ -4,3 +4,3 @@
+     if smoke_fire_result.has_fire:
+-        lines.append("**CRITICAL FIRE ALERT**")
++        lines.append("**critical fire alert**")
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_52(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,3 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"XXservice_nameXX": name, "error": str(e)},
-             )
-==== xǁServiceRegistryǁpersist_state__mutmut_53
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_11 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_11: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -21,7 +21,7 @@
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_53(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,3 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"SERVICE_NAME": name, "error": str(e)},
-             )
-==== xǁServiceRegistryǁpersist_state__mutmut_54
----
-+++
-@@ -4,3 +4,3 @@
+     if smoke_fire_result.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+-        lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
++        lines.append("XX  IMMEDIATE EVACUATION RECOMMENDED!XX")
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_54(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,3 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"service_name": name, "XXerrorXX": str(e)},
-             )
-==== xǁServiceRegistryǁpersist_state__mutmut_55
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_12 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_12: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -21,7 +21,7 @@
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_55(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,3 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"service_name": name, "ERROR": str(e)},
-             )
-==== xǁServiceRegistryǁpersist_state__mutmut_56
----
-+++
-@@ -4,3 +4,3 @@
+     if smoke_fire_result.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+-        lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
++        lines.append("  immediate evacuation recommended!")
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
 
--    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
-+    async def xǁServiceRegistryǁpersist_state__mutmut_56(self, name: str) -> None:
-         """Persist service state to Redis.
-@@ -46,3 +46,3 @@
-                 "Failed to persist service state to Redis",
--                extra={"service_name": name, "error": str(e)},
-+                extra={"service_name": name, "error": str(None)},
-             )
-==== xǁServiceRegistryǁrecord_restart__mutmut_3
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_3(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -13,3 +13,3 @@
-                 logger.debug(
--                    "Recorded restart",
-+                    None,
-                     extra={"service_name": name, "restart_count": service.restart_count},
-==== xǁServiceRegistryǁrecord_restart__mutmut_4
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_4(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -14,3 +14,3 @@
-                     "Recorded restart",
--                    extra={"service_name": name, "restart_count": service.restart_count},
-+                    extra=None,
-                 )
-==== xǁServiceRegistryǁrecord_restart__mutmut_6
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_6(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -14,4 +14,3 @@
-                     "Recorded restart",
--                    extra={"service_name": name, "restart_count": service.restart_count},
--                )
-+                    )
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_14 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_14: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -22,7 +22,7 @@
+     if smoke_fire_result.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+-        lines.append("  Contact emergency services immediately.")
++        lines.append("XX  Contact emergency services immediately.XX")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+         lines.append("  Potential fire hazard detected.")
 
-==== xǁServiceRegistryǁrecord_restart__mutmut_7
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_7(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -13,3 +13,3 @@
-                 logger.debug(
--                    "Recorded restart",
-+                    "XXRecorded restartXX",
-                     extra={"service_name": name, "restart_count": service.restart_count},
-==== xǁServiceRegistryǁrecord_restart__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_8(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -13,3 +13,3 @@
-                 logger.debug(
--                    "Recorded restart",
-+                    "recorded restart",
-                     extra={"service_name": name, "restart_count": service.restart_count},
-==== xǁServiceRegistryǁrecord_restart__mutmut_9
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_9(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -13,3 +13,3 @@
-                 logger.debug(
--                    "Recorded restart",
-+                    "RECORDED RESTART",
-                     extra={"service_name": name, "restart_count": service.restart_count},
-==== xǁServiceRegistryǁrecord_restart__mutmut_10
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_10(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -14,3 +14,3 @@
-                     "Recorded restart",
--                    extra={"service_name": name, "restart_count": service.restart_count},
-+                    extra={"XXservice_nameXX": name, "restart_count": service.restart_count},
-                 )
-==== xǁServiceRegistryǁrecord_restart__mutmut_11
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_11(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -14,3 +14,3 @@
-                     "Recorded restart",
--                    extra={"service_name": name, "restart_count": service.restart_count},
-+                    extra={"SERVICE_NAME": name, "restart_count": service.restart_count},
-                 )
-==== xǁServiceRegistryǁrecord_restart__mutmut_12
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_12(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -14,3 +14,3 @@
-                     "Recorded restart",
--                    extra={"service_name": name, "restart_count": service.restart_count},
-+                    extra={"service_name": name, "XXrestart_countXX": service.restart_count},
-                 )
-==== xǁServiceRegistryǁrecord_restart__mutmut_13
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁrecord_restart__mutmut_13(self, name: str) -> None:
-         """Record a restart for a service.
-@@ -14,3 +14,3 @@
-                     "Recorded restart",
--                    extra={"service_name": name, "restart_count": service.restart_count},
-+                    extra={"service_name": name, "RESTART_COUNT": service.restart_count},
-                 )
-==== xǁServiceRegistryǁreset_failures__mutmut_3
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_3(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug(None, extra={"service_name": name})
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_15 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_15: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -22,7 +22,7 @@
+     if smoke_fire_result.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+-        lines.append("  Contact emergency services immediately.")
++        lines.append("  contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+         lines.append("  Potential fire hazard detected.")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_4
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_4(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("Reset failure tracking", extra=None)
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_16 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_16: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -22,7 +22,7 @@
+     if smoke_fire_result.has_fire:
+         lines.append("**CRITICAL FIRE ALERT**")
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+-        lines.append("  Contact emergency services immediately.")
++        lines.append("  CONTACT EMERGENCY SERVICES IMMEDIATELY.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+         lines.append("  Potential fire hazard detected.")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_6
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_6(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("Reset failure tracking", )
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_18 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_18: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -24,7 +24,7 @@
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+-        lines.append("**SMOKE DETECTION ALERT**")
++        lines.append("XX**SMOKE DETECTION ALERT**XX")
+         lines.append("  Potential fire hazard detected.")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_7
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_7(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("XXReset failure trackingXX", extra={"service_name": name})
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_8(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("reset failure tracking", extra={"service_name": name})
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_19 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_19: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -24,7 +24,7 @@
+         lines.append("  IMMEDIATE EVACUATION RECOMMENDED!")
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+-        lines.append("**SMOKE DETECTION ALERT**")
++        lines.append("**smoke detection alert**")
+         lines.append("  Potential fire hazard detected.")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_9
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_9(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("RESET FAILURE TRACKING", extra={"service_name": name})
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_10
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_10(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("Reset failure tracking", extra={"XXservice_nameXX": name})
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_21 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_21: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -25,7 +25,7 @@
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+-        lines.append("  Potential fire hazard detected.")
++        lines.append("XX  Potential fire hazard detected.XX")
 
-==== xǁServiceRegistryǁreset_failures__mutmut_11
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁreset_failures__mutmut_11(self, name: str) -> None:
-         """Reset failure tracking for a service.
-@@ -12,3 +12,3 @@
-                 service.reset_failures()
--                logger.debug("Reset failure tracking", extra={"service_name": name})
-+                logger.debug("Reset failure tracking", extra={"SERVICE_NAME": name})
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
-==== xǁServiceRegistryǁset_enabled__mutmut_4
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_4(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Set service enabled",
-+                    None,
-                     extra={"service_name": name, "enabled": enabled},
-==== xǁServiceRegistryǁset_enabled__mutmut_5
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_5(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -13,3 +13,3 @@
-                     "Set service enabled",
--                    extra={"service_name": name, "enabled": enabled},
-+                    extra=None,
-                 )
-==== xǁServiceRegistryǁset_enabled__mutmut_7
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_7(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -13,4 +13,3 @@
-                     "Set service enabled",
--                    extra={"service_name": name, "enabled": enabled},
--                )
-+                    )
 
-==== xǁServiceRegistryǁset_enabled__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_8(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Set service enabled",
-+                    "XXSet service enabledXX",
-                     extra={"service_name": name, "enabled": enabled},
-==== xǁServiceRegistryǁset_enabled__mutmut_9
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_9(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Set service enabled",
-+                    "set service enabled",
-                     extra={"service_name": name, "enabled": enabled},
-==== xǁServiceRegistryǁset_enabled__mutmut_10
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_10(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Set service enabled",
-+                    "SET SERVICE ENABLED",
-                     extra={"service_name": name, "enabled": enabled},
-==== xǁServiceRegistryǁset_enabled__mutmut_11
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_11(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -13,3 +13,3 @@
-                     "Set service enabled",
--                    extra={"service_name": name, "enabled": enabled},
-+                    extra={"XXservice_nameXX": name, "enabled": enabled},
-                 )
-==== xǁServiceRegistryǁset_enabled__mutmut_12
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_12(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -13,3 +13,3 @@
-                     "Set service enabled",
--                    extra={"service_name": name, "enabled": enabled},
-+                    extra={"SERVICE_NAME": name, "enabled": enabled},
-                 )
-==== xǁServiceRegistryǁset_enabled__mutmut_13
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_13(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -13,3 +13,3 @@
-                     "Set service enabled",
--                    extra={"service_name": name, "enabled": enabled},
-+                    extra={"service_name": name, "XXenabledXX": enabled},
-                 )
-==== xǁServiceRegistryǁset_enabled__mutmut_14
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
-+    def xǁServiceRegistryǁset_enabled__mutmut_14(self, name: str, enabled: bool) -> None:
-         """Set the enabled flag for a service.
-@@ -13,3 +13,3 @@
-                     "Set service enabled",
--                    extra={"service_name": name, "enabled": enabled},
-+                    extra={"service_name": name, "ENABLED": enabled},
-                 )
-==== xǁServiceRegistryǁunregister__mutmut_2
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_2(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug(None, extra={"service_name": name})
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_22 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_22: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -25,7 +25,7 @@
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+-        lines.append("  Potential fire hazard detected.")
++        lines.append("  potential fire hazard detected.")
 
-==== xǁServiceRegistryǁunregister__mutmut_3
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_3(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("Unregistered service", extra=None)
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
-==== xǁServiceRegistryǁunregister__mutmut_5
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_5(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("Unregistered service", )
 
-==== xǁServiceRegistryǁunregister__mutmut_6
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_6(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("XXUnregistered serviceXX", extra={"service_name": name})
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_23 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_23: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -25,7 +25,7 @@
+         lines.append("  Contact emergency services immediately.")
+     elif smoke_fire_result.has_smoke:
+         lines.append("**SMOKE DETECTION ALERT**")
+-        lines.append("  Potential fire hazard detected.")
++        lines.append("  POTENTIAL FIRE HAZARD DETECTED.")
 
-==== xǁServiceRegistryǁunregister__mutmut_7
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_7(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("unregistered service", extra={"service_name": name})
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
-==== xǁServiceRegistryǁunregister__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_8(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("UNREGISTERED SERVICE", extra={"service_name": name})
 
-==== xǁServiceRegistryǁunregister__mutmut_9
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_9(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("Unregistered service", extra={"XXservice_nameXX": name})
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_26 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_26: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -29,7 +29,7 @@
 
-==== xǁServiceRegistryǁunregister__mutmut_10
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
-+    def xǁServiceRegistryǁunregister__mutmut_10(self, name: str) -> None:
-         """Unregister a service from the registry.
-@@ -11,3 +11,3 @@
-                 del self._services[name]
--                logger.debug("Unregistered service", extra={"service_name": name})
-+                logger.debug("Unregistered service", extra={"SERVICE_NAME": name})
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
-==== xǁServiceRegistryǁupdate_container_id__mutmut_4
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_4(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Updated container ID",
-+                    None,
-                     extra={"service_name": name, "container_id": container_id},
-==== xǁServiceRegistryǁupdate_container_id__mutmut_5
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_5(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -13,3 +13,3 @@
-                     "Updated container ID",
--                    extra={"service_name": name, "container_id": container_id},
-+                    extra=None,
-                 )
-==== xǁServiceRegistryǁupdate_container_id__mutmut_7
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_7(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -13,4 +13,3 @@
-                     "Updated container ID",
--                    extra={"service_name": name, "container_id": container_id},
--                )
-+                    )
+-    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
++    for detection in sorted(smoke_fire_result.detections, key=None, reverse=True)[
+         :5
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
 
-==== xǁServiceRegistryǁupdate_container_id__mutmut_8
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_8(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Updated container ID",
-+                    "XXUpdated container IDXX",
-                     extra={"service_name": name, "container_id": container_id},
-==== xǁServiceRegistryǁupdate_container_id__mutmut_9
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_9(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Updated container ID",
-+                    "updated container id",
-                     extra={"service_name": name, "container_id": container_id},
-==== xǁServiceRegistryǁupdate_container_id__mutmut_10
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_10(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -12,3 +12,3 @@
-                 logger.debug(
--                    "Updated container ID",
-+                    "UPDATED CONTAINER ID",
-                     extra={"service_name": name, "container_id": container_id},
-==== xǁServiceRegistryǁupdate_container_id__mutmut_11
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_11(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -13,3 +13,3 @@
-                     "Updated container ID",
--                    extra={"service_name": name, "container_id": container_id},
-+                    extra={"XXservice_nameXX": name, "container_id": container_id},
-                 )
-==== xǁServiceRegistryǁupdate_container_id__mutmut_12
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_12(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -13,3 +13,3 @@
-                     "Updated container ID",
--                    extra={"service_name": name, "container_id": container_id},
-+                    extra={"SERVICE_NAME": name, "container_id": container_id},
-                 )
-==== xǁServiceRegistryǁupdate_container_id__mutmut_13
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_13(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -13,3 +13,3 @@
-                     "Updated container ID",
--                    extra={"service_name": name, "container_id": container_id},
-+                    extra={"service_name": name, "XXcontainer_idXX": container_id},
-                 )
-==== xǁServiceRegistryǁupdate_container_id__mutmut_14
----
-+++
-@@ -1,2 +1,2 @@
--    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
-+    def xǁServiceRegistryǁupdate_container_id__mutmut_14(self, name: str, container_id: str | None) -> None:
-         """Update the container ID for a service.
-@@ -13,3 +13,3 @@
-                     "Updated container ID",
--                    extra={"service_name": name, "container_id": container_id},
-+                    extra={"service_name": name, "CONTAINER_ID": container_id},
-                 )
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_4
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_27 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_27: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -29,7 +29,7 @@
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_4(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -16,3 +16,3 @@
-                 logger.debug(
--                    "Updated warmth state",
-+                    None,
-                     extra={"service_name": name, "warmth_state": state},
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_5
----
-+++
-@@ -4,3 +4,3 @@
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_5(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -17,3 +17,3 @@
-                     "Updated warmth state",
--                    extra={"service_name": name, "warmth_state": state},
-+                    extra=None,
-                 )
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_7
----
-+++
-@@ -4,3 +4,3 @@
+-    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
++    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=None)[
+         :5
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_7(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -17,4 +17,3 @@
-                     "Updated warmth state",
--                    extra={"service_name": name, "warmth_state": state},
--                )
-+                    )
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_29 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_29: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -29,7 +29,7 @@
 
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_8
----
-+++
-@@ -4,3 +4,3 @@
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_8(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -16,3 +16,3 @@
-                 logger.debug(
--                    "Updated warmth state",
-+                    "XXUpdated warmth stateXX",
-                     extra={"service_name": name, "warmth_state": state},
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_9
----
-+++
-@@ -4,3 +4,3 @@
+-    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
++    for detection in sorted(smoke_fire_result.detections, reverse=True)[
+         :5
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_9(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -16,3 +16,3 @@
-                 logger.debug(
--                    "Updated warmth state",
-+                    "updated warmth state",
-                     extra={"service_name": name, "warmth_state": state},
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_10
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_30 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_30: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -29,7 +29,7 @@
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_10(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -16,3 +16,3 @@
-                 logger.debug(
--                    "Updated warmth state",
-+                    "UPDATED WARMTH STATE",
-                     extra={"service_name": name, "warmth_state": state},
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_11
----
-+++
-@@ -4,3 +4,3 @@
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_11(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -17,3 +17,3 @@
-                     "Updated warmth state",
--                    extra={"service_name": name, "warmth_state": state},
-+                    extra={"XXservice_nameXX": name, "warmth_state": state},
-                 )
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_12
----
-+++
-@@ -4,3 +4,3 @@
+-    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
++    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, )[
+         :5
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_12(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -17,3 +17,3 @@
-                     "Updated warmth state",
--                    extra={"service_name": name, "warmth_state": state},
-+                    extra={"SERVICE_NAME": name, "warmth_state": state},
-                 )
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_13
----
-+++
-@@ -4,3 +4,3 @@
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_31 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_31: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -29,7 +29,7 @@
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_13(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -17,3 +17,3 @@
-                     "Updated warmth state",
--                    extra={"service_name": name, "warmth_state": state},
-+                    extra={"service_name": name, "XXwarmth_stateXX": state},
-                 )
-==== xǁServiceRegistryǁupdate_warmth_state__mutmut_14
----
-+++
-@@ -4,3 +4,3 @@
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
 
--    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
-+    def xǁServiceRegistryǁupdate_warmth_state__mutmut_14(self, name: str, state: str) -> None:
-         """Update a service's warmth state.
-@@ -17,3 +17,3 @@
-                     "Updated warmth state",
--                    extra={"service_name": name, "warmth_state": state},
-+                    extra={"service_name": name, "WARMTH_STATE": state},
-                 )
+-    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
++    for detection in sorted(smoke_fire_result.detections, key=lambda d: None, reverse=True)[
+         :5
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_32 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_32: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -29,7 +29,7 @@
+
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
+
+-    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
++    for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=False)[
+         :5
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_33 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_33: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -30,7 +30,7 @@
+     lines.append(f"  Highest confidence: {smoke_fire_result.highest_confidence:.0%}")
+
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+-        :5
++        :6
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
+         lines.append(
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_34 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_34: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -32,7 +32,7 @@
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+         :5
+     ]:
+-        priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
++        priority = None
+         lines.append(
+             f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
+         )
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_35 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_35: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -32,7 +32,7 @@
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+         :5
+     ]:
+-        priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
++        priority = " **HIGH PRIORITY**" if (detection.is_high_priority) and False else ""
+         lines.append(
+             f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
+         )
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_36 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_36: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -32,7 +32,7 @@
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+         :5
+     ]:
+-        priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
++        priority = " **HIGH PRIORITY**" if (detection.is_high_priority) or True else ""
+         lines.append(
+             f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
+         )
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_37 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_37: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -32,7 +32,7 @@
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+         :5
+     ]:
+-        priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
++        priority = "XX **HIGH PRIORITY**XX" if detection.is_high_priority else ""
+         lines.append(
+             f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
+         )
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_38 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_38: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -32,7 +32,7 @@
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+         :5
+     ]:
+-        priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
++        priority = " **high priority**" if detection.is_high_priority else ""
+         lines.append(
+             f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
+         )
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_39 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_39: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -32,7 +32,7 @@
+     for detection in sorted(smoke_fire_result.detections, key=lambda d: d.confidence, reverse=True)[
+         :5
+     ]:
+-        priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
++        priority = " **HIGH PRIORITY**" if detection.is_high_priority else "XXXX"
+         lines.append(
+             f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
+         )
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_41 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_41: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -34,7 +34,7 @@
+     ]:
+         priority = " **HIGH PRIORITY**" if detection.is_high_priority else ""
+         lines.append(
+-            f"    - {detection.detection_type.upper()} ({detection.confidence:.0%}){priority}"
++            f"    - {detection.detection_type.lower()} ({detection.confidence:.0%}){priority}"
+         )
+
+     # Time-based escalation
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_43 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_43: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.upper() in ("night", "late_night", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_44 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_44: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() not in ("night", "late_night", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_45 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_45: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("XXnightXX", "late_night", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_46 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_46: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("NIGHT", "late_night", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_47 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_47: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "XXlate_nightXX", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_48 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_48: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "LATE_NIGHT", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_49 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_49: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "late_night", "XXearly_morningXX"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_50 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_50: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -38,7 +38,7 @@
+         )
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "late_night", "EARLY_MORNING"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+
+=== backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_52 ===
+# backend.services.smoke_fire_loader.x_format_smoke_fire_context__mutmut_52: survived
+--- backend/services/smoke_fire_loader.py
++++ backend/services/smoke_fire_loader.py
+@@ -42,4 +42,4 @@
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Fire/smoke at night when occupants may be sleeping")
+
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)

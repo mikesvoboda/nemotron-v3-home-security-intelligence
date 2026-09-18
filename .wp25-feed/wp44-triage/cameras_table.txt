@@ -1,0 +1,133 @@
+##### x__extract_frame_from_video 81
+  1 | -output_path.parent.mkdir(parents=True, exist_ok=True) | +output_path.parent.mkdir(parents=None, exist_ok=True)
+  3 | -output_path.parent.mkdir(parents=True, exist_ok=True) | +output_path.parent.mkdir(exist_ok=True)
+  5 | -output_path.parent.mkdir(parents=True, exist_ok=True) | +output_path.parent.mkdir(parents=False, exist_ok=True)
+  7 | -cmd = [ || "ffmpeg", || "-y",  # Overwrite output file || "-ss", || "1",  # Seek to 1 second || "-i", || str(v | +cmd = None
+  8 | -"ffmpeg", | +"XXffmpegXX",
+  9 | -"ffmpeg", | +"FFMPEG",
+ 10 | -"-y",  # Overwrite output file | +"XX-yXX",  # Overwrite output file
+ 11 | -"-y",  # Overwrite output file | +"-Y",  # Overwrite output file
+ 12 | -"-ss", | +"XX-ssXX",
+ 13 | -"-ss", | +"-SS",
+ 14 | -"1",  # Seek to 1 second | +"XX1XX",  # Seek to 1 second
+ 15 | -"-i", | +"XX-iXX",
+ 16 | -"-i", | +"-I",
+ 17 | -str(video_path),  # Input file | +str(None),  # Input file
+ 18 | -"-vframes", | +"XX-vframesXX",
+ 19 | -"-vframes", | +"-VFRAMES",
+ 20 | -"1",  # Extract only 1 frame | +"XX1XX",  # Extract only 1 frame
+ 21 | -"-vf", | +"XX-vfXX",
+ 22 | -"-vf", | +"-VF",
+ 23 | -f"format=yuvj420p,scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease," | +f"format=yuvj420p,scale={size[1]}:{size[1]}:force_original_aspect_ratio=decrease,"
+ 25 | -f"pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2", | +f"pad={size[1]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",
+ 27 | -"-q:v", | +"XX-q:vXX",
+ 28 | -"-q:v", | +"-Q:V",
+ 29 | -"2",  # High quality JPEG | +"XX2XX",  # High quality JPEG
+ 30 | -str(output_path), | +str(None),
+ 32 | -subprocess.run, | +None,
+ 33 | -cmd, | +None,
+ 34 | -capture_output=True, | +capture_output=None,
+ 35 | -text=True, | +text=None,
+ 36 | -timeout=30, | +timeout=None,
+ 37 | -subprocess.run, | +
+ 38 | -cmd, | +
+ 39 | -capture_output=True, | +
+ 40 | -text=True, | +
+ 41 | -timeout=30, || ) | +)
+ 42 | -capture_output=True, | +capture_output=False,
+ 43 | -text=True, | +text=False,
+ 44 | -timeout=30, | +timeout=31,
+ 47 | -"ffmpeg frame extraction failed", | +None,
+ 48 | -extra={ || "video_path": str(video_path), || "stderr": result.stderr[:500] if result.stderr else "", || }, | +extra=None,
+ 49 | -"ffmpeg frame extraction failed", | +
+ 50 | -extra={ || "video_path": str(video_path), || "stderr": result.stderr[:500] if result.stderr else "", || }, ||  | +)
+ 51 | -"ffmpeg frame extraction failed", | +"XXffmpeg frame extraction failedXX",
+ 52 | -"ffmpeg frame extraction failed", | +"FFMPEG FRAME EXTRACTION FAILED",
+ 53 | -"video_path": str(video_path), | +"XXvideo_pathXX": str(video_path),
+ 54 | -"video_path": str(video_path), | +"VIDEO_PATH": str(video_path),
+ 55 | -"video_path": str(video_path), | +"video_path": str(None),
+ 56 | -"stderr": result.stderr[:500] if result.stderr else "", | +"XXstderrXX": result.stderr[:500] if result.stderr else "",
+ 57 | -"stderr": result.stderr[:500] if result.stderr else "", | +"STDERR": result.stderr[:500] if result.stderr else "",
+ 58 | -"stderr": result.stderr[:500] if result.stderr else "", | +"stderr": result.stderr[:500] if (result.stderr) and False else "",
+ 59 | -"stderr": result.stderr[:500] if result.stderr else "", | +"stderr": result.stderr[:500] if (result.stderr) or True else "",
+ 60 | -"stderr": result.stderr[:500] if result.stderr else "", | +"stderr": result.stderr[:501] if result.stderr else "",
+ 61 | -"stderr": result.stderr[:500] if result.stderr else "", | +"stderr": result.stderr[:500] if result.stderr else "XXXX",
+ 64 | -"Extracted snapshot from video", | +None,
+ 65 | -extra={ || "video_path": str(video_path), || "output_path": str(output_path), || }, | +extra=None,
+ 67 | -extra={ || "video_path": str(video_path), || "output_path": str(output_path), || }, || ) | +)
+ 68 | -"Extracted snapshot from video", | +"XXExtracted snapshot from videoXX",
+ 69 | -"Extracted snapshot from video", | +"extracted snapshot from video",
+ 70 | -"Extracted snapshot from video", | +"EXTRACTED SNAPSHOT FROM VIDEO",
+ 71 | -"video_path": str(video_path), | +"XXvideo_pathXX": str(video_path),
+ 72 | -"video_path": str(video_path), | +"VIDEO_PATH": str(video_path),
+ 73 | -"video_path": str(video_path), | +"video_path": str(None),
+ 74 | -"output_path": str(output_path), | +"XXoutput_pathXX": str(output_path),
+ 75 | -"output_path": str(output_path), | +"OUTPUT_PATH": str(output_path),
+ 76 | -"output_path": str(output_path), | +"output_path": str(None),
+ 78 | -"ffmpeg timed out extracting frame", | +None,
+ 79 | -extra={"video_path": str(video_path)}, | +extra=None,
+ 81 | -extra={"video_path": str(video_path)}, || ) | +)
+ 82 | -"ffmpeg timed out extracting frame", | +"XXffmpeg timed out extracting frameXX",
+ 83 | -"ffmpeg timed out extracting frame", | +"FFMPEG TIMED OUT EXTRACTING FRAME",
+ 84 | -extra={"video_path": str(video_path)}, | +extra={"XXvideo_pathXX": str(video_path)},
+ 85 | -extra={"video_path": str(video_path)}, | +extra={"VIDEO_PATH": str(video_path)},
+ 86 | -extra={"video_path": str(video_path)}, | +extra={"video_path": str(None)},
+ 88 | -"ffmpeg not found - video snapshot extraction unavailable", | +None,
+ 89 | -extra={"video_path": str(video_path)}, | +extra=None,
+ 91 | -extra={"video_path": str(video_path)}, || ) | +)
+ 92 | -"ffmpeg not found - video snapshot extraction unavailable", | +"XXffmpeg not found - video snapshot extraction unavailableXX",
+ 93 | -"ffmpeg not found - video snapshot extraction unavailable", | +"FFMPEG NOT FOUND - VIDEO SNAPSHOT EXTRACTION UNAVAILABLE",
+ 94 | -extra={"video_path": str(video_path)}, | +extra={"XXvideo_pathXX": str(video_path)},
+ 95 | -extra={"video_path": str(video_path)}, | +extra={"VIDEO_PATH": str(video_path)},
+ 96 | -extra={"video_path": str(video_path)}, | +extra={"video_path": str(None)},
+##### x__is_cache_valid 1
+  5 | -return (time.time() - mtime) < ttl_seconds | +return (time.time() - mtime) <= ttl_seconds
+##### x__resolve_camera_dir 48
+  7 | -if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name: | +if ".." in stored_folder_name or "/" in stored_folder_name and "\\" in stored_folder_name:
+  8 | -if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name: | +if ".." in stored_folder_name and "/" in stored_folder_name or "\\" in stored_folder_name:
+  9 | -if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name: | +if "XX..XX" in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name:
+ 11 | -if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name: | +if ".." in stored_folder_name or "XX/XX" in stored_folder_name or "\\" in stored_folder_name:
+ 13 | -if ".." in stored_folder_name or "/" in stored_folder_name or "\\" in stored_folder_name: | +if ".." in stored_folder_name or "/" in stored_folder_name or "XX\\XX" in stored_folder_name:
+ 15 | -"Invalid folder name detected, skipping fallback", | +None,
+ 16 | -extra={ || "camera_id": camera_id, || "folder_name": sanitize_log_value(stored_folder_name), || }, | +extra=None,
+ 18 | -extra={ || "camera_id": camera_id, || "folder_name": sanitize_log_value(stored_folder_name), || }, || ) | +)
+ 19 | -"Invalid folder name detected, skipping fallback", | +"XXInvalid folder name detected, skipping fallbackXX",
+ 20 | -"Invalid folder name detected, skipping fallback", | +"invalid folder name detected, skipping fallback",
+ 21 | -"Invalid folder name detected, skipping fallback", | +"INVALID FOLDER NAME DETECTED, SKIPPING FALLBACK",
+ 22 | -"camera_id": camera_id, | +"XXcamera_idXX": camera_id,
+ 23 | -"camera_id": camera_id, | +"CAMERA_ID": camera_id,
+ 24 | -"folder_name": sanitize_log_value(stored_folder_name), | +"XXfolder_nameXX": sanitize_log_value(stored_folder_name),
+ 25 | -"folder_name": sanitize_log_value(stored_folder_name), | +"FOLDER_NAME": sanitize_log_value(stored_folder_name),
+ 26 | -"folder_name": sanitize_log_value(stored_folder_name), | +"folder_name": sanitize_log_value(None),
+ 31 | -if fallback_path.exists() and fallback_path.is_dir(): | +if fallback_path.exists() or fallback_path.is_dir():
+ 32 | -"Using fallback camera path", | +None,
+ 33 | -extra={ || "camera_id": camera_id, || "stored_path": sanitize_log_value(camera_folder_path), || "fallback_path | +extra=None,
+ 35 | -extra={ || "camera_id": camera_id, || "stored_path": sanitize_log_value(camera_folder_path), || "fallback_path | +)
+ 36 | -"Using fallback camera path", | +"XXUsing fallback camera pathXX",
+ 37 | -"Using fallback camera path", | +"using fallback camera path",
+ 38 | -"Using fallback camera path", | +"USING FALLBACK CAMERA PATH",
+ 39 | -"camera_id": camera_id, | +"XXcamera_idXX": camera_id,
+ 40 | -"camera_id": camera_id, | +"CAMERA_ID": camera_id,
+ 41 | -"stored_path": sanitize_log_value(camera_folder_path), | +"XXstored_pathXX": sanitize_log_value(camera_folder_path),
+ 42 | -"stored_path": sanitize_log_value(camera_folder_path), | +"STORED_PATH": sanitize_log_value(camera_folder_path),
+ 43 | -"stored_path": sanitize_log_value(camera_folder_path), | +"stored_path": sanitize_log_value(None),
+ 44 | -"fallback_path": str(fallback_path), | +"XXfallback_pathXX": str(fallback_path),
+ 45 | -"fallback_path": str(fallback_path), | +"FALLBACK_PATH": str(fallback_path),
+ 46 | -"fallback_path": str(fallback_path), | +"fallback_path": str(None),
+ 47 | -"base_path": str(base_root), | +"XXbase_pathXX": str(base_root),
+ 48 | -"base_path": str(base_root), | +"BASE_PATH": str(base_root),
+ 49 | -"base_path": str(base_root), | +"base_path": str(None),
+ 50 | -"Camera folder_path outside base_path and no fallback found", | +None,
+ 51 | -extra={ || "camera_id": camera_id, || "folder_path": sanitize_log_value(camera_folder_path), || "base_path": s | +extra=None,
+ 53 | -extra={ || "camera_id": camera_id, || "folder_path": sanitize_log_value(camera_folder_path), || "base_path": s | +)
+ 54 | -"Camera folder_path outside base_path and no fallback found", | +"XXCamera folder_path outside base_path and no fallback foundXX",
+ 55 | -"Camera folder_path outside base_path and no fallback found", | +"camera folder_path outside base_path and no fallback found",
+ 56 | -"Camera folder_path outside base_path and no fallback found", | +"CAMERA FOLDER_PATH OUTSIDE BASE_PATH AND NO FALLBACK FOUND",
+ 57 | -"camera_id": camera_id, | +"XXcamera_idXX": camera_id,
+ 58 | -"camera_id": camera_id, | +"CAMERA_ID": camera_id,
+ 59 | -"folder_path": sanitize_log_value(camera_folder_path), | +"XXfolder_pathXX": sanitize_log_value(camera_folder_path),
+ 60 | -"folder_path": sanitize_log_value(camera_folder_path), | +"FOLDER_PATH": sanitize_log_value(camera_folder_path),
+ 61 | -"folder_path": sanitize_log_value(camera_folder_path), | +"folder_path": sanitize_log_value(None),
+ 62 | -"base_path": str(base_root), | +"XXbase_pathXX": str(base_root),
+ 63 | -"base_path": str(base_root), | +"BASE_PATH": str(base_root),
+ 64 | -"base_path": str(base_root), | +"base_path": str(None),

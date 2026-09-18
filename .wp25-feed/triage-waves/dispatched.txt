@@ -105,3 +105,6 @@ backend/services/health_monitor_orchestrator.py
 backend/api/routes/cameras.py
 backend/api/routes/health_ai_services.py
 backend/services/retry_handler.py
+backend/services/depth_anything_loader.py
+backend/services/model_zoo.py
+backend/services/weather_loader.py

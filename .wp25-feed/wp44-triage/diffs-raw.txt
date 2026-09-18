@@ -1,0 +1,2429 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+@@ -22,5 +22,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+             True if the event was successfully emitted, False otherwise.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+     # Use user-specific room pattern
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+-    room = f"user:{user_id}"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
++    room = None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_1
+     return await self.emit(event_type, payload, room=room, correlation_id=correlation_id)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+@@ -23,4 +23,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+     # Use user-specific room pattern
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+     room = f"user:{user_id}"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
+-    return await self.emit(event_type, payload, room=room, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_4
++    return await self.emit(event_type, payload, room=None, correlation_id=correlation_id)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+@@ -23,4 +23,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+     # Use user-specific room pattern
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+     room = f"user:{user_id}"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
+-    return await self.emit(event_type, payload, room=room, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_5
++    return await self.emit(event_type, payload, room=room, correlation_id=None)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+@@ -23,4 +23,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+     # Use user-specific room pattern
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+     room = f"user:{user_id}"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
+-    return await self.emit(event_type, payload, room=room, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_8
++    return await self.emit(event_type, payload, correlation_id=correlation_id)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+@@ -23,4 +23,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+     # Use user-specific room pattern
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+     room = f"user:{user_id}"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
+-    return await self.emit(event_type, payload, room=room, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_to_user__mutmut_9
++    return await self.emit(event_type, payload, room=room, )
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+@@ -17,4 +17,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+         Returns:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+             True if the event was successfully broadcast, False otherwise.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
+-    return await self.emit(event_type, payload, room=None, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_3
++    return await self.emit(event_type, payload, room=None, correlation_id=None)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+@@ -17,4 +17,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+         Returns:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+             True if the event was successfully broadcast, False otherwise.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
+-    return await self.emit(event_type, payload, room=None, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_6
++    return await self.emit(event_type, payload, correlation_id=correlation_id)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+@@ -17,4 +17,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+         Returns:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+             True if the event was successfully broadcast, False otherwise.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
+-    return await self.emit(event_type, payload, room=None, correlation_id=correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁbroadcast__mutmut_7
++    return await self.emit(event_type, payload, room=None, )
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+@@ -14,7 +14,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+             Number of events successfully emitted.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+     success_count = 0
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+-    shared_correlation_id = correlation_id or str(uuid.uuid4())
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
++    shared_correlation_id = None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+     for event_type, payload in events:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_3
+         try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+@@ -14,7 +14,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+             Number of events successfully emitted.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+     success_count = 0
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+-    shared_correlation_id = correlation_id or str(uuid.uuid4())
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
++    shared_correlation_id = correlation_id and str(uuid.uuid4())
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+     for event_type, payload in events:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_4
+         try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+@@ -14,7 +14,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+             Number of events successfully emitted.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+     success_count = 0
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+-    shared_correlation_id = correlation_id or str(uuid.uuid4())
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
++    shared_correlation_id = correlation_id or str(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+     for event_type, payload in events:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_5
+         try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+@@ -18,7 +18,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+     for event_type, payload in events:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+         try:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+-            success = await self.emit(event_type, payload, correlation_id=shared_correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
++            success = await self.emit(event_type, payload, correlation_id=None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+             if success:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+                 success_count += 1
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_9
+         except ValidationError:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+@@ -18,7 +18,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+     for event_type, payload in events:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+         try:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+-            success = await self.emit(event_type, payload, correlation_id=shared_correlation_id)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
++            success = await self.emit(event_type, payload, )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+             if success:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+                 success_count += 1
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_12
+         except ValidationError:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+@@ -23,7 +23,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+                 success_count += 1
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+         except ValidationError:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+             # Continue with other events even if one fails validation
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+-            logger.warning(f"Skipping event {event_type} due to validation error in batch")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
++            logger.warning(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+             continue
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁemit_batch__mutmut_16
+     return success_count
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+     if self._event_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+-        logger.warning("EventBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
++        logger.warning(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_2
+     payload = message.get("payload", {})
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+     if self._event_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+-        logger.warning("EventBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
++        logger.warning("XXEventBroadcaster not availableXX")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_3
+     payload = message.get("payload", {})
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+     if self._event_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+-        logger.warning("EventBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
++        logger.warning("eventbroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_4
+     payload = message.get("payload", {})
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+     if self._event_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+-        logger.warning("EventBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
++        logger.warning("EVENTBROADCASTER NOT AVAILABLE")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_5
+     payload = message.get("payload", {})
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+@@ -15,7 +15,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+         logger.warning("EventBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+-    payload = message.get("payload", {})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
++    payload = message.get("payload", None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+     # Map event types to broadcaster methods
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_8
+     # Alert events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+@@ -15,7 +15,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+         logger.warning("EventBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+-    payload = message.get("payload", {})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
++    payload = message.get("payload", )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+     # Map event types to broadcaster methods
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_10
+     # Alert events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+@@ -36,7 +36,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+             WebSocketEventType.ALERT_RESOLVED: WebSocketAlertEventType.ALERT_RESOLVED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+             WebSocketEventType.ALERT_DISMISSED: WebSocketAlertEventType.ALERT_DISMISSED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+-        await self._event_broadcaster.broadcast_alert(payload, alert_type_map[event_type])
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
++        await self._event_broadcaster.broadcast_alert(None, alert_type_map[event_type])
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+     # Camera events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_15
+     elif event_type in (
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+@@ -36,7 +36,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+             WebSocketEventType.ALERT_RESOLVED: WebSocketAlertEventType.ALERT_RESOLVED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+             WebSocketEventType.ALERT_DISMISSED: WebSocketAlertEventType.ALERT_DISMISSED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+-        await self._event_broadcaster.broadcast_alert(payload, alert_type_map[event_type])
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
++        await self._event_broadcaster.broadcast_alert(payload, None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+     # Camera events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_16
+     elif event_type in (
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+@@ -36,7 +36,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+             WebSocketEventType.ALERT_RESOLVED: WebSocketAlertEventType.ALERT_RESOLVED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+             WebSocketEventType.ALERT_DISMISSED: WebSocketAlertEventType.ALERT_DISMISSED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+-        await self._event_broadcaster.broadcast_alert(payload, alert_type_map[event_type])
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
++        await self._event_broadcaster.broadcast_alert(alert_type_map[event_type])
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+     # Camera events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_17
+     elif event_type in (
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+@@ -36,7 +36,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+             WebSocketEventType.ALERT_RESOLVED: WebSocketAlertEventType.ALERT_RESOLVED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+             WebSocketEventType.ALERT_DISMISSED: WebSocketAlertEventType.ALERT_DISMISSED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+-        await self._event_broadcaster.broadcast_alert(payload, alert_type_map[event_type])
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
++        await self._event_broadcaster.broadcast_alert(payload, )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+     # Camera events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_18
+     elif event_type in (
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+@@ -46,10 +46,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+         WebSocketEventType.CAMERA_ERROR,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+         # Add event_type to payload for camera status messages
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+-        camera_payload = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+-            "event_type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+-            **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+-        }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
++        camera_payload = None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+             {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_20
+         )
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+@@ -47,7 +47,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+         # Add event_type to payload for camera status messages
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+         camera_payload = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+-            "event_type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
++            "XXevent_typeXX": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_21
+         await self._event_broadcaster.broadcast_camera_status(
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+@@ -47,7 +47,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+         # Add event_type to payload for camera status messages
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+         camera_payload = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+-            "event_type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
++            "EVENT_TYPE": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_22
+         await self._event_broadcaster.broadcast_camera_status(
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
++            None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_23
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
++            {"XXtypeXX": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_24
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
++            {"TYPE": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_25
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
++            {"type": "XXcamera_statusXX", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_26
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
++            {"type": "CAMERA_STATUS", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_27
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
++            {"type": "camera_status", "XXdataXX": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_28
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+@@ -51,7 +51,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+         await self._event_broadcaster.broadcast_camera_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+-            {"type": "camera_status", "data": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
++            {"type": "camera_status", "DATA": camera_payload}
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_29
+     # Scene change events
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
++        await self._event_broadcaster.broadcast_event(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_39
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
++        await self._event_broadcaster.broadcast_event({"XXtypeXX": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_40
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
++        await self._event_broadcaster.broadcast_event({"TYPE": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_41
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
++        await self._event_broadcaster.broadcast_event({"type": "XXeventXX", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_42
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
++        await self._event_broadcaster.broadcast_event({"type": "EVENT", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_43
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
++        await self._event_broadcaster.broadcast_event({"type": "event", "XXdataXX": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_44
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+@@ -65,7 +65,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+         WebSocketEventType.EVENT_CREATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+         WebSocketEventType.EVENT_UPDATED,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+-        await self._event_broadcaster.broadcast_event({"type": "event", "data": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
++        await self._event_broadcaster.broadcast_event({"type": "event", "DATA": payload})
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+     # Service status events
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_45
+     elif event_type == WebSocketEventType.SERVICE_STATUS_CHANGED:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+@@ -73,7 +73,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+                 "type": "service_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+                 "data": payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
++                "XXtimestampXX": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_54
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+@@ -73,7 +73,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+                 "type": "service_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+                 "data": payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
++                "TIMESTAMP": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_55
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+@@ -73,7 +73,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+                 "type": "service_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+                 "data": payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
++                "timestamp": message.get(None),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_56
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+@@ -73,7 +73,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+                 "type": "service_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+                 "data": payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
++                "timestamp": message.get("XXtimestampXX"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_57
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+@@ -73,7 +73,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+                 "type": "service_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+                 "data": payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
++                "timestamp": message.get("TIMESTAMP"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_58
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+@@ -87,10 +87,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+         WebSocketEventType.WORKER_ERROR,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+         # Broadcast worker status events with consistent structure
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+-        worker_payload = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+-            "event_type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+-            **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+-        }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
++        worker_payload = None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_60
+                 "type": "worker_status",
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+@@ -88,7 +88,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+         # Broadcast worker status events with consistent structure
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+         worker_payload = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+-            "event_type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
++            "XXevent_typeXX": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_61
+         await self._event_broadcaster.broadcast_worker_status(
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+@@ -88,7 +88,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+     ):
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+         # Broadcast worker status events with consistent structure
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+         worker_payload = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+-            "event_type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
++            "EVENT_TYPE": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_62
+         await self._event_broadcaster.broadcast_worker_status(
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+@@ -92,11 +92,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+             **payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+-            {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+-                "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+-                "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+-            }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
++            None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_63
+     # Default: publish via Redis
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+@@ -93,7 +93,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+-                "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
++                "XXtypeXX": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+                 "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_64
+             }
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+@@ -93,7 +93,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+-                "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
++                "TYPE": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+                 "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_65
+             }
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+@@ -93,7 +93,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+-                "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
++                "type": "XXworker_statusXX",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+                 "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_66
+             }
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+@@ -93,7 +93,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+         }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+-                "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
++                "type": "WORKER_STATUS",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+                 "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_67
+             }
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+@@ -94,7 +94,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+-                "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
++                "XXdataXX": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+                 "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_68
+         )
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+@@ -94,7 +94,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+         await self._event_broadcaster.broadcast_worker_status(
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+-                "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
++                "DATA": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+                 "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_69
+         )
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+@@ -95,7 +95,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
++                "XXtimestampXX": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_70
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+@@ -95,7 +95,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
++                "TIMESTAMP": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_71
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+@@ -95,7 +95,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
++                "timestamp": message.get(None),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_72
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+@@ -95,7 +95,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
++                "timestamp": message.get("XXtimestampXX"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_73
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+@@ -95,7 +95,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+             {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+                 "type": "worker_status",
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+                 "data": worker_payload,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+-                "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
++                "timestamp": message.get("TIMESTAMP"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+             }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+         )
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_74
+
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+@@ -101,5 +101,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+-        channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
++        channel = None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_76
+         await self._publish_to_redis(message, channel)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+@@ -101,5 +101,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+-        channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
++        channel = get_event_channel(event_type) and "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_77
+         await self._publish_to_redis(message, channel)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+@@ -101,5 +101,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+-        channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
++        channel = get_event_channel(None) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_78
+         await self._publish_to_redis(message, channel)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+@@ -101,5 +101,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+-        channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
++        channel = get_event_channel(event_type) or "XXeventsXX"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_79
+         await self._publish_to_redis(message, channel)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+@@ -101,5 +101,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+-        channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
++        channel = get_event_channel(event_type) or "EVENTS"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_80
+         await self._publish_to_redis(message, channel)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+@@ -102,4 +102,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+         channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
+-        await self._publish_to_redis(message, channel)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_81
++        await self._publish_to_redis(None, channel)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+@@ -102,4 +102,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+     # Default: publish via Redis
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+     elif self._redis_client is not None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+         channel = get_event_channel(event_type) or "events"
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
+-        await self._publish_to_redis(message, channel)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_event_broadcaster__mutmut_82
++        await self._publish_to_redis(message, None)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+@@ -10,7 +10,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+     if self._system_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+-        logger.warning("SystemBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
++        logger.warning(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_2
+     # System status events use broadcast_status
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+@@ -10,7 +10,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+     if self._system_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+-        logger.warning("SystemBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
++        logger.warning("XXSystemBroadcaster not availableXX")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_3
+     # System status events use broadcast_status
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+@@ -10,7 +10,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+     if self._system_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+-        logger.warning("SystemBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
++        logger.warning("systembroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_4
+     # System status events use broadcast_status
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+@@ -10,7 +10,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+             message: The complete event message.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+     if self._system_broadcaster is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+-        logger.warning("SystemBroadcaster not available")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
++        logger.warning("SYSTEMBROADCASTER NOT AVAILABLE")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_5
+     # System status events use broadcast_status
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+@@ -14,9 +14,5 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+-    status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+-        "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+-        "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+-    }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
++    status_data = None
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_6
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+@@ -15,7 +15,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+-        "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
++        "XXtypeXX": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_7
+     }
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+@@ -15,7 +15,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+-        "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
++        "TYPE": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_8
+     }
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
++        "XXdataXX": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_9
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
++        "DATA": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_10
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
++        "data": message.get(None, {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_11
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
++        "data": message.get("payload", None),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_12
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
++        "data": message.get("payload", ),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_14
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
++        "data": message.get("XXpayloadXX", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_15
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+@@ -16,7 +16,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+     # System status events use broadcast_status
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+-        "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
++        "data": message.get("PAYLOAD", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_16
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+@@ -17,6 +17,6 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+-        "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
++        "XXtimestampXX": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_17
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+@@ -17,6 +17,6 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+-        "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
++        "TIMESTAMP": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_18
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+@@ -17,6 +17,6 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+-        "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
++        "timestamp": message.get(None),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_19
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+@@ -17,6 +17,6 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+-        "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
++        "timestamp": message.get("XXtimestampXX"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_20
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+@@ -17,6 +17,6 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+     status_data = {
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+         "type": event_type.value,
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+-        "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
++        "timestamp": message.get("TIMESTAMP"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_21
+     await self._system_broadcaster.broadcast_status(status_data)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+@@ -19,4 +19,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+         "data": message.get("payload", {}),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+         "timestamp": message.get("timestamp"),
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+     }
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
+-    await self._system_broadcaster.broadcast_status(status_data)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_dispatch_to_system_broadcaster__mutmut_22
++    await self._system_broadcaster.broadcast_status(None)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+             channel: Redis channel to publish to.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+     if self._redis_client is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+-        logger.warning("Redis client not available for direct publish")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
++        logger.warning(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_2
+     try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+             channel: Redis channel to publish to.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+     if self._redis_client is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+-        logger.warning("Redis client not available for direct publish")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
++        logger.warning("XXRedis client not available for direct publishXX")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_3
+     try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+             channel: Redis channel to publish to.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+     if self._redis_client is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+-        logger.warning("Redis client not available for direct publish")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
++        logger.warning("redis client not available for direct publish")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_4
+     try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+@@ -12,7 +12,7 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+             channel: Redis channel to publish to.
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+         """
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+     if self._redis_client is None:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+-        logger.warning("Redis client not available for direct publish")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
++        logger.warning("REDIS CLIENT NOT AVAILABLE FOR DIRECT PUBLISH")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+         return
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_5
+     try:
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+@@ -17,6 +17,6 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+     try:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+         await self._redis_client.publish(channel, message)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+-        logger.debug(f"Published event to Redis channel: {channel}")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
++        logger.debug(None)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+     except Exception as e:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_10
+         logger.error(f"Failed to publish to Redis: {e}", exc_info=True)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+@@ -19,4 +19,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+         await self._redis_client.publish(channel, message)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+         logger.debug(f"Published event to Redis channel: {channel}")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+     except Exception as e:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
+-        logger.error(f"Failed to publish to Redis: {e}", exc_info=True)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_11
++        logger.error(None, exc_info=True)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+@@ -19,4 +19,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+         await self._redis_client.publish(channel, message)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+         logger.debug(f"Published event to Redis channel: {channel}")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+     except Exception as e:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
+-        logger.error(f"Failed to publish to Redis: {e}", exc_info=True)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_12
++        logger.error(f"Failed to publish to Redis: {e}", exc_info=None)
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+@@ -19,4 +19,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+         await self._redis_client.publish(channel, message)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+         logger.debug(f"Published event to Redis channel: {channel}")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+     except Exception as e:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
+-        logger.error(f"Failed to publish to Redis: {e}", exc_info=True)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_14
++        logger.error(f"Failed to publish to Redis: {e}", )
+=====
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+# backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15: survived
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+@@ -19,4 +19,4 @@
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+         await self._redis_client.publish(channel, message)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+         logger.debug(f"Published event to Redis channel: {channel}")
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+     except Exception as e:
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
+-        logger.error(f"Failed to publish to Redis: {e}", exc_info=True)
+KEY=backend.services.websocket_emitter.xǁWebSocketEmitterServiceǁ_publish_to_redis__mutmut_15
++        logger.error(f"Failed to publish to Redis: {e}", exc_info=False)
+=====
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+# backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17: survived
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+@@ -56,7 +56,7 @@
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+                 system_broadcaster=system_broadcaster,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+                 redis_client=redis_client,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+             )
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+-            logger.info("Global WebSocket emitter initialized")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
++            logger.info(None)
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+         else:
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+             # Update broadcasters if provided
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_17
+             if event_broadcaster is not None:
+=====
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+# backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18: survived
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+@@ -56,7 +56,7 @@
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+                 system_broadcaster=system_broadcaster,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+                 redis_client=redis_client,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+             )
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+-            logger.info("Global WebSocket emitter initialized")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
++            logger.info("XXGlobal WebSocket emitter initializedXX")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+         else:
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+             # Update broadcasters if provided
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_18
+             if event_broadcaster is not None:
+=====
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+# backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19: survived
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+@@ -56,7 +56,7 @@
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+                 system_broadcaster=system_broadcaster,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+                 redis_client=redis_client,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+             )
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+-            logger.info("Global WebSocket emitter initialized")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
++            logger.info("global websocket emitter initialized")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+         else:
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+             # Update broadcasters if provided
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_19
+             if event_broadcaster is not None:
+=====
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+# backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20: survived
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+--- backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
++++ backend/services/websocket_emitter.py
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+@@ -56,7 +56,7 @@
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+                 system_broadcaster=system_broadcaster,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+                 redis_client=redis_client,
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+             )
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+-            logger.info("Global WebSocket emitter initialized")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
++            logger.info("GLOBAL WEBSOCKET EMITTER INITIALIZED")
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+         else:
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+             # Update broadcasters if provided
+KEY=backend.services.websocket_emitter.x_get_websocket_emitter__mutmut_20
+             if event_broadcaster is not None:
+=====

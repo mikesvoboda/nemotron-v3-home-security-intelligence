@@ -1,0 +1,1495 @@
+# backend.services.model_zoo.x_load_yolo_model__mutmut_1: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -20,7 +20,7 @@
+         # Attempt to import ultralytics for YOLO support
+         from ultralytics import YOLO
+
+-        logger.info(f"Loading YOLO model from {model_path}")
++        logger.info(None)
+
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+# backend.services.model_zoo.x_load_yolo_model__mutmut_2: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "/" in model_path or not model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_3: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "XX/XX" in model_path and not model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_4: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "/" not in model_path and not model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_5: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "/" in model_path and model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_6: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "/" in model_path and not model_path.startswith(None):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_7: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "/" in model_path and not model_path.startswith("XXhttpXX"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_8: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -25,7 +25,7 @@
+         # Validate model file exists for local paths (paths containing '/')
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+-        if "/" in model_path and not model_path.startswith("http"):
++        if "/" in model_path and not model_path.startswith("HTTP"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+# backend.services.model_zoo.x_load_yolo_model__mutmut_9: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -26,7 +26,7 @@
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+         if "/" in model_path and not model_path.startswith("http"):
+-            if not Path(model_path).exists():
++            if Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+                 if Path(parent_dir).is_dir():
+# backend.services.model_zoo.x_load_yolo_model__mutmut_10: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -26,7 +26,7 @@
+         # This catches missing model files early with a clear error message
+         # instead of letting ultralytics raise a cryptic FileNotFoundError
+         if "/" in model_path and not model_path.startswith("http"):
+-            if not Path(model_path).exists():
++            if not Path(None).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+                 if Path(parent_dir).is_dir():
+# backend.services.model_zoo.x_load_yolo_model__mutmut_11: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -28,7 +28,7 @@
+         if "/" in model_path and not model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+-                parent_dir = str(Path(model_path).parent)
++                parent_dir = None
+                 if Path(parent_dir).is_dir():
+                     available_files = [
+                         f.name
+# backend.services.model_zoo.x_load_yolo_model__mutmut_12: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -28,7 +28,7 @@
+         if "/" in model_path and not model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+-                parent_dir = str(Path(model_path).parent)
++                parent_dir = str(None)
+                 if Path(parent_dir).is_dir():
+                     available_files = [
+                         f.name
+# backend.services.model_zoo.x_load_yolo_model__mutmut_13: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -28,7 +28,7 @@
+         if "/" in model_path and not model_path.startswith("http"):
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+-                parent_dir = str(Path(model_path).parent)
++                parent_dir = str(Path(None).parent)
+                 if Path(parent_dir).is_dir():
+                     available_files = [
+                         f.name
+# backend.services.model_zoo.x_load_yolo_model__mutmut_14: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -29,7 +29,7 @@
+             if not Path(model_path).exists():
+                 # Check if this is a .pt file path vs a directory
+                 parent_dir = str(Path(model_path).parent)
+-                if Path(parent_dir).is_dir():
++                if Path(None).is_dir():
+                     available_files = [
+                         f.name
+                         for f in Path(parent_dir).iterdir()
+# backend.services.model_zoo.x_load_yolo_model__mutmut_15: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -41,9 +41,7 @@
+                     )
+                 else:
+                     logger.warning(
+-                        f"Model path does not exist: {model_path}. "
+-                        f"Ensure the model directory is mounted in the container. "
+-                        f"Download with: python scripts/download-model-zoo.py --all"
++                        None
+                     )
+                 raise RuntimeError(
+                     f"Model file not found: {model_path}. "
+# backend.services.model_zoo.x_load_yolo_model__mutmut_16: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,8 +46,7 @@
+                         f"Download with: python scripts/download-model-zoo.py --all"
+                     )
+                 raise RuntimeError(
+-                    f"Model file not found: {model_path}. "
+-                    f"Download the model with: python scripts/download-model-zoo.py --all"
++                    None
+                 )
+
+         def _load_and_fuse() -> Any:
+# backend.services.model_zoo.x_load_yolo_model__mutmut_17: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -96,7 +96,7 @@
+         return model
+
+     except ImportError:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning(None)
+         raise
+
+     except Exception as e:
+# backend.services.model_zoo.x_load_yolo_model__mutmut_18: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -96,7 +96,7 @@
+         return model
+
+     except ImportError:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("XXultralytics package not installed. Install with: pip install ultralyticsXX")
+         raise
+
+     except Exception as e:
+# backend.services.model_zoo.x_load_yolo_model__mutmut_19: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -96,7 +96,7 @@
+         return model
+
+     except ImportError:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("ultralytics package not installed. install with: pip install ultralytics")
+         raise
+
+     except Exception as e:
+# backend.services.model_zoo.x_load_yolo_model__mutmut_20: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -96,7 +96,7 @@
+         return model
+
+     except ImportError:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("ULTRALYTICS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL ULTRALYTICS")
+         raise
+
+     except Exception as e:
+# backend.services.model_zoo.x_load_yolo_model__mutmut_21: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error(None, exc_info=True, extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_22: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", exc_info=None, extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_23: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", exc_info=True, extra=None)
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_25: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_26: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", exc_info=True, )
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_27: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("XXFailed to load YOLO modelXX", exc_info=True, extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_28: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("failed to load yolo model", exc_info=True, extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_29: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("FAILED TO LOAD YOLO MODEL", exc_info=True, extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_30: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", exc_info=False, extra={"model_path": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_31: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", exc_info=True, extra={"XXmodel_pathXX": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x_load_yolo_model__mutmut_32: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -100,5 +100,5 @@
+         raise
+
+     except Exception as e:
+-        logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
++        logger.error("Failed to load YOLO model", exc_info=True, extra={"MODEL_PATH": model_path})
+         raise RuntimeError(f"Failed to load YOLO model: {e}") from e
+# backend.services.model_zoo.x__is_paddleocr_available__mutmut_1: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -7,6 +7,6 @@
+     try:
+         import importlib.util
+
+-        return importlib.util.find_spec("paddleocr") is not None
++        return importlib.util.find_spec(None) is not None
+     except ImportError, ModuleNotFoundError:
+         return False
+# backend.services.model_zoo.x__is_paddleocr_available__mutmut_2: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -7,6 +7,6 @@
+     try:
+         import importlib.util
+
+-        return importlib.util.find_spec("paddleocr") is not None
++        return importlib.util.find_spec("XXpaddleocrXX") is not None
+     except ImportError, ModuleNotFoundError:
+         return False
+# backend.services.model_zoo.x__is_paddleocr_available__mutmut_3: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -7,6 +7,6 @@
+     try:
+         import importlib.util
+
+-        return importlib.util.find_spec("paddleocr") is not None
++        return importlib.util.find_spec("PADDLEOCR") is not None
+     except ImportError, ModuleNotFoundError:
+         return False
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_2: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -20,8 +20,7 @@
+     # Check availability first to provide graceful failure
+     if not _is_paddleocr_available():
+         logger.info(
+-            "paddleocr package not installed - OCR features disabled. "
+-            "Install with: pip install paddleocr paddlepaddle"
++            None
+         )
+         raise RuntimeError(
+             "paddleocr package not installed. OCR features are disabled. "
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_3: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -20,7 +20,7 @@
+     # Check availability first to provide graceful failure
+     if not _is_paddleocr_available():
+         logger.info(
+-            "paddleocr package not installed - OCR features disabled. "
++            "XXpaddleocr package not installed - OCR features disabled. XX"
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+         raise RuntimeError(
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_4: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -20,7 +20,7 @@
+     # Check availability first to provide graceful failure
+     if not _is_paddleocr_available():
+         logger.info(
+-            "paddleocr package not installed - OCR features disabled. "
++            "paddleocr package not installed - ocr features disabled. "
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+         raise RuntimeError(
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_5: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -20,7 +20,7 @@
+     # Check availability first to provide graceful failure
+     if not _is_paddleocr_available():
+         logger.info(
+-            "paddleocr package not installed - OCR features disabled. "
++            "PADDLEOCR PACKAGE NOT INSTALLED - OCR FEATURES DISABLED. "
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+         raise RuntimeError(
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_7: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -24,7 +24,7 @@
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+         raise RuntimeError(
+-            "paddleocr package not installed. OCR features are disabled. "
++            "XXpaddleocr package not installed. OCR features are disabled. XX"
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_8: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -24,7 +24,7 @@
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+         raise RuntimeError(
+-            "paddleocr package not installed. OCR features are disabled. "
++            "paddleocr package not installed. ocr features are disabled. "
+             "Install with: pip install paddleocr paddlepaddle"
+         )
+
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_10: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -31,7 +31,7 @@
+     try:
+         from paddleocr import PaddleOCR
+
+-        logger.info(f"Loading PaddleOCR model (config: {model_path})")
++        logger.info(None)
+
+         # Run model loading in thread pool to avoid blocking
+         loop = asyncio.get_running_loop()
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_11: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -34,7 +34,7 @@
+         logger.info(f"Loading PaddleOCR model (config: {model_path})")
+
+         # Run model loading in thread pool to avoid blocking
+-        loop = asyncio.get_running_loop()
++        loop = None
+         # PaddleOCR downloads models automatically on first use
+         # use_angle_cls=True enables text direction classification
+         # lang='en' for English text recognition (license plates)
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_13: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            None,
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_14: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -39,7 +39,6 @@
+         # use_angle_cls=True enables text direction classification
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+-            None,
+             lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+         )
+
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_15: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,8 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+-        )
++            )
+
+         logger.info("Successfully loaded PaddleOCR model")
+         return model
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_17: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=None, lang="en", show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_18: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, lang=None, show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_19: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=None),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_20: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(lang="en", show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_21: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_22: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, lang="en", ),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_23: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=False, lang="en", show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_24: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, lang="XXenXX", show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_25: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, lang="EN", show_log=False),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_26: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         # lang='en' for English text recognition (license plates)
+         model = await loop.run_in_executor(
+             None,
+-            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
++            lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=True),
+         )
+
+         logger.info("Successfully loaded PaddleOCR model")
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_27: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error(None, exc_info=True)
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_28: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error("Failed to load PaddleOCR", exc_info=None)
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_30: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error("Failed to load PaddleOCR", )
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_31: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error("XXFailed to load PaddleOCRXX", exc_info=True)
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_32: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error("failed to load paddleocr", exc_info=True)
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_33: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error("FAILED TO LOAD PADDLEOCR", exc_info=True)
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.x_load_paddle_ocr__mutmut_34: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -57,5 +57,5 @@
+         ) from e
+
+     except Exception as e:
+-        logger.error("Failed to load PaddleOCR", exc_info=True)
++        logger.error("Failed to load PaddleOCR", exc_info=False)
+         raise RuntimeError(f"Failed to load PaddleOCR: {e}") from e
+# backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_5: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -4,4 +4,4 @@
+     self._lock = asyncio.Lock()
+     self._load_counts: dict[str, int] = {}  # Reference counting for nested loads
+     self._previously_loaded: set[str] = set()  # Track models that have been loaded before
+-    logger.info("ModelManager initialized")
++    logger.info(None)
+# backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_6: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -4,4 +4,4 @@
+     self._lock = asyncio.Lock()
+     self._load_counts: dict[str, int] = {}  # Reference counting for nested loads
+     self._previously_loaded: set[str] = set()  # Track models that have been loaded before
+-    logger.info("ModelManager initialized")
++    logger.info("XXModelManager initializedXX")
+# backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_7: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -4,4 +4,4 @@
+     self._lock = asyncio.Lock()
+     self._load_counts: dict[str, int] = {}  # Reference counting for nested loads
+     self._previously_loaded: set[str] = set()  # Track models that have been loaded before
+-    logger.info("ModelManager initialized")
++    logger.info("modelmanager initialized")
+# backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_8: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -4,4 +4,4 @@
+     self._lock = asyncio.Lock()
+     self._load_counts: dict[str, int] = {}  # Reference counting for nested loads
+     self._previously_loaded: set[str] = set()  # Track models that have been loaded before
+-    logger.info("ModelManager initialized")
++    logger.info("MODELMANAGER INITIALIZED")
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_9: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -23,7 +23,7 @@
+     # Check if this is a restart (model was previously loaded)
+     is_restart = model_name in self._previously_loaded
+
+-    logger.info(f"Loading model {model_name} (~{config.vram_mb}MB VRAM)")
++    logger.info(None)
+
+     # Track load time for metrics (NEM-4145)
+     start_time = time.perf_counter()
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_11: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -33,7 +33,7 @@
+     # responsive for health checks.  The underlying run_in_executor thread
+     # will keep running, but the asyncio coroutine is freed so other tasks
+     # (watchdog, health endpoints) can execute.
+-    _MODEL_LOAD_TIMEOUT = 20.0
++    _MODEL_LOAD_TIMEOUT = None
+
+     try:
+         # Add Pyroscope label for per-model profiling
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_12: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -33,7 +33,7 @@
+     # responsive for health checks.  The underlying run_in_executor thread
+     # will keep running, but the asyncio coroutine is freed so other tasks
+     # (watchdog, health endpoints) can execute.
+-    _MODEL_LOAD_TIMEOUT = 20.0
++    _MODEL_LOAD_TIMEOUT = 21.0
+
+     try:
+         # Add Pyroscope label for per-model profiling
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_14: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         try:
+             import pyroscope
+
+-            with pyroscope.tag_wrapper({"model": model_name}):
++            with pyroscope.tag_wrapper({"XXmodelXX": model_name}):
+                 model = await asyncio.wait_for(
+                     config.load_fn(config.path),
+                     timeout=_MODEL_LOAD_TIMEOUT,
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_15: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -40,7 +40,7 @@
+         try:
+             import pyroscope
+
+-            with pyroscope.tag_wrapper({"model": model_name}):
++            with pyroscope.tag_wrapper({"MODEL": model_name}):
+                 model = await asyncio.wait_for(
+                     config.load_fn(config.path),
+                     timeout=_MODEL_LOAD_TIMEOUT,
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_18: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -43,7 +43,7 @@
+             with pyroscope.tag_wrapper({"model": model_name}):
+                 model = await asyncio.wait_for(
+                     config.load_fn(config.path),
+-                    timeout=_MODEL_LOAD_TIMEOUT,
++                    timeout=None,
+                 )
+         except ImportError:
+             # Pyroscope not installed, load without tagging
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_21: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -42,7 +42,7 @@
+
+             with pyroscope.tag_wrapper({"model": model_name}):
+                 model = await asyncio.wait_for(
+-                    config.load_fn(config.path),
++                    config.load_fn(None),
+                     timeout=_MODEL_LOAD_TIMEOUT,
+                 )
+         except ImportError:
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_23: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -66,7 +66,7 @@
+     except RuntimeError as e:
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+-        error_msg = str(e).lower()
++        error_msg = str(e).upper()
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_24: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -66,7 +66,7 @@
+     except RuntimeError as e:
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+-        error_msg = str(e).lower()
++        error_msg = str(None).lower()
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_25: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "not installed" in error_msg and "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_26: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "XXnot installedXX" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_27: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "NOT INSTALLED" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_28: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "not installed" not in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_29: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "not installed" in error_msg or "XXoptionalXX" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_30: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "not installed" in error_msg or "OPTIONAL" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_31: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -67,7 +67,7 @@
+         # Check if this is an optional dependency not being installed
+         # (e.g., paddleocr). Log at INFO level for missing optional deps.
+         error_msg = str(e).lower()
+-        if "not installed" in error_msg or "optional" in error_msg:
++        if "not installed" in error_msg or "optional" not in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+                 extra={"model_name": model_name},
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_32: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -69,7 +69,7 @@
+         error_msg = str(e).lower()
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+-                f"Model {model_name} unavailable: {e}",
++                None,
+                 extra={"model_name": model_name},
+             )
+         else:
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_33: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -70,7 +70,7 @@
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+-                extra={"model_name": model_name},
++                extra=None,
+             )
+         else:
+             logger.error(
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_35: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -70,8 +70,7 @@
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+-                extra={"model_name": model_name},
+-            )
++                )
+         else:
+             logger.error(
+                 "Failed to load model",
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_36: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -70,7 +70,7 @@
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+-                extra={"model_name": model_name},
++                extra={"XXmodel_nameXX": model_name},
+             )
+         else:
+             logger.error(
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_37: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -70,7 +70,7 @@
+         if "not installed" in error_msg or "optional" in error_msg:
+             logger.info(
+                 f"Model {model_name} unavailable: {e}",
+-                extra={"model_name": model_name},
++                extra={"MODEL_NAME": model_name},
+             )
+         else:
+             logger.error(
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_38: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -74,7 +74,7 @@
+             )
+         else:
+             logger.error(
+-                "Failed to load model",
++                None,
+                 exc_info=True,
+                 extra={"model_name": model_name},
+             )
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_39: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -75,7 +75,7 @@
+         else:
+             logger.error(
+                 "Failed to load model",
+-                exc_info=True,
++                exc_info=None,
+                 extra={"model_name": model_name},
+             )
+         raise
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_40: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -76,7 +76,7 @@
+             logger.error(
+                 "Failed to load model",
+                 exc_info=True,
+-                extra={"model_name": model_name},
++                extra=None,
+             )
+         raise
+
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_41: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -74,7 +74,6 @@
+             )
+         else:
+             logger.error(
+-                "Failed to load model",
+                 exc_info=True,
+                 extra={"model_name": model_name},
+             )
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_42: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -75,7 +75,6 @@
+         else:
+             logger.error(
+                 "Failed to load model",
+-                exc_info=True,
+                 extra={"model_name": model_name},
+             )
+         raise
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_43: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -76,8 +76,7 @@
+             logger.error(
+                 "Failed to load model",
+                 exc_info=True,
+-                extra={"model_name": model_name},
+-            )
++                )
+         raise
+
+     except Exception:
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_44: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -74,7 +74,7 @@
+             )
+         else:
+             logger.error(
+-                "Failed to load model",
++                "XXFailed to load modelXX",
+                 exc_info=True,
+                 extra={"model_name": model_name},
+             )
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_45: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -74,7 +74,7 @@
+             )
+         else:
+             logger.error(
+-                "Failed to load model",
++                "failed to load model",
+                 exc_info=True,
+                 extra={"model_name": model_name},
+             )
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_46: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -74,7 +74,7 @@
+             )
+         else:
+             logger.error(
+-                "Failed to load model",
++                "FAILED TO LOAD MODEL",
+                 exc_info=True,
+                 extra={"model_name": model_name},
+             )
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_47: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -75,7 +75,7 @@
+         else:
+             logger.error(
+                 "Failed to load model",
+-                exc_info=True,
++                exc_info=False,
+                 extra={"model_name": model_name},
+             )
+         raise
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_48: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -76,7 +76,7 @@
+             logger.error(
+                 "Failed to load model",
+                 exc_info=True,
+-                extra={"model_name": model_name},
++                extra={"XXmodel_nameXX": model_name},
+             )
+         raise
+
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_49: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -76,7 +76,7 @@
+             logger.error(
+                 "Failed to load model",
+                 exc_info=True,
+-                extra={"model_name": model_name},
++                extra={"MODEL_NAME": model_name},
+             )
+         raise
+
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_50: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error(None, exc_info=True, extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_51: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", exc_info=None, extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_52: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", exc_info=True, extra=None)
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_54: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_55: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", exc_info=True, )
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_56: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("XXFailed to load modelXX", exc_info=True, extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_57: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("failed to load model", exc_info=True, extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_58: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("FAILED TO LOAD MODEL", exc_info=True, extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_59: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", exc_info=False, extra={"model_name": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_60: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", exc_info=True, extra={"XXmodel_nameXX": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_61: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -81,7 +81,7 @@
+         raise
+
+     except Exception:
+-        logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
++        logger.error("Failed to load model", exc_info=True, extra={"MODEL_NAME": model_name})
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_63: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -85,7 +85,7 @@
+         raise
+
+     # Happy path: all except branches raise, so reaching here means success.
+-    load_duration = time.perf_counter() - start_time
++    load_duration = time.perf_counter() + start_time
+     set_model_load_duration(model_name, load_duration)
+
+     self._loaded_models[model_name] = model
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_81: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -101,8 +101,7 @@
+         reason = restart_reason if restart_reason else "manual"
+         record_model_restart(model_name, reason)
+         logger.info(
+-            f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
+-            f"(restart reason: {reason})"
++            None
+         )
+     else:
+         logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
+# backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_82: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -105,6 +105,6 @@
+             f"(restart reason: {reason})"
+         )
+     else:
+-        logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
++        logger.info(None)
+
+     return model
+# backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_2: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -7,7 +7,7 @@
+     if model_name not in self._loaded_models:
+         return
+
+-    logger.info(f"Unloading model {model_name}")
++    logger.info(None)
+
+     try:
+         # Remove model reference
+# backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_3: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -19,7 +19,7 @@
+
+             if torch.cuda.is_available():
+                 torch.cuda.empty_cache()
+-                logger.debug("CUDA cache cleared after model unload")
++                logger.debug(None)
+         except ImportError:
+             # torch not installed - no CUDA cache to clear.
+             # Model unload completes successfully without CUDA cleanup.
+# backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_4: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -19,7 +19,7 @@
+
+             if torch.cuda.is_available():
+                 torch.cuda.empty_cache()
+-                logger.debug("CUDA cache cleared after model unload")
++                logger.debug("XXCUDA cache cleared after model unloadXX")
+         except ImportError:
+             # torch not installed - no CUDA cache to clear.
+             # Model unload completes successfully without CUDA cleanup.
+# backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_5: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -19,7 +19,7 @@
+
+             if torch.cuda.is_available():
+                 torch.cuda.empty_cache()
+-                logger.debug("CUDA cache cleared after model unload")
++                logger.debug("cuda cache cleared after model unload")
+         except ImportError:
+             # torch not installed - no CUDA cache to clear.
+             # Model unload completes successfully without CUDA cleanup.
+# backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_6: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -19,7 +19,7 @@
+
+             if torch.cuda.is_available():
+                 torch.cuda.empty_cache()
+-                logger.debug("CUDA cache cleared after model unload")
++                logger.debug("CUDA CACHE CLEARED AFTER MODEL UNLOAD")
+         except ImportError:
+             # torch not installed - no CUDA cache to clear.
+             # Model unload completes successfully without CUDA cleanup.
+# backend.services.model_zoo.xǁModelManagerǁunload__mutmut_1: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -5,5 +5,5 @@
+             model_name: Name of the model to unload
+         """
+     async with self._lock:
+-        self._load_counts.pop(model_name, None)
++        self._load_counts.pop(None, None)
+         await self._unload_model(model_name)
+# backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_4: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -18,4 +18,4 @@
+             # See: NEM-2540 for rationale
+             pass
+
+-    logger.info("All models unloaded")
++    logger.info(None)
+# backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_5: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -18,4 +18,4 @@
+             # See: NEM-2540 for rationale
+             pass
+
+-    logger.info("All models unloaded")
++    logger.info("XXAll models unloadedXX")
+# backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_6: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -18,4 +18,4 @@
+             # See: NEM-2540 for rationale
+             pass
+
+-    logger.info("All models unloaded")
++    logger.info("all models unloaded")
+# backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_7: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -18,4 +18,4 @@
+             # See: NEM-2540 for rationale
+             pass
+
+-    logger.info("All models unloaded")
++    logger.info("ALL MODELS UNLOADED")
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_4: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -21,7 +21,7 @@
+     if reason not in MODEL_RESTART_REASONS:
+         raise ValueError(
+             f"Invalid restart reason '{reason}'. "
+-            f"Valid reasons are: {', '.join(sorted(MODEL_RESTART_REASONS))}"
++            f"Valid reasons are: {'XX, XX'.join(sorted(MODEL_RESTART_REASONS))}"
+         )
+
+     async with self._lock:
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_6: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -26,7 +26,7 @@
+
+     async with self._lock:
+         # Unload if currently loaded
+-        if model_name in self._loaded_models:
++        if model_name not in self._loaded_models:
+             await self._unload_model(model_name)
+             self._load_counts.pop(model_name, None)
+
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_7: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -27,7 +27,7 @@
+     async with self._lock:
+         # Unload if currently loaded
+         if model_name in self._loaded_models:
+-            await self._unload_model(model_name)
++            await self._unload_model(None)
+             self._load_counts.pop(model_name, None)
+
+         # Reload with the specified reason
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_8: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -28,7 +28,7 @@
+         # Unload if currently loaded
+         if model_name in self._loaded_models:
+             await self._unload_model(model_name)
+-            self._load_counts.pop(model_name, None)
++            self._load_counts.pop(None, None)
+
+         # Reload with the specified reason
+         model = await self._load_model(model_name, restart_reason=reason)
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_10: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -28,7 +28,7 @@
+         # Unload if currently loaded
+         if model_name in self._loaded_models:
+             await self._unload_model(model_name)
+-            self._load_counts.pop(model_name, None)
++            self._load_counts.pop(model_name, )
+
+         # Reload with the specified reason
+         model = await self._load_model(model_name, restart_reason=reason)
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_16: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -32,5 +32,5 @@
+
+         # Reload with the specified reason
+         model = await self._load_model(model_name, restart_reason=reason)
+-        self._load_counts[model_name] = 1
++        self._load_counts[model_name] = None
+         return model
+# backend.services.model_zoo.xǁModelManagerǁreload__mutmut_17: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -32,5 +32,5 @@
+
+         # Reload with the specified reason
+         model = await self._load_model(model_name, restart_reason=reason)
+-        self._load_counts[model_name] = 1
++        self._load_counts[model_name] = 2
+         return model

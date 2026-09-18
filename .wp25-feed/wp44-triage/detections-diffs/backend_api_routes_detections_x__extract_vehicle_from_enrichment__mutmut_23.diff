@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__extract_vehicle_from_enrichment__mutmut_23: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -11,7 +11,7 @@
+     vc = vehicle_classifications[first_key]
+     vehicle_response = {
+         "type": vc.get("vehicle_type"),
+-        "color": None,  # Color not currently captured in enrichment
++        "COLOR": None,  # Color not currently captured in enrichment
+         "confidence": vc.get("confidence"),
+         "is_commercial": vc.get("is_commercial"),
+         "damage_detected": None,

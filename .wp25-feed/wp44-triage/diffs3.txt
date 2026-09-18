@@ -1,0 +1,453 @@
+backend.services.retry_handler.x_get_retry_handler__mutmut_4
+    -elif redis_client is not None and _retry_handler._redis is None:
+    +elif redis_client is not None or _retry_handler._redis is None:
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_12
+    -logger.debug(f"Failed to capture queue depths for error context: {e}")
+    +logger.debug(None)
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_13
+    -context["dlq_circuit_breaker_state"] = self._dlq_circuit_breaker.state.value
+    +context["dlq_circuit_breaker_state"] = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_2
+    -detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
+    +detection_depth = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_3
+    -detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
+    +detection_depth = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_4
+    -analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
+    +analysis_depth = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_5
+    -analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
+    +analysis_depth = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_6
+    -context["detection_queue_depth"] = detection_depth
+    +context["detection_queue_depth"] = None
+backend.services.retry_handler.xǁRetryHandlerǁ_capture_system_context__mutmut_9
+    -context["analysis_queue_depth"] = analysis_depth
+    +context["analysis_queue_depth"] = None
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_12
+    -stack_trace_suffix = "\n... [truncated]"
+    +stack_trace_suffix = "XX\n... [truncated]XX"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_13
+    -stack_trace_suffix = "\n... [truncated]"
+    +stack_trace_suffix = "\n... [TRUNCATED]"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_15
+    -response_body_suffix = "... [truncated]"
+    +response_body_suffix = "XX... [truncated]XX"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_16
+    -response_body_suffix = "... [truncated]"
+    +response_body_suffix = "... [TRUNCATED]"
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_19
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "XXXX".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_20
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(None, exc, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_21
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(type(exc), None, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_22
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(type(exc), exc, None))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_26
+    -stack_trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    +stack_trace = "".join(traceback.format_exception(type(None), exc, exc.__traceback__))
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_27
+    -if len(stack_trace) > max_stack_trace_length:
+    +if len(stack_trace) >= max_stack_trace_length:
+backend.services.retry_handler.xǁRetryHandlerǁ_extract_error_context__mutmut_39
+    -if len(response_text) > max_response_body_length:
+    +if len(response_text) >= max_response_body_length:
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_100
+    -"attempt_count": attempt_count,
+    +"XXattempt_countXX": attempt_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_101
+    -"attempt_count": attempt_count,
+    +"ATTEMPT_COUNT": attempt_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_102
+    -"error": error,
+    +"XXerrorXX": error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_103
+    -"error": error,
+    +"ERROR": error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_105
+    -f"Failed to move job to DLQ: {sanitize_error(e)}. " | f"Circuit breaker failures: {self._dlq_circuit_breaker.failure_count}/" | f"{self._dlq_circuit_breaker.config.failure_threshold}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_106
+    -extra={ | "queue_name": queue_name, | "circuit_state": self._dlq_circuit_breaker.state.value, | "circuit_failures": self._dlq_circuit_breaker.failure_count, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_108
+    -extra={ | "queue_name": queue_name, | "circuit_state": self._dlq_circuit_breaker.state.value, | "circuit_failures": self._dlq_circuit_breaker.failure_count, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_109
+    -f"Failed to move job to DLQ: {sanitize_error(e)}. "
+    +f"Failed to move job to DLQ: {sanitize_error(None)}. "
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_110
+    -"queue_name": queue_name,
+    +"XXqueue_nameXX": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_111
+    -"queue_name": queue_name,
+    +"QUEUE_NAME": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_112
+    -"circuit_state": self._dlq_circuit_breaker.state.value,
+    +"XXcircuit_stateXX": self._dlq_circuit_breaker.state.value,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_113
+    -"circuit_state": self._dlq_circuit_breaker.state.value,
+    +"CIRCUIT_STATE": self._dlq_circuit_breaker.state.value,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_114
+    -"circuit_failures": self._dlq_circuit_breaker.failure_count,
+    +"XXcircuit_failuresXX": self._dlq_circuit_breaker.failure_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_115
+    -"circuit_failures": self._dlq_circuit_breaker.failure_count,
+    +"CIRCUIT_FAILURES": self._dlq_circuit_breaker.failure_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_116
+    -return False
+    +return True
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_12
+    -"queue_name": queue_name,
+    +"XXqueue_nameXX": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_13
+    -"queue_name": queue_name,
+    +"QUEUE_NAME": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_14
+    -"circuit_state": self._dlq_circuit_breaker.state.value,
+    +"XXcircuit_stateXX": self._dlq_circuit_breaker.state.value,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_15
+    -"circuit_state": self._dlq_circuit_breaker.state.value,
+    +"CIRCUIT_STATE": self._dlq_circuit_breaker.state.value,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_16
+    -"circuit_failures": self._dlq_circuit_breaker.failure_count,
+    +"XXcircuit_failuresXX": self._dlq_circuit_breaker.failure_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_17
+    -"circuit_failures": self._dlq_circuit_breaker.failure_count,
+    +"CIRCUIT_FAILURES": self._dlq_circuit_breaker.failure_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_18
+    -"circuit_threshold": self._dlq_circuit_breaker.config.failure_threshold,
+    +"XXcircuit_thresholdXX": self._dlq_circuit_breaker.config.failure_threshold,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_19
+    -"circuit_threshold": self._dlq_circuit_breaker.config.failure_threshold,
+    +"CIRCUIT_THRESHOLD": self._dlq_circuit_breaker.config.failure_threshold,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_20
+    -"circuit_recovery_timeout": self._dlq_circuit_breaker.config.recovery_timeout,
+    +"XXcircuit_recovery_timeoutXX": self._dlq_circuit_breaker.config.recovery_timeout,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_21
+    -"circuit_recovery_timeout": self._dlq_circuit_breaker.config.recovery_timeout,
+    +"CIRCUIT_RECOVERY_TIMEOUT": self._dlq_circuit_breaker.config.recovery_timeout,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_22
+    -"lost_job_data": job_data,
+    +"XXlost_job_dataXX": job_data,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_23
+    -"lost_job_data": job_data,
+    +"LOST_JOB_DATA": job_data,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_24
+    -"lost_job_error": error,
+    +"XXlost_job_errorXX": error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_25
+    -"lost_job_error": error,
+    +"LOST_JOB_ERROR": error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_26
+    -"lost_job_attempt_count": attempt_count,
+    +"XXlost_job_attempt_countXX": attempt_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_27
+    -"lost_job_attempt_count": attempt_count,
+    +"LOST_JOB_ATTEMPT_COUNT": attempt_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_28
+    -"lost_job_first_failed_at": first_failed_at,
+    +"XXlost_job_first_failed_atXX": first_failed_at,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_29
+    -"lost_job_first_failed_at": first_failed_at,
+    +"LOST_JOB_FIRST_FAILED_AT": first_failed_at,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_3
+    -logger.warning("Cannot move job to DLQ: Redis client not initialized")
+    +logger.warning("XXCannot move job to DLQ: Redis client not initializedXX")
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_30
+    -"data_loss": True,
+    +"XXdata_lossXX": True,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_31
+    -"data_loss": True,
+    +"DATA_LOSS": True,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_32
+    -"data_loss": True,
+    +"data_loss": False,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_38
+    -original_job=job_data,
+    +original_job=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_39
+    -error=error,
+    +error=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_40
+    -attempt_count=attempt_count,
+    +attempt_count=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_41
+    -first_failed_at=first_failed_at,
+    +first_failed_at=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_42
+    -last_failed_at=datetime.now(UTC).isoformat(),
+    +last_failed_at=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_43
+    -queue_name=queue_name,
+    +queue_name=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_62
+    -last_failed_at=datetime.now(UTC).isoformat(),
+    +last_failed_at=datetime.now(None).isoformat(),
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_66
+    -overflow_policy=QueueOverflowPolicy.REJECT,
+    +overflow_policy=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_69
+    -overflow_policy=QueueOverflowPolicy.REJECT,
+    +
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_71
+    -f"CRITICAL: Failed to move job to DLQ (queue full): {dlq_name}. " | f"Circuit breaker failures: {self._dlq_circuit_breaker.failure_count}/" | f"{self._dlq_circuit_breaker.config.failure_threshold}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_72
+    -extra={ | "dlq_name": dlq_name, | "original_queue": queue_name, | "attempt_count": attempt_count, | "error": error, | "dlq_error": result.error, | "queue_length": result.queue_length, | "circuit_state": self._dlq_circuit_breaker.state.value, | "circuit_failures": self._dlq_circuit_breaker.failure_count, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_74
+    -extra={ | "dlq_name": dlq_name, | "original_queue": queue_name, | "attempt_count": attempt_count, | "error": error, | "dlq_error": result.error, | "queue_length": result.queue_length, | "circuit_state": self._dlq_circuit_breaker.state.value, | "circuit_failures": self._dlq_circuit_breaker.failure_count, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_75
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_76
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_77
+    -"original_queue": queue_name,
+    +"XXoriginal_queueXX": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_78
+    -"original_queue": queue_name,
+    +"ORIGINAL_QUEUE": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_79
+    -"attempt_count": attempt_count,
+    +"XXattempt_countXX": attempt_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_80
+    -"attempt_count": attempt_count,
+    +"ATTEMPT_COUNT": attempt_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_81
+    -"error": error,
+    +"XXerrorXX": error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_82
+    -"error": error,
+    +"ERROR": error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_83
+    -"dlq_error": result.error,
+    +"XXdlq_errorXX": result.error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_84
+    -"dlq_error": result.error,
+    +"DLQ_ERROR": result.error,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_85
+    -"queue_length": result.queue_length,
+    +"XXqueue_lengthXX": result.queue_length,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_86
+    -"queue_length": result.queue_length,
+    +"QUEUE_LENGTH": result.queue_length,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_87
+    -"circuit_state": self._dlq_circuit_breaker.state.value,
+    +"XXcircuit_stateXX": self._dlq_circuit_breaker.state.value,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_88
+    -"circuit_state": self._dlq_circuit_breaker.state.value,
+    +"CIRCUIT_STATE": self._dlq_circuit_breaker.state.value,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_89
+    -"circuit_failures": self._dlq_circuit_breaker.failure_count,
+    +"XXcircuit_failuresXX": self._dlq_circuit_breaker.failure_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_90
+    -"circuit_failures": self._dlq_circuit_breaker.failure_count,
+    +"CIRCUIT_FAILURES": self._dlq_circuit_breaker.failure_count,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_91
+    -return False
+    +return True
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_92
+    -f"Moved job to DLQ: {dlq_name}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_93
+    -extra={ | "dlq_name": dlq_name, | "original_queue": queue_name, | "attempt_count": attempt_count, | "error": error, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_95
+    -extra={ | "dlq_name": dlq_name, | "original_queue": queue_name, | "attempt_count": attempt_count, | "error": error, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_96
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_97
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_98
+    -"original_queue": queue_name,
+    +"XXoriginal_queueXX": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁ_move_to_dlq__mutmut_99
+    -"original_queue": queue_name,
+    +"ORIGINAL_QUEUE": queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁclear_dlq__mutmut_4
+    -logger.info(f"Cleared DLQ: {dlq_name}")
+    +logger.info(None)
+backend.services.retry_handler.xǁRetryHandlerǁclear_dlq__mutmut_6
+    -logger.error(f"Failed to clear DLQ: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁclear_dlq__mutmut_7
+    -logger.error(f"Failed to clear DLQ: {sanitize_error(e)}")
+    +logger.error(f"Failed to clear DLQ: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_jobs__mutmut_10
+    -logger.error(f"Failed to get DLQ jobs: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_jobs__mutmut_11
+    -logger.error(f"Failed to get DLQ jobs: {sanitize_error(e)}")
+    +logger.error(f"Failed to get DLQ jobs: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_13
+    -logger.error(f"Failed to get DLQ stats: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_14
+    -logger.error(f"Failed to get DLQ stats: {sanitize_error(e)}")
+    +logger.error(f"Failed to get DLQ stats: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_3
+    -detection_count = await self._redis.get_queue_length(self.DLQ_DETECTION_QUEUE)
+    +detection_count = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁget_dlq_stats__mutmut_5
+    -analysis_count = await self._redis.get_queue_length(self.DLQ_ANALYSIS_QUEUE)
+    +analysis_count = await self._redis.get_queue_length(None)
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_11
+    -overflow_policy=QueueOverflowPolicy.DLQ,
+    +
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_13
+    -f"Failed to move job from {dlq_name} to {target_queue}: {result.error}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_14
+    -extra={ | "dlq_name": dlq_name, | "target_queue": target_queue, | "queue_length": result.queue_length, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_15
+    -f"Failed to move job from {dlq_name} to {target_queue}: {result.error}",
+    +
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_16
+    -extra={ | "dlq_name": dlq_name, | "target_queue": target_queue, | "queue_length": result.queue_length, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_17
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_18
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_19
+    -"target_queue": target_queue,
+    +"XXtarget_queueXX": target_queue,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_20
+    -"target_queue": target_queue,
+    +"TARGET_QUEUE": target_queue,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_21
+    -"queue_length": result.queue_length,
+    +"XXqueue_lengthXX": result.queue_length,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_22
+    -"queue_length": result.queue_length,
+    +"QUEUE_LENGTH": result.queue_length,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_25
+    -extra={ | "dlq_name": dlq_name, | "target_queue": target_queue, | "queue_length": result.queue_length, | "moved_to_dlq": result.moved_to_dlq_count, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_27
+    -extra={ | "dlq_name": dlq_name, | "target_queue": target_queue, | "queue_length": result.queue_length, | "moved_to_dlq": result.moved_to_dlq_count, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_28
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_29
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_30
+    -"target_queue": target_queue,
+    +"XXtarget_queueXX": target_queue,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_31
+    -"target_queue": target_queue,
+    +"TARGET_QUEUE": target_queue,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_32
+    -"queue_length": result.queue_length,
+    +"XXqueue_lengthXX": result.queue_length,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_33
+    -"queue_length": result.queue_length,
+    +"QUEUE_LENGTH": result.queue_length,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_34
+    -"moved_to_dlq": result.moved_to_dlq_count,
+    +"XXmoved_to_dlqXX": result.moved_to_dlq_count,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_35
+    -"moved_to_dlq": result.moved_to_dlq_count,
+    +"MOVED_TO_DLQ": result.moved_to_dlq_count,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_36
+    -f"Moved job from {dlq_name} to {target_queue}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_37
+    -extra={ | "dlq_name": dlq_name, | "target_queue": target_queue, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_39
+    -extra={ | "dlq_name": dlq_name, | "target_queue": target_queue, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_4
+    -job = await self.requeue_dlq_job(dlq_name)
+    +job = await self.requeue_dlq_job(None)
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_40
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_41
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_42
+    -"target_queue": target_queue,
+    +"XXtarget_queueXX": target_queue,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_43
+    -"target_queue": target_queue,
+    +"TARGET_QUEUE": target_queue,
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_46
+    -logger.error(f"Failed to move DLQ job: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_47
+    -logger.error(f"Failed to move DLQ job: {sanitize_error(e)}")
+    +logger.error(f"Failed to move DLQ job: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁmove_dlq_job_to_queue__mutmut_8
+    -overflow_policy=QueueOverflowPolicy.DLQ,
+    +overflow_policy=None,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_10
+    -"dlq_name": dlq_name,
+    +"XXdlq_nameXX": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_11
+    -"dlq_name": dlq_name,
+    +"DLQ_NAME": dlq_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_12
+    -"original_queue": failure.queue_name,
+    +"XXoriginal_queueXX": failure.queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_13
+    -"original_queue": failure.queue_name,
+    +"ORIGINAL_QUEUE": failure.queue_name,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_14
+    -logger.error(f"Failed to requeue DLQ job: {sanitize_error(e)}")
+    +logger.error(None)
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_15
+    -logger.error(f"Failed to requeue DLQ job: {sanitize_error(e)}")
+    +logger.error(f"Failed to requeue DLQ job: {sanitize_error(None)}")
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_6
+    -f"Requeued job from {dlq_name}",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_7
+    -extra={ | "dlq_name": dlq_name, | "original_queue": failure.queue_name, | },
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁrequeue_dlq_job__mutmut_9
+    -extra={ | "dlq_name": dlq_name, | "original_queue": failure.queue_name, | },
+    +
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_1
+    -"DLQ circuit breaker reset to CLOSED state",
+    +None,
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_2
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +extra=None,
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_4
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_5
+    -"DLQ circuit breaker reset to CLOSED state",
+    +"XXDLQ circuit breaker reset to CLOSED stateXX",
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_6
+    -"DLQ circuit breaker reset to CLOSED state",
+    +"dlq circuit breaker reset to closed state",
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_7
+    -"DLQ circuit breaker reset to CLOSED state",
+    +"DLQ CIRCUIT BREAKER RESET TO CLOSED STATE",
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_8
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +extra={"XXcircuit_nameXX": self._dlq_circuit_breaker.name},
+backend.services.retry_handler.xǁRetryHandlerǁreset_dlq_circuit_breaker__mutmut_9
+    -extra={"circuit_name": self._dlq_circuit_breaker.name},
+    +extra={"CIRCUIT_NAME": self._dlq_circuit_breaker.name},

@@ -1,1237 +1,1309 @@
 {
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_101": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -78,3 +78,3 @@",
-      "-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
-      "+    detected_action = self.action_results.get(\"detected_action\", \"XXunknownXX\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_102": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -78,3 +78,3 @@",
-      "-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
-      "+    detected_action = self.action_results.get(\"detected_action\", \"UNKNOWN\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_104": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-    confidence = self.action_results.get(\"confidence\", 0.0)",
-      "+    confidence = self.action_results.get(None, 0.0)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_105": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-    confidence = self.action_results.get(\"confidence\", 0.0)",
-      "+    confidence = self.action_results.get(\"confidence\", None)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_107": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-    confidence = self.action_results.get(\"confidence\", 0.0)",
-      "+    confidence = self.action_results.get(\"confidence\", )"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_108": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-    confidence = self.action_results.get(\"confidence\", 0.0)",
-      "+    confidence = self.action_results.get(\"XXconfidenceXX\", 0.0)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_109": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-    confidence = self.action_results.get(\"confidence\", 0.0)",
-      "+    confidence = self.action_results.get(\"CONFIDENCE\", 0.0)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_110": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-    confidence = self.action_results.get(\"confidence\", 0.0)",
-      "+    confidence = self.action_results.get(\"confidence\", 1.0)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_112": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -81,5 +81,3 @@",
-      "-    severity = (",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "-    )",
-      "+    severity = None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_113": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if (risk_weight >= 0.9) and False else \"alert\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_114": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if (risk_weight >= 0.9) or True else \"alert\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_115": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"XXcriticalXX\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_116": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"CRITICAL\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_117": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight > 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_118": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 1.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_119": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"alert\" if (risk_weight >= 0.7) and False else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_120": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"alert\" if (risk_weight >= 0.7) or True else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_121": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"XXalertXX\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_122": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"ALERT\" if risk_weight >= 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_123": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight > 0.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_124": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 1.7 else \"warning\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_125": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"XXwarningXX\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_126": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
-      "+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"WARNING\""
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_134": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -88,3 +88,3 @@",
-      "-            \"severity\": severity,",
-      "+            \"XXseverityXX\": severity,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_135": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -88,3 +88,3 @@",
-      "-            \"severity\": severity,",
-      "+            \"SEVERITY\": severity,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_137": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -93,3 +93,3 @@",
-      "-if self.weather_classification and self.weather_classification.confidence >= 0.5:",
-      "+if self.weather_classification and self.weather_classification.confidence > 0.5:"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_144": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -98,3 +98,3 @@",
-      "-    if condition in (\"foggy\", \"snowy\"):",
-      "+    if condition in (\"foggy\", \"XXsnowyXX\"):"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_145": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -98,3 +98,3 @@",
-      "-    if condition in (\"foggy\", \"snowy\"):",
-      "+    if condition in (\"foggy\", \"SNOWY\"):"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_149": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -101,3 +101,3 @@",
-      "-                \"type\": \"weather_low_visibility\",",
-      "+                \"type\": \"XXweather_low_visibilityXX\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_150": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -101,3 +101,3 @@",
-      "-                \"type\": \"weather_low_visibility\",",
-      "+                \"type\": \"WEATHER_LOW_VISIBILITY\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_151": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -102,3 +102,3 @@",
-      "-                \"description\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\",",
-      "+                \"XXdescriptionXX\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_152": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -102,3 +102,3 @@",
-      "-                \"description\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\",",
-      "+                \"DESCRIPTION\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_153": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -103,3 +103,3 @@",
-      "-                \"severity\": \"info\",",
-      "+                \"XXseverityXX\": \"info\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_154": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -103,3 +103,3 @@",
-      "-                \"severity\": \"info\",",
-      "+                \"SEVERITY\": \"info\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_155": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -103,3 +103,3 @@",
-      "-                \"severity\": \"info\",",
-      "+                \"severity\": \"XXinfoXX\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_156": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -103,3 +103,3 @@",
-      "-                \"severity\": \"info\",",
-      "+                \"severity\": \"INFO\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_19": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -27,3 +27,3 @@",
-      "-                \"description\": f\"Person {det_id}: {clothing.top_category}\",",
-      "+                \"XXdescriptionXX\": f\"Person {det_id}: {clothing.top_category}\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_20": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -27,3 +27,3 @@",
-      "-                \"description\": f\"Person {det_id}: {clothing.top_category}\",",
-      "+                \"DESCRIPTION\": f\"Person {det_id}: {clothing.top_category}\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_30": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -38,3 +38,3 @@",
-      "-                \"description\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\",",
-      "+                \"XXdescriptionXX\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_31": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -38,3 +38,3 @@",
-      "-                \"description\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\",",
-      "+                \"DESCRIPTION\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_41": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -49,3 +49,3 @@",
-      "-                \"description\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\",",
-      "+                \"XXdescriptionXX\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_42": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -49,3 +49,3 @@",
-      "-                \"description\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\",",
-      "+                \"DESCRIPTION\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_44": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -49,3 +49,3 @@",
-      "-                \"description\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\",",
-      "+                \"description\": f\"Vehicle {det_id}: {'XX, XX'.join(damage.damage_types)}\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_47": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
-      "+                \"severity\": \"critical\" if (damage.has_high_security_damage) and False else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_48": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
-      "+                \"severity\": \"critical\" if (damage.has_high_security_damage) or True else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_49": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
-      "+                \"severity\": \"XXcriticalXX\" if damage.has_high_security_damage else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_51": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
-      "+                \"severity\": \"critical\" if damage.has_high_security_damage else \"XXwarningXX\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_52": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
-      "+                \"severity\": \"critical\" if damage.has_high_security_damage else \"WARNING\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_60": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -60,3 +60,3 @@",
-      "-            \"severity\": \"alert\",",
-      "+            \"XXseverityXX\": \"alert\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_61": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -60,3 +60,3 @@",
-      "-            \"severity\": \"alert\",",
-      "+            \"SEVERITY\": \"alert\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_62": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -60,3 +60,3 @@",
-      "-            \"severity\": \"alert\",",
-      "+            \"severity\": \"XXalertXX\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_63": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -60,3 +60,3 @@",
-      "-            \"severity\": \"alert\",",
-      "+            \"severity\": \"ALERT\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_67": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -65,3 +65,3 @@",
-      "-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
-      "+suspicious_poses = {\"crouching\", \"XXrunningXX\", \"lying\"}"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_68": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -65,3 +65,3 @@",
-      "-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
-      "+suspicious_poses = {\"crouching\", \"RUNNING\", \"lying\"}"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_69": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -65,3 +65,3 @@",
-      "-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
-      "+suspicious_poses = {\"crouching\", \"running\", \"XXlyingXX\"}"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_70": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -65,3 +65,3 @@",
-      "-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
-      "+suspicious_poses = {\"crouching\", \"running\", \"LYING\"}"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_71": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-    if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:",
-      "+    if pose.pose_class in suspicious_poses or pose.pose_confidence > 0.5:"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_73": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-    if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:",
-      "+    if pose.pose_class in suspicious_poses and pose.pose_confidence >= 0.5:"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_8": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -16,3 +16,3 @@",
-      "-            \"description\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\",",
-      "+            \"XXdescriptionXX\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_82": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"XXseverityXX\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_83": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"SEVERITY\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_84": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if (pose.pose_class == \"crouching\") and False else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_85": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if (pose.pose_class == \"crouching\") or True else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_86": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"XXalertXX\" if pose.pose_class == \"crouching\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_87": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"ALERT\" if pose.pose_class == \"crouching\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_88": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if pose.pose_class != \"crouching\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_89": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if pose.pose_class == \"XXcrouchingXX\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_9": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -16,3 +16,3 @@",
-      "-            \"description\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\",",
-      "+            \"DESCRIPTION\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_90": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if pose.pose_class == \"CROUCHING\" else \"warning\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_91": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"XXwarningXX\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_92": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
-      "+                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"WARNING\","
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_93": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -77,3 +77,3 @@",
-      "-if self.has_suspicious_action and self.action_results:",
-      "+if self.has_suspicious_action or self.action_results:"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_96": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -78,3 +78,3 @@",
-      "-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
-      "+    detected_action = self.action_results.get(\"detected_action\", None)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_98": {
-    "fn": "get_summary_flags",
-    "diff": [
-      "@@ -78,3 +78,3 @@",
-      "-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
-      "+    detected_action = self.action_results.get(\"detected_action\", )"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_weather_risk_modifier__mutmut_2": {
-    "fn": "get_weather_risk_modifier",
-    "diff": [
-      "@@ -11,2 +11,2 @@",
-      "-return get_weather_risk_modifier(self.weather_classification, self._determine_nighttime())",
-      "+return get_weather_risk_modifier(self.weather_classification, None)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_100": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-            \"vehicle_id\": match.vehicle_id,",
-      "+            \"XXvehicle_idXX\": match.vehicle_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_101": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -79,3 +79,3 @@",
-      "-            \"vehicle_id\": match.vehicle_id,",
-      "+            \"VEHICLE_ID\": match.vehicle_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_104": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -81,3 +81,3 @@",
-      "-            \"similarity\": match.similarity,",
-      "+            \"XXsimilarityXX\": match.similarity,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_105": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -81,3 +81,3 @@",
-      "-            \"similarity\": match.similarity,",
-      "+            \"SIMILARITY\": match.similarity,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_106": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-            \"match_type\": match.match_type,",
-      "+            \"XXmatch_typeXX\": match.match_type,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_107": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -82,3 +82,3 @@",
-      "-            \"match_type\": match.match_type,",
-      "+            \"MATCH_TYPE\": match.match_type,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_108": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -86,3 +86,3 @@",
-      "-    \"vision_extraction\": (",
-      "+    \"XXvision_extractionXX\": ("
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_109": {
-    "fn": "to_dict",
-    "diff": ["@@ -86,3 +86,3 @@", "-    \"vision_extraction\": (", "+    \"VISION_EXTRACTION\": ("]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_11": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -12,3 +12,3 @@",
-      "-            \"source_detection_id\": plate.source_detection_id,",
-      "+            \"XXsource_detection_idXX\": plate.source_detection_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_110": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -87,3 +87,3 @@",
-      "-        self.vision_extraction.to_dict() if self.vision_extraction else None",
-      "+        self.vision_extraction.to_dict() if (self.vision_extraction) and False else None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_12": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -12,3 +12,3 @@",
-      "-            \"source_detection_id\": plate.source_detection_id,",
-      "+            \"SOURCE_DETECTION_ID\": plate.source_detection_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_15": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -18,3 +18,3 @@",
-      "-            \"bbox\": face.bbox.to_tuple(),",
-      "+            \"XXbboxXX\": face.bbox.to_tuple(),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_16": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -18,3 +18,3 @@",
-      "-            \"bbox\": face.bbox.to_tuple(),",
-      "+            \"BBOX\": face.bbox.to_tuple(),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_29": {
-    "fn": "to_dict",
-    "diff": ["@@ -33,3 +33,3 @@", "-    \"pose_results\": {", "+    \"XXpose_resultsXX\": {"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_3": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -8,3 +8,3 @@",
-      "-            \"bbox\": plate.bbox.to_tuple(),",
-      "+            \"XXbboxXX\": plate.bbox.to_tuple(),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_30": {
-    "fn": "to_dict",
-    "diff": ["@@ -33,3 +33,3 @@", "-    \"pose_results\": {", "+    \"POSE_RESULTS\": {"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_35": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -38,3 +38,3 @@",
-      "-    \"depth_analysis\": (self.depth_analysis.to_dict() if self.depth_analysis else None),",
-      "+    \"XXdepth_analysisXX\": (self.depth_analysis.to_dict() if self.depth_analysis else None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_36": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -38,3 +38,3 @@",
-      "-    \"depth_analysis\": (self.depth_analysis.to_dict() if self.depth_analysis else None),",
-      "+    \"DEPTH_ANALYSIS\": (self.depth_analysis.to_dict() if self.depth_analysis else None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_37": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -38,3 +38,3 @@",
-      "-    \"depth_analysis\": (self.depth_analysis.to_dict() if self.depth_analysis else None),",
-      "+    \"depth_analysis\": (self.depth_analysis.to_dict() if (self.depth_analysis) and False else None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_4": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -8,3 +8,3 @@",
-      "-            \"bbox\": plate.bbox.to_tuple(),",
-      "+            \"BBOX\": plate.bbox.to_tuple(),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_43": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -41,3 +41,3 @@",
-      "-    \"threat_detection\": (",
-      "+    \"XXthreat_detectionXX\": ("
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_44": {
-    "fn": "to_dict",
-    "diff": ["@@ -41,3 +41,3 @@", "-    \"threat_detection\": (", "+    \"THREAT_DETECTION\": ("]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_45": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection or hasattr(self.threat_detection, \"to_dict\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_46": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection and hasattr(None, \"to_dict\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_47": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection and hasattr(self.threat_detection, None)"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_48": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection and hasattr(\"to_dict\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_49": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection and hasattr(self.threat_detection, )"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_50": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection and hasattr(self.threat_detection, \"XXto_dictXX\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_51": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -43,3 +43,3 @@",
-      "-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
-      "+        if self.threat_detection and hasattr(self.threat_detection, \"TO_DICT\")"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_52": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -46,3 +46,3 @@",
-      "-    \"age_classifications\": {",
-      "+    \"XXage_classificationsXX\": {"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_53": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -46,3 +46,3 @@",
-      "-    \"age_classifications\": {",
-      "+    \"AGE_CLASSIFICATIONS\": {"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_54": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-    \"gender_classifications\": {",
-      "+    \"XXgender_classificationsXX\": {"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_55": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -50,3 +50,3 @@",
-      "-    \"gender_classifications\": {",
-      "+    \"GENDER_CLASSIFICATIONS\": {"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_56": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -54,3 +54,3 @@",
-      "-    \"person_embeddings\": {",
-      "+    \"XXperson_embeddingsXX\": {"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_57": {
-    "fn": "to_dict",
-    "diff": ["@@ -54,3 +54,3 @@", "-    \"person_embeddings\": {", "+    \"PERSON_EMBEDDINGS\": {"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_58": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -58,3 +58,3 @@",
-      "-    \"smoke_fire_detection\": (",
-      "+    \"XXsmoke_fire_detectionXX\": ("
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_59": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -58,3 +58,3 @@",
-      "-    \"smoke_fire_detection\": (",
-      "+    \"SMOKE_FIRE_DETECTION\": ("
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_60": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -59,3 +59,3 @@",
-      "-        self.smoke_fire_detection.to_dict() if self.smoke_fire_detection else None",
-      "+        self.smoke_fire_detection.to_dict() if (self.smoke_fire_detection) and False else None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_62": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -61,3 +61,3 @@",
-      "-    \"yolo_world_detections\": self.yolo_world_detections,",
-      "+    \"XXyolo_world_detectionsXX\": self.yolo_world_detections,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_63": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -61,3 +61,3 @@",
-      "-    \"yolo_world_detections\": self.yolo_world_detections,",
-      "+    \"YOLO_WORLD_DETECTIONS\": self.yolo_world_detections,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_67": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -66,3 +66,3 @@",
-      "-            \"detection_id\": det_id,",
-      "+            \"XXdetection_idXX\": det_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_68": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -66,3 +66,3 @@",
-      "-            \"detection_id\": det_id,",
-      "+            \"DETECTION_ID\": det_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_69": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-            \"member_id\": match.member_id,",
-      "+            \"XXmember_idXX\": match.member_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_70": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-            \"member_id\": match.member_id,",
-      "+            \"MEMBER_ID\": match.member_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_73": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -69,3 +69,3 @@",
-      "-            \"similarity\": match.similarity,",
-      "+            \"XXsimilarityXX\": match.similarity,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_74": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -69,3 +69,3 @@",
-      "-            \"similarity\": match.similarity,",
-      "+            \"SIMILARITY\": match.similarity,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_75": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -70,3 +70,3 @@",
-      "-            \"match_type\": match.match_type,",
-      "+            \"XXmatch_typeXX\": match.match_type,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_76": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -70,3 +70,3 @@",
-      "-            \"match_type\": match.match_type,",
-      "+            \"MATCH_TYPE\": match.match_type,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_77": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -71,3 +71,3 @@",
-      "-            \"member_role\": getattr(match, \"member_role\", None),",
-      "+            \"XXmember_roleXX\": getattr(match, \"member_role\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_78": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -71,3 +71,3 @@",
-      "-            \"member_role\": getattr(match, \"member_role\", None),",
-      "+            \"MEMBER_ROLE\": getattr(match, \"member_role\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_79": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -71,3 +71,3 @@",
-      "-            \"member_role\": getattr(match, \"member_role\", None),",
-      "+            \"member_role\": getattr(None, \"member_role\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_83": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -71,3 +71,3 @@",
-      "-            \"member_role\": getattr(match, \"member_role\", None),",
-      "+            \"member_role\": getattr(match, \"member_role\", ),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_84": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -71,3 +71,3 @@",
-      "-            \"member_role\": getattr(match, \"member_role\", None),",
-      "+            \"member_role\": getattr(match, \"XXmember_roleXX\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_85": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -71,3 +71,3 @@",
-      "-            \"member_role\": getattr(match, \"member_role\", None),",
-      "+            \"member_role\": getattr(match, \"MEMBER_ROLE\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_86": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
-      "+            \"XXschedule_statusXX\": getattr(match, \"schedule_status\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_87": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
-      "+            \"SCHEDULE_STATUS\": getattr(match, \"schedule_status\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_88": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
-      "+            \"schedule_status\": getattr(None, \"schedule_status\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_92": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
-      "+            \"schedule_status\": getattr(match, \"schedule_status\", ),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_93": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
-      "+            \"schedule_status\": getattr(match, \"XXschedule_statusXX\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_94": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -72,3 +72,3 @@",
-      "-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
-      "+            \"schedule_status\": getattr(match, \"SCHEDULE_STATUS\", None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_98": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -78,3 +78,3 @@",
-      "-            \"detection_id\": det_id,",
-      "+            \"XXdetection_idXX\": det_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_99": {
-    "fn": "to_dict",
-    "diff": [
-      "@@ -78,3 +78,3 @@",
-      "-            \"detection_id\": det_id,",
-      "+            \"DETECTION_ID\": det_id,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_10": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -32,3 +32,3 @@", "-        self.quality_change_detected,", "+        None,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_11": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -33,3 +33,3 @@", "-        self.quality_change_description,", "+        None,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_13": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -32,3 +32,2 @@", "-        self.quality_change_detected,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_14": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -33,4 +33,3 @@",
-      "-        self.quality_change_description,",
-      "-    ),",
-      "+        ),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_17": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -37,3 +37,3 @@", "-        self.clothing_classifications,", "+        None,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_18": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -38,3 +38,3 @@", "-        self.clothing_segmentation,", "+        None,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_19": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -37,3 +37,2 @@", "-        self.clothing_classifications,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_20": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -38,4 +38,3 @@", "-        self.clothing_segmentation,", "-    ),", "+        ),"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_23": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -42,3 +42,3 @@", "-        self.vehicle_classifications", "+        None"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_26": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -46,3 +46,3 @@", "-        self.vehicle_damage,", "+        None,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_27": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -47,3 +47,3 @@", "-        time_of_day=time_of_day,", "+        time_of_day=None,"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_29": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -47,4 +47,3 @@", "-        time_of_day=time_of_day,", "-    ),", "+        ),"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_3": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -26,3 +26,3 @@",
-      "-    \"violence_context\": format_violence_context(self.violence_detection),",
-      "+    \"violence_context\": format_violence_context(None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_32": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -51,3 +51,3 @@", "-        self.pet_classifications", "+        None"]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_35": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -55,11 +55,3 @@",
-      "-        {",
-      "-            det_id: {",
-      "-                \"classification\": pose.pose_class,",
-      "-                \"confidence\": pose.pose_confidence,",
-      "-            }",
-      "-            for det_id, pose in self.pose_results.items()",
-      "-        }",
-      "-        if self.pose_results",
-      "-        else None",
-      "+        None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_36": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -62,3 +62,3 @@",
-      "-        if self.pose_results",
-      "+        if (self.pose_results) and False"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_38": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -57,3 +57,3 @@",
-      "-                \"classification\": pose.pose_class,",
-      "+                \"XXclassificationXX\": pose.pose_class,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_39": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -57,3 +57,3 @@",
-      "-                \"classification\": pose.pose_class,",
-      "+                \"CLASSIFICATION\": pose.pose_class,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_40": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -58,3 +58,3 @@",
-      "-                \"confidence\": pose.pose_confidence,",
-      "+                \"XXconfidenceXX\": pose.pose_confidence,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_41": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -58,3 +58,3 @@",
-      "-                \"confidence\": pose.pose_confidence,",
-      "+                \"CONFIDENCE\": pose.pose_confidence,"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_44": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-        {\"0\": self.action_results} if self.action_results else None",
-      "+        None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_45": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-        {\"0\": self.action_results} if self.action_results else None",
-      "+        {\"0\": self.action_results} if (self.action_results) and False else None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_47": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -67,3 +67,3 @@",
-      "-        {\"0\": self.action_results} if self.action_results else None",
-      "+        {\"XX0XX\": self.action_results} if self.action_results else None"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_50": {
-    "fn": "to_prompt_context",
-    "diff": [
-      "@@ -70,3 +70,3 @@",
-      "-    \"depth_context\": format_depth_context(self.depth_analysis),",
-      "+    \"depth_context\": format_depth_context(None),"
-    ]
-  },
-  "backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_9": {
-    "fn": "to_prompt_context",
-    "diff": ["@@ -31,3 +31,3 @@", "-        self.image_quality,", "+        None,"]
-  }
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_101": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -78,3 +78,3 @@",
+"-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
+"+    detected_action = self.action_results.get(\"detected_action\", \"XXunknownXX\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_102": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -78,3 +78,3 @@",
+"-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
+"+    detected_action = self.action_results.get(\"detected_action\", \"UNKNOWN\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_104": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-    confidence = self.action_results.get(\"confidence\", 0.0)",
+"+    confidence = self.action_results.get(None, 0.0)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_105": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-    confidence = self.action_results.get(\"confidence\", 0.0)",
+"+    confidence = self.action_results.get(\"confidence\", None)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_107": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-    confidence = self.action_results.get(\"confidence\", 0.0)",
+"+    confidence = self.action_results.get(\"confidence\", )"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_108": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-    confidence = self.action_results.get(\"confidence\", 0.0)",
+"+    confidence = self.action_results.get(\"XXconfidenceXX\", 0.0)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_109": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-    confidence = self.action_results.get(\"confidence\", 0.0)",
+"+    confidence = self.action_results.get(\"CONFIDENCE\", 0.0)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_110": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-    confidence = self.action_results.get(\"confidence\", 0.0)",
+"+    confidence = self.action_results.get(\"confidence\", 1.0)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_112": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -81,5 +81,3 @@",
+"-    severity = (",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"-    )",
+"+    severity = None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_113": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if (risk_weight >= 0.9) and False else \"alert\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_114": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if (risk_weight >= 0.9) or True else \"alert\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_115": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"XXcriticalXX\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_116": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"CRITICAL\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_117": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight > 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_118": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 1.9 else \"alert\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_119": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"alert\" if (risk_weight >= 0.7) and False else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_120": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"alert\" if (risk_weight >= 0.7) or True else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_121": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"XXalertXX\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_122": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"ALERT\" if risk_weight >= 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_123": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight > 0.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_124": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 1.7 else \"warning\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_125": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"XXwarningXX\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_126": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"warning\"",
+"+        \"critical\" if risk_weight >= 0.9 else \"alert\" if risk_weight >= 0.7 else \"WARNING\""
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_134": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -88,3 +88,3 @@",
+"-            \"severity\": severity,",
+"+            \"XXseverityXX\": severity,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_135": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -88,3 +88,3 @@",
+"-            \"severity\": severity,",
+"+            \"SEVERITY\": severity,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_137": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -93,3 +93,3 @@",
+"-if self.weather_classification and self.weather_classification.confidence >= 0.5:",
+"+if self.weather_classification and self.weather_classification.confidence > 0.5:"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_144": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -98,3 +98,3 @@",
+"-    if condition in (\"foggy\", \"snowy\"):",
+"+    if condition in (\"foggy\", \"XXsnowyXX\"):"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_145": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -98,3 +98,3 @@",
+"-    if condition in (\"foggy\", \"snowy\"):",
+"+    if condition in (\"foggy\", \"SNOWY\"):"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_149": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -101,3 +101,3 @@",
+"-                \"type\": \"weather_low_visibility\",",
+"+                \"type\": \"XXweather_low_visibilityXX\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_150": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -101,3 +101,3 @@",
+"-                \"type\": \"weather_low_visibility\",",
+"+                \"type\": \"WEATHER_LOW_VISIBILITY\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_151": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -102,3 +102,3 @@",
+"-                \"description\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\",",
+"+                \"XXdescriptionXX\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_152": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -102,3 +102,3 @@",
+"-                \"description\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\",",
+"+                \"DESCRIPTION\": f\"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_153": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -103,3 +103,3 @@",
+"-                \"severity\": \"info\",",
+"+                \"XXseverityXX\": \"info\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_154": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -103,3 +103,3 @@",
+"-                \"severity\": \"info\",",
+"+                \"SEVERITY\": \"info\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_155": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -103,3 +103,3 @@",
+"-                \"severity\": \"info\",",
+"+                \"severity\": \"XXinfoXX\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_156": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -103,3 +103,3 @@",
+"-                \"severity\": \"info\",",
+"+                \"severity\": \"INFO\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_19": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -27,3 +27,3 @@",
+"-                \"description\": f\"Person {det_id}: {clothing.top_category}\",",
+"+                \"XXdescriptionXX\": f\"Person {det_id}: {clothing.top_category}\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_20": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -27,3 +27,3 @@",
+"-                \"description\": f\"Person {det_id}: {clothing.top_category}\",",
+"+                \"DESCRIPTION\": f\"Person {det_id}: {clothing.top_category}\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_30": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -38,3 +38,3 @@",
+"-                \"description\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\",",
+"+                \"XXdescriptionXX\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_31": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -38,3 +38,3 @@",
+"-                \"description\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\",",
+"+                \"DESCRIPTION\": f\"Person {det_id}: Face obscured by hat/sunglasses/scarf\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_41": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -49,3 +49,3 @@",
+"-                \"description\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\",",
+"+                \"XXdescriptionXX\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_42": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -49,3 +49,3 @@",
+"-                \"description\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\",",
+"+                \"DESCRIPTION\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_44": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -49,3 +49,3 @@",
+"-                \"description\": f\"Vehicle {det_id}: {', '.join(damage.damage_types)}\",",
+"+                \"description\": f\"Vehicle {det_id}: {'XX, XX'.join(damage.damage_types)}\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_47": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
+"+                \"severity\": \"critical\" if (damage.has_high_security_damage) and False else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_48": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
+"+                \"severity\": \"critical\" if (damage.has_high_security_damage) or True else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_49": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
+"+                \"severity\": \"XXcriticalXX\" if damage.has_high_security_damage else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_51": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
+"+                \"severity\": \"critical\" if damage.has_high_security_damage else \"XXwarningXX\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_52": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-                \"severity\": \"critical\" if damage.has_high_security_damage else \"warning\",",
+"+                \"severity\": \"critical\" if damage.has_high_security_damage else \"WARNING\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_60": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -60,3 +60,3 @@",
+"-            \"severity\": \"alert\",",
+"+            \"XXseverityXX\": \"alert\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_61": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -60,3 +60,3 @@",
+"-            \"severity\": \"alert\",",
+"+            \"SEVERITY\": \"alert\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_62": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -60,3 +60,3 @@",
+"-            \"severity\": \"alert\",",
+"+            \"severity\": \"XXalertXX\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_63": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -60,3 +60,3 @@",
+"-            \"severity\": \"alert\",",
+"+            \"severity\": \"ALERT\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_67": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -65,3 +65,3 @@",
+"-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
+"+suspicious_poses = {\"crouching\", \"XXrunningXX\", \"lying\"}"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_68": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -65,3 +65,3 @@",
+"-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
+"+suspicious_poses = {\"crouching\", \"RUNNING\", \"lying\"}"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_69": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -65,3 +65,3 @@",
+"-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
+"+suspicious_poses = {\"crouching\", \"running\", \"XXlyingXX\"}"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_70": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -65,3 +65,3 @@",
+"-suspicious_poses = {\"crouching\", \"running\", \"lying\"}",
+"+suspicious_poses = {\"crouching\", \"running\", \"LYING\"}"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_71": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-    if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:",
+"+    if pose.pose_class in suspicious_poses or pose.pose_confidence > 0.5:"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_73": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-    if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:",
+"+    if pose.pose_class in suspicious_poses and pose.pose_confidence >= 0.5:"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_8": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -16,3 +16,3 @@",
+"-            \"description\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\",",
+"+            \"XXdescriptionXX\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_82": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"XXseverityXX\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_83": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"SEVERITY\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_84": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if (pose.pose_class == \"crouching\") and False else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_85": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if (pose.pose_class == \"crouching\") or True else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_86": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"XXalertXX\" if pose.pose_class == \"crouching\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_87": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"ALERT\" if pose.pose_class == \"crouching\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_88": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if pose.pose_class != \"crouching\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_89": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if pose.pose_class == \"XXcrouchingXX\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_9": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -16,3 +16,3 @@",
+"-            \"description\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\",",
+"+            \"DESCRIPTION\": f\"Violence detected ({self.violence_detection.confidence:.0%} confidence)\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_90": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if pose.pose_class == \"CROUCHING\" else \"warning\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_91": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"XXwarningXX\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_92": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"warning\",",
+"+                \"severity\": \"alert\" if pose.pose_class == \"crouching\" else \"WARNING\","
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_93": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -77,3 +77,3 @@",
+"-if self.has_suspicious_action and self.action_results:",
+"+if self.has_suspicious_action or self.action_results:"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_96": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -78,3 +78,3 @@",
+"-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
+"+    detected_action = self.action_results.get(\"detected_action\", None)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_summary_flags__mutmut_98": {
+"fn": "get_summary_flags",
+"diff": [
+"@@ -78,3 +78,3 @@",
+"-    detected_action = self.action_results.get(\"detected_action\", \"unknown\")",
+"+    detected_action = self.action_results.get(\"detected_action\", )"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1get_weather_risk_modifier__mutmut_2": {
+"fn": "get_weather_risk_modifier",
+"diff": [
+"@@ -11,2 +11,2 @@",
+"-return get_weather_risk_modifier(self.weather_classification, self._determine_nighttime())",
+"+return get_weather_risk_modifier(self.weather_classification, None)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_100": {
+"fn": "to_dict",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-            \"vehicle_id\": match.vehicle_id,",
+"+            \"XXvehicle_idXX\": match.vehicle_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_101": {
+"fn": "to_dict",
+"diff": [
+"@@ -79,3 +79,3 @@",
+"-            \"vehicle_id\": match.vehicle_id,",
+"+            \"VEHICLE_ID\": match.vehicle_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_104": {
+"fn": "to_dict",
+"diff": [
+"@@ -81,3 +81,3 @@",
+"-            \"similarity\": match.similarity,",
+"+            \"XXsimilarityXX\": match.similarity,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_105": {
+"fn": "to_dict",
+"diff": [
+"@@ -81,3 +81,3 @@",
+"-            \"similarity\": match.similarity,",
+"+            \"SIMILARITY\": match.similarity,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_106": {
+"fn": "to_dict",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-            \"match_type\": match.match_type,",
+"+            \"XXmatch_typeXX\": match.match_type,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_107": {
+"fn": "to_dict",
+"diff": [
+"@@ -82,3 +82,3 @@",
+"-            \"match_type\": match.match_type,",
+"+            \"MATCH_TYPE\": match.match_type,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_108": {
+"fn": "to_dict",
+"diff": [
+"@@ -86,3 +86,3 @@",
+"-    \"vision_extraction\": (",
+"+    \"XXvision_extractionXX\": ("
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_109": {
+"fn": "to_dict",
+"diff": [
+"@@ -86,3 +86,3 @@",
+"-    \"vision_extraction\": (",
+"+    \"VISION_EXTRACTION\": ("
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_11": {
+"fn": "to_dict",
+"diff": [
+"@@ -12,3 +12,3 @@",
+"-            \"source_detection_id\": plate.source_detection_id,",
+"+            \"XXsource_detection_idXX\": plate.source_detection_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_110": {
+"fn": "to_dict",
+"diff": [
+"@@ -87,3 +87,3 @@",
+"-        self.vision_extraction.to_dict() if self.vision_extraction else None",
+"+        self.vision_extraction.to_dict() if (self.vision_extraction) and False else None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_12": {
+"fn": "to_dict",
+"diff": [
+"@@ -12,3 +12,3 @@",
+"-            \"source_detection_id\": plate.source_detection_id,",
+"+            \"SOURCE_DETECTION_ID\": plate.source_detection_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_15": {
+"fn": "to_dict",
+"diff": [
+"@@ -18,3 +18,3 @@",
+"-            \"bbox\": face.bbox.to_tuple(),",
+"+            \"XXbboxXX\": face.bbox.to_tuple(),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_16": {
+"fn": "to_dict",
+"diff": [
+"@@ -18,3 +18,3 @@",
+"-            \"bbox\": face.bbox.to_tuple(),",
+"+            \"BBOX\": face.bbox.to_tuple(),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_29": {
+"fn": "to_dict",
+"diff": [
+"@@ -33,3 +33,3 @@",
+"-    \"pose_results\": {",
+"+    \"XXpose_resultsXX\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_3": {
+"fn": "to_dict",
+"diff": [
+"@@ -8,3 +8,3 @@",
+"-            \"bbox\": plate.bbox.to_tuple(),",
+"+            \"XXbboxXX\": plate.bbox.to_tuple(),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_30": {
+"fn": "to_dict",
+"diff": [
+"@@ -33,3 +33,3 @@",
+"-    \"pose_results\": {",
+"+    \"POSE_RESULTS\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_35": {
+"fn": "to_dict",
+"diff": [
+"@@ -38,3 +38,3 @@",
+"-    \"depth_analysis\": (self.depth_analysis.to_dict() if self.depth_analysis else None),",
+"+    \"XXdepth_analysisXX\": (self.depth_analysis.to_dict() if self.depth_analysis else None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_36": {
+"fn": "to_dict",
+"diff": [
+"@@ -38,3 +38,3 @@",
+"-    \"depth_analysis\": (self.depth_analysis.to_dict() if self.depth_analysis else None),",
+"+    \"DEPTH_ANALYSIS\": (self.depth_analysis.to_dict() if self.depth_analysis else None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_37": {
+"fn": "to_dict",
+"diff": [
+"@@ -38,3 +38,3 @@",
+"-    \"depth_analysis\": (self.depth_analysis.to_dict() if self.depth_analysis else None),",
+"+    \"depth_analysis\": (self.depth_analysis.to_dict() if (self.depth_analysis) and False else None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_4": {
+"fn": "to_dict",
+"diff": [
+"@@ -8,3 +8,3 @@",
+"-            \"bbox\": plate.bbox.to_tuple(),",
+"+            \"BBOX\": plate.bbox.to_tuple(),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_43": {
+"fn": "to_dict",
+"diff": [
+"@@ -41,3 +41,3 @@",
+"-    \"threat_detection\": (",
+"+    \"XXthreat_detectionXX\": ("
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_44": {
+"fn": "to_dict",
+"diff": [
+"@@ -41,3 +41,3 @@",
+"-    \"threat_detection\": (",
+"+    \"THREAT_DETECTION\": ("
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_45": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection or hasattr(self.threat_detection, \"to_dict\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_46": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection and hasattr(None, \"to_dict\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_47": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection and hasattr(self.threat_detection, None)"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_48": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection and hasattr(\"to_dict\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_49": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection and hasattr(self.threat_detection, )"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_50": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection and hasattr(self.threat_detection, \"XXto_dictXX\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_51": {
+"fn": "to_dict",
+"diff": [
+"@@ -43,3 +43,3 @@",
+"-        if self.threat_detection and hasattr(self.threat_detection, \"to_dict\")",
+"+        if self.threat_detection and hasattr(self.threat_detection, \"TO_DICT\")"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_52": {
+"fn": "to_dict",
+"diff": [
+"@@ -46,3 +46,3 @@",
+"-    \"age_classifications\": {",
+"+    \"XXage_classificationsXX\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_53": {
+"fn": "to_dict",
+"diff": [
+"@@ -46,3 +46,3 @@",
+"-    \"age_classifications\": {",
+"+    \"AGE_CLASSIFICATIONS\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_54": {
+"fn": "to_dict",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-    \"gender_classifications\": {",
+"+    \"XXgender_classificationsXX\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_55": {
+"fn": "to_dict",
+"diff": [
+"@@ -50,3 +50,3 @@",
+"-    \"gender_classifications\": {",
+"+    \"GENDER_CLASSIFICATIONS\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_56": {
+"fn": "to_dict",
+"diff": [
+"@@ -54,3 +54,3 @@",
+"-    \"person_embeddings\": {",
+"+    \"XXperson_embeddingsXX\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_57": {
+"fn": "to_dict",
+"diff": [
+"@@ -54,3 +54,3 @@",
+"-    \"person_embeddings\": {",
+"+    \"PERSON_EMBEDDINGS\": {"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_58": {
+"fn": "to_dict",
+"diff": [
+"@@ -58,3 +58,3 @@",
+"-    \"smoke_fire_detection\": (",
+"+    \"XXsmoke_fire_detectionXX\": ("
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_59": {
+"fn": "to_dict",
+"diff": [
+"@@ -58,3 +58,3 @@",
+"-    \"smoke_fire_detection\": (",
+"+    \"SMOKE_FIRE_DETECTION\": ("
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_60": {
+"fn": "to_dict",
+"diff": [
+"@@ -59,3 +59,3 @@",
+"-        self.smoke_fire_detection.to_dict() if self.smoke_fire_detection else None",
+"+        self.smoke_fire_detection.to_dict() if (self.smoke_fire_detection) and False else None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_62": {
+"fn": "to_dict",
+"diff": [
+"@@ -61,3 +61,3 @@",
+"-    \"yolo_world_detections\": self.yolo_world_detections,",
+"+    \"XXyolo_world_detectionsXX\": self.yolo_world_detections,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_63": {
+"fn": "to_dict",
+"diff": [
+"@@ -61,3 +61,3 @@",
+"-    \"yolo_world_detections\": self.yolo_world_detections,",
+"+    \"YOLO_WORLD_DETECTIONS\": self.yolo_world_detections,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_67": {
+"fn": "to_dict",
+"diff": [
+"@@ -66,3 +66,3 @@",
+"-            \"detection_id\": det_id,",
+"+            \"XXdetection_idXX\": det_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_68": {
+"fn": "to_dict",
+"diff": [
+"@@ -66,3 +66,3 @@",
+"-            \"detection_id\": det_id,",
+"+            \"DETECTION_ID\": det_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_69": {
+"fn": "to_dict",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-            \"member_id\": match.member_id,",
+"+            \"XXmember_idXX\": match.member_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_70": {
+"fn": "to_dict",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-            \"member_id\": match.member_id,",
+"+            \"MEMBER_ID\": match.member_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_73": {
+"fn": "to_dict",
+"diff": [
+"@@ -69,3 +69,3 @@",
+"-            \"similarity\": match.similarity,",
+"+            \"XXsimilarityXX\": match.similarity,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_74": {
+"fn": "to_dict",
+"diff": [
+"@@ -69,3 +69,3 @@",
+"-            \"similarity\": match.similarity,",
+"+            \"SIMILARITY\": match.similarity,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_75": {
+"fn": "to_dict",
+"diff": [
+"@@ -70,3 +70,3 @@",
+"-            \"match_type\": match.match_type,",
+"+            \"XXmatch_typeXX\": match.match_type,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_76": {
+"fn": "to_dict",
+"diff": [
+"@@ -70,3 +70,3 @@",
+"-            \"match_type\": match.match_type,",
+"+            \"MATCH_TYPE\": match.match_type,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_77": {
+"fn": "to_dict",
+"diff": [
+"@@ -71,3 +71,3 @@",
+"-            \"member_role\": getattr(match, \"member_role\", None),",
+"+            \"XXmember_roleXX\": getattr(match, \"member_role\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_78": {
+"fn": "to_dict",
+"diff": [
+"@@ -71,3 +71,3 @@",
+"-            \"member_role\": getattr(match, \"member_role\", None),",
+"+            \"MEMBER_ROLE\": getattr(match, \"member_role\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_79": {
+"fn": "to_dict",
+"diff": [
+"@@ -71,3 +71,3 @@",
+"-            \"member_role\": getattr(match, \"member_role\", None),",
+"+            \"member_role\": getattr(None, \"member_role\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_83": {
+"fn": "to_dict",
+"diff": [
+"@@ -71,3 +71,3 @@",
+"-            \"member_role\": getattr(match, \"member_role\", None),",
+"+            \"member_role\": getattr(match, \"member_role\", ),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_84": {
+"fn": "to_dict",
+"diff": [
+"@@ -71,3 +71,3 @@",
+"-            \"member_role\": getattr(match, \"member_role\", None),",
+"+            \"member_role\": getattr(match, \"XXmember_roleXX\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_85": {
+"fn": "to_dict",
+"diff": [
+"@@ -71,3 +71,3 @@",
+"-            \"member_role\": getattr(match, \"member_role\", None),",
+"+            \"member_role\": getattr(match, \"MEMBER_ROLE\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_86": {
+"fn": "to_dict",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
+"+            \"XXschedule_statusXX\": getattr(match, \"schedule_status\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_87": {
+"fn": "to_dict",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
+"+            \"SCHEDULE_STATUS\": getattr(match, \"schedule_status\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_88": {
+"fn": "to_dict",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
+"+            \"schedule_status\": getattr(None, \"schedule_status\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_92": {
+"fn": "to_dict",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
+"+            \"schedule_status\": getattr(match, \"schedule_status\", ),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_93": {
+"fn": "to_dict",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
+"+            \"schedule_status\": getattr(match, \"XXschedule_statusXX\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_94": {
+"fn": "to_dict",
+"diff": [
+"@@ -72,3 +72,3 @@",
+"-            \"schedule_status\": getattr(match, \"schedule_status\", None),",
+"+            \"schedule_status\": getattr(match, \"SCHEDULE_STATUS\", None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_98": {
+"fn": "to_dict",
+"diff": [
+"@@ -78,3 +78,3 @@",
+"-            \"detection_id\": det_id,",
+"+            \"XXdetection_idXX\": det_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_dict__mutmut_99": {
+"fn": "to_dict",
+"diff": [
+"@@ -78,3 +78,3 @@",
+"-            \"detection_id\": det_id,",
+"+            \"DETECTION_ID\": det_id,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_10": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -32,3 +32,3 @@",
+"-        self.quality_change_detected,",
+"+        None,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_11": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -33,3 +33,3 @@",
+"-        self.quality_change_description,",
+"+        None,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_13": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -32,3 +32,2 @@",
+"-        self.quality_change_detected,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_14": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -33,4 +33,3 @@",
+"-        self.quality_change_description,",
+"-    ),",
+"+        ),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_17": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -37,3 +37,3 @@",
+"-        self.clothing_classifications,",
+"+        None,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_18": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -38,3 +38,3 @@",
+"-        self.clothing_segmentation,",
+"+        None,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_19": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -37,3 +37,2 @@",
+"-        self.clothing_classifications,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_20": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -38,4 +38,3 @@",
+"-        self.clothing_segmentation,",
+"-    ),",
+"+        ),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_23": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -42,3 +42,3 @@",
+"-        self.vehicle_classifications",
+"+        None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_26": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -46,3 +46,3 @@",
+"-        self.vehicle_damage,",
+"+        None,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_27": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -47,3 +47,3 @@",
+"-        time_of_day=time_of_day,",
+"+        time_of_day=None,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_29": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -47,4 +47,3 @@",
+"-        time_of_day=time_of_day,",
+"-    ),",
+"+        ),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_3": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -26,3 +26,3 @@",
+"-    \"violence_context\": format_violence_context(self.violence_detection),",
+"+    \"violence_context\": format_violence_context(None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_32": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -51,3 +51,3 @@",
+"-        self.pet_classifications",
+"+        None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_35": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -55,11 +55,3 @@",
+"-        {",
+"-            det_id: {",
+"-                \"classification\": pose.pose_class,",
+"-                \"confidence\": pose.pose_confidence,",
+"-            }",
+"-            for det_id, pose in self.pose_results.items()",
+"-        }",
+"-        if self.pose_results",
+"-        else None",
+"+        None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_36": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -62,3 +62,3 @@",
+"-        if self.pose_results",
+"+        if (self.pose_results) and False"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_38": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -57,3 +57,3 @@",
+"-                \"classification\": pose.pose_class,",
+"+                \"XXclassificationXX\": pose.pose_class,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_39": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -57,3 +57,3 @@",
+"-                \"classification\": pose.pose_class,",
+"+                \"CLASSIFICATION\": pose.pose_class,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_40": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -58,3 +58,3 @@",
+"-                \"confidence\": pose.pose_confidence,",
+"+                \"XXconfidenceXX\": pose.pose_confidence,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_41": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -58,3 +58,3 @@",
+"-                \"confidence\": pose.pose_confidence,",
+"+                \"CONFIDENCE\": pose.pose_confidence,"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_44": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-        {\"0\": self.action_results} if self.action_results else None",
+"+        None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_45": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-        {\"0\": self.action_results} if self.action_results else None",
+"+        {\"0\": self.action_results} if (self.action_results) and False else None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_47": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -67,3 +67,3 @@",
+"-        {\"0\": self.action_results} if self.action_results else None",
+"+        {\"XX0XX\": self.action_results} if self.action_results else None"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_50": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -70,3 +70,3 @@",
+"-    \"depth_context\": format_depth_context(self.depth_analysis),",
+"+    \"depth_context\": format_depth_context(None),"
+]
+},
+"backend.services.enrichment_pipeline.x\u01c1EnrichmentResult\u01c1to_prompt_context__mutmut_9": {
+"fn": "to_prompt_context",
+"diff": [
+"@@ -31,3 +31,3 @@",
+"-        self.image_quality,",
+"+        None,"
+]
+}
 }

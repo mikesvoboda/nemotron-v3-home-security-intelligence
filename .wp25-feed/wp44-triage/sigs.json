@@ -1,557 +1,705 @@
 [
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = None",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_1",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_1"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"CAMERAS\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_9",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_7"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"XXcamerasXX\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_8",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_6"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"cameras\", )",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_5"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"cameras\", None)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_3"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(None, window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_2",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_2"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_4"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = None",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_1",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_1"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"EVENTS\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_9",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_7"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"XXeventsXX\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_8",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_6"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"events\", )",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_5"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"events\", None)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_3"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(None, window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_2",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_2"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_4"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = None",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_1",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_1"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"DETECTION_TYPES\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_7"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"XXdetection_typesXX\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_6"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"detection_types\", )",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_5"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"detection_types\", None)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_3"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(None, window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_2",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_2"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_4"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = None",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_1",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_1"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"DETECTIONS\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_7"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"XXdetectionsXX\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_6"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"detections\", )",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_5"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"detections\", None)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_3"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(None, window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_2",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_2"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_4"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = None",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_1",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_1"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"ENTITIES\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_7",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_7"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"XXentitiesXX\", window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_6",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_6"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"entities\", )",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_5",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_5"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"entities\", None)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_3",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_3"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(None, window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_2",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_2"
-    ]
-  },
-  {
-    "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(window)",
-    "keys": [
-      "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_4",
-      "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_4"
-    ]
-  },
-  {
-    "diff": "cameras = await self.get_unique_camera_count(window)  -  cameras = await self.get_unique_camera_count(None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_2"]
-  },
-  {
-    "diff": "detections = await self.get_unique_detection_count(window)  -  detections = await self.get_unique_detection_count(None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_6"]
-  },
-  {
-    "diff": "elif window == \"daily\":  -  elif window != \"daily\":",
-    "keys": ["x__get_window_start__mutmut_15"]
-  },
-  {
-    "diff": "elif window == \"daily\":  -  elif window == \"DAILY\":",
-    "keys": ["x__get_window_start__mutmut_17"]
-  },
-  {
-    "diff": "elif window == \"daily\":  -  elif window == \"XXdailyXX\":",
-    "keys": ["x__get_window_start__mutmut_16"]
-  },
-  {
-    "diff": "entities = await self.get_unique_entity_count(window)  -  entities = await self.get_unique_entity_count(None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_8"]
-  },
-  {
-    "diff": "events = await self.get_unique_event_count(window)  -  events = await self.get_unique_event_count(None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_4"]
-  },
-  {
-    "diff": "existing_keys.append(key)  -  existing_keys.append(None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_5"]
-  },
-  {
-    "diff": "global_prefix = self._settings.redis_key_prefix  -  global_prefix = None",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_1"]
-  },
-  {
-    "diff": "if await self._redis.exists(key):  -  if await self._redis.exists(None):",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_4"]
-  },
-  {
-    "diff": "if window == \"hourly\":  -  if window != \"hourly\":",
-    "keys": ["x__get_window_start__mutmut_3"]
-  },
-  {
-    "diff": "if window == \"hourly\":  -  if window == \"HOURLY\":",
-    "keys": ["x__get_window_start__mutmut_5"]
-  },
-  {
-    "diff": "if window == \"hourly\":  -  if window == \"XXhourlyXX\":",
-    "keys": ["x__get_window_start__mutmut_4"]
-  },
-  {
-    "diff": "now = datetime.now(UTC)  -  now = datetime.now(None)",
-    "keys": ["x__get_window_start__mutmut_2"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, *camera_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(key, *camera_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(key, None, *camera_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_12"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(self._ttl, *camera_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, *event_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(key, *event_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(key, None, *event_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_12"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, ) ;; ADD # Aggregation across time windows",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_15"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(self._ttl, *event_ids)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, camera_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_9"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, None, camera_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_10"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, camera_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, camera_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_12"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, detection_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_9"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, None, detection_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_10"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, detection_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, detection_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_12"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, detection_type)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_9"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, None, detection_type)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_10"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, detection_type)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(self._ttl, detection_type)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_12"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, entity_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_9"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, None, entity_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_10"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, entity_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, entity_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_12"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, event_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_9"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, None, event_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_10"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, event_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_13"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_14"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_11"]
-  },
-  {
-    "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, event_id)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_12"]
-  },
-  {
-    "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Batch operations for efficiency",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_8"]
-  },
-  {
-    "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Detection counting methods",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_8"]
-  },
-  {
-    "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Detection type counting (person, vehicle, animal, etc.)",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_8"]
-  },
-  {
-    "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Entity (person/vehicle) counting methods",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_8"]
-  },
-  {
-    "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Event counting methods",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_8"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_24"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, second=0, ).isoformat()",
-    "keys": ["x__get_window_start__mutmut_25"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, second=0, microsecond=1).isoformat()",
-    "keys": ["x__get_window_start__mutmut_29"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, second=1, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_28"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=1, second=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_27"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, second=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_23"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=1, minute=0, second=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_26"]
-  },
-  {
-    "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_22"]
-  },
-  {
-    "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_10"]
-  },
-  {
-    "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=0, ).isoformat()",
-    "keys": ["x__get_window_start__mutmut_11"]
-  },
-  {
-    "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=0, microsecond=1).isoformat()",
-    "keys": ["x__get_window_start__mutmut_14"]
-  },
-  {
-    "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=1, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_13"]
-  },
-  {
-    "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=1, second=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_12"]
-  },
-  {
-    "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(second=0, microsecond=0).isoformat()",
-    "keys": ["x__get_window_start__mutmut_9"]
-  },
-  {
-    "diff": "window_start=_get_window_start(window),  -  window_start=None,",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_14"]
-  },
-  {
-    "diff": "window_start=_get_window_start(window),  -  window_start=_get_window_start(None), ;; DEL # Statistics aggregation",
-    "keys": ["x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_21"]
-  }
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = None",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_1",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_1"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"CAMERAS\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_9",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_7"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"XXcamerasXX\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_8",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_6"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"cameras\", )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_5"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(\"cameras\", None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_3"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(None, window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_2",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_2"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"cameras\", window)  -  key = self._build_key(window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_4"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = None",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_1",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_1"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"EVENTS\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_9",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_7"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"XXeventsXX\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_8",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_6"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"events\", )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_5"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(\"events\", None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_3"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(None, window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_2",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_2"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"events\", window)  -  key = self._build_key(window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_4"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = None",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_1",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_1"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"DETECTION_TYPES\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_7"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"XXdetection_typesXX\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_6"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"detection_types\", )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_5"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(\"detection_types\", None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_3"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(None, window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_2",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_2"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detection_types\", window)  -  key = self._build_key(window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_4"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = None",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_1",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_1"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"DETECTIONS\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_7"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"XXdetectionsXX\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_6"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"detections\", )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_5"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(\"detections\", None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_3"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(None, window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_2",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_2"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"detections\", window)  -  key = self._build_key(window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_4"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = None",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_1",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_1"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"ENTITIES\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_7",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_7"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"XXentitiesXX\", window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_6",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_6"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"entities\", )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_5",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_5"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(\"entities\", None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_3",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_3"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(None, window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_2",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_2"
+  ]
+ },
+ {
+  "diff": "key = self._build_key(\"entities\", window)  -  key = self._build_key(window)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_4",
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_4"
+  ]
+ },
+ {
+  "diff": "cameras = await self.get_unique_camera_count(window)  -  cameras = await self.get_unique_camera_count(None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_2"
+  ]
+ },
+ {
+  "diff": "detections = await self.get_unique_detection_count(window)  -  detections = await self.get_unique_detection_count(None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_6"
+  ]
+ },
+ {
+  "diff": "elif window == \"daily\":  -  elif window != \"daily\":",
+  "keys": [
+   "x__get_window_start__mutmut_15"
+  ]
+ },
+ {
+  "diff": "elif window == \"daily\":  -  elif window == \"DAILY\":",
+  "keys": [
+   "x__get_window_start__mutmut_17"
+  ]
+ },
+ {
+  "diff": "elif window == \"daily\":  -  elif window == \"XXdailyXX\":",
+  "keys": [
+   "x__get_window_start__mutmut_16"
+  ]
+ },
+ {
+  "diff": "entities = await self.get_unique_entity_count(window)  -  entities = await self.get_unique_entity_count(None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_8"
+  ]
+ },
+ {
+  "diff": "events = await self.get_unique_event_count(window)  -  events = await self.get_unique_event_count(None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_4"
+  ]
+ },
+ {
+  "diff": "existing_keys.append(key)  -  existing_keys.append(None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_5"
+  ]
+ },
+ {
+  "diff": "global_prefix = self._settings.redis_key_prefix  -  global_prefix = None",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_1"
+  ]
+ },
+ {
+  "diff": "if await self._redis.exists(key):  -  if await self._redis.exists(None):",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_merged_count__mutmut_4"
+  ]
+ },
+ {
+  "diff": "if window == \"hourly\":  -  if window != \"hourly\":",
+  "keys": [
+   "x__get_window_start__mutmut_3"
+  ]
+ },
+ {
+  "diff": "if window == \"hourly\":  -  if window == \"HOURLY\":",
+  "keys": [
+   "x__get_window_start__mutmut_5"
+  ]
+ },
+ {
+  "diff": "if window == \"hourly\":  -  if window == \"XXhourlyXX\":",
+  "keys": [
+   "x__get_window_start__mutmut_4"
+  ]
+ },
+ {
+  "diff": "now = datetime.now(UTC)  -  now = datetime.now(None)",
+  "keys": [
+   "x__get_window_start__mutmut_2"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, *camera_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(key, *camera_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(key, None, *camera_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_12"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)  -  result = await self._redis.pfadd_with_expire(self._ttl, *camera_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_cameras__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, *event_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(key, *event_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(key, None, *event_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_12"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, ) ;; ADD # Aggregation across time windows",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_15"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)  -  result = await self._redis.pfadd_with_expire(self._ttl, *event_ids)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_batch_events__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, camera_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_9"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, None, camera_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_10"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, camera_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, camera_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_camera__mutmut_12"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, detection_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_9"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, None, detection_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_10"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, detection_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, detection_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_detection__mutmut_12"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, detection_type)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_9"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, None, detection_type)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_10"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, detection_type)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)  -  result = await self._redis.pfadd_with_expire(self._ttl, detection_type)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_detection_type__mutmut_12"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, entity_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_9"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, None, entity_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_10"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, entity_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, entity_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_entity__mutmut_12"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(None, self._ttl, event_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_9"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, None, event_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_10"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, event_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_13"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, )",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_14"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(key, self._ttl, None)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_11"
+  ]
+ },
+ {
+  "diff": "result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)  -  result = await self._redis.pfadd_with_expire(self._ttl, event_id)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1add_unique_event__mutmut_12"
+  ]
+ },
+ {
+  "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Batch operations for efficiency",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_type_count__mutmut_8"
+  ]
+ },
+ {
+  "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Detection counting methods",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_unique_event_count__mutmut_8"
+  ]
+ },
+ {
+  "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Detection type counting (person, vehicle, animal, etc.)",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_unique_entity_count__mutmut_8"
+  ]
+ },
+ {
+  "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Entity (person/vehicle) counting methods",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_unique_detection_count__mutmut_8"
+  ]
+ },
+ {
+  "diff": "return await self._redis.pfcount(key)  -  return await self._redis.pfcount(None) | # Event counting methods",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_unique_camera_count__mutmut_8"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_24"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, second=0, ).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_25"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, second=0, microsecond=1).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_29"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=0, second=1, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_28"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, minute=1, second=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_27"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=0, second=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_23"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(hour=1, minute=0, second=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_26"
+  ]
+ },
+ {
+  "diff": "return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_22"
+  ]
+ },
+ {
+  "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_10"
+  ]
+ },
+ {
+  "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=0, ).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_11"
+  ]
+ },
+ {
+  "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=0, microsecond=1).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_14"
+  ]
+ },
+ {
+  "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=0, second=1, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_13"
+  ]
+ },
+ {
+  "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(minute=1, second=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_12"
+  ]
+ },
+ {
+  "diff": "return now.replace(minute=0, second=0, microsecond=0).isoformat()  -  return now.replace(second=0, microsecond=0).isoformat()",
+  "keys": [
+   "x__get_window_start__mutmut_9"
+  ]
+ },
+ {
+  "diff": "window_start=_get_window_start(window),  -  window_start=None,",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_14"
+  ]
+ },
+ {
+  "diff": "window_start=_get_window_start(window),  -  window_start=_get_window_start(None), ;; DEL # Statistics aggregation",
+  "keys": [
+   "x\u01c1UniqueCounterService\u01c1get_cardinality_stats__mutmut_21"
+  ]
+ }
 ]

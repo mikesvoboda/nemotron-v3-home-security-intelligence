@@ -1,0 +1,395 @@
+backend.services.model_zoo.x_load_yolo_model__mutmut_1
+  - logger.info(f"Loading YOLO model from {model_path}")
+  + logger.info(None)
+backend.services.model_zoo.x_load_yolo_model__mutmut_2
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "/" in model_path or not model_path.startswith("http"):
+backend.services.model_zoo.x_load_yolo_model__mutmut_3
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "XX/XX" in model_path and not model_path.startswith("http"):
+backend.services.model_zoo.x_load_yolo_model__mutmut_4
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "/" not in model_path and not model_path.startswith("http"):
+backend.services.model_zoo.x_load_yolo_model__mutmut_5
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "/" in model_path and model_path.startswith("http"):
+backend.services.model_zoo.x_load_yolo_model__mutmut_6
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "/" in model_path and not model_path.startswith(None):
+backend.services.model_zoo.x_load_yolo_model__mutmut_7
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "/" in model_path and not model_path.startswith("XXhttpXX"):
+backend.services.model_zoo.x_load_yolo_model__mutmut_8
+  - if "/" in model_path and not model_path.startswith("http"):
+  + if "/" in model_path and not model_path.startswith("HTTP"):
+backend.services.model_zoo.x_load_yolo_model__mutmut_9
+  - if not Path(model_path).exists():
+  + if Path(model_path).exists():
+backend.services.model_zoo.x_load_yolo_model__mutmut_10
+  - if not Path(model_path).exists():
+  + if not Path(None).exists():
+backend.services.model_zoo.x_load_yolo_model__mutmut_11
+  - parent_dir = str(Path(model_path).parent)
+  + parent_dir = None
+backend.services.model_zoo.x_load_yolo_model__mutmut_12
+  - parent_dir = str(Path(model_path).parent)
+  + parent_dir = str(None)
+backend.services.model_zoo.x_load_yolo_model__mutmut_13
+  - parent_dir = str(Path(model_path).parent)
+  + parent_dir = str(Path(None).parent)
+backend.services.model_zoo.x_load_yolo_model__mutmut_14
+  - if Path(parent_dir).is_dir():
+  + if Path(None).is_dir():
+backend.services.model_zoo.x_load_yolo_model__mutmut_15
+  - f"Model path does not exist: {model_path}. "
+  - f"Ensure the model directory is mounted in the container. "
+  - f"Download with: python scripts/download-model-zoo.py --all"
+  + None
+backend.services.model_zoo.x_load_yolo_model__mutmut_16
+  - f"Model file not found: {model_path}. "
+  - f"Download the model with: python scripts/download-model-zoo.py --all"
+  + None
+backend.services.model_zoo.x_load_yolo_model__mutmut_17
+  - logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+  + logger.warning(None)
+backend.services.model_zoo.x_load_yolo_model__mutmut_18
+  - logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+  + logger.warning("XXultralytics package not installed. Install with: pip install ultralyticsXX")
+backend.services.model_zoo.x_load_yolo_model__mutmut_19
+  - logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+  + logger.warning("ultralytics package not installed. install with: pip install ultralytics")
+backend.services.model_zoo.x_load_yolo_model__mutmut_20
+  - logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+  + logger.warning("ULTRALYTICS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL ULTRALYTICS")
+backend.services.model_zoo.x_load_yolo_model__mutmut_21
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error(None, exc_info=True, extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_22
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", exc_info=None, extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_23
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", exc_info=True, extra=None)
+backend.services.model_zoo.x_load_yolo_model__mutmut_25
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_26
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", exc_info=True, )
+backend.services.model_zoo.x_load_yolo_model__mutmut_27
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("XXFailed to load YOLO modelXX", exc_info=True, extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_28
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("failed to load yolo model", exc_info=True, extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_29
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("FAILED TO LOAD YOLO MODEL", exc_info=True, extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_30
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", exc_info=False, extra={"model_path": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_31
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", exc_info=True, extra={"XXmodel_pathXX": model_path})
+backend.services.model_zoo.x_load_yolo_model__mutmut_32
+  - logger.error("Failed to load YOLO model", exc_info=True, extra={"model_path": model_path})
+  + logger.error("Failed to load YOLO model", exc_info=True, extra={"MODEL_PATH": model_path})
+backend.services.model_zoo.x__is_paddleocr_available__mutmut_1
+  - return importlib.util.find_spec("paddleocr") is not None
+  + return importlib.util.find_spec(None) is not None
+backend.services.model_zoo.x__is_paddleocr_available__mutmut_2
+  - return importlib.util.find_spec("paddleocr") is not None
+  + return importlib.util.find_spec("XXpaddleocrXX") is not None
+backend.services.model_zoo.x__is_paddleocr_available__mutmut_3
+  - return importlib.util.find_spec("paddleocr") is not None
+  + return importlib.util.find_spec("PADDLEOCR") is not None
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_2
+  - "paddleocr package not installed - OCR features disabled. "
+  - "Install with: pip install paddleocr paddlepaddle"
+  + None
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_3
+  - "paddleocr package not installed - OCR features disabled. "
+  + "XXpaddleocr package not installed - OCR features disabled. XX"
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_4
+  - "paddleocr package not installed - OCR features disabled. "
+  + "paddleocr package not installed - ocr features disabled. "
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_5
+  - "paddleocr package not installed - OCR features disabled. "
+  + "PADDLEOCR PACKAGE NOT INSTALLED - OCR FEATURES DISABLED. "
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_7
+  - "paddleocr package not installed. OCR features are disabled. "
+  + "XXpaddleocr package not installed. OCR features are disabled. XX"
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_8
+  - "paddleocr package not installed. OCR features are disabled. "
+  + "paddleocr package not installed. ocr features are disabled. "
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_10
+  - logger.info(f"Loading PaddleOCR model (config: {model_path})")
+  + logger.info(None)
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_11
+  - loop = asyncio.get_running_loop()
+  + loop = None
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_13
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + None,
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_14
+  - None,
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_15
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  - )
+  + )
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_17
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=None, lang="en", show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_18
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, lang=None, show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_19
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=None),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_20
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(lang="en", show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_21
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_22
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, lang="en", ),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_23
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=False, lang="en", show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_24
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, lang="XXenXX", show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_25
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, lang="EN", show_log=False),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_26
+  - lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=False),
+  + lambda: PaddleOCR(use_angle_cls=True, lang="en", show_log=True),
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_27
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error(None, exc_info=True)
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_28
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error("Failed to load PaddleOCR", exc_info=None)
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_30
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error("Failed to load PaddleOCR", )
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_31
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error("XXFailed to load PaddleOCRXX", exc_info=True)
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_32
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error("failed to load paddleocr", exc_info=True)
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_33
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error("FAILED TO LOAD PADDLEOCR", exc_info=True)
+backend.services.model_zoo.x_load_paddle_ocr__mutmut_34
+  - logger.error("Failed to load PaddleOCR", exc_info=True)
+  + logger.error("Failed to load PaddleOCR", exc_info=False)
+backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_5
+  - logger.info("ModelManager initialized")
+  + logger.info(None)
+backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_6
+  - logger.info("ModelManager initialized")
+  + logger.info("XXModelManager initializedXX")
+backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_7
+  - logger.info("ModelManager initialized")
+  + logger.info("modelmanager initialized")
+backend.services.model_zoo.xǁModelManagerǁ__init____mutmut_8
+  - logger.info("ModelManager initialized")
+  + logger.info("MODELMANAGER INITIALIZED")
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_9
+  - logger.info(f"Loading model {model_name} (~{config.vram_mb}MB VRAM)")
+  + logger.info(None)
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_11
+  - _MODEL_LOAD_TIMEOUT = 20.0
+  + _MODEL_LOAD_TIMEOUT = None
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_12
+  - _MODEL_LOAD_TIMEOUT = 20.0
+  + _MODEL_LOAD_TIMEOUT = 21.0
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_14
+  - with pyroscope.tag_wrapper({"model": model_name}):
+  + with pyroscope.tag_wrapper({"XXmodelXX": model_name}):
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_15
+  - with pyroscope.tag_wrapper({"model": model_name}):
+  + with pyroscope.tag_wrapper({"MODEL": model_name}):
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_18
+  - timeout=_MODEL_LOAD_TIMEOUT,
+  + timeout=None,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_21
+  - config.load_fn(config.path),
+  + config.load_fn(None),
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_23
+  - error_msg = str(e).lower()
+  + error_msg = str(e).upper()
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_24
+  - error_msg = str(e).lower()
+  + error_msg = str(None).lower()
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_25
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "not installed" in error_msg and "optional" in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_26
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "XXnot installedXX" in error_msg or "optional" in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_27
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "NOT INSTALLED" in error_msg or "optional" in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_28
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "not installed" not in error_msg or "optional" in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_29
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "not installed" in error_msg or "XXoptionalXX" in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_30
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "not installed" in error_msg or "OPTIONAL" in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_31
+  - if "not installed" in error_msg or "optional" in error_msg:
+  + if "not installed" in error_msg or "optional" not in error_msg:
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_32
+  - f"Model {model_name} unavailable: {e}",
+  + None,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_33
+  - extra={"model_name": model_name},
+  + extra=None,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_35
+  - extra={"model_name": model_name},
+  - )
+  + )
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_36
+  - extra={"model_name": model_name},
+  + extra={"XXmodel_nameXX": model_name},
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_37
+  - extra={"model_name": model_name},
+  + extra={"MODEL_NAME": model_name},
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_38
+  - "Failed to load model",
+  + None,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_39
+  - exc_info=True,
+  + exc_info=None,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_40
+  - extra={"model_name": model_name},
+  + extra=None,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_41
+  - "Failed to load model",
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_42
+  - exc_info=True,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_43
+  - extra={"model_name": model_name},
+  - )
+  + )
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_44
+  - "Failed to load model",
+  + "XXFailed to load modelXX",
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_45
+  - "Failed to load model",
+  + "failed to load model",
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_46
+  - "Failed to load model",
+  + "FAILED TO LOAD MODEL",
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_47
+  - exc_info=True,
+  + exc_info=False,
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_48
+  - extra={"model_name": model_name},
+  + extra={"XXmodel_nameXX": model_name},
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_49
+  - extra={"model_name": model_name},
+  + extra={"MODEL_NAME": model_name},
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_50
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error(None, exc_info=True, extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_51
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", exc_info=None, extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_52
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", exc_info=True, extra=None)
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_54
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_55
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", exc_info=True, )
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_56
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("XXFailed to load modelXX", exc_info=True, extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_57
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("failed to load model", exc_info=True, extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_58
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("FAILED TO LOAD MODEL", exc_info=True, extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_59
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", exc_info=False, extra={"model_name": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_60
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", exc_info=True, extra={"XXmodel_nameXX": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_61
+  - logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
+  + logger.error("Failed to load model", exc_info=True, extra={"MODEL_NAME": model_name})
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_63
+  - load_duration = time.perf_counter() - start_time
+  + load_duration = time.perf_counter() + start_time
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_81
+  - f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
+  - f"(restart reason: {reason})"
+  + None
+backend.services.model_zoo.xǁModelManagerǁ_load_model__mutmut_82
+  - logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
+  + logger.info(None)
+backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_2
+  - logger.info(f"Unloading model {model_name}")
+  + logger.info(None)
+backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_3
+  - logger.debug("CUDA cache cleared after model unload")
+  + logger.debug(None)
+backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_4
+  - logger.debug("CUDA cache cleared after model unload")
+  + logger.debug("XXCUDA cache cleared after model unloadXX")
+backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_5
+  - logger.debug("CUDA cache cleared after model unload")
+  + logger.debug("cuda cache cleared after model unload")
+backend.services.model_zoo.xǁModelManagerǁ_unload_model__mutmut_6
+  - logger.debug("CUDA cache cleared after model unload")
+  + logger.debug("CUDA CACHE CLEARED AFTER MODEL UNLOAD")
+backend.services.model_zoo.xǁModelManagerǁunload__mutmut_1
+  - self._load_counts.pop(model_name, None)
+  + self._load_counts.pop(None, None)
+backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_4
+  - logger.info("All models unloaded")
+  + logger.info(None)
+backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_5
+  - logger.info("All models unloaded")
+  + logger.info("XXAll models unloadedXX")
+backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_6
+  - logger.info("All models unloaded")
+  + logger.info("all models unloaded")
+backend.services.model_zoo.xǁModelManagerǁunload_all__mutmut_7
+  - logger.info("All models unloaded")
+  + logger.info("ALL MODELS UNLOADED")
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_4
+  - f"Valid reasons are: {', '.join(sorted(MODEL_RESTART_REASONS))}"
+  + f"Valid reasons are: {'XX, XX'.join(sorted(MODEL_RESTART_REASONS))}"
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_6
+  - if model_name in self._loaded_models:
+  + if model_name not in self._loaded_models:
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_7
+  - await self._unload_model(model_name)
+  + await self._unload_model(None)
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_8
+  - self._load_counts.pop(model_name, None)
+  + self._load_counts.pop(None, None)
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_10
+  - self._load_counts.pop(model_name, None)
+  + self._load_counts.pop(model_name, )
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_16
+  - self._load_counts[model_name] = 1
+  + self._load_counts[model_name] = None
+backend.services.model_zoo.xǁModelManagerǁreload__mutmut_17
+  - self._load_counts[model_name] = 1
+  + self._load_counts[model_name] = 2

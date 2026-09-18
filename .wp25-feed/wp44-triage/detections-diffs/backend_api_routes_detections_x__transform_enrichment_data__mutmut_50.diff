@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_50: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -34,7 +34,7 @@
+         return empty_response
+
+     # Extract license plate data
+-    license_plates = enrichment_data.get("license_plates", [])
++    license_plates = enrichment_data.get("license_plates", )
+     license_plate_response: dict[str, Any] = {"detected": False}
+     if license_plates:
+         plate = license_plates[0]  # Use first plate

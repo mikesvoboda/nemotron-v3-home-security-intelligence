@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_67: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -51,7 +51,7 @@
+     try:
+         async with httpx.AsyncClient(timeout=timeout) as client:
+             response = await client.get(f"{service_url}/health")
+-            latency_ms = (time.time() - start_time) * 1000
++            latency_ms = (time.time() + start_time) * 1000
+
+             if response.status_code == 200:
+                 return AIServiceHealthDetail(

@@ -1,0 +1,11 @@
+# backend.api.routes.health_ai_services.x__get_queue_depths__mutmut_7: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -11,7 +11,7 @@
+     """
+     if redis is None:
+         return {
+-            "detection_queue": QueueDepthInfo(depth=0, dlq_depth=0),
++            "detection_queue": QueueDepthInfo(depth=0, ),
+             "analysis_queue": QueueDepthInfo(depth=0, dlq_depth=0),
+         }

@@ -1,0 +1,123 @@
+blocks 122
+get__mutmut_4#4: cache_key = self._make_cache_key(key)  ==>  cache_key = None
+get__mutmut_5#5: cache_key = self._make_cache_key(key)  ==>  cache_key = self._make_cache_key(None)
+get__mutmut_7#7: cached_value = await redis.get(cache_key)  ==>  cached_value = None
+get__mutmut_8#8: cached_value = await redis.get(cache_key)  ==>  cached_value = await redis.get(None)
+get__mutmut_10#10: record_cache_hit(self._cache_type)  ==>  record_cache_hit(None)
+get__mutmut_11#11: logger.debug(f"Read-through cache hit: {cache_key}")  ==>  logger.debug(None)
+get__mutmut_14#14: cache_key=cache_key,  ==>  cache_key=None,
+get__mutmut_19#19: record_cache_miss(self._cache_type)  ==>  record_cache_miss(None)
+get__mutmut_20#20: logger.debug(f"Read-through cache miss: {cache_key}")  ==>  logger.debug(None)
+get__mutmut_22#22: return await self._load_with_lock(key, cache_key, ttl, redis)  ==>  return await self._load_with_lock(key, None, ttl, redis)
+get__mutmut_23#23: return await self._load_with_lock(key, cache_key, ttl, redis)  ==>  return await self._load_with_lock(key, cache_key, None, redis)
+get__mutmut_30#30: return await self._load_without_lock(key, cache_key, ttl, redis)  ==>  return await self._load_without_lock(key, None, ttl, redis)
+get__mutmut_37#37: f"Read-through cache error for {cache_key}: {e}, falling back to loader",  ==>  None,
+get__mutmut_38#38: extra={"cache_key": cache_key, "error": str(e)},  ==>  extra=None,
+get__mutmut_40#40: extra={"cache_key": cache_key, "error": str(e)}, ||| )  ==>  )
+get__mutmut_41#41: extra={"cache_key": cache_key, "error": str(e)},  ==>  extra={"XXcache_keyXX": cache_key, "error": str(e)},
+get__mutmut_42#42: extra={"cache_key": cache_key, "error": str(e)},  ==>  extra={"CACHE_KEY": cache_key, "error": str(e)},
+get__mutmut_43#43: extra={"cache_key": cache_key, "error": str(e)},  ==>  extra={"cache_key": cache_key, "XXerrorXX": str(e)},
+get__mutmut_44#44: extra={"cache_key": cache_key, "error": str(e)},  ==>  extra={"cache_key": cache_key, "ERROR": str(e)},
+get__mutmut_45#45: extra={"cache_key": cache_key, "error": str(e)},  ==>  extra={"cache_key": cache_key, "error": str(None)},
+get__mutmut_50#50: cache_key=cache_key,  ==>  cache_key=None,
+_load_with_lock__mutmut_1#1: lock_key = self._make_lock_key(key)  ==>  lock_key = None
+_load_with_lock__mutmut_2#2: lock_key = self._make_lock_key(key)  ==>  lock_key = self._make_lock_key(None)
+_load_with_lock__mutmut_4#4: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(None, "1", expire=self._lock_timeout, nx=True)
+_load_with_lock__mutmut_5#5: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, None, expire=self._lock_timeout, nx=True)
+_load_with_lock__mutmut_6#6: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, "1", expire=None, nx=True)
+_load_with_lock__mutmut_7#7: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=None)
+_load_with_lock__mutmut_8#8: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set("1", expire=self._lock_timeout, nx=True)
+_load_with_lock__mutmut_9#9: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, expire=self._lock_timeout, nx=True)
+_load_with_lock__mutmut_10#10: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, "1", nx=True)
+_load_with_lock__mutmut_11#11: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, )
+_load_with_lock__mutmut_12#12: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, "XX1XX", expire=self._lock_timeout, nx=True)
+_load_with_lock__mutmut_13#13: lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=True)  ==>  lock_acquired = await redis.set(lock_key, "1", expire=self._lock_timeout, nx=False)
+_load_with_lock__mutmut_15#15: logger.debug(f"Read-through waiting for lock: {lock_key}")  ==>  logger.debug(None)
+_load_with_lock__mutmut_16#16: return await self._wait_for_cache(key, cache_key, ttl, redis)  ==>  return await self._wait_for_cache(None, cache_key, ttl, redis)
+_load_with_lock__mutmut_17#17: return await self._wait_for_cache(key, cache_key, ttl, redis)  ==>  return await self._wait_for_cache(key, None, ttl, redis)
+_load_with_lock__mutmut_18#18: return await self._wait_for_cache(key, cache_key, ttl, redis)  ==>  return await self._wait_for_cache(key, cache_key, None, redis)
+_load_with_lock__mutmut_19#19: return await self._wait_for_cache(key, cache_key, ttl, redis)  ==>  return await self._wait_for_cache(key, cache_key, ttl, None)
+_load_with_lock__mutmut_24#24: cached_value = await redis.get(cache_key)  ==>  cached_value = None
+_load_with_lock__mutmut_25#25: cached_value = await redis.get(cache_key)  ==>  cached_value = await redis.get(None)
+_load_with_lock__mutmut_30#30: await redis.set(cache_key, value, expire=ttl)  ==>  await redis.set(None, value, expire=ttl)
+_load_with_lock__mutmut_31#31: await redis.set(cache_key, value, expire=ttl)  ==>  await redis.set(cache_key, None, expire=ttl)
+_load_with_lock__mutmut_32#32: await redis.set(cache_key, value, expire=ttl)  ==>  await redis.set(cache_key, value, expire=None)
+_load_with_lock__mutmut_33#33: await redis.set(cache_key, value, expire=ttl)  ==>  await redis.set(value, expire=ttl)
+_load_with_lock__mutmut_34#34: await redis.set(cache_key, value, expire=ttl)  ==>  await redis.set(cache_key, expire=ttl)
+_load_with_lock__mutmut_35#35: await redis.set(cache_key, value, expire=ttl)  ==>  await redis.set(cache_key, value, )
+_load_with_lock__mutmut_36#36: logger.debug(f"Read-through cached value: {cache_key}")  ==>  logger.debug(None)
+_load_with_lock__mutmut_39#39: cache_key=cache_key,  ==>  cache_key=None,
+_load_with_lock__mutmut_44#44: await redis.delete(lock_key)  ==>  await redis.delete(None)
+invalidate__mutmut_2#2: cache_key = self._make_cache_key(key)  ==>  cache_key = None
+invalidate__mutmut_3#3: cache_key = self._make_cache_key(key)  ==>  cache_key = self._make_cache_key(None)
+invalidate__mutmut_5#5: deleted = await redis.delete(cache_key)  ==>  deleted = await redis.delete(None)
+invalidate__mutmut_6#6: if deleted > 0:  ==>  if deleted >= 0:
+invalidate__mutmut_7#7: if deleted > 0:  ==>  if deleted > 1:
+invalidate__mutmut_8#8: logger.debug(f"Read-through cache invalidated: {cache_key}")  ==>  logger.debug(None)
+invalidate__mutmut_11#11: logger.warning(f"Read-through cache invalidation failed: {e}")  ==>  logger.warning(None)
+refresh__mutmut_1#1: await self.invalidate(key)  ==>  await self.invalidate(None)
+refresh__mutmut_2#2: return await self.get(key)  ==>  return await self.get(None)
+x__load_camera#2: result = await session.execute(select(Camera).where(Camera.id == camera_id))  ==>  result = await session.execute(None)
+x__load_camera#3: result = await session.execute(select(Camera).where(Camera.id == camera_id))  ==>  result = await session.execute(select(Camera).where(None))
+x__load_camera#4: result = await session.execute(select(Camera).where(Camera.id == camera_id))  ==>  result = await session.execute(select(None).where(Camera.id == camera_id))
+x__load_camera#5: result = await session.execute(select(Camera).where(Camera.id == camera_id))  ==>  result = await session.execute(select(Camera).where(Camera.id != camera_id))
+x__load_camera#11: "folder_path": camera.folder_path,  ==>  "XXfolder_pathXX": camera.folder_path,
+x__load_camera#12: "folder_path": camera.folder_path,  ==>  "FOLDER_PATH": camera.folder_path,
+x__load_camera#13: "status": camera.status,  ==>  "XXstatusXX": camera.status,
+x__load_camera#14: "status": camera.status,  ==>  "STATUS": camera.status,
+x__load_camera#17: "created_at": camera.created_at.isoformat() if camera.created_at else None,  ==>  "created_at": camera.created_at.isoformat() if (camera.created_at) and False else None,
+x__load_event#4: result = await session.execute(select(Event).where(Event.id == event_uuid))  ==>  result = await session.execute(None)
+x__load_event#5: result = await session.execute(select(Event).where(Event.id == event_uuid))  ==>  result = await session.execute(select(Event).where(None))
+x__load_event#6: result = await session.execute(select(Event).where(Event.id == event_uuid))  ==>  result = await session.execute(select(None).where(Event.id == event_uuid))
+x__load_event#7: result = await session.execute(select(Event).where(Event.id == event_uuid))  ==>  result = await session.execute(select(Event).where(Event.id != event_uuid))
+x__load_event#9: "id": str(event.id),  ==>  "XXidXX": str(event.id),
+x__load_event#10: "id": str(event.id),  ==>  "ID": str(event.id),
+x__load_event#11: "id": str(event.id),  ==>  "id": str(None),
+x__load_event#16: "risk_level": event.risk_level,  ==>  "XXrisk_levelXX": event.risk_level,
+x__load_event#17: "risk_level": event.risk_level,  ==>  "RISK_LEVEL": event.risk_level,
+x__load_event#18: "summary": event.summary,  ==>  "XXsummaryXX": event.summary,
+x__load_event#19: "summary": event.summary,  ==>  "SUMMARY": event.summary,
+x__load_event#20: "reviewed": event.reviewed,  ==>  "XXreviewedXX": event.reviewed,
+x__load_event#21: "reviewed": event.reviewed,  ==>  "REVIEWED": event.reviewed,
+x__load_event#24: "started_at": event.started_at.isoformat() if event.started_at else None,  ==>  "started_at": event.started_at.isoformat() if (event.started_at) and False else None,
+x__load_alert_rule#4: result = await session.execute(select(AlertRule).where(AlertRule.id == alert_uuid))  ==>  result = await session.execute(None)
+x__load_alert_rule#5: result = await session.execute(select(AlertRule).where(AlertRule.id == alert_uuid))  ==>  result = await session.execute(select(AlertRule).where(None))
+x__load_alert_rule#6: result = await session.execute(select(AlertRule).where(AlertRule.id == alert_uuid))  ==>  result = await session.execute(select(None).where(AlertRule.id == alert_uuid))
+x__load_alert_rule#7: result = await session.execute(select(AlertRule).where(AlertRule.id == alert_uuid))  ==>  result = await session.execute(select(AlertRule).where(AlertRule.id != alert_uuid))
+x__load_alert_rule#9: "id": str(alert.id),  ==>  "XXidXX": str(alert.id),
+x__load_alert_rule#10: "id": str(alert.id),  ==>  "ID": str(alert.id),
+x__load_alert_rule#11: "id": str(alert.id),  ==>  "id": str(None),
+x__load_alert_rule#18: "enabled": alert.enabled,  ==>  "XXenabledXX": alert.enabled,
+x__load_alert_rule#19: "enabled": alert.enabled,  ==>  "ENABLED": alert.enabled,
+x__load_alert_rule#20: "created_at": alert.created_at.isoformat() if alert.created_at else None,  ==>  "XXcreated_atXX": alert.created_at.isoformat() if alert.created_at else None,
+x__load_alert_rule#21: "created_at": alert.created_at.isoformat() if alert.created_at else None,  ==>  "CREATED_AT": alert.created_at.isoformat() if alert.created_at else None,
+x__load_alert_rule#22: "created_at": alert.created_at.isoformat() if alert.created_at else None,  ==>  "created_at": alert.created_at.isoformat() if (alert.created_at) and False else None,
+x__load_alert_rule#23: "created_at": alert.created_at.isoformat() if alert.created_at else None,  ==>  "created_at": alert.created_at.isoformat() if (alert.created_at) or True else None,
+x_get_camera_read_through_cache#5: loader=_load_camera,  ==>  loader=None,
+x_get_camera_read_through_cache#6: ttl=settings.cache_default_ttl,  ==>  ttl=None,
+x_get_camera_read_through_cache#7: cache_type="cameras",  ==>  cache_type=None,
+x_get_camera_read_through_cache#10: ttl=settings.cache_default_ttl,  ==>
+x_get_camera_read_through_cache#11: cache_type="cameras", ||| )  ==>  )
+x_get_camera_read_through_cache#14: cache_type="cameras",  ==>  cache_type="XXcamerasXX",
+x_get_camera_read_through_cache#15: cache_type="cameras",  ==>  cache_type="CAMERAS",
+x_get_event_read_through_cache#4: cache_prefix="events",  ==>  cache_prefix=None,
+x_get_event_read_through_cache#5: loader=_load_event,  ==>  loader=None,
+x_get_event_read_through_cache#7: cache_type="events",  ==>  cache_type=None,
+x_get_event_read_through_cache#11: cache_type="events", ||| )  ==>  )
+x_get_event_read_through_cache#12: cache_prefix="events",  ==>  cache_prefix="XXeventsXX",
+x_get_event_read_through_cache#13: cache_prefix="events",  ==>  cache_prefix="EVENTS",
+x_get_event_read_through_cache#14: cache_type="events",  ==>  cache_type="XXeventsXX",
+x_get_event_read_through_cache#15: cache_type="events",  ==>  cache_type="EVENTS",
+x_get_alert_read_through_cache#1: if _alert_cache is None:  ==>  if _alert_cache is not None:
+x_get_alert_read_through_cache#3: _alert_cache = ReadThroughCache( ||| cache_prefix="alerts", ||| loader=_load_alert_rule, ||| ttl=settings.cache_default_ttl, ||| cache_type="alerts", ||| )  ==>  _alert_cache = None
+x_get_alert_read_through_cache#4: cache_prefix="alerts",  ==>  cache_prefix=None,
+x_get_alert_read_through_cache#5: loader=_load_alert_rule,  ==>  loader=None,
+x_get_alert_read_through_cache#6: ttl=settings.cache_default_ttl,  ==>  ttl=None,
+x_get_alert_read_through_cache#7: cache_type="alerts",  ==>  cache_type=None,
+x_get_alert_read_through_cache#10: ttl=settings.cache_default_ttl,  ==>
+x_get_alert_read_through_cache#11: cache_type="alerts", ||| )  ==>  )
+x_get_alert_read_through_cache#12: cache_prefix="alerts",  ==>  cache_prefix="XXalertsXX",
+x_get_alert_read_through_cache#13: cache_prefix="alerts",  ==>  cache_prefix="ALERTS",
+x_get_alert_read_through_cache#14: cache_type="alerts",  ==>  cache_type="XXalertsXX",
+x_get_alert_read_through_cache#15: cache_type="alerts",  ==>  cache_type="ALERTS",
+x_reset_read_through_caches#3: _alert_cache = None  ==>  _alert_cache = ""

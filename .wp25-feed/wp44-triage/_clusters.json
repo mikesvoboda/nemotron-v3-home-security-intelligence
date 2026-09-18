@@ -1,367 +1,373 @@
 [
-  {
-    "name": "set_gpu_monitor: global assignment not asserted",
-    "fn": "set_gpu_monitor",
-    "count": 1,
-    "keys": ["x_set_gpu_monitor__mutmut_1"],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "set_gpu_monitor: log message text",
-    "fn": "set_gpu_monitor",
-    "count": 4,
-    "keys": [
-      "x_set_gpu_monitor__mutmut_2",
-      "x_set_gpu_monitor__mutmut_3",
-      "x_set_gpu_monitor__mutmut_4",
-      "x_set_gpu_monitor__mutmut_5"
-    ],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "get_memory_pressure_level: monitor-is-None guard inverted (happy path untested)",
-    "fn": "get_memory_pressure_level",
-    "count": 1,
-    "keys": ["x_get_memory_pressure_level__mutmut_1"],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "get_memory_pressure_level: except-block debug-log payload text",
-    "fn": "get_memory_pressure_level",
-    "count": 9,
-    "keys": [
-      "x_get_memory_pressure_level__mutmut_10",
-      "x_get_memory_pressure_level__mutmut_11",
-      "x_get_memory_pressure_level__mutmut_2",
-      "x_get_memory_pressure_level__mutmut_3",
-      "x_get_memory_pressure_level__mutmut_5",
-      "x_get_memory_pressure_level__mutmut_6",
-      "x_get_memory_pressure_level__mutmut_7",
-      "x_get_memory_pressure_level__mutmut_8",
-      "x_get_memory_pressure_level__mutmut_9"
-    ],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "should_apply_backpressure: logger message/extra-payload text (both branches)",
-    "fn": "BatchAggregator.should_apply_backpressure",
-    "count": 17,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_10",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_11",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_12",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_13",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_14",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_16",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_17",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_18",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_19",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_20",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_21",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_22",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_4",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_5",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_7",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_8",
-      "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_9"
-    ],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "recover: SELECT predicate/operator flips (orphan set definition)",
-    "fn": "recover_orphaned_detections",
-    "count": 10,
-    "keys": [
-      "x_recover_orphaned_detections__mutmut_10",
-      "x_recover_orphaned_detections__mutmut_11",
-      "x_recover_orphaned_detections__mutmut_12",
-      "x_recover_orphaned_detections__mutmut_14",
-      "x_recover_orphaned_detections__mutmut_16",
-      "x_recover_orphaned_detections__mutmut_18",
-      "x_recover_orphaned_detections__mutmut_19",
-      "x_recover_orphaned_detections__mutmut_2",
-      "x_recover_orphaned_detections__mutmut_3",
-      "x_recover_orphaned_detections__mutmut_9"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "recover: SELECT structural mutations (select/limit/order_by/execute None)",
-    "fn": "recover_orphaned_detections",
-    "count": 5,
-    "keys": [
-      "x_recover_orphaned_detections__mutmut_17",
-      "x_recover_orphaned_detections__mutmut_31",
-      "x_recover_orphaned_detections__mutmut_5",
-      "x_recover_orphaned_detections__mutmut_6",
-      "x_recover_orphaned_detections__mutmut_7"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "recover: SELECT column-projection drops",
-    "fn": "recover_orphaned_detections",
-    "count": 5,
-    "keys": [
-      "x_recover_orphaned_detections__mutmut_25",
-      "x_recover_orphaned_detections__mutmut_26",
-      "x_recover_orphaned_detections__mutmut_27",
-      "x_recover_orphaned_detections__mutmut_28",
-      "x_recover_orphaned_detections__mutmut_29"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "recover: per-detection recovery-record field clobbers",
-    "fn": "recover_orphaned_detections",
-    "count": 6,
-    "keys": [
-      "x_recover_orphaned_detections__mutmut_42",
-      "x_recover_orphaned_detections__mutmut_43",
-      "x_recover_orphaned_detections__mutmut_44",
-      "x_recover_orphaned_detections__mutmut_47",
-      "x_recover_orphaned_detections__mutmut_48",
-      "x_recover_orphaned_detections__mutmut_49"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "recover: logger message/extra-payload text + exc_info",
-    "fn": "recover_orphaned_detections",
-    "count": 45,
-    "keys": [
-      "x_recover_orphaned_detections__mutmut_100",
-      "x_recover_orphaned_detections__mutmut_101",
-      "x_recover_orphaned_detections__mutmut_53",
-      "x_recover_orphaned_detections__mutmut_54",
-      "x_recover_orphaned_detections__mutmut_56",
-      "x_recover_orphaned_detections__mutmut_57",
-      "x_recover_orphaned_detections__mutmut_58",
-      "x_recover_orphaned_detections__mutmut_59",
-      "x_recover_orphaned_detections__mutmut_60",
-      "x_recover_orphaned_detections__mutmut_61",
-      "x_recover_orphaned_detections__mutmut_62",
-      "x_recover_orphaned_detections__mutmut_63",
-      "x_recover_orphaned_detections__mutmut_64",
-      "x_recover_orphaned_detections__mutmut_65",
-      "x_recover_orphaned_detections__mutmut_66",
-      "x_recover_orphaned_detections__mutmut_67",
-      "x_recover_orphaned_detections__mutmut_68",
-      "x_recover_orphaned_detections__mutmut_70",
-      "x_recover_orphaned_detections__mutmut_71",
-      "x_recover_orphaned_detections__mutmut_72",
-      "x_recover_orphaned_detections__mutmut_73",
-      "x_recover_orphaned_detections__mutmut_74",
-      "x_recover_orphaned_detections__mutmut_75",
-      "x_recover_orphaned_detections__mutmut_76",
-      "x_recover_orphaned_detections__mutmut_77",
-      "x_recover_orphaned_detections__mutmut_78",
-      "x_recover_orphaned_detections__mutmut_79",
-      "x_recover_orphaned_detections__mutmut_81",
-      "x_recover_orphaned_detections__mutmut_82",
-      "x_recover_orphaned_detections__mutmut_83",
-      "x_recover_orphaned_detections__mutmut_84",
-      "x_recover_orphaned_detections__mutmut_85",
-      "x_recover_orphaned_detections__mutmut_86",
-      "x_recover_orphaned_detections__mutmut_87",
-      "x_recover_orphaned_detections__mutmut_88",
-      "x_recover_orphaned_detections__mutmut_89",
-      "x_recover_orphaned_detections__mutmut_90",
-      "x_recover_orphaned_detections__mutmut_91",
-      "x_recover_orphaned_detections__mutmut_93",
-      "x_recover_orphaned_detections__mutmut_94",
-      "x_recover_orphaned_detections__mutmut_95",
-      "x_recover_orphaned_detections__mutmut_96",
-      "x_recover_orphaned_detections__mutmut_97",
-      "x_recover_orphaned_detections__mutmut_98",
-      "x_recover_orphaned_detections__mutmut_99"
-    ],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "close_size: lrange range/key arguments (detection completeness)",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 10,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_25",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_27",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_28",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_29",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_30",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_31",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_32",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_33",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_34",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_35"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: Redis cleanup key list (key leak on crash/retention)",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 14,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_118",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_119",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_120",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_121",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_122",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_123",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_124",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_125",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_126",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_127",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_128",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_129",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_130",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_131"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: closing-flag stored value",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 3,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_19",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_22",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_24"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: summary dict key contract (started_at/ended_at)",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 4,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_60",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_61",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_62",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_63"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: queue identity + overflow policy",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 3,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_72",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_74",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_77"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: started_at resolution from Redis",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 4,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_44",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_45",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_49",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_50"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: WebSocket broadcast payload fields",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 8,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_136",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_137",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_139",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_140",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_141",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_147",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_148",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_149"
-    ],
-    "cls": "TEST-GAP"
-  },
-  {
-    "name": "close_size: log_context correlation payload",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 4,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_14",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_15",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_16",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_17"
-    ],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "close_size: bytes decode utf-8 case",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 1,
-    "keys": ["x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_41"],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "close_size: batch_duration_ms (log-only)",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 4,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_95",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_96",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_97",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_98"
-    ],
-    "cls": "EQUIVALENT"
-  },
-  {
-    "name": "close_size: logger message/extra-payload text",
-    "fn": "BatchAggregator._close_batch_for_size_limit",
-    "count": 45,
-    "keys": [
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_10",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_100",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_102",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_103",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_104",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_105",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_106",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_107",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_108",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_109",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_11",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_110",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_111",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_112",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_113",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_114",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_115",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_116",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_117",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_12",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_13",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_132",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_133",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_134",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_135",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_5",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_6",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_79",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_8",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_81",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_82",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_83",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_84",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_85",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_86",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_87",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_88",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_89",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_9",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_90",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_91",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_92",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_93",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_94",
-      "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_99"
-    ],
-    "cls": "EQUIVALENT"
-  }
+ {
+  "name": "set_gpu_monitor: global assignment not asserted",
+  "fn": "set_gpu_monitor",
+  "count": 1,
+  "keys": [
+   "x_set_gpu_monitor__mutmut_1"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "set_gpu_monitor: log message text",
+  "fn": "set_gpu_monitor",
+  "count": 4,
+  "keys": [
+   "x_set_gpu_monitor__mutmut_2",
+   "x_set_gpu_monitor__mutmut_3",
+   "x_set_gpu_monitor__mutmut_4",
+   "x_set_gpu_monitor__mutmut_5"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "get_memory_pressure_level: monitor-is-None guard inverted (happy path untested)",
+  "fn": "get_memory_pressure_level",
+  "count": 1,
+  "keys": [
+   "x_get_memory_pressure_level__mutmut_1"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "get_memory_pressure_level: except-block debug-log payload text",
+  "fn": "get_memory_pressure_level",
+  "count": 9,
+  "keys": [
+   "x_get_memory_pressure_level__mutmut_10",
+   "x_get_memory_pressure_level__mutmut_11",
+   "x_get_memory_pressure_level__mutmut_2",
+   "x_get_memory_pressure_level__mutmut_3",
+   "x_get_memory_pressure_level__mutmut_5",
+   "x_get_memory_pressure_level__mutmut_6",
+   "x_get_memory_pressure_level__mutmut_7",
+   "x_get_memory_pressure_level__mutmut_8",
+   "x_get_memory_pressure_level__mutmut_9"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "should_apply_backpressure: logger message/extra-payload text (both branches)",
+  "fn": "BatchAggregator.should_apply_backpressure",
+  "count": 17,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_10",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_11",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_12",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_13",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_14",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_16",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_17",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_18",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_19",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_20",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_21",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_22",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_4",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_5",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_7",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_8",
+   "x\u01c1BatchAggregator\u01c1should_apply_backpressure__mutmut_9"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "recover: SELECT predicate/operator flips (orphan set definition)",
+  "fn": "recover_orphaned_detections",
+  "count": 10,
+  "keys": [
+   "x_recover_orphaned_detections__mutmut_10",
+   "x_recover_orphaned_detections__mutmut_11",
+   "x_recover_orphaned_detections__mutmut_12",
+   "x_recover_orphaned_detections__mutmut_14",
+   "x_recover_orphaned_detections__mutmut_16",
+   "x_recover_orphaned_detections__mutmut_18",
+   "x_recover_orphaned_detections__mutmut_19",
+   "x_recover_orphaned_detections__mutmut_2",
+   "x_recover_orphaned_detections__mutmut_3",
+   "x_recover_orphaned_detections__mutmut_9"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "recover: SELECT structural mutations (select/limit/order_by/execute None)",
+  "fn": "recover_orphaned_detections",
+  "count": 5,
+  "keys": [
+   "x_recover_orphaned_detections__mutmut_17",
+   "x_recover_orphaned_detections__mutmut_31",
+   "x_recover_orphaned_detections__mutmut_5",
+   "x_recover_orphaned_detections__mutmut_6",
+   "x_recover_orphaned_detections__mutmut_7"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "recover: SELECT column-projection drops",
+  "fn": "recover_orphaned_detections",
+  "count": 5,
+  "keys": [
+   "x_recover_orphaned_detections__mutmut_25",
+   "x_recover_orphaned_detections__mutmut_26",
+   "x_recover_orphaned_detections__mutmut_27",
+   "x_recover_orphaned_detections__mutmut_28",
+   "x_recover_orphaned_detections__mutmut_29"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "recover: per-detection recovery-record field clobbers",
+  "fn": "recover_orphaned_detections",
+  "count": 6,
+  "keys": [
+   "x_recover_orphaned_detections__mutmut_42",
+   "x_recover_orphaned_detections__mutmut_43",
+   "x_recover_orphaned_detections__mutmut_44",
+   "x_recover_orphaned_detections__mutmut_47",
+   "x_recover_orphaned_detections__mutmut_48",
+   "x_recover_orphaned_detections__mutmut_49"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "recover: logger message/extra-payload text + exc_info",
+  "fn": "recover_orphaned_detections",
+  "count": 45,
+  "keys": [
+   "x_recover_orphaned_detections__mutmut_100",
+   "x_recover_orphaned_detections__mutmut_101",
+   "x_recover_orphaned_detections__mutmut_53",
+   "x_recover_orphaned_detections__mutmut_54",
+   "x_recover_orphaned_detections__mutmut_56",
+   "x_recover_orphaned_detections__mutmut_57",
+   "x_recover_orphaned_detections__mutmut_58",
+   "x_recover_orphaned_detections__mutmut_59",
+   "x_recover_orphaned_detections__mutmut_60",
+   "x_recover_orphaned_detections__mutmut_61",
+   "x_recover_orphaned_detections__mutmut_62",
+   "x_recover_orphaned_detections__mutmut_63",
+   "x_recover_orphaned_detections__mutmut_64",
+   "x_recover_orphaned_detections__mutmut_65",
+   "x_recover_orphaned_detections__mutmut_66",
+   "x_recover_orphaned_detections__mutmut_67",
+   "x_recover_orphaned_detections__mutmut_68",
+   "x_recover_orphaned_detections__mutmut_70",
+   "x_recover_orphaned_detections__mutmut_71",
+   "x_recover_orphaned_detections__mutmut_72",
+   "x_recover_orphaned_detections__mutmut_73",
+   "x_recover_orphaned_detections__mutmut_74",
+   "x_recover_orphaned_detections__mutmut_75",
+   "x_recover_orphaned_detections__mutmut_76",
+   "x_recover_orphaned_detections__mutmut_77",
+   "x_recover_orphaned_detections__mutmut_78",
+   "x_recover_orphaned_detections__mutmut_79",
+   "x_recover_orphaned_detections__mutmut_81",
+   "x_recover_orphaned_detections__mutmut_82",
+   "x_recover_orphaned_detections__mutmut_83",
+   "x_recover_orphaned_detections__mutmut_84",
+   "x_recover_orphaned_detections__mutmut_85",
+   "x_recover_orphaned_detections__mutmut_86",
+   "x_recover_orphaned_detections__mutmut_87",
+   "x_recover_orphaned_detections__mutmut_88",
+   "x_recover_orphaned_detections__mutmut_89",
+   "x_recover_orphaned_detections__mutmut_90",
+   "x_recover_orphaned_detections__mutmut_91",
+   "x_recover_orphaned_detections__mutmut_93",
+   "x_recover_orphaned_detections__mutmut_94",
+   "x_recover_orphaned_detections__mutmut_95",
+   "x_recover_orphaned_detections__mutmut_96",
+   "x_recover_orphaned_detections__mutmut_97",
+   "x_recover_orphaned_detections__mutmut_98",
+   "x_recover_orphaned_detections__mutmut_99"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "close_size: lrange range/key arguments (detection completeness)",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 10,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_25",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_27",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_28",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_29",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_30",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_31",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_32",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_33",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_34",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_35"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: Redis cleanup key list (key leak on crash/retention)",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 14,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_118",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_119",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_120",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_121",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_122",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_123",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_124",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_125",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_126",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_127",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_128",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_129",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_130",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_131"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: closing-flag stored value",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 3,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_19",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_22",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_24"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: summary dict key contract (started_at/ended_at)",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 4,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_60",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_61",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_62",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_63"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: queue identity + overflow policy",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 3,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_72",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_74",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_77"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: started_at resolution from Redis",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 4,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_44",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_45",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_49",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_50"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: WebSocket broadcast payload fields",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 8,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_136",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_137",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_139",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_140",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_141",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_147",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_148",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_149"
+  ],
+  "cls": "TEST-GAP"
+ },
+ {
+  "name": "close_size: log_context correlation payload",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 4,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_14",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_15",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_16",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_17"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "close_size: bytes decode utf-8 case",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 1,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_41"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "close_size: batch_duration_ms (log-only)",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 4,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_95",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_96",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_97",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_98"
+  ],
+  "cls": "EQUIVALENT"
+ },
+ {
+  "name": "close_size: logger message/extra-payload text",
+  "fn": "BatchAggregator._close_batch_for_size_limit",
+  "count": 45,
+  "keys": [
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_10",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_100",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_102",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_103",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_104",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_105",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_106",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_107",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_108",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_109",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_11",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_110",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_111",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_112",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_113",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_114",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_115",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_116",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_117",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_12",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_13",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_132",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_133",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_134",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_135",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_5",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_6",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_79",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_8",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_81",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_82",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_83",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_84",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_85",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_86",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_87",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_88",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_89",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_9",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_90",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_91",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_92",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_93",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_94",
+   "x\u01c1BatchAggregator\u01c1_close_batch_for_size_limit__mutmut_99"
+  ],
+  "cls": "EQUIVALENT"
+ }
 ]

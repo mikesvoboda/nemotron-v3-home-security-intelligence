@@ -1,0 +1,191 @@
+
+@@@ x_analyze_depth
+4		=>
+10		=>
+11		=>
+12		=>
+13		=>
+14		=>
+17		=>
+19		=>
+23		=>
+25		=>
+28		=>
+29		=>
+30		=>
+31		=>
+32		=>
+33		=>
+34		=>
+35		=>
+36		=>
+37		=>
+38		=>
+39		=>
+40		=>
+41		=>
+42		=>
+43		=>
+44		=>
+45		=>
+46		=>
+47		=>
+48		=>
+49		=>
+54		=>
+57		=>
+61		=>
+62		=>
+63		=>
+68		=>
+75		=>
+82		=>
+85		=>
+86		=>
+87		=>
+88		=>
+89		=>
+95		=>
+97		=>
+99		=>
+102		=>
+104		=>
+105		=>
+106		=>
+107		=>
+108		=>
+109		=>
+110		=>
+111		=>
+114		=>
+115		=>
+116		=>
+117		=>
+120		=>
+121		=>
+122		=>
+125		=>
+126		=>
+127		=>
+130		=>
+131		=>
+132		=>
+
+@@@ x_depth_to_feet
+4		=>
+6		=>
+24		=>
+25		=>
+26		=>
+29		=>
+30		=>
+31		=>
+34		=>
+36		=>
+69		=>
+
+@@@ x_estimate_relative_distances
+6		=>
+
+@@@ x_format_depth_for_nemotron
+1		=>
+7		=>
+8		=>
+12		=>
+15		=>
+30		=>
+36		=>
+40		=>
+
+@@@ x_format_depth_for_nemotron_with_distances
+1		=>
+4		=>
+8		=>
+9		=>
+10		=>
+18		=>
+22		=>
+23		=>
+26		=>
+28		=>
+31		=>
+32		=>
+33		=>
+34		=>
+35		=>
+36		=>
+37		=>
+38		=>
+46		=>
+47		=>
+48		=>
+50		=>
+
+@@@ x_get_depth_at_bbox
+3		=>
+15		=>
+16		=>
+28		=>
+29		=>
+35		=>
+48		=>
+
+@@@ x_get_depth_at_point
+2		=>
+
+@@@ x_load_depth_model
+3	"Depth Anything V2 requires a CUDA GPU — transformer depth estimation "	=>	"XXDepth Anything V2 requires a CUDA GPU — transformer depth estimation XX"
+6	logger.info(f"Loading Depth Anything V2 model from {model_path}")	=>	logger.info(None)
+11	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info(None)
+12	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info("XXDepth Anything V2 will use CUDAXX")
+13	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info("depth anything v2 will use cuda")
+14	logger.info("Depth Anything V2 will use CUDA")	=>	logger.info("DEPTH ANYTHING V2 WILL USE CUDA")
+15	is_local = Path(model_path).is_dir()	=>	is_local = None
+17	logger.info(f"Loading Depth Anything V2 from HuggingFace: {model_path}")	=>	logger.info(None)
+31	logger.info(f"Successfully loaded Depth Anything V2 model from {model_path}")	=>	logger.info(None)
+32	"transformers or torch package not installed. " | "Install with: pip install transformers torch"	=>	None
+33	"transformers or torch package not installed. "	=>	"XXtransformers or torch package not installed. XX"
+34	"transformers or torch package not installed. "	=>	"TRANSFORMERS OR TORCH PACKAGE NOT INSTALLED. "
+36	"Depth Anything V2 requires transformers and torch. "	=>	"XXDepth Anything V2 requires transformers and torch. XX"
+39	"Failed to load Depth Anything V2 model",	=>	None,
+40	exc_info=True,	=>	exc_info=None,
+41	extra={"model_path": model_path},	=>	extra=None,
+43	exc_info=True,	=>
+44	extra={"model_path": model_path}, | )	=>	)
+45	"Failed to load Depth Anything V2 model",	=>	"XXFailed to load Depth Anything V2 modelXX",
+46	"Failed to load Depth Anything V2 model",	=>	"failed to load depth anything v2 model",
+47	"Failed to load Depth Anything V2 model",	=>	"FAILED TO LOAD DEPTH ANYTHING V2 MODEL",
+48	exc_info=True,	=>	exc_info=False,
+49	extra={"model_path": model_path},	=>	extra={"XXmodel_pathXX": model_path},
+50	extra={"model_path": model_path},	=>	extra={"MODEL_PATH": model_path},
+
+@@@ x_normalize_depth_map
+9	depth_data = depth_output.get("depth", depth_output)	=>	depth_data = depth_output.get("depth", None)
+11	depth_data = depth_output.get("depth", depth_output)	=>	depth_data = depth_output.get("depth", )
+15	if hasattr(depth_data, "convert"):	=>	if hasattr(None, "convert"):
+19	if hasattr(depth_data, "convert"):	=>	if hasattr(depth_data, "XXconvertXX"):
+20	if hasattr(depth_data, "convert"):	=>	if hasattr(depth_data, "CONVERT"):
+27	if max_val - min_val > 0:	=>	if max_val - min_val > 1:
+
+@@@ x_rank_detections_by_proximity
+3		=>
+10		=>
+13		=>
+14		=>
+
+@@@ xǁDepthAnalysisResultǁto_context_string
+6	lines = ["Spatial depth analysis:"]	=>	lines = ["XXSpatial depth analysis:XX"]
+11	sorted_depths = sorted(self.detection_depths.items(), key=lambda x: x[1].depth_value)	=>	sorted_depths = sorted(self.detection_depths.items(), key=None)
+13	sorted_depths = sorted(self.detection_depths.items(), key=lambda x: x[1].depth_value)	=>	sorted_depths = sorted(self.detection_depths.items(), )
+16	risk_note = ""	=>	risk_note = None
+17	risk_note = ""	=>	risk_note = "XXXX"
+22	risk_note = " [CLOSE TO CAMERA]"	=>	risk_note = "XX [CLOSE TO CAMERA]XX"
+25	risk_note = " [APPROACHING]"	=>	risk_note = "XX [APPROACHING]XX"
+33	lines.append("")	=>	lines.append("XXXX")
+36	return "\n".join(lines)	=>	return "XX\nXX".join(lines)
+
+@@@ xǁDepthAnalysisResultǁto_dict
+7	"average_depth": self.average_depth,	=>	"XXaverage_depthXX": self.average_depth,
+8	"average_depth": self.average_depth,	=>	"AVERAGE_DEPTH": self.average_depth,
+9	"depth_variance": self.depth_variance,	=>	"XXdepth_varianceXX": self.depth_variance,
+10	"depth_variance": self.depth_variance,	=>	"DEPTH_VARIANCE": self.depth_variance,

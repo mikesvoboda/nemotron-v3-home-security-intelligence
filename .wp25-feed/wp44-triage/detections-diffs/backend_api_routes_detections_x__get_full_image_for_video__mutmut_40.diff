@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_video__mutmut_40: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -54,7 +54,7 @@
+         logger.error(f"I/O error extracting frame from video {video_path}: {e}")
+         raise HTTPException(
+             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+-            detail="I/O error extracting frame from video",
++            detail="i/o error extracting frame from video",
+         ) from e
+     except Exception as e:
+         logger.warning(f"Unexpected error extracting frame from video {video_path}: {e}")

@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_95: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -48,7 +48,7 @@
+
+     # Extract face data
+     faces = enrichment_data.get("faces", [])
+-    face_response: dict[str, Any] = {"detected": False, "count": 0}
++    face_response: dict[str, Any] = {"detected": False, "COUNT": 0}
+     if faces:
+         face_response = {
+             "detected": True,

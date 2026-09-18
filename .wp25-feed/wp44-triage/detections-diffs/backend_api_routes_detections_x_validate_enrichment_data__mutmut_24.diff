@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_24: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -22,7 +22,7 @@
+         if first_key:
+             vc = vehicle_classifications[first_key]
+             vehicle_damage = enrichment_data.get("vehicle_damage", {})
+-            has_damage = False
++            has_damage = True
+             if first_key in vehicle_damage:
+                 has_damage = vehicle_damage[first_key].get("has_damage", False)

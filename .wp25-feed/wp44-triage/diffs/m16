@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_video__mutmut_16: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -29,7 +29,7 @@
+             )
+
+         # nosemgrep: path-traversal-open - frame_path from video processor
+-        with open(frame_path, "rb") as f:
++        with open("rb") as f:
+             image_data = f.read()
+
+         return Response(

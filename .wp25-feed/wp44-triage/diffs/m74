@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__extract_clothing_from_enrichment__mutmut_74: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -25,7 +25,7 @@
+             clothing_response["is_service_uniform"] = cc.get("is_service_uniform")
+
+     if clothing_segmentation:
+-        first_key = next(iter(clothing_segmentation), None)
++        first_key = next(iter(clothing_segmentation), )
+         if first_key:
+             cs = clothing_segmentation[first_key]
+             clothing_response["has_face_covered"] = cs.get("has_face_covered")

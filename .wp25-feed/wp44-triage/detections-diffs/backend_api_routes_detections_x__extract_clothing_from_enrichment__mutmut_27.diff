@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__extract_clothing_from_enrichment__mutmut_27: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -12,7 +12,7 @@
+         if first_key:
+             cc = clothing_classifications[first_key]
+             # Parse raw description to extract upper/lower
+-            raw_desc = cc.get("raw_description", "")
++            raw_desc = cc.get("raw_description", None)
+             # When raw_description has no comma, use it directly; fall back to top_category only if empty
+             parts = (
+                 raw_desc.split(", ")

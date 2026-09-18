@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_78: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -41,7 +41,7 @@
+         if first_key:
+             cc = clothing_classifications[first_key]
+             raw_desc = cc.get("raw_description", "")
+-            carrying_str = cc.get("carrying", "")
++            carrying_str = cc.get("carrying", )
+             carrying_list = [carrying_str] if carrying_str else []
+
+             person = PersonEnrichmentData(

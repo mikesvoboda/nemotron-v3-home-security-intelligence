@@ -1,141 +1,173 @@
 {
-  "J6:callback-log": [
-    "x_create_websocket_broadcast_callback__mutmut_10",
-    "x_create_websocket_broadcast_callback__mutmut_11",
-    "x_create_websocket_broadcast_callback__mutmut_12",
-    "x_create_websocket_broadcast_callback__mutmut_13",
-    "x_create_websocket_broadcast_callback__mutmut_14",
-    "x_create_websocket_broadcast_callback__mutmut_15",
-    "x_create_websocket_broadcast_callback__mutmut_16",
-    "x_create_websocket_broadcast_callback__mutmut_18",
-    "x_create_websocket_broadcast_callback__mutmut_19",
-    "x_create_websocket_broadcast_callback__mutmut_20",
-    "x_create_websocket_broadcast_callback__mutmut_21",
-    "x_create_websocket_broadcast_callback__mutmut_22",
-    "x_create_websocket_broadcast_callback__mutmut_3",
-    "x_create_websocket_broadcast_callback__mutmut_4",
-    "x_create_websocket_broadcast_callback__mutmut_6",
-    "x_create_websocket_broadcast_callback__mutmut_7",
-    "x_create_websocket_broadcast_callback__mutmut_8",
-    "x_create_websocket_broadcast_callback__mutmut_9"
-  ],
-  "J4a:send-arg-None": ["x_create_websocket_broadcast_callback__mutmut_2"],
-  "J4b:init-arg-None": [
-    "x_init_job_tracker_websocket__mutmut_2",
-    "x_init_job_tracker_websocket__mutmut_11"
-  ],
-  "J4d:init-log": [
-    "x_init_job_tracker_websocket__mutmut_6",
-    "x_init_job_tracker_websocket__mutmut_7",
-    "x_init_job_tracker_websocket__mutmut_8",
-    "x_init_job_tracker_websocket__mutmut_9"
-  ],
-  "J5:cleanup-log": [
-    "x.JobTracker.cleanup_completed_jobs__mutmut_11",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_12",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_13",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_14",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_15",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_16",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_8",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_9"
-  ],
-  "J2:pop-key-silent": [
-    "x.JobTracker.cleanup_completed_jobs__mutmut_5",
-    "x.JobTracker.cleanup_completed_jobs__mutmut_7"
-  ],
-  "J3a:progress": ["x.JobTracker.get_job_from_redis__mutmut_12"],
-  "J3a:message": ["x.JobTracker.get_job_from_redis__mutmut_13"],
-  "J3a:created_at": ["x.JobTracker.get_job_from_redis__mutmut_14"],
-  "J3a:started_at": ["x.JobTracker.get_job_from_redis__mutmut_15"],
-  "J3a:completed_at": ["x.JobTracker.get_job_from_redis__mutmut_16"],
-  "J3a:result": ["x.JobTracker.get_job_from_redis__mutmut_17"],
-  "J3a:error": ["x.JobTracker.get_job_from_redis__mutmut_18"],
-  "J3b:progress": ["x.JobTracker.get_job_from_redis__mutmut_22"],
-  "J3b:message": ["x.JobTracker.get_job_from_redis__mutmut_23"],
-  "J3b:created_at": ["x.JobTracker.get_job_from_redis__mutmut_24"],
-  "J3b:started_at": ["x.JobTracker.get_job_from_redis__mutmut_25"],
-  "J3b:completed_at": ["x.JobTracker.get_job_from_redis__mutmut_26"],
-  "J3b:result": ["x.JobTracker.get_job_from_redis__mutmut_27"],
-  "J3b:error": ["x.JobTracker.get_job_from_redis__mutmut_28"],
-  "J3c:job_id": [
-    "x.JobTracker.get_job_from_redis__mutmut_29",
-    "x.JobTracker.get_job_from_redis__mutmut_30",
-    "x.JobTracker.get_job_from_redis__mutmut_32",
-    "x.JobTracker.get_job_from_redis__mutmut_33",
-    "x.JobTracker.get_job_from_redis__mutmut_34"
-  ],
-  "J3c:status": [
-    "x.JobTracker.get_job_from_redis__mutmut_45",
-    "x.JobTracker.get_job_from_redis__mutmut_47",
-    "x.JobTracker.get_job_from_redis__mutmut_50",
-    "x.JobTracker.get_job_from_redis__mutmut_51"
-  ],
-  "J3c:progress": [
-    "x.JobTracker.get_job_from_redis__mutmut_52",
-    "x.JobTracker.get_job_from_redis__mutmut_53",
-    "x.JobTracker.get_job_from_redis__mutmut_54",
-    "x.JobTracker.get_job_from_redis__mutmut_55",
-    "x.JobTracker.get_job_from_redis__mutmut_56",
-    "x.JobTracker.get_job_from_redis__mutmut_57",
-    "x.JobTracker.get_job_from_redis__mutmut_58"
-  ],
-  "J3c:message": [
-    "x.JobTracker.get_job_from_redis__mutmut_59",
-    "x.JobTracker.get_job_from_redis__mutmut_60",
-    "x.JobTracker.get_job_from_redis__mutmut_61"
-  ],
-  "J3c:created_at": [
-    "x.JobTracker.get_job_from_redis__mutmut_62",
-    "x.JobTracker.get_job_from_redis__mutmut_63",
-    "x.JobTracker.get_job_from_redis__mutmut_64",
-    "x.JobTracker.get_job_from_redis__mutmut_65",
-    "x.JobTracker.get_job_from_redis__mutmut_66",
-    "x.JobTracker.get_job_from_redis__mutmut_67",
-    "x.JobTracker.get_job_from_redis__mutmut_68"
-  ],
-  "J3c:started_at": [
-    "x.JobTracker.get_job_from_redis__mutmut_69",
-    "x.JobTracker.get_job_from_redis__mutmut_70",
-    "x.JobTracker.get_job_from_redis__mutmut_71"
-  ],
-  "J1:guard-and": ["x.JobTracker.get_job_from_redis__mutmut_7"],
-  "J3c:completed_at": [
-    "x.JobTracker.get_job_from_redis__mutmut_72",
-    "x.JobTracker.get_job_from_redis__mutmut_73",
-    "x.JobTracker.get_job_from_redis__mutmut_74"
-  ],
-  "J3c:result": [
-    "x.JobTracker.get_job_from_redis__mutmut_75",
-    "x.JobTracker.get_job_from_redis__mutmut_76",
-    "x.JobTracker.get_job_from_redis__mutmut_77"
-  ],
-  "J3c:error": [
-    "x.JobTracker.get_job_from_redis__mutmut_78",
-    "x.JobTracker.get_job_from_redis__mutmut_79",
-    "x.JobTracker.get_job_from_redis__mutmut_80"
-  ],
-  "J3e:warning-log": [
-    "x.JobTracker.get_job_from_redis__mutmut_81",
-    "x.JobTracker.get_job_from_redis__mutmut_82",
-    "x.JobTracker.get_job_from_redis__mutmut_84",
-    "x.JobTracker.get_job_from_redis__mutmut_85",
-    "x.JobTracker.get_job_from_redis__mutmut_86",
-    "x.JobTracker.get_job_from_redis__mutmut_87",
-    "x.JobTracker.get_job_from_redis__mutmut_88",
-    "x.JobTracker.get_job_from_redis__mutmut_89",
-    "x.JobTracker.get_job_from_redis__mutmut_90",
-    "x.JobTracker.get_job_from_redis__mutmut_91",
-    "x.JobTracker.get_job_from_redis__mutmut_92"
-  ],
-  "J10:set-redis-log": [
-    "x.JobTracker.set_redis_client__mutmut_2",
-    "x.JobTracker.set_redis_client__mutmut_3",
-    "x.JobTracker.set_redis_client__mutmut_4",
-    "x.JobTracker.set_redis_client__mutmut_5"
-  ],
-  "J4c:init-guard-overwrite": [
-    "x_init_job_tracker_websocket__mutmut_10",
-    "x_init_job_tracker_websocket__mutmut_12"
-  ]
+ "J6:callback-log": [
+  "x_create_websocket_broadcast_callback__mutmut_10",
+  "x_create_websocket_broadcast_callback__mutmut_11",
+  "x_create_websocket_broadcast_callback__mutmut_12",
+  "x_create_websocket_broadcast_callback__mutmut_13",
+  "x_create_websocket_broadcast_callback__mutmut_14",
+  "x_create_websocket_broadcast_callback__mutmut_15",
+  "x_create_websocket_broadcast_callback__mutmut_16",
+  "x_create_websocket_broadcast_callback__mutmut_18",
+  "x_create_websocket_broadcast_callback__mutmut_19",
+  "x_create_websocket_broadcast_callback__mutmut_20",
+  "x_create_websocket_broadcast_callback__mutmut_21",
+  "x_create_websocket_broadcast_callback__mutmut_22",
+  "x_create_websocket_broadcast_callback__mutmut_3",
+  "x_create_websocket_broadcast_callback__mutmut_4",
+  "x_create_websocket_broadcast_callback__mutmut_6",
+  "x_create_websocket_broadcast_callback__mutmut_7",
+  "x_create_websocket_broadcast_callback__mutmut_8",
+  "x_create_websocket_broadcast_callback__mutmut_9"
+ ],
+ "J4a:send-arg-None": [
+  "x_create_websocket_broadcast_callback__mutmut_2"
+ ],
+ "J4b:init-arg-None": [
+  "x_init_job_tracker_websocket__mutmut_2",
+  "x_init_job_tracker_websocket__mutmut_11"
+ ],
+ "J4d:init-log": [
+  "x_init_job_tracker_websocket__mutmut_6",
+  "x_init_job_tracker_websocket__mutmut_7",
+  "x_init_job_tracker_websocket__mutmut_8",
+  "x_init_job_tracker_websocket__mutmut_9"
+ ],
+ "J5:cleanup-log": [
+  "x.JobTracker.cleanup_completed_jobs__mutmut_11",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_12",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_13",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_14",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_15",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_16",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_8",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_9"
+ ],
+ "J2:pop-key-silent": [
+  "x.JobTracker.cleanup_completed_jobs__mutmut_5",
+  "x.JobTracker.cleanup_completed_jobs__mutmut_7"
+ ],
+ "J3a:progress": [
+  "x.JobTracker.get_job_from_redis__mutmut_12"
+ ],
+ "J3a:message": [
+  "x.JobTracker.get_job_from_redis__mutmut_13"
+ ],
+ "J3a:created_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_14"
+ ],
+ "J3a:started_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_15"
+ ],
+ "J3a:completed_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_16"
+ ],
+ "J3a:result": [
+  "x.JobTracker.get_job_from_redis__mutmut_17"
+ ],
+ "J3a:error": [
+  "x.JobTracker.get_job_from_redis__mutmut_18"
+ ],
+ "J3b:progress": [
+  "x.JobTracker.get_job_from_redis__mutmut_22"
+ ],
+ "J3b:message": [
+  "x.JobTracker.get_job_from_redis__mutmut_23"
+ ],
+ "J3b:created_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_24"
+ ],
+ "J3b:started_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_25"
+ ],
+ "J3b:completed_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_26"
+ ],
+ "J3b:result": [
+  "x.JobTracker.get_job_from_redis__mutmut_27"
+ ],
+ "J3b:error": [
+  "x.JobTracker.get_job_from_redis__mutmut_28"
+ ],
+ "J3c:job_id": [
+  "x.JobTracker.get_job_from_redis__mutmut_29",
+  "x.JobTracker.get_job_from_redis__mutmut_30",
+  "x.JobTracker.get_job_from_redis__mutmut_32",
+  "x.JobTracker.get_job_from_redis__mutmut_33",
+  "x.JobTracker.get_job_from_redis__mutmut_34"
+ ],
+ "J3c:status": [
+  "x.JobTracker.get_job_from_redis__mutmut_45",
+  "x.JobTracker.get_job_from_redis__mutmut_47",
+  "x.JobTracker.get_job_from_redis__mutmut_50",
+  "x.JobTracker.get_job_from_redis__mutmut_51"
+ ],
+ "J3c:progress": [
+  "x.JobTracker.get_job_from_redis__mutmut_52",
+  "x.JobTracker.get_job_from_redis__mutmut_53",
+  "x.JobTracker.get_job_from_redis__mutmut_54",
+  "x.JobTracker.get_job_from_redis__mutmut_55",
+  "x.JobTracker.get_job_from_redis__mutmut_56",
+  "x.JobTracker.get_job_from_redis__mutmut_57",
+  "x.JobTracker.get_job_from_redis__mutmut_58"
+ ],
+ "J3c:message": [
+  "x.JobTracker.get_job_from_redis__mutmut_59",
+  "x.JobTracker.get_job_from_redis__mutmut_60",
+  "x.JobTracker.get_job_from_redis__mutmut_61"
+ ],
+ "J3c:created_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_62",
+  "x.JobTracker.get_job_from_redis__mutmut_63",
+  "x.JobTracker.get_job_from_redis__mutmut_64",
+  "x.JobTracker.get_job_from_redis__mutmut_65",
+  "x.JobTracker.get_job_from_redis__mutmut_66",
+  "x.JobTracker.get_job_from_redis__mutmut_67",
+  "x.JobTracker.get_job_from_redis__mutmut_68"
+ ],
+ "J3c:started_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_69",
+  "x.JobTracker.get_job_from_redis__mutmut_70",
+  "x.JobTracker.get_job_from_redis__mutmut_71"
+ ],
+ "J1:guard-and": [
+  "x.JobTracker.get_job_from_redis__mutmut_7"
+ ],
+ "J3c:completed_at": [
+  "x.JobTracker.get_job_from_redis__mutmut_72",
+  "x.JobTracker.get_job_from_redis__mutmut_73",
+  "x.JobTracker.get_job_from_redis__mutmut_74"
+ ],
+ "J3c:result": [
+  "x.JobTracker.get_job_from_redis__mutmut_75",
+  "x.JobTracker.get_job_from_redis__mutmut_76",
+  "x.JobTracker.get_job_from_redis__mutmut_77"
+ ],
+ "J3c:error": [
+  "x.JobTracker.get_job_from_redis__mutmut_78",
+  "x.JobTracker.get_job_from_redis__mutmut_79",
+  "x.JobTracker.get_job_from_redis__mutmut_80"
+ ],
+ "J3e:warning-log": [
+  "x.JobTracker.get_job_from_redis__mutmut_81",
+  "x.JobTracker.get_job_from_redis__mutmut_82",
+  "x.JobTracker.get_job_from_redis__mutmut_84",
+  "x.JobTracker.get_job_from_redis__mutmut_85",
+  "x.JobTracker.get_job_from_redis__mutmut_86",
+  "x.JobTracker.get_job_from_redis__mutmut_87",
+  "x.JobTracker.get_job_from_redis__mutmut_88",
+  "x.JobTracker.get_job_from_redis__mutmut_89",
+  "x.JobTracker.get_job_from_redis__mutmut_90",
+  "x.JobTracker.get_job_from_redis__mutmut_91",
+  "x.JobTracker.get_job_from_redis__mutmut_92"
+ ],
+ "J10:set-redis-log": [
+  "x.JobTracker.set_redis_client__mutmut_2",
+  "x.JobTracker.set_redis_client__mutmut_3",
+  "x.JobTracker.set_redis_client__mutmut_4",
+  "x.JobTracker.set_redis_client__mutmut_5"
+ ],
+ "J4c:init-guard-overwrite": [
+  "x_init_job_tracker_websocket__mutmut_10",
+  "x_init_job_tracker_websocket__mutmut_12"
+ ]
 }

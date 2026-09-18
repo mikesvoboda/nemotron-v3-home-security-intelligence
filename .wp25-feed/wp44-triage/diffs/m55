@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_55: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -35,7 +35,7 @@
+
+     # Extract person data using typed model
+     person: PersonEnrichmentData | None = None
+-    clothing_classifications = enrichment_data.get("clothing_classifications", {})
++    clothing_classifications = enrichment_data.get("clothing_classifications", None)
+     if clothing_classifications:
+         first_key = next(iter(clothing_classifications), None)
+         if first_key:

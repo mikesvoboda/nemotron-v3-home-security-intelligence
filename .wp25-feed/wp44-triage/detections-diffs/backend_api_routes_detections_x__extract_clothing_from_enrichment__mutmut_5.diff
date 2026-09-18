@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x__extract_clothing_from_enrichment__mutmut_5: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -1,6 +1,6 @@
+ def _extract_clothing_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+     """Extract clothing data from enrichment into API response format."""
+-    clothing_classifications = enrichment_data.get("clothing_classifications", {})
++    clothing_classifications = enrichment_data.get("clothing_classifications", )
+     clothing_segmentation = enrichment_data.get("clothing_segmentation", {})
+
+     if not clothing_classifications and not clothing_segmentation:

@@ -1,393 +1,591 @@
 {
-  "C1": {
-    "fn": "x__build_exporter_status",
-    "nums": [4, 9, 10, 11, 12, 13, 17, 18, 24, 25, 26, 27, 28, 32, 33],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_4",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_9",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_10",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_11",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_12",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_13",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_17",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_18",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_24",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_25",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_26",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_27",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_28",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_32",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_33"
-    ],
-    "class": "TEST-GAP",
-    "note": "Live job/instance matcher made dead or inverted (replace needle, key rename, .upper(), `not in`, or->and on the exporter match predicate) - real exporters mislabeled UNKNOWN or matched to wrong target"
-  },
-  "C2": {
-    "fn": "x__build_exporter_status",
-    "nums": [14, 16, 19, 29, 31, 34, 102],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_14",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_16",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_19",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_29",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_31",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_34",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_102"
-    ],
-    "class": "EQUIVALENT",
-    "note": "default tweaks on .get(\"job\"/\"instance\", \"\") of the live disjuncts and dropped last_scrape=None in not-found branch - keys always present in Prometheus target JSON; not-found value already None via schema default"
-  },
-  "C3": {
-    "fn": "x__build_exporter_status",
-    "nums": [38, 40, 43],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_38",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_40",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_43"
-    ],
-    "class": "EQUIVALENT",
-    "note": "third disjunct (bare name in instance) default tweaks - same dead-defensive-default reasoning; disjunct itself redundant with #2 for every real target"
-  },
-  "C4": {
-    "fn": "x__build_exporter_status",
-    "nums": [58],
-    "keys": ["backend.api.routes.system.x__build_exporter_status__mutmut_58"],
-    "class": "TEST-GAP",
-    "note": "`if health == \"up\"` -> `or True`: every matched target reports UP even when health==\"down\""
-  },
-  "C5": {
-    "fn": "x__build_exporter_status",
-    "nums": [49, 51, 54, 55],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_49",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_51",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_54",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_55"
-    ],
-    "class": "EQUIVALENT",
-    "note": "health default \"unknown\" tweaks: key always present; \"UNKNOWN\" default still falls into UNKNOWN else-branch"
-  },
-  "C6": {
-    "fn": "x__build_exporter_status",
-    "nums": [62, 63, 64, 65, 66, 67, 83, 88],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_62",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_63",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_64",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_65",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_66",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_67",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_83",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_88"
-    ],
-    "class": "TEST-GAP",
-    "note": "lastScrape read/propagation destroyed (arg removal, key renames, last_scrape kwarg dropped) -> last_scrape None even when Prometheus supplies it; existing fixture passes lastScrape=None"
-  },
-  "C7": {
-    "fn": "x__build_exporter_status",
-    "nums": [68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 84, 89],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_68",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_69",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_70",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_71",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_72",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_73",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_74",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_75",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_76",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_77",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_78",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_84",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_89"
-    ],
-    "class": "TEST-GAP",
-    "note": "lastError truthiness/key/propagation destroyed (incl. `if X or True` -> \"\" instead of None, key renames, kwarg drops) -> scrape error hidden; fixture uses lastError=\"\" only"
-  },
-  "C8": {
-    "fn": "x__build_exporter_status",
-    "nums": [82, 87, 90, 91, 92, 93],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_82",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_87",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_90",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_91",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_92",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_93"
-    ],
-    "class": "TEST-GAP",
-    "note": "endpoint = target.get(\"instance\") or default_endpoint broken to None/dropped/`and`/key renames -> endpoint None or wrong; never asserted"
-  },
-  "C9": {
-    "fn": "x__build_exporter_status",
-    "nums": [97, 101],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_97",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_101"
-    ],
-    "class": "TEST-GAP",
-    "note": "not-found branch endpoint=default_endpoint -> None/dropped: expected endpoint lost when exporter missing; no_matching_targets test only asserts status+error"
-  },
-  "C10": {
-    "fn": "x__build_exporter_status",
-    "nums": [104, 105, 106],
-    "keys": [
-      "backend.api.routes.system.x__build_exporter_status__mutmut_104",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_105",
-      "backend.api.routes.system.x__build_exporter_status__mutmut_106"
-    ],
-    "class": "LOW-VALUE",
-    "note": "not-found message casing (\"exporter not found...\") - test asserts \"not found\" in lower(); exact string not worth pinning"
-  },
-  "C11": {
-    "fn": "x__get_degradation_status",
-    "nums": [17, 19, 22, 24, 25, 29, 30, 33, 34, 35, 36, 40, 41, 43, 44, 45],
-    "keys": [
-      "backend.api.routes.system.x__get_degradation_status__mutmut_17",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_19",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_22",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_24",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_25",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_29",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_30",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_33",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_34",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_35",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_36",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_40",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_41",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_43",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_44",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_45"
-    ],
-    "class": "TEST-GAP",
-    "note": "ServiceHealthStatusResponse per-service field access broken (status/last_check/consecutive_failures/error_message key renames + last_check/error_message kwarg drops) - test asserts only len(result.services)==1"
-  },
-  "C12": {
-    "fn": "x__get_degradation_status",
-    "nums": [57, 59, 69, 73, 74, 83, 87, 88, 90, 94, 95, 96, 100, 101],
-    "keys": [
-      "backend.api.routes.system.x__get_degradation_status__mutmut_57",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_59",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_69",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_73",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_74",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_83",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_87",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_88",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_90",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_94",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_95",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_96",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_100",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_101"
-    ],
-    "class": "TEST-GAP",
-    "note": "top-level DegradationStatusResponse access broken (is_degraded/memory_queue_size/fallback_queues/available_features key renames; fallback_queues/available_features kwargs dropped) - none of these fields asserted"
-  },
-  "C13": {
-    "fn": "x__get_degradation_status",
-    "nums": [2],
-    "keys": ["backend.api.routes.system.x__get_degradation_status__mutmut_2"],
-    "class": "TEST-GAP",
-    "note": "manager = get_degradation_manager() -> None: global-manager fallback path raises AttributeError -> endpoint returns None even when a manager exists; only the raise-side of that path is tested"
-  },
-  "C14": {
-    "fn": "x__get_degradation_status",
-    "nums": [3, 102, 103, 105, 106],
-    "keys": [
-      "backend.api.routes.system.x__get_degradation_status__mutmut_3",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_102",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_103",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_105",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_106"
-    ],
-    "class": "EQUIVALENT",
-    "note": "logger.debug/error arg + exc_info tweaks; no test captures logging"
-  },
-  "C15": {
-    "fn": "x__get_degradation_status",
-    "nums": [
-      9, 11, 26, 28, 31, 32, 37, 39, 42, 62, 64, 67, 68, 70, 72, 75, 77, 79, 82, 84, 86, 89, 91, 93,
-      97, 99
-    ],
-    "keys": [
-      "backend.api.routes.system.x__get_degradation_status__mutmut_9",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_11",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_26",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_28",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_31",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_32",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_37",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_39",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_42",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_62",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_64",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_67",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_68",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_70",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_72",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_75",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_77",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_79",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_82",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_84",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_86",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_89",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_91",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_93",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_97",
-      "backend.api.routes.system.x__get_degradation_status__mutmut_99"
-    ],
-    "class": "EQUIVALENT",
-    "note": "dead defensive defaults: manager.get_status() always emits services/mode/is_degraded/redis_healthy/memory_queue_size/fallback_queues/available_features and per-service keys; casing tweaks still map to same enum branch"
-  },
-  "C16": {
-    "fn": "x__check_redis_health_full",
-    "nums": [8, 24, 48, 59],
-    "keys": [
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_8",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_24",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_48",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_59"
-    ],
-    "class": "EQUIVALENT",
-    "note": "dropped details=None kwargs = schema default; redis_version default tweaks inert when INFO carries redis_version (real Redis always does)"
-  },
-  "C17": {
-    "fn": "x__check_redis_health_full",
-    "nums": [46, 51, 52],
-    "keys": [
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_46",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_51",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_52"
-    ],
-    "class": "LOW-VALUE",
-    "note": "redis_version fallback label None/\"UNKNOWN\" observable only for INFO missing redis_version - cosmetic fallback nobody should pin"
-  },
-  "C18": {
-    "fn": "x__check_redis_health_full",
-    "nums": [11, 12, 13],
-    "keys": [
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_11",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_12",
-      "backend.api.routes.system.x__check_redis_health_full__mutmut_13"
-    ],
-    "class": "LOW-VALUE",
-    "note": "message casing; test asserts substring \"not available\""
-  },
-  "C19": {
-    "fn": "x__check_postgres_health_full",
-    "nums": [2, 3, 4],
-    "keys": [
-      "backend.api.routes.system.x__check_postgres_health_full__mutmut_2",
-      "backend.api.routes.system.x__check_postgres_health_full__mutmut_3",
-      "backend.api.routes.system.x__check_postgres_health_full__mutmut_4"
-    ],
-    "class": "TEST-GAP",
-    "note": "probe statement/stub replaced (execute(None)/select(None)/scalar result discarded) -> HEALTHY \"Database operational\" without a real round trip; AsyncMock accepts any statement"
-  },
-  "C20": {
-    "fn": "x__check_postgres_health_full",
-    "nums": [11, 23],
-    "keys": [
-      "backend.api.routes.system.x__check_postgres_health_full__mutmut_11",
-      "backend.api.routes.system.x__check_postgres_health_full__mutmut_23"
-    ],
-    "class": "EQUIVALENT",
-    "note": "dropped details=None = schema default"
-  },
-  "C21": {
-    "fn": "x__get_worker_status",
-    "nums": [11, 25, 27, 30, 41],
-    "keys": [
-      "backend.api.routes.system.x__get_worker_status__mutmut_11",
-      "backend.api.routes.system.x__get_worker_status__mutmut_25",
-      "backend.api.routes.system.x__get_worker_status__mutmut_27",
-      "backend.api.routes.system.x__get_worker_status__mutmut_30",
-      "backend.api.routes.system.x__get_worker_status__mutmut_41"
-    ],
-    "class": "TEST-GAP",
-    "note": "file_watcher running True->False (success branch) and False->True (ImportError branch) plus cleanup stats.get(\"running\", False->None/True) tweaks - tests assert critical flags only; file_watcher.running and the ImportError branch never checked"
-  },
-  "C22": {
-    "fn": "x_get_latency_stats",
-    "nums": [5, 6, 10, 11, 12],
-    "keys": [
-      "backend.api.routes.system.x_get_latency_stats__mutmut_5",
-      "backend.api.routes.system.x_get_latency_stats__mutmut_6",
-      "backend.api.routes.system.x_get_latency_stats__mutmut_10",
-      "backend.api.routes.system.x_get_latency_stats__mutmut_11",
-      "backend.api.routes.system.x_get_latency_stats__mutmut_12"
-    ],
-    "class": "TEST-GAP",
-    "note": "peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1) window bounds mutated (None/1/+1/-2) -> wrong Redis slice; Mock ignores args, call never asserted"
-  },
-  "C23": {
-    "fn": "x__calculate_stage_latency",
-    "nums": [49, 54, 59],
-    "keys": [
-      "backend.api.routes.system.x__calculate_stage_latency__mutmut_49",
-      "backend.api.routes.system.x__calculate_stage_latency__mutmut_54",
-      "backend.api.routes.system.x__calculate_stage_latency__mutmut_59"
-    ],
-    "class": "TEST-GAP",
-    "note": "percentile args p50->51, p95->96, p99->100 -> wrong StageLatency p50/p95/p99 values; existing tests assert avg/min/max/sample_count only"
-  },
-  "C24": {
-    "fn": "x__get_model_category",
-    "nums": [1],
-    "keys": ["backend.api.routes.system.x__get_model_category__mutmut_1"],
-    "class": "TEST-GAP",
-    "note": "`in` -> `not in`: every registered model categorized \"Other\" and every unknown one matched to first category - category value never asserted (only field presence)"
-  },
-  "C25": {
-    "fn": "x__get_model_category",
-    "nums": [2, 3, 4],
-    "keys": [
-      "backend.api.routes.system.x__get_model_category__mutmut_2",
-      "backend.api.routes.system.x__get_model_category__mutmut_3",
-      "backend.api.routes.system.x__get_model_category__mutmut_4"
-    ],
-    "class": "LOW-VALUE",
-    "note": "\"Other\" casing tweaks"
-  },
-  "C26": {
-    "fn": "x__get_circuit_breaker_summary",
-    "nums": [12, 14, 17, 18],
-    "keys": [
-      "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_12",
-      "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_14",
-      "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_17",
-      "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_18"
-    ],
-    "class": "EQUIVALENT",
-    "note": "state default tweaks: registry status always carries \"state\"; \"CLOSED\" casing default lands in same else-branch"
-  },
-  "C27": {
-    "fn": "x__get_circuit_breaker_summary",
-    "nums": [23, 30],
-    "keys": [
-      "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_23",
-      "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_30"
-    ],
-    "class": "TEST-GAP",
-    "note": "open_count += 1 -> = 1 (same half_open) -> counts become last-seen flags: 3 open breakers report open=1; existing test has exactly one each"
-  },
-  "C28": {
-    "fn": "x__build_empty_batch_response",
-    "nums": [6],
-    "keys": ["backend.api.routes.system.x__build_empty_batch_response__mutmut_6"],
-    "class": "EQUIVALENT",
-    "note": "batches=[] drop = default_factory=list"
-  },
-  "C29": {
-    "fn": "x\u01c1PerformanceMetricsCacheEntry\u01c1is_valid",
-    "nums": [2],
-    "keys": [
-      "backend.api.routes.system.x\u01c1PerformanceMetricsCacheEntry\u01c1is_valid__mutmut_2"
-    ],
-    "class": "LOW-VALUE",
-    "note": "< -> <= TTL: differs only at exactly cached age == 5.000s; tests probe 0s/10s - boundary-inclusive assert has near-zero value"
-  }
+ "C1": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   4,
+   9,
+   10,
+   11,
+   12,
+   13,
+   17,
+   18,
+   24,
+   25,
+   26,
+   27,
+   28,
+   32,
+   33
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_4",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_9",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_10",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_11",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_12",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_13",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_17",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_18",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_24",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_25",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_26",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_27",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_28",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_32",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_33"
+  ],
+  "class": "TEST-GAP",
+  "note": "Live job/instance matcher made dead or inverted (replace needle, key rename, .upper(), `not in`, or->and on the exporter match predicate) - real exporters mislabeled UNKNOWN or matched to wrong target"
+ },
+ "C2": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   14,
+   16,
+   19,
+   29,
+   31,
+   34,
+   102
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_14",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_16",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_19",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_29",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_31",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_34",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_102"
+  ],
+  "class": "EQUIVALENT",
+  "note": "default tweaks on .get(\"job\"/\"instance\", \"\") of the live disjuncts and dropped last_scrape=None in not-found branch - keys always present in Prometheus target JSON; not-found value already None via schema default"
+ },
+ "C3": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   38,
+   40,
+   43
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_38",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_40",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_43"
+  ],
+  "class": "EQUIVALENT",
+  "note": "third disjunct (bare name in instance) default tweaks - same dead-defensive-default reasoning; disjunct itself redundant with #2 for every real target"
+ },
+ "C4": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   58
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_58"
+  ],
+  "class": "TEST-GAP",
+  "note": "`if health == \"up\"` -> `or True`: every matched target reports UP even when health==\"down\""
+ },
+ "C5": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   49,
+   51,
+   54,
+   55
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_49",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_51",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_54",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_55"
+  ],
+  "class": "EQUIVALENT",
+  "note": "health default \"unknown\" tweaks: key always present; \"UNKNOWN\" default still falls into UNKNOWN else-branch"
+ },
+ "C6": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   83,
+   88
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_62",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_63",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_64",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_65",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_66",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_67",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_83",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_88"
+  ],
+  "class": "TEST-GAP",
+  "note": "lastScrape read/propagation destroyed (arg removal, key renames, last_scrape kwarg dropped) -> last_scrape None even when Prometheus supplies it; existing fixture passes lastScrape=None"
+ },
+ "C7": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   68,
+   69,
+   70,
+   71,
+   72,
+   73,
+   74,
+   75,
+   76,
+   77,
+   78,
+   84,
+   89
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_68",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_69",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_70",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_71",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_72",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_73",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_74",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_75",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_76",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_77",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_78",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_84",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_89"
+  ],
+  "class": "TEST-GAP",
+  "note": "lastError truthiness/key/propagation destroyed (incl. `if X or True` -> \"\" instead of None, key renames, kwarg drops) -> scrape error hidden; fixture uses lastError=\"\" only"
+ },
+ "C8": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   82,
+   87,
+   90,
+   91,
+   92,
+   93
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_82",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_87",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_90",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_91",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_92",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_93"
+  ],
+  "class": "TEST-GAP",
+  "note": "endpoint = target.get(\"instance\") or default_endpoint broken to None/dropped/`and`/key renames -> endpoint None or wrong; never asserted"
+ },
+ "C9": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   97,
+   101
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_97",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_101"
+  ],
+  "class": "TEST-GAP",
+  "note": "not-found branch endpoint=default_endpoint -> None/dropped: expected endpoint lost when exporter missing; no_matching_targets test only asserts status+error"
+ },
+ "C10": {
+  "fn": "x__build_exporter_status",
+  "nums": [
+   104,
+   105,
+   106
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_exporter_status__mutmut_104",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_105",
+   "backend.api.routes.system.x__build_exporter_status__mutmut_106"
+  ],
+  "class": "LOW-VALUE",
+  "note": "not-found message casing (\"exporter not found...\") - test asserts \"not found\" in lower(); exact string not worth pinning"
+ },
+ "C11": {
+  "fn": "x__get_degradation_status",
+  "nums": [
+   17,
+   19,
+   22,
+   24,
+   25,
+   29,
+   30,
+   33,
+   34,
+   35,
+   36,
+   40,
+   41,
+   43,
+   44,
+   45
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_degradation_status__mutmut_17",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_19",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_22",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_24",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_25",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_29",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_30",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_33",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_34",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_35",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_36",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_40",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_41",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_43",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_44",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_45"
+  ],
+  "class": "TEST-GAP",
+  "note": "ServiceHealthStatusResponse per-service field access broken (status/last_check/consecutive_failures/error_message key renames + last_check/error_message kwarg drops) - test asserts only len(result.services)==1"
+ },
+ "C12": {
+  "fn": "x__get_degradation_status",
+  "nums": [
+   57,
+   59,
+   69,
+   73,
+   74,
+   83,
+   87,
+   88,
+   90,
+   94,
+   95,
+   96,
+   100,
+   101
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_degradation_status__mutmut_57",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_59",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_69",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_73",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_74",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_83",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_87",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_88",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_90",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_94",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_95",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_96",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_100",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_101"
+  ],
+  "class": "TEST-GAP",
+  "note": "top-level DegradationStatusResponse access broken (is_degraded/memory_queue_size/fallback_queues/available_features key renames; fallback_queues/available_features kwargs dropped) - none of these fields asserted"
+ },
+ "C13": {
+  "fn": "x__get_degradation_status",
+  "nums": [
+   2
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_degradation_status__mutmut_2"
+  ],
+  "class": "TEST-GAP",
+  "note": "manager = get_degradation_manager() -> None: global-manager fallback path raises AttributeError -> endpoint returns None even when a manager exists; only the raise-side of that path is tested"
+ },
+ "C14": {
+  "fn": "x__get_degradation_status",
+  "nums": [
+   3,
+   102,
+   103,
+   105,
+   106
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_degradation_status__mutmut_3",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_102",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_103",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_105",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_106"
+  ],
+  "class": "EQUIVALENT",
+  "note": "logger.debug/error arg + exc_info tweaks; no test captures logging"
+ },
+ "C15": {
+  "fn": "x__get_degradation_status",
+  "nums": [
+   9,
+   11,
+   26,
+   28,
+   31,
+   32,
+   37,
+   39,
+   42,
+   62,
+   64,
+   67,
+   68,
+   70,
+   72,
+   75,
+   77,
+   79,
+   82,
+   84,
+   86,
+   89,
+   91,
+   93,
+   97,
+   99
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_degradation_status__mutmut_9",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_11",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_26",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_28",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_31",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_32",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_37",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_39",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_42",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_62",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_64",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_67",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_68",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_70",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_72",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_75",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_77",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_79",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_82",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_84",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_86",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_89",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_91",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_93",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_97",
+   "backend.api.routes.system.x__get_degradation_status__mutmut_99"
+  ],
+  "class": "EQUIVALENT",
+  "note": "dead defensive defaults: manager.get_status() always emits services/mode/is_degraded/redis_healthy/memory_queue_size/fallback_queues/available_features and per-service keys; casing tweaks still map to same enum branch"
+ },
+ "C16": {
+  "fn": "x__check_redis_health_full",
+  "nums": [
+   8,
+   24,
+   48,
+   59
+  ],
+  "keys": [
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_8",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_24",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_48",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_59"
+  ],
+  "class": "EQUIVALENT",
+  "note": "dropped details=None kwargs = schema default; redis_version default tweaks inert when INFO carries redis_version (real Redis always does)"
+ },
+ "C17": {
+  "fn": "x__check_redis_health_full",
+  "nums": [
+   46,
+   51,
+   52
+  ],
+  "keys": [
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_46",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_51",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_52"
+  ],
+  "class": "LOW-VALUE",
+  "note": "redis_version fallback label None/\"UNKNOWN\" observable only for INFO missing redis_version - cosmetic fallback nobody should pin"
+ },
+ "C18": {
+  "fn": "x__check_redis_health_full",
+  "nums": [
+   11,
+   12,
+   13
+  ],
+  "keys": [
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_11",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_12",
+   "backend.api.routes.system.x__check_redis_health_full__mutmut_13"
+  ],
+  "class": "LOW-VALUE",
+  "note": "message casing; test asserts substring \"not available\""
+ },
+ "C19": {
+  "fn": "x__check_postgres_health_full",
+  "nums": [
+   2,
+   3,
+   4
+  ],
+  "keys": [
+   "backend.api.routes.system.x__check_postgres_health_full__mutmut_2",
+   "backend.api.routes.system.x__check_postgres_health_full__mutmut_3",
+   "backend.api.routes.system.x__check_postgres_health_full__mutmut_4"
+  ],
+  "class": "TEST-GAP",
+  "note": "probe statement/stub replaced (execute(None)/select(None)/scalar result discarded) -> HEALTHY \"Database operational\" without a real round trip; AsyncMock accepts any statement"
+ },
+ "C20": {
+  "fn": "x__check_postgres_health_full",
+  "nums": [
+   11,
+   23
+  ],
+  "keys": [
+   "backend.api.routes.system.x__check_postgres_health_full__mutmut_11",
+   "backend.api.routes.system.x__check_postgres_health_full__mutmut_23"
+  ],
+  "class": "EQUIVALENT",
+  "note": "dropped details=None = schema default"
+ },
+ "C21": {
+  "fn": "x__get_worker_status",
+  "nums": [
+   11,
+   25,
+   27,
+   30,
+   41
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_worker_status__mutmut_11",
+   "backend.api.routes.system.x__get_worker_status__mutmut_25",
+   "backend.api.routes.system.x__get_worker_status__mutmut_27",
+   "backend.api.routes.system.x__get_worker_status__mutmut_30",
+   "backend.api.routes.system.x__get_worker_status__mutmut_41"
+  ],
+  "class": "TEST-GAP",
+  "note": "file_watcher running True->False (success branch) and False->True (ImportError branch) plus cleanup stats.get(\"running\", False->None/True) tweaks - tests assert critical flags only; file_watcher.running and the ImportError branch never checked"
+ },
+ "C22": {
+  "fn": "x_get_latency_stats",
+  "nums": [
+   5,
+   6,
+   10,
+   11,
+   12
+  ],
+  "keys": [
+   "backend.api.routes.system.x_get_latency_stats__mutmut_5",
+   "backend.api.routes.system.x_get_latency_stats__mutmut_6",
+   "backend.api.routes.system.x_get_latency_stats__mutmut_10",
+   "backend.api.routes.system.x_get_latency_stats__mutmut_11",
+   "backend.api.routes.system.x_get_latency_stats__mutmut_12"
+  ],
+  "class": "TEST-GAP",
+  "note": "peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1) window bounds mutated (None/1/+1/-2) -> wrong Redis slice; Mock ignores args, call never asserted"
+ },
+ "C23": {
+  "fn": "x__calculate_stage_latency",
+  "nums": [
+   49,
+   54,
+   59
+  ],
+  "keys": [
+   "backend.api.routes.system.x__calculate_stage_latency__mutmut_49",
+   "backend.api.routes.system.x__calculate_stage_latency__mutmut_54",
+   "backend.api.routes.system.x__calculate_stage_latency__mutmut_59"
+  ],
+  "class": "TEST-GAP",
+  "note": "percentile args p50->51, p95->96, p99->100 -> wrong StageLatency p50/p95/p99 values; existing tests assert avg/min/max/sample_count only"
+ },
+ "C24": {
+  "fn": "x__get_model_category",
+  "nums": [
+   1
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_model_category__mutmut_1"
+  ],
+  "class": "TEST-GAP",
+  "note": "`in` -> `not in`: every registered model categorized \"Other\" and every unknown one matched to first category - category value never asserted (only field presence)"
+ },
+ "C25": {
+  "fn": "x__get_model_category",
+  "nums": [
+   2,
+   3,
+   4
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_model_category__mutmut_2",
+   "backend.api.routes.system.x__get_model_category__mutmut_3",
+   "backend.api.routes.system.x__get_model_category__mutmut_4"
+  ],
+  "class": "LOW-VALUE",
+  "note": "\"Other\" casing tweaks"
+ },
+ "C26": {
+  "fn": "x__get_circuit_breaker_summary",
+  "nums": [
+   12,
+   14,
+   17,
+   18
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_12",
+   "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_14",
+   "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_17",
+   "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_18"
+  ],
+  "class": "EQUIVALENT",
+  "note": "state default tweaks: registry status always carries \"state\"; \"CLOSED\" casing default lands in same else-branch"
+ },
+ "C27": {
+  "fn": "x__get_circuit_breaker_summary",
+  "nums": [
+   23,
+   30
+  ],
+  "keys": [
+   "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_23",
+   "backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_30"
+  ],
+  "class": "TEST-GAP",
+  "note": "open_count += 1 -> = 1 (same half_open) -> counts become last-seen flags: 3 open breakers report open=1; existing test has exactly one each"
+ },
+ "C28": {
+  "fn": "x__build_empty_batch_response",
+  "nums": [
+   6
+  ],
+  "keys": [
+   "backend.api.routes.system.x__build_empty_batch_response__mutmut_6"
+  ],
+  "class": "EQUIVALENT",
+  "note": "batches=[] drop = default_factory=list"
+ },
+ "C29": {
+  "fn": "x\u01c1PerformanceMetricsCacheEntry\u01c1is_valid",
+  "nums": [
+   2
+  ],
+  "keys": [
+   "backend.api.routes.system.x\u01c1PerformanceMetricsCacheEntry\u01c1is_valid__mutmut_2"
+  ],
+  "class": "LOW-VALUE",
+  "note": "< -> <= TTL: differs only at exactly cached age == 5.000s; tests probe 0s/10s - boundary-inclusive assert has near-zero value"
+ }
 }

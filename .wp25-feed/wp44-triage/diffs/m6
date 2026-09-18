@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x__parse_range_header__mutmut_6: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -12,7 +12,7 @@
+         ValueError: If range header is invalid
+     """
+     if not range_header.startswith("bytes="):
+-        raise ValueError("Invalid range header format")
++        raise ValueError("XXInvalid range header formatXX")
+
+     range_spec = range_header[6:]  # Remove "bytes=" prefix

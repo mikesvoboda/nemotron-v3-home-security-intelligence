@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_187: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -80,7 +80,7 @@
+
+     # Extract pet data
+     pet_response: dict[str, Any] | None = None
+-    pet_classifications = enrichment_data.get("pet_classifications", {})
++    pet_classifications = enrichment_data.get("pet_classifications", )
+     if pet_classifications:
+         first_key = next(iter(pet_classifications), None)
+         if first_key:
