@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities_by_timerange__mutmut_14
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entities_by_timerange__mutmut_14: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -41,7 +41,7 @@
+         len(entities),
+         total,
+         entity_type,
+-        since,
++        None,
+     )
+ 
+     return entities, total

@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_134: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -87,7 +87,7 @@
+             {
+                 "type": "suspicious_action",
+                 "description": f"{detected_action} ({confidence:.0%} confidence)",
+-                "severity": severity,
++                "XXseverityXX": severity,
+             }
+         )
+ 

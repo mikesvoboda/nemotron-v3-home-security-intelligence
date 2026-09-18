@@ -1,0 +1,1454 @@
+[
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_10",
+"minus": [
+"            enabled=enabled,"
+],
+"plus": [
+"            enabled=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_15",
+"minus": [
+"            gpu_idle_threshold=gpu_idle_threshold,"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_16",
+"minus": [
+"            idle_duration_required=idle_duration_required,"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_17",
+"minus": [
+"            poll_interval=poll_interval,"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_18",
+"minus": [
+"            enabled=enabled,",
+"        )"
+],
+"plus": [
+"            )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_3",
+"minus": [
+"            redis_client=redis_client,"
+],
+"plus": [
+"            redis_client=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_4",
+"minus": [
+"            gpu_monitor=gpu_monitor,"
+],
+"plus": [
+"            gpu_monitor=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_5",
+"minus": [
+"            evaluation_queue=evaluation_queue,"
+],
+"plus": [
+"            evaluation_queue=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_6",
+"minus": [
+"            audit_service=audit_service,"
+],
+"plus": [
+"            audit_service=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_7",
+"minus": [
+"            gpu_idle_threshold=gpu_idle_threshold,"
+],
+"plus": [
+"            gpu_idle_threshold=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_8",
+"minus": [
+"            idle_duration_required=idle_duration_required,"
+],
+"plus": [
+"            idle_duration_required=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x_get_background_evaluator__mutmut_9",
+"minus": [
+"            poll_interval=poll_interval,"
+],
+"plus": [
+"            poll_interval=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_1",
+"minus": [
+"    if self._job_tracker and tracker_job_id:"
+],
+"plus": [
+"    if self._job_tracker or tracker_job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_10",
+"minus": [
+"        await job_service.complete_job(job_id, result=result)"
+],
+"plus": [
+"        await job_service.complete_job(job_id, )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_2",
+"minus": [
+"        self._job_tracker.complete_job(tracker_job_id, result=result)"
+],
+"plus": [
+"        self._job_tracker.complete_job(None, result=result)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_4",
+"minus": [
+"        self._job_tracker.complete_job(tracker_job_id, result=result)"
+],
+"plus": [
+"        self._job_tracker.complete_job(result=result)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_6",
+"minus": [
+"    elif job_service and job_id:"
+],
+"plus": [
+"    elif job_service or job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_7",
+"minus": [
+"        await job_service.complete_job(job_id, result=result)"
+],
+"plus": [
+"        await job_service.complete_job(None, result=result)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_8",
+"minus": [
+"        await job_service.complete_job(job_id, result=result)"
+],
+"plus": [
+"        await job_service.complete_job(job_id, result=None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_complete_job__mutmut_9",
+"minus": [
+"        await job_service.complete_job(job_id, result=result)"
+],
+"plus": [
+"        await job_service.complete_job(result=result)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_1",
+"minus": [
+"    if self._job_tracker and tracker_job_id:"
+],
+"plus": [
+"    if self._job_tracker or tracker_job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_10",
+"minus": [
+"        await job_service.fail_job(job_id, error)"
+],
+"plus": [
+"        await job_service.fail_job(job_id, )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_2",
+"minus": [
+"        self._job_tracker.fail_job(tracker_job_id, error)"
+],
+"plus": [
+"        self._job_tracker.fail_job(None, error)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_6",
+"minus": [
+"    elif job_service and job_id:"
+],
+"plus": [
+"    elif job_service or job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_7",
+"minus": [
+"        await job_service.fail_job(job_id, error)"
+],
+"plus": [
+"        await job_service.fail_job(None, error)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_8",
+"minus": [
+"        await job_service.fail_job(job_id, error)"
+],
+"plus": [
+"        await job_service.fail_job(job_id, None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_fail_job__mutmut_9",
+"minus": [
+"        await job_service.fail_job(job_id, error)"
+],
+"plus": [
+"        await job_service.fail_job(error)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_is_job_cancelled__mutmut_5",
+"minus": [
+"    return self._job_tracker.is_cancelled(job_id)"
+],
+"plus": [
+"    return self._job_tracker.is_cancelled(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_1",
+"minus": [
+"    if self._job_tracker and tracker_job_id:"
+],
+"plus": [
+"    if self._job_tracker or tracker_job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_10",
+"minus": [
+"        await job_service.update_progress(job_id, progress, message)"
+],
+"plus": [
+"        await job_service.update_progress(job_id, None, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_11",
+"minus": [
+"        await job_service.update_progress(job_id, progress, message)"
+],
+"plus": [
+"        await job_service.update_progress(job_id, progress, None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_12",
+"minus": [
+"        await job_service.update_progress(job_id, progress, message)"
+],
+"plus": [
+"        await job_service.update_progress(progress, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_13",
+"minus": [
+"        await job_service.update_progress(job_id, progress, message)"
+],
+"plus": [
+"        await job_service.update_progress(job_id, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_14",
+"minus": [
+"        await job_service.update_progress(job_id, progress, message)"
+],
+"plus": [
+"        await job_service.update_progress(job_id, progress, )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_2",
+"minus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, message)"
+],
+"plus": [
+"        self._job_tracker.update_progress(None, progress, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_3",
+"minus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, message)"
+],
+"plus": [
+"        self._job_tracker.update_progress(tracker_job_id, None, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_4",
+"minus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, message)"
+],
+"plus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_5",
+"minus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, message)"
+],
+"plus": [
+"        self._job_tracker.update_progress(progress, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_6",
+"minus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, message)"
+],
+"plus": [
+"        self._job_tracker.update_progress(tracker_job_id, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_7",
+"minus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, message)"
+],
+"plus": [
+"        self._job_tracker.update_progress(tracker_job_id, progress, )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_8",
+"minus": [
+"    elif job_service and job_id:"
+],
+"plus": [
+"    elif job_service or job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1_update_job_progress__mutmut_9",
+"minus": [
+"        await job_service.update_progress(job_id, progress, message)"
+],
+"plus": [
+"        await job_service.update_progress(None, progress, message)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_10",
+"minus": [
+"    tracker_job_id: str | None = None"
+],
+"plus": [
+"    tracker_job_id: str | None = \"\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_103",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, job_id, 26, \"Fetching audit record\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_104",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, job_id, 25, \"XXFetching audit recordXX\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_105",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, job_id, 25, \"fetching audit record\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_106",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, job_id, 25, \"FETCHING AUDIT RECORD\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_108",
+"minus": [
+"                select(EventAudit).where(EventAudit.event_id == event_id)"
+],
+"plus": [
+"                None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_109",
+"minus": [
+"                select(EventAudit).where(EventAudit.event_id == event_id)"
+],
+"plus": [
+"                select(EventAudit).where(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_11",
+"minus": [
+"    job_id: str | None = None"
+],
+"plus": [
+"    job_id: str | None = \"\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_110",
+"minus": [
+"                select(EventAudit).where(EventAudit.event_id == event_id)"
+],
+"plus": [
+"                select(None).where(EventAudit.event_id == event_id)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_111",
+"minus": [
+"                select(EventAudit).where(EventAudit.event_id == event_id)"
+],
+"plus": [
+"                select(EventAudit).where(EventAudit.event_id != event_id)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_114",
+"minus": [
+"                    f\"No audit record for event {event_id}, skipping evaluation\","
+],
+"plus": [
+"                    None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_115",
+"minus": [
+"                    extra={\"event_id\": event_id},"
+],
+"plus": [
+"                    extra=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_116",
+"minus": [
+"                    f\"No audit record for event {event_id}, skipping evaluation\","
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_117",
+"minus": [
+"                    extra={\"event_id\": event_id},",
+"                )"
+],
+"plus": [
+"                    )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_118",
+"minus": [
+"                    extra={\"event_id\": event_id},"
+],
+"plus": [
+"                    extra={\"XXevent_idXX\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_119",
+"minus": [
+"                    extra={\"event_id\": event_id},"
+],
+"plus": [
+"                    extra={\"EVENT_ID\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_12",
+"minus": [
+"    job_service: JobStatusService | None = None"
+],
+"plus": [
+"    job_service: JobStatusService | None = \"\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_120",
+"minus": [
+"                    tracker_job_id,"
+],
+"plus": [
+"                    None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_121",
+"minus": [
+"                    job_service,"
+],
+"plus": [
+"                    None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_122",
+"minus": [
+"                    job_id,"
+],
+"plus": [
+"                    None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_123",
+"minus": [
+"                    f\"No audit record for event {event_id}\","
+],
+"plus": [
+"                    None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_124",
+"minus": [
+"                    tracker_job_id,"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_125",
+"minus": [
+"                    job_service,"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_126",
+"minus": [
+"                    job_id,"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_127",
+"minus": [
+"                    f\"No audit record for event {event_id}\",",
+"                )"
+],
+"plus": [
+"                    )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_129",
+"minus": [
+"            session.expunge(event)"
+],
+"plus": [
+"            session.expunge(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_130",
+"minus": [
+"            session.expunge(audit)"
+],
+"plus": [
+"            session.expunge(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_132",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, None, job_id, 40, \"Running AI evaluation\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_133",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, None, 40, \"Running AI evaluation\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_134",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, None, \"Running AI evaluation\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_135",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 40, None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_141",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 41, \"Running AI evaluation\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_142",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 40, \"XXRunning AI evaluationXX\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_143",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 40, \"running ai evaluation\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_144",
+"minus": [
+"            tracker_job_id, job_service, job_id, 40, \"Running AI evaluation\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 40, \"RUNNING AI EVALUATION\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_145",
+"minus": [
+"        await self._audit_service.run_evaluation_llm_calls(audit, event)"
+],
+"plus": [
+"        await self._audit_service.run_evaluation_llm_calls(None, event)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_150",
+"minus": [
+"            audit = await write_session.merge(audit)"
+],
+"plus": [
+"            audit = await write_session.merge(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_152",
+"minus": [
+"            job_service,"
+],
+"plus": [
+"            None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_153",
+"minus": [
+"            job_id,"
+],
+"plus": [
+"            None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_154",
+"minus": [
+"            {",
+"                \"event_id\": event_id,",
+"                \"overall_quality_score\": audit.overall_quality_score,",
+"            },"
+],
+"plus": [
+"            None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_159",
+"minus": [
+"                \"event_id\": event_id,"
+],
+"plus": [
+"                \"XXevent_idXX\": event_id,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_160",
+"minus": [
+"                \"event_id\": event_id,"
+],
+"plus": [
+"                \"EVENT_ID\": event_id,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_161",
+"minus": [
+"                \"overall_quality_score\": audit.overall_quality_score,"
+],
+"plus": [
+"                \"XXoverall_quality_scoreXX\": audit.overall_quality_score,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_162",
+"minus": [
+"                \"overall_quality_score\": audit.overall_quality_score,"
+],
+"plus": [
+"                \"OVERALL_QUALITY_SCORE\": audit.overall_quality_score,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_163",
+"minus": [
+"            f\"Completed background evaluation for event {event_id}\","
+],
+"plus": [
+"            None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_164",
+"minus": [
+"            extra={",
+"                \"event_id\": event_id,",
+"                \"overall_quality_score\": audit.overall_quality_score,",
+"            },"
+],
+"plus": [
+"            extra=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_165",
+"minus": [
+"            f\"Completed background evaluation for event {event_id}\","
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_166",
+"minus": [
+"            extra={",
+"                \"event_id\": event_id,",
+"                \"overall_quality_score\": audit.overall_quality_score,",
+"            },",
+"        )"
+],
+"plus": [
+"            )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_167",
+"minus": [
+"                \"event_id\": event_id,"
+],
+"plus": [
+"                \"XXevent_idXX\": event_id,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_168",
+"minus": [
+"                \"event_id\": event_id,"
+],
+"plus": [
+"                \"EVENT_ID\": event_id,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_169",
+"minus": [
+"                \"overall_quality_score\": audit.overall_quality_score,"
+],
+"plus": [
+"                \"XXoverall_quality_scoreXX\": audit.overall_quality_score,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_17",
+"minus": [
+"            tracker_job_id, f\"Processing evaluation for event {event_id}\""
+],
+"plus": [
+"            None, f\"Processing evaluation for event {event_id}\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_170",
+"minus": [
+"                \"overall_quality_score\": audit.overall_quality_score,"
+],
+"plus": [
+"                \"OVERALL_QUALITY_SCORE\": audit.overall_quality_score,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_172",
+"minus": [
+"            f\"Failed to process evaluation for event {event_id}: {e}\","
+],
+"plus": [
+"            None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_173",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": [
+"            extra=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_174",
+"minus": [
+"            exc_info=True,"
+],
+"plus": [
+"            exc_info=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_176",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_177",
+"minus": [
+"            exc_info=True,",
+"        )"
+],
+"plus": [
+"            )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_178",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": [
+"            extra={\"XXevent_idXX\": event_id, \"error\": str(e)},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_179",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": [
+"            extra={\"EVENT_ID\": event_id, \"error\": str(e)},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_18",
+"minus": [
+"            tracker_job_id, f\"Processing evaluation for event {event_id}\""
+],
+"plus": [
+"            tracker_job_id, None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_180",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": [
+"            extra={\"event_id\": event_id, \"XXerrorXX\": str(e)},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_181",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": [
+"            extra={\"event_id\": event_id, \"ERROR\": str(e)},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_182",
+"minus": [
+"            extra={\"event_id\": event_id, \"error\": str(e)},"
+],
+"plus": [
+"            extra={\"event_id\": event_id, \"error\": str(None)},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_183",
+"minus": [
+"            exc_info=True,"
+],
+"plus": [
+"            exc_info=False,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_185",
+"minus": [
+"        await self._fail_job(tracker_job_id, job_service, job_id, str(e))"
+],
+"plus": [
+"        await self._fail_job(tracker_job_id, None, job_id, str(e))"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_186",
+"minus": [
+"        await self._fail_job(tracker_job_id, job_service, job_id, str(e))"
+],
+"plus": [
+"        await self._fail_job(tracker_job_id, job_service, None, str(e))"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_19",
+"minus": [
+"            tracker_job_id, f\"Processing evaluation for event {event_id}\""
+],
+"plus": [
+"            f\"Processing evaluation for event {event_id}\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_20",
+"minus": [
+"            tracker_job_id, f\"Processing evaluation for event {event_id}\"",
+"        )"
+],
+"plus": [
+"            tracker_job_id, )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_22",
+"minus": [
+"        job_id = await job_service.start_job(",
+"            job_id=f\"evaluation-{event_id}\",",
+"            job_type=\"background_evaluation\",",
+"            metadata={\"event_id\": event_id},",
+"        )"
+],
+"plus": [
+"        job_id = None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_23",
+"minus": [
+"            job_id=f\"evaluation-{event_id}\","
+],
+"plus": [
+"            job_id=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_24",
+"minus": [
+"            job_type=\"background_evaluation\","
+],
+"plus": [
+"            job_type=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_25",
+"minus": [
+"            metadata={\"event_id\": event_id},"
+],
+"plus": [
+"            metadata=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_26",
+"minus": [
+"            job_id=f\"evaluation-{event_id}\","
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_27",
+"minus": [
+"            job_type=\"background_evaluation\","
+],
+"plus": []
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_28",
+"minus": [
+"            metadata={\"event_id\": event_id},",
+"        )"
+],
+"plus": [
+"            )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_29",
+"minus": [
+"            job_type=\"background_evaluation\","
+],
+"plus": [
+"            job_type=\"XXbackground_evaluationXX\","
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_30",
+"minus": [
+"            job_type=\"background_evaluation\","
+],
+"plus": [
+"            job_type=\"BACKGROUND_EVALUATION\","
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_31",
+"minus": [
+"            metadata={\"event_id\": event_id},"
+],
+"plus": [
+"            metadata={\"XXevent_idXX\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_32",
+"minus": [
+"            metadata={\"event_id\": event_id},"
+],
+"plus": [
+"            metadata={\"EVENT_ID\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_34",
+"minus": [
+"            logger.info(f\"Job {tracker_job_id} was cancelled, skipping event {event_id}\")"
+],
+"plus": [
+"            logger.info(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_37",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, None, job_id, 10, \"Fetching event data\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_38",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, None, 10, \"Fetching event data\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_39",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, None, \"Fetching event data\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_4",
+"minus": [
+"        f\"Processing background evaluation for event {event_id}\","
+],
+"plus": [
+"        None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_40",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 10, None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_46",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 11, \"Fetching event data\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_47",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 10, \"XXFetching event dataXX\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_48",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 10, \"fetching event data\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_49",
+"minus": [
+"            tracker_job_id, job_service, job_id, 10, \"Fetching event data\""
+],
+"plus": [
+"            tracker_job_id, job_service, job_id, 10, \"FETCHING EVENT DATA\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_5",
+"minus": [
+"        extra={\"event_id\": event_id},"
+],
+"plus": [
+"        extra=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_50",
+"minus": [
+"        event: Event | None = None"
+],
+"plus": [
+"        event: Event | None = \"\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_51",
+"minus": [
+"        audit: EventAudit | None = None"
+],
+"plus": [
+"        audit: EventAudit | None = \"\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_53",
+"minus": [
+"                select(Event)",
+"                .where(Event.id == event_id)",
+"                .options(undefer(Event.llm_prompt), undefer(Event.reasoning))"
+],
+"plus": [
+"                None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_56",
+"minus": [
+"                .options(undefer(Event.llm_prompt), undefer(Event.reasoning))"
+],
+"plus": [
+"                .options(undefer(Event.reasoning))"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_57",
+"minus": [
+"                .options(undefer(Event.llm_prompt), undefer(Event.reasoning))"
+],
+"plus": [
+"                .options(undefer(Event.llm_prompt), )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_58",
+"minus": [
+"                .where(Event.id == event_id)"
+],
+"plus": [
+"                .where(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_59",
+"minus": [
+"                select(Event)"
+],
+"plus": [
+"                select(None)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_60",
+"minus": [
+"                .where(Event.id == event_id)"
+],
+"plus": [
+"                .where(Event.id != event_id)"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_65",
+"minus": [
+"                    f\"Event {event_id} not found in database, skipping evaluation\","
+],
+"plus": [
+"                    None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_66",
+"minus": [
+"                    extra={\"event_id\": event_id},"
+],
+"plus": [
+"                    extra=None,"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_68",
+"minus": [
+"                    extra={\"event_id\": event_id},",
+"                )"
+],
+"plus": [
+"                    )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_69",
+"minus": [
+"                    extra={\"event_id\": event_id},"
+],
+"plus": [
+"                    extra={\"XXevent_idXX\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_7",
+"minus": [
+"        extra={\"event_id\": event_id},",
+"    )"
+],
+"plus": [
+"        )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_70",
+"minus": [
+"                    extra={\"event_id\": event_id},"
+],
+"plus": [
+"                    extra={\"EVENT_ID\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_71",
+"minus": [
+"                if self._job_tracker and tracker_job_id:"
+],
+"plus": [
+"                if self._job_tracker or tracker_job_id:"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_8",
+"minus": [
+"        extra={\"event_id\": event_id},"
+],
+"plus": [
+"        extra={\"XXevent_idXX\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_85",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\""
+],
+"plus": [
+"                        None, None, job_id, f\"Event {event_id} not found\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_86",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\""
+],
+"plus": [
+"                        None, job_service, None, f\"Event {event_id} not found\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_87",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\""
+],
+"plus": [
+"                        None, job_service, job_id, None"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_88",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\""
+],
+"plus": [
+"                        job_service, job_id, f\"Event {event_id} not found\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_89",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\""
+],
+"plus": [
+"                        None, job_id, f\"Event {event_id} not found\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_9",
+"minus": [
+"        extra={\"event_id\": event_id},"
+],
+"plus": [
+"        extra={\"EVENT_ID\": event_id},"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_90",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\""
+],
+"plus": [
+"                        None, job_service, f\"Event {event_id} not found\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_91",
+"minus": [
+"                        None, job_service, job_id, f\"Event {event_id} not found\"",
+"                    )"
+],
+"plus": [
+"                        None, job_service, job_id, )"
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_94",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, None, job_id, 25, \"Fetching audit record\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_95",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, None, 25, \"Fetching audit record\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_96",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, job_id, None, \"Fetching audit record\""
+]
+},
+{
+"key": "backend.services.background_evaluator.x\u01c1BackgroundEvaluator\u01c1process_one__mutmut_97",
+"minus": [
+"                tracker_job_id, job_service, job_id, 25, \"Fetching audit record\""
+],
+"plus": [
+"                tracker_job_id, job_service, job_id, 25, None"
+]
+}
+]

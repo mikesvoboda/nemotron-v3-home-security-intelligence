@@ -1,0 +1,424 @@
+x__materialize_meta_tensors__mutmut_1
+   --    logger.info(f"Materializing meta tensors via direct replacement to device: {device}")
+   ++    logger.info(None)
+x__materialize_meta_tensors__mutmut_12
+   --                module._parameters[name] = torch.nn.Parameter(
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+   --                    requires_grad=param.requires_grad,
+   --                )
+   ++                module._parameters[name] = None
+x__materialize_meta_tensors__mutmut_13
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+   ++                    None,
+x__materialize_meta_tensors__mutmut_15
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+x__materialize_meta_tensors__mutmut_16
+   --                    requires_grad=param.requires_grad,
+   --                )
+   ++                    )
+x__materialize_meta_tensors__mutmut_18
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+   ++                    torch.empty(param.shape, dtype=None, device=target),
+x__materialize_meta_tensors__mutmut_19
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+   ++                    torch.empty(param.shape, dtype=param.dtype, device=None),
+x__materialize_meta_tensors__mutmut_2
+   --    target = torch.device(device)
+   ++    target = None
+x__materialize_meta_tensors__mutmut_21
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+   ++                    torch.empty(param.shape, device=target),
+x__materialize_meta_tensors__mutmut_22
+   --                    torch.empty(param.shape, dtype=param.dtype, device=target),
+   ++                    torch.empty(param.shape, dtype=param.dtype, ),
+x__materialize_meta_tensors__mutmut_23
+   --                replaced += 1
+   ++                replaced = 1
+x__materialize_meta_tensors__mutmut_24
+   --                replaced += 1
+   ++                replaced -= 1
+x__materialize_meta_tensors__mutmut_25
+   --                replaced += 1
+   ++                replaced += 2
+x__materialize_meta_tensors__mutmut_27
+   --    logger.info(f"Meta tensors materialized: {replaced} tensors replaced on {device}")
+   --
+   ++    logger.info(None)
+x__materialize_meta_tensors__mutmut_5
+   --    replaced = 0
+   ++    replaced = 1
+x__materialize_meta_tensors__mutmut_7
+   --            if param is not None and param.device.type == "meta":
+   ++            if param is not None or param.device.type == "meta":
+x__normalize_damage_class__mutmut_1
+   --    normalized = raw_name.lower().strip().replace(" ", "_")
+   ++    normalized = None
+x__normalize_damage_class__mutmut_10
+   --        "glass_shatter": "glass_shatter",
+   ++        "XXglass_shatterXX": "glass_shatter",
+x__normalize_damage_class__mutmut_11
+   --        "glass_shatter": "glass_shatter",
+   ++        "GLASS_SHATTER": "glass_shatter",
+x__normalize_damage_class__mutmut_12
+   --        "glass_shatter": "glass_shatter",
+   ++        "glass_shatter": "XXglass_shatterXX",
+x__normalize_damage_class__mutmut_13
+   --        "glass_shatter": "glass_shatter",
+   ++        "glass_shatter": "GLASS_SHATTER",
+x__normalize_damage_class__mutmut_14
+   --        "glass shatter": "glass_shatter",
+   ++        "XXglass shatterXX": "glass_shatter",
+x__normalize_damage_class__mutmut_15
+   --        "glass shatter": "glass_shatter",
+   ++        "GLASS SHATTER": "glass_shatter",
+x__normalize_damage_class__mutmut_16
+   --        "glass shatter": "glass_shatter",
+   ++        "glass shatter": "XXglass_shatterXX",
+x__normalize_damage_class__mutmut_17
+   --        "glass shatter": "glass_shatter",
+   ++        "glass shatter": "GLASS_SHATTER",
+x__normalize_damage_class__mutmut_18
+   --        "glassshatter": "glass_shatter",
+   ++        "XXglassshatterXX": "glass_shatter",
+x__normalize_damage_class__mutmut_19
+   --        "glassshatter": "glass_shatter",
+   ++        "GLASSSHATTER": "glass_shatter",
+x__normalize_damage_class__mutmut_20
+   --        "glassshatter": "glass_shatter",
+   ++        "glassshatter": "XXglass_shatterXX",
+x__normalize_damage_class__mutmut_21
+   --        "glassshatter": "glass_shatter",
+   ++        "glassshatter": "GLASS_SHATTER",
+x__normalize_damage_class__mutmut_22
+   --        "lamp_broken": "lamp_broken",
+   ++        "XXlamp_brokenXX": "lamp_broken",
+x__normalize_damage_class__mutmut_23
+   --        "lamp_broken": "lamp_broken",
+   ++        "LAMP_BROKEN": "lamp_broken",
+x__normalize_damage_class__mutmut_24
+   --        "lamp_broken": "lamp_broken",
+   ++        "lamp_broken": "XXlamp_brokenXX",
+x__normalize_damage_class__mutmut_25
+   --        "lamp_broken": "lamp_broken",
+   ++        "lamp_broken": "LAMP_BROKEN",
+x__normalize_damage_class__mutmut_26
+   --        "lamp broken": "lamp_broken",
+   ++        "XXlamp brokenXX": "lamp_broken",
+x__normalize_damage_class__mutmut_27
+   --        "lamp broken": "lamp_broken",
+   ++        "LAMP BROKEN": "lamp_broken",
+x__normalize_damage_class__mutmut_28
+   --        "lamp broken": "lamp_broken",
+   ++        "lamp broken": "XXlamp_brokenXX",
+x__normalize_damage_class__mutmut_29
+   --        "lamp broken": "lamp_broken",
+   ++        "lamp broken": "LAMP_BROKEN",
+x__normalize_damage_class__mutmut_30
+   --        "lampbroken": "lamp_broken",
+   ++        "XXlampbrokenXX": "lamp_broken",
+x__normalize_damage_class__mutmut_31
+   --        "lampbroken": "lamp_broken",
+   ++        "LAMPBROKEN": "lamp_broken",
+x__normalize_damage_class__mutmut_32
+   --        "lampbroken": "lamp_broken",
+   ++        "lampbroken": "XXlamp_brokenXX",
+x__normalize_damage_class__mutmut_33
+   --        "lampbroken": "lamp_broken",
+   ++        "lampbroken": "LAMP_BROKEN",
+x__normalize_damage_class__mutmut_34
+   --        "tire_flat": "tire_flat",
+   ++        "XXtire_flatXX": "tire_flat",
+x__normalize_damage_class__mutmut_35
+   --        "tire_flat": "tire_flat",
+   ++        "TIRE_FLAT": "tire_flat",
+x__normalize_damage_class__mutmut_36
+   --        "tire_flat": "tire_flat",
+   ++        "tire_flat": "XXtire_flatXX",
+x__normalize_damage_class__mutmut_37
+   --        "tire_flat": "tire_flat",
+   ++        "tire_flat": "TIRE_FLAT",
+x__normalize_damage_class__mutmut_38
+   --        "tire flat": "tire_flat",
+   ++        "XXtire flatXX": "tire_flat",
+x__normalize_damage_class__mutmut_39
+   --        "tire flat": "tire_flat",
+   ++        "TIRE FLAT": "tire_flat",
+x__normalize_damage_class__mutmut_40
+   --        "tire flat": "tire_flat",
+   ++        "tire flat": "XXtire_flatXX",
+x__normalize_damage_class__mutmut_41
+   --        "tire flat": "tire_flat",
+   ++        "tire flat": "TIRE_FLAT",
+x__normalize_damage_class__mutmut_42
+   --        "tireflat": "tire_flat",
+   ++        "XXtireflatXX": "tire_flat",
+x__normalize_damage_class__mutmut_43
+   --        "tireflat": "tire_flat",
+   ++        "TIREFLAT": "tire_flat",
+x__normalize_damage_class__mutmut_44
+   --        "tireflat": "tire_flat",
+   ++        "tireflat": "XXtire_flatXX",
+x__normalize_damage_class__mutmut_45
+   --        "tireflat": "tire_flat",
+   ++        "tireflat": "TIRE_FLAT",
+x__normalize_damage_class__mutmut_46
+   --        "crack": "crack",
+   ++        "XXcrackXX": "crack",
+x__normalize_damage_class__mutmut_47
+   --        "crack": "crack",
+   ++        "CRACK": "crack",
+x__normalize_damage_class__mutmut_48
+   --        "crack": "crack",
+   ++        "crack": "XXcrackXX",
+x__normalize_damage_class__mutmut_49
+   --        "crack": "crack",
+   ++        "crack": "CRACK",
+x__normalize_damage_class__mutmut_50
+   --        "cracks": "crack",
+   ++        "XXcracksXX": "crack",
+x__normalize_damage_class__mutmut_51
+   --        "cracks": "crack",
+   ++        "CRACKS": "crack",
+x__normalize_damage_class__mutmut_52
+   --        "cracks": "crack",
+   ++        "cracks": "XXcrackXX",
+x__normalize_damage_class__mutmut_53
+   --        "cracks": "crack",
+   ++        "cracks": "CRACK",
+x__normalize_damage_class__mutmut_54
+   --        "dent": "dent",
+   ++        "XXdentXX": "dent",
+x__normalize_damage_class__mutmut_55
+   --        "dent": "dent",
+   ++        "DENT": "dent",
+x__normalize_damage_class__mutmut_56
+   --        "dent": "dent",
+   ++        "dent": "XXdentXX",
+x__normalize_damage_class__mutmut_57
+   --        "dent": "dent",
+   ++        "dent": "DENT",
+x__normalize_damage_class__mutmut_58
+   --        "dents": "dent",
+   ++        "XXdentsXX": "dent",
+x__normalize_damage_class__mutmut_59
+   --        "dents": "dent",
+   ++        "DENTS": "dent",
+x__normalize_damage_class__mutmut_6
+   --    normalized = raw_name.lower().strip().replace(" ", "_")
+   ++    normalized = raw_name.upper().strip().replace(" ", "_")
+x__normalize_damage_class__mutmut_60
+   --        "dents": "dent",
+   ++        "dents": "XXdentXX",
+x__normalize_damage_class__mutmut_61
+   --        "dents": "dent",
+   ++        "dents": "DENT",
+x__normalize_damage_class__mutmut_62
+   --        "scratch": "scratch",
+   ++        "XXscratchXX": "scratch",
+x__normalize_damage_class__mutmut_63
+   --        "scratch": "scratch",
+   ++        "SCRATCH": "scratch",
+x__normalize_damage_class__mutmut_64
+   --        "scratch": "scratch",
+   ++        "scratch": "XXscratchXX",
+x__normalize_damage_class__mutmut_65
+   --        "scratch": "scratch",
+   ++        "scratch": "SCRATCH",
+x__normalize_damage_class__mutmut_66
+   --        "scratches": "scratch",
+   ++        "XXscratchesXX": "scratch",
+x__normalize_damage_class__mutmut_67
+   --        "scratches": "scratch",
+   ++        "SCRATCHES": "scratch",
+x__normalize_damage_class__mutmut_68
+   --        "scratches": "scratch",
+   ++        "scratches": "XXscratchXX",
+x__normalize_damage_class__mutmut_69
+   --        "scratches": "scratch",
+   ++        "scratches": "SCRATCH",
+x__normalize_damage_class__mutmut_7
+   --    normalized = raw_name.lower().strip().replace(" ", "_")
+   ++    normalized = raw_name.lower().strip().replace("XX XX", "_")
+x__normalize_damage_class__mutmut_70
+   --    return class_mapping.get(normalized, normalized)
+   ++    return class_mapping.get(None, normalized)
+x__normalize_damage_class__mutmut_71
+   --    return class_mapping.get(normalized, normalized)
+   ++    return class_mapping.get(normalized, None)
+x__normalize_damage_class__mutmut_72
+   --    return class_mapping.get(normalized, normalized)
+   ++    return class_mapping.get(normalized)
+x__normalize_damage_class__mutmut_73
+   --    return class_mapping.get(normalized, normalized)
+   --
+   ++    return class_mapping.get(normalized, )
+x__normalize_damage_class__mutmut_8
+   --    normalized = raw_name.lower().strip().replace(" ", "_")
+   ++    normalized = raw_name.lower().strip().replace(" ", "XX_XX")
+x_format_damage_context__mutmut_12
+   --    lines.append(f"Damage types: {', '.join(sorted(result.damage_types))}")
+   ++    lines.append(f"Damage types: {'XX, XX'.join(sorted(result.damage_types))}")
+x_format_damage_context__mutmut_15
+   --        lines.append("")
+   ++        lines.append("XXXX")
+x_format_damage_context__mutmut_17
+   --        lines.append("**SECURITY ALERT**: High-priority damage detected:")
+   ++        lines.append("XX**SECURITY ALERT**: High-priority damage detected:XX")
+x_format_damage_context__mutmut_19
+   --        lines.append("**SECURITY ALERT**: High-priority damage detected:")
+   ++        lines.append("**SECURITY ALERT**: HIGH-PRIORITY DAMAGE DETECTED:")
+x_format_damage_context__mutmut_20
+   --        if "glass_shatter" in result.damage_types:
+   ++        if "XXglass_shatterXX" in result.damage_types:
+x_format_damage_context__mutmut_21
+   --        if "glass_shatter" in result.damage_types:
+   ++        if "GLASS_SHATTER" in result.damage_types:
+x_format_damage_context__mutmut_22
+   --        if "glass_shatter" in result.damage_types:
+   ++        if "glass_shatter" not in result.damage_types:
+x_format_damage_context__mutmut_31
+   --            lines.append("    Possible: break-in attempt, vandalism, or collision")
+   ++            lines.append("XX    Possible: break-in attempt, vandalism, or collisionXX")
+x_format_damage_context__mutmut_32
+   --            lines.append("    Possible: break-in attempt, vandalism, or collision")
+   ++            lines.append("    possible: break-in attempt, vandalism, or collision")
+x_format_damage_context__mutmut_33
+   --            lines.append("    Possible: break-in attempt, vandalism, or collision")
+   ++            lines.append("    POSSIBLE: BREAK-IN ATTEMPT, VANDALISM, OR COLLISION")
+x_format_damage_context__mutmut_34
+   --        if "lamp_broken" in result.damage_types:
+   ++        if "XXlamp_brokenXX" in result.damage_types:
+x_format_damage_context__mutmut_35
+   --        if "lamp_broken" in result.damage_types:
+   ++        if "LAMP_BROKEN" in result.damage_types:
+x_format_damage_context__mutmut_40
+   --        if time_of_day in ("night", "early_morning", "late_night"):
+   ++        if time_of_day in ("night", "XXearly_morningXX", "late_night"):
+x_format_damage_context__mutmut_41
+   --        if time_of_day in ("night", "early_morning", "late_night"):
+   ++        if time_of_day in ("night", "EARLY_MORNING", "late_night"):
+x_format_damage_context__mutmut_42
+   --        if time_of_day in ("night", "early_morning", "late_night"):
+   ++        if time_of_day in ("night", "early_morning", "XXlate_nightXX"):
+x_format_damage_context__mutmut_43
+   --        if time_of_day in ("night", "early_morning", "late_night"):
+   ++        if time_of_day in ("night", "early_morning", "LATE_NIGHT"):
+x_format_damage_context__mutmut_45
+   --            lines.append("")
+   ++            lines.append("XXXX")
+x_format_damage_context__mutmut_48
+   --            lines.append("  Elevated risk: suspicious activity more likely during these hours")
+   ++            lines.append("XX  Elevated risk: suspicious activity more likely during these hoursXX")
+x_format_damage_context__mutmut_49
+   --            lines.append("  Elevated risk: suspicious activity more likely during these hours")
+   ++            lines.append("  elevated risk: suspicious activity more likely during these hours")
+x_format_damage_context__mutmut_50
+   --            lines.append("  Elevated risk: suspicious activity more likely during these hours")
+   ++            lines.append("  ELEVATED RISK: SUSPICIOUS ACTIVITY MORE LIKELY DURING THESE HOURS")
+x_format_damage_context__mutmut_52
+   --    lines.append("")
+   ++    lines.append("XXXX")
+x_format_damage_context__mutmut_54
+   --    lines.append("Damage breakdown:")
+   ++    lines.append("XXDamage breakdown:XX")
+x_format_damage_context__mutmut_55
+   --    lines.append("Damage breakdown:")
+   ++    lines.append("damage breakdown:")
+x_format_damage_context__mutmut_56
+   --    lines.append("Damage breakdown:")
+   ++    lines.append("DAMAGE BREAKDOWN:")
+x_format_damage_context__mutmut_6
+   --    lines = ["## Vehicle Damage Analysis"]
+   ++    lines = ["XX## Vehicle Damage AnalysisXX"]
+x_format_damage_context__mutmut_61
+   --        avg_conf = sum(d.confidence for d in dets) / len(dets)
+   ++        avg_conf = sum(d.confidence for d in dets) * len(dets)
+x_format_damage_context__mutmut_65
+   --    return "\n".join(lines)
+   --
+   ++    return "XX\nXX".join(lines)
+x_is_suspicious_damage_pattern__mutmut_11
+   --            reasons.append("glass shatter detected (possible break-in)")
+   ++            reasons.append("XXglass shatter detected (possible break-in)XX")
+x_is_suspicious_damage_pattern__mutmut_12
+   --            reasons.append("glass shatter detected (possible break-in)")
+   ++            reasons.append("GLASS SHATTER DETECTED (POSSIBLE BREAK-IN)")
+x_is_suspicious_damage_pattern__mutmut_13
+   --        if "lamp_broken" in result.damage_types:
+   ++        if "XXlamp_brokenXX" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_14
+   --        if "lamp_broken" in result.damage_types:
+   ++        if "LAMP_BROKEN" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_15
+   --        if "lamp_broken" in result.damage_types:
+   ++        if "lamp_broken" not in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_17
+   --            reasons.append("broken lamp detected (possible vandalism)")
+   ++            reasons.append("XXbroken lamp detected (possible vandalism)XX")
+x_is_suspicious_damage_pattern__mutmut_18
+   --            reasons.append("broken lamp detected (possible vandalism)")
+   ++            reasons.append("BROKEN LAMP DETECTED (POSSIBLE VANDALISM)")
+x_is_suspicious_damage_pattern__mutmut_22
+   --        is_night = hour_of_day < 6 or hour_of_day >= 22
+   ++        is_night = hour_of_day <= 6 or hour_of_day >= 22
+x_is_suspicious_damage_pattern__mutmut_23
+   --        is_night = hour_of_day < 6 or hour_of_day >= 22
+   ++        is_night = hour_of_day < 7 or hour_of_day >= 22
+x_is_suspicious_damage_pattern__mutmut_24
+   --        is_night = hour_of_day < 6 or hour_of_day >= 22
+   ++        is_night = hour_of_day < 6 or hour_of_day > 22
+x_is_suspicious_damage_pattern__mutmut_25
+   --        is_night = hour_of_day < 6 or hour_of_day >= 22
+   ++        is_night = hour_of_day < 6 or hour_of_day >= 23
+x_is_suspicious_damage_pattern__mutmut_26
+   --        if is_night and result.has_damage:
+   ++        if is_night or result.has_damage:
+x_is_suspicious_damage_pattern__mutmut_3
+   --        return False, "No damage detected"
+   ++        return False, "XXNo damage detectedXX"
+x_is_suspicious_damage_pattern__mutmut_31
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "glass_shatter" in result.damage_types or "lamp_broken" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_32
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "XXglass_shatterXX" in result.damage_types and "lamp_broken" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_33
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "GLASS_SHATTER" in result.damage_types and "lamp_broken" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_34
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "glass_shatter" not in result.damage_types and "lamp_broken" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_35
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "glass_shatter" in result.damage_types and "XXlamp_brokenXX" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_36
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "glass_shatter" in result.damage_types and "LAMP_BROKEN" in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_37
+   --    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+   ++    if "glass_shatter" in result.damage_types and "lamp_broken" not in result.damage_types:
+x_is_suspicious_damage_pattern__mutmut_39
+   --        reasons.append("glass + lamp damage pattern consistent with break-in attempt")
+   ++        reasons.append("XXglass + lamp damage pattern consistent with break-in attemptXX")
+x_is_suspicious_damage_pattern__mutmut_40
+   --        reasons.append("glass + lamp damage pattern consistent with break-in attempt")
+   ++        reasons.append("GLASS + LAMP DAMAGE PATTERN CONSISTENT WITH BREAK-IN ATTEMPT")
+x_is_suspicious_damage_pattern__mutmut_43
+   --        return True, "; ".join(reasons)
+   --
+   ++        return True, "XX; XX".join(reasons)
+xǁVehicleDamageResultǁto_context_string__mutmut_10
+   --        avg_conf = sum(d.confidence for d in type_detections) / len(type_detections)
+   ++        avg_conf = sum(d.confidence for d in type_detections) * len(type_detections)
+xǁVehicleDamageResultǁto_context_string__mutmut_14
+   --        lines.append("  **HIGH SECURITY ALERT**: Suspicious damage types detected")
+   ++        lines.append("XX  **HIGH SECURITY ALERT**: Suspicious damage types detectedXX")
+xǁVehicleDamageResultǁto_context_string__mutmut_15
+   --        lines.append("  **HIGH SECURITY ALERT**: Suspicious damage types detected")
+   ++        lines.append("  **high security alert**: suspicious damage types detected")
+xǁVehicleDamageResultǁto_context_string__mutmut_16
+   --        lines.append("  **HIGH SECURITY ALERT**: Suspicious damage types detected")
+   ++        lines.append("  **HIGH SECURITY ALERT**: SUSPICIOUS DAMAGE TYPES DETECTED")
+xǁVehicleDamageResultǁto_context_string__mutmut_18
+   --    return "\n".join(lines)
+   ++    return "XX\nXX".join(lines)

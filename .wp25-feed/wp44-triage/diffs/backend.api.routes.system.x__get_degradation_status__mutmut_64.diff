@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_degradation_status__mutmut_64: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -35,7 +35,7 @@
+             )
+ 
+         return DegradationStatusResponse(
+-            mode=DegradationModeEnum(status.get("mode", "normal")),
++            mode=DegradationModeEnum(status.get("mode", )),
+             is_degraded=status.get("is_degraded", False),
+             redis_healthy=status.get("redis_healthy", False),
+             memory_queue_size=status.get("memory_queue_size", 0),

@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_24: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -30,7 +30,7 @@
+                 continue
+             try:
+                 pending_info = await self._redis._client.xpending_range(
+-                    self._stream_key,
++                    None,
+                     self._consumer_group,
+                     min=message_id,
+                     max=message_id,

@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_11: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -11,7 +11,7 @@
+                 "text": plate.text,
+                 "confidence": plate.confidence,
+                 "ocr_confidence": plate.ocr_confidence,
+-                "source_detection_id": plate.source_detection_id,
++                "XXsource_detection_idXX": plate.source_detection_id,
+             }
+             for plate in self.license_plates
+         ],

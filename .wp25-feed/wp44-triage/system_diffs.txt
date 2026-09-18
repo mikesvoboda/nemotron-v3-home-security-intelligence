@@ -1,0 +1,938 @@
+### x__build_empty_batch_response__mutmut_6
+-def x__build_empty_batch_response__mutmut_orig(settings: Settings) -> BatchAggregatorStatusResponse:
++def x__build_empty_batch_response__mutmut_6(settings: Settings) -> BatchAggregatorStatusResponse:
+-        batches=[],
+### x__build_exporter_status__mutmut_10
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_10(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "XX_XX") in t.get("job", "").lower()
+### x__build_exporter_status__mutmut_101
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_101(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=default_endpoint,
+### x__build_exporter_status__mutmut_102
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_102(targets: list[dict]) -> list[ExporterStatus]:
+-                    last_scrape=None,
+### x__build_exporter_status__mutmut_104
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_104(targets: list[dict]) -> list[ExporterStatus]:
+-                    error="Exporter not found in Prometheus targets",
++                    error="XXExporter not found in Prometheus targetsXX",
+### x__build_exporter_status__mutmut_105
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_105(targets: list[dict]) -> list[ExporterStatus]:
+-                    error="Exporter not found in Prometheus targets",
++                    error="exporter not found in prometheus targets",
+### x__build_exporter_status__mutmut_106
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_106(targets: list[dict]) -> list[ExporterStatus]:
+-                    error="Exporter not found in Prometheus targets",
++                    error="EXPORTER NOT FOUND IN PROMETHEUS TARGETS",
+### x__build_exporter_status__mutmut_11
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_11(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") not in t.get("job", "").lower()
+### x__build_exporter_status__mutmut_12
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_12(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get("job", "").upper()
+### x__build_exporter_status__mutmut_13
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_13(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get(None, "").lower()
+### x__build_exporter_status__mutmut_14
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_14(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get("job", None).lower()
+### x__build_exporter_status__mutmut_16
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_16(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get("job", ).lower()
+### x__build_exporter_status__mutmut_17
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_17(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get("XXjobXX", "").lower()
+### x__build_exporter_status__mutmut_18
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_18(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get("JOB", "").lower()
+### x__build_exporter_status__mutmut_19
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_19(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("-", "_") in t.get("job", "XXXX").lower()
+### x__build_exporter_status__mutmut_24
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_24(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("XX-XX", "") in t.get("instance", "").lower()
+### x__build_exporter_status__mutmut_25
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_25(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "XXXX") in t.get("instance", "").lower()
+### x__build_exporter_status__mutmut_26
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_26(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") not in t.get("instance", "").lower()
+### x__build_exporter_status__mutmut_27
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_27(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get("instance", "").upper()
+### x__build_exporter_status__mutmut_28
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_28(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get(None, "").lower()
+### x__build_exporter_status__mutmut_29
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_29(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get("instance", None).lower()
+### x__build_exporter_status__mutmut_31
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_31(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get("instance", ).lower()
+### x__build_exporter_status__mutmut_32
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_32(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get("XXinstanceXX", "").lower()
+### x__build_exporter_status__mutmut_33
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_33(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get("INSTANCE", "").lower()
+### x__build_exporter_status__mutmut_34
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_34(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get("instance", "XXXX").lower()
+### x__build_exporter_status__mutmut_38
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_38(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name in t.get("instance", "").lower()
++            or exporter_name in t.get("instance", None).lower()
+### x__build_exporter_status__mutmut_4
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_4(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            if exporter_name.replace("-", "_") in t.get("job", "").lower() and exporter_name.replace("-", "") in t.get("instance", "").lower()
+### x__build_exporter_status__mutmut_40
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_40(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name in t.get("instance", "").lower()
++            or exporter_name in t.get("instance", ).lower()
+### x__build_exporter_status__mutmut_43
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_43(targets: list[dict]) -> list[ExporterStatus]:
+-            or exporter_name in t.get("instance", "").lower()
++            or exporter_name in t.get("instance", "XXXX").lower()
+### x__build_exporter_status__mutmut_49
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_49(targets: list[dict]) -> list[ExporterStatus]:
+-            health = target.get("health", "unknown").lower()
++            health = target.get("health", None).lower()
+### x__build_exporter_status__mutmut_51
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_51(targets: list[dict]) -> list[ExporterStatus]:
+-            health = target.get("health", "unknown").lower()
++            health = target.get("health", ).lower()
+### x__build_exporter_status__mutmut_54
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_54(targets: list[dict]) -> list[ExporterStatus]:
+-            health = target.get("health", "unknown").lower()
++            health = target.get("health", "XXunknownXX").lower()
+### x__build_exporter_status__mutmut_55
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_55(targets: list[dict]) -> list[ExporterStatus]:
+-            health = target.get("health", "unknown").lower()
++            health = target.get("health", "UNKNOWN").lower()
+### x__build_exporter_status__mutmut_58
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_58(targets: list[dict]) -> list[ExporterStatus]:
+-                if health == "up"
++                if (health == "up") or True
+### x__build_exporter_status__mutmut_62
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_62(targets: list[dict]) -> list[ExporterStatus]:
+-            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
++            last_scrape = None
+### x__build_exporter_status__mutmut_63
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_63(targets: list[dict]) -> list[ExporterStatus]:
+-            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
++            last_scrape = _parse_prometheus_timestamp(None)
+### x__build_exporter_status__mutmut_64
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_64(targets: list[dict]) -> list[ExporterStatus]:
+-            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
++            last_scrape = _parse_prometheus_timestamp(target.get(None))
+### x__build_exporter_status__mutmut_65
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_65(targets: list[dict]) -> list[ExporterStatus]:
+-            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
++            last_scrape = _parse_prometheus_timestamp(target.get("XXlastScrapeXX"))
+### x__build_exporter_status__mutmut_66
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_66(targets: list[dict]) -> list[ExporterStatus]:
+-            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
++            last_scrape = _parse_prometheus_timestamp(target.get("lastscrape"))
+### x__build_exporter_status__mutmut_67
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_67(targets: list[dict]) -> list[ExporterStatus]:
+-            last_scrape = _parse_prometheus_timestamp(target.get("lastScrape"))
++            last_scrape = _parse_prometheus_timestamp(target.get("LASTSCRAPE"))
+### x__build_exporter_status__mutmut_68
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_68(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = None
+### x__build_exporter_status__mutmut_69
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_69(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lastError") if (target.get("lastError")) and False else None
+### x__build_exporter_status__mutmut_70
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_70(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lastError") if (target.get("lastError")) or True else None
+### x__build_exporter_status__mutmut_71
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_71(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get(None) if target.get("lastError") else None
+### x__build_exporter_status__mutmut_72
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_72(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("XXlastErrorXX") if target.get("lastError") else None
+### x__build_exporter_status__mutmut_73
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_73(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lasterror") if target.get("lastError") else None
+### x__build_exporter_status__mutmut_74
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_74(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("LASTERROR") if target.get("lastError") else None
+### x__build_exporter_status__mutmut_75
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_75(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lastError") if target.get(None) else None
+### x__build_exporter_status__mutmut_76
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_76(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lastError") if target.get("XXlastErrorXX") else None
+### x__build_exporter_status__mutmut_77
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_77(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lastError") if target.get("lasterror") else None
+### x__build_exporter_status__mutmut_78
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_78(targets: list[dict]) -> list[ExporterStatus]:
+-            error = target.get("lastError") if target.get("lastError") else None
++            error = target.get("lastError") if target.get("LASTERROR") else None
+### x__build_exporter_status__mutmut_82
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_82(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=target.get("instance") or default_endpoint,
++                    endpoint=None,
+### x__build_exporter_status__mutmut_83
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_83(targets: list[dict]) -> list[ExporterStatus]:
+-                    last_scrape=last_scrape,
++                    last_scrape=None,
+### x__build_exporter_status__mutmut_84
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_84(targets: list[dict]) -> list[ExporterStatus]:
+-                    error=error,
++                    error=None,
+### x__build_exporter_status__mutmut_87
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_87(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=target.get("instance") or default_endpoint,
+### x__build_exporter_status__mutmut_88
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_88(targets: list[dict]) -> list[ExporterStatus]:
+-                    last_scrape=last_scrape,
+### x__build_exporter_status__mutmut_89
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_89(targets: list[dict]) -> list[ExporterStatus]:
+-                    error=error,
+-                )
++                    )
+### x__build_exporter_status__mutmut_9
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_9(targets: list[dict]) -> list[ExporterStatus]:
+-            if exporter_name.replace("-", "_") in t.get("job", "").lower()
++            if exporter_name.replace("XX-XX", "_") in t.get("job", "").lower()
+### x__build_exporter_status__mutmut_90
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_90(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=target.get("instance") or default_endpoint,
++                    endpoint=target.get("instance") and default_endpoint,
+### x__build_exporter_status__mutmut_91
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_91(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=target.get("instance") or default_endpoint,
++                    endpoint=target.get(None) or default_endpoint,
+### x__build_exporter_status__mutmut_92
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_92(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=target.get("instance") or default_endpoint,
++                    endpoint=target.get("XXinstanceXX") or default_endpoint,
+### x__build_exporter_status__mutmut_93
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_93(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=target.get("instance") or default_endpoint,
++                    endpoint=target.get("INSTANCE") or default_endpoint,
+### x__build_exporter_status__mutmut_97
+-def x__build_exporter_status__mutmut_orig(targets: list[dict]) -> list[ExporterStatus]:
++def x__build_exporter_status__mutmut_97(targets: list[dict]) -> list[ExporterStatus]:
+-                    endpoint=default_endpoint,
++                    endpoint=None,
+### x__build_targets_summary__mutmut_10
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_10(targets: list[dict]) -> list[JobTargetSummary]:
+-        job = target.get("job", "unknown")
++        job = target.get("job", "UNKNOWN")
+### x__build_targets_summary__mutmut_24
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_24(targets: list[dict]) -> list[JobTargetSummary]:
+-            job_stats[job] = {"total": 0, "up": 0, "down": 0, "unknown": 0}
++            job_stats[job] = {"total": 0, "up": 0, "down": 0, "unknown": 1}
+### x__build_targets_summary__mutmut_33
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_33(targets: list[dict]) -> list[JobTargetSummary]:
+-        health = target.get("health", "unknown").lower()
++        health = target.get("health", None).lower()
+### x__build_targets_summary__mutmut_35
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_35(targets: list[dict]) -> list[JobTargetSummary]:
+-        health = target.get("health", "unknown").lower()
++        health = target.get("health", ).lower()
+### x__build_targets_summary__mutmut_38
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_38(targets: list[dict]) -> list[JobTargetSummary]:
+-        health = target.get("health", "unknown").lower()
++        health = target.get("health", "XXunknownXX").lower()
+### x__build_targets_summary__mutmut_39
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_39(targets: list[dict]) -> list[JobTargetSummary]:
+-        health = target.get("health", "unknown").lower()
++        health = target.get("health", "UNKNOWN").lower()
+### x__build_targets_summary__mutmut_4
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_4(targets: list[dict]) -> list[JobTargetSummary]:
+-        job = target.get("job", "unknown")
++        job = target.get("job", None)
+### x__build_targets_summary__mutmut_51
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_51(targets: list[dict]) -> list[JobTargetSummary]:
+-            job_stats[job]["down"] += 1
++            job_stats[job]["down"] = 1
+### x__build_targets_summary__mutmut_6
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_6(targets: list[dict]) -> list[JobTargetSummary]:
+-        job = target.get("job", "unknown")
++        job = target.get("job", )
+### x__build_targets_summary__mutmut_65
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_65(targets: list[dict]) -> list[JobTargetSummary]:
+-            unknown=stats["unknown"],
+-        )
++            )
+### x__build_targets_summary__mutmut_9
+-def x__build_targets_summary__mutmut_orig(targets: list[dict]) -> list[JobTargetSummary]:
++def x__build_targets_summary__mutmut_9(targets: list[dict]) -> list[JobTargetSummary]:
+-        job = target.get("job", "unknown")
++        job = target.get("job", "XXunknownXX")
+### x__calculate_stage_latency__mutmut_49
+-def x__calculate_stage_latency__mutmut_orig(samples: list[float]) -> StageLatency:
++def x__calculate_stage_latency__mutmut_49(samples: list[float]) -> StageLatency:
+-        p50_ms=_calculate_percentile(sorted_samples, 50),
++        p50_ms=_calculate_percentile(sorted_samples, 51),
+### x__calculate_stage_latency__mutmut_54
+-def x__calculate_stage_latency__mutmut_orig(samples: list[float]) -> StageLatency:
++def x__calculate_stage_latency__mutmut_54(samples: list[float]) -> StageLatency:
+-        p95_ms=_calculate_percentile(sorted_samples, 95),
++        p95_ms=_calculate_percentile(sorted_samples, 96),
+### x__calculate_stage_latency__mutmut_59
+-def x__calculate_stage_latency__mutmut_orig(samples: list[float]) -> StageLatency:
++def x__calculate_stage_latency__mutmut_59(samples: list[float]) -> StageLatency:
+-        p99_ms=_calculate_percentile(sorted_samples, 99),
++        p99_ms=_calculate_percentile(sorted_samples, 100),
+### x__check_postgres_health_full__mutmut_11
+-async def x__check_postgres_health_full__mutmut_orig(db: AsyncSession) -> InfrastructureHealthStatus:
++async def x__check_postgres_health_full__mutmut_11(db: AsyncSession) -> InfrastructureHealthStatus:
+-            details=None,
+-        )
++            )
+### x__check_postgres_health_full__mutmut_2
+-async def x__check_postgres_health_full__mutmut_orig(db: AsyncSession) -> InfrastructureHealthStatus:
++async def x__check_postgres_health_full__mutmut_2(db: AsyncSession) -> InfrastructureHealthStatus:
+-        result = await db.execute(select(func.now()))
++        result = await db.execute(None)
+### x__check_postgres_health_full__mutmut_23
+-async def x__check_postgres_health_full__mutmut_orig(db: AsyncSession) -> InfrastructureHealthStatus:
++async def x__check_postgres_health_full__mutmut_23(db: AsyncSession) -> InfrastructureHealthStatus:
+-            details=None,
+-        )
++            )
+### x__check_postgres_health_full__mutmut_3
+-async def x__check_postgres_health_full__mutmut_orig(db: AsyncSession) -> InfrastructureHealthStatus:
++async def x__check_postgres_health_full__mutmut_3(db: AsyncSession) -> InfrastructureHealthStatus:
+-        result = await db.execute(select(func.now()))
++        result = await db.execute(select(None))
+### x__check_postgres_health_full__mutmut_4
+-async def x__check_postgres_health_full__mutmut_orig(db: AsyncSession) -> InfrastructureHealthStatus:
++async def x__check_postgres_health_full__mutmut_4(db: AsyncSession) -> InfrastructureHealthStatus:
+-        _ = result.scalar()
++        _ = None
+### x__check_redis_health_full__mutmut_11
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_11(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            message="Redis client not available",
++            message="XXRedis client not availableXX",
+### x__check_redis_health_full__mutmut_12
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_12(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            message="Redis client not available",
++            message="redis client not available",
+### x__check_redis_health_full__mutmut_13
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_13(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            message="Redis client not available",
++            message="REDIS CLIENT NOT AVAILABLE",
+### x__check_redis_health_full__mutmut_24
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_24(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-                details=None,
+-            )
++                )
+### x__check_redis_health_full__mutmut_46
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_46(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            details={"redis_version": info.get("redis_version", "unknown")},
++            details={"redis_version": info.get("redis_version", None)},
+### x__check_redis_health_full__mutmut_48
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_48(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            details={"redis_version": info.get("redis_version", "unknown")},
++            details={"redis_version": info.get("redis_version", )},
+### x__check_redis_health_full__mutmut_51
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_51(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            details={"redis_version": info.get("redis_version", "unknown")},
++            details={"redis_version": info.get("redis_version", "XXunknownXX")},
+### x__check_redis_health_full__mutmut_52
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_52(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            details={"redis_version": info.get("redis_version", "unknown")},
++            details={"redis_version": info.get("redis_version", "UNKNOWN")},
+### x__check_redis_health_full__mutmut_59
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_59(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            details=None,
+-        )
++            )
+### x__check_redis_health_full__mutmut_8
+-async def x__check_redis_health_full__mutmut_orig(redis: RedisClient | None) -> InfrastructureHealthStatus:
++async def x__check_redis_health_full__mutmut_8(redis: RedisClient | None) -> InfrastructureHealthStatus:
+-            details=None,
+-        )
++            )
+### x__get_circuit_breaker_summary__mutmut_12
+-def x__get_circuit_breaker_summary__mutmut_orig() -> CircuitBreakerSummary:
++def x__get_circuit_breaker_summary__mutmut_12() -> CircuitBreakerSummary:
+-        state_value = cb_status.get("state", "closed")
++        state_value = cb_status.get("state", None)
+### x__get_circuit_breaker_summary__mutmut_14
+-def x__get_circuit_breaker_summary__mutmut_orig() -> CircuitBreakerSummary:
++def x__get_circuit_breaker_summary__mutmut_14() -> CircuitBreakerSummary:
+-        state_value = cb_status.get("state", "closed")
++        state_value = cb_status.get("state", )
+### x__get_circuit_breaker_summary__mutmut_17
+-def x__get_circuit_breaker_summary__mutmut_orig() -> CircuitBreakerSummary:
++def x__get_circuit_breaker_summary__mutmut_17() -> CircuitBreakerSummary:
+-        state_value = cb_status.get("state", "closed")
++        state_value = cb_status.get("state", "XXclosedXX")
+### x__get_circuit_breaker_summary__mutmut_18
+-def x__get_circuit_breaker_summary__mutmut_orig() -> CircuitBreakerSummary:
++def x__get_circuit_breaker_summary__mutmut_18() -> CircuitBreakerSummary:
+-        state_value = cb_status.get("state", "closed")
++        state_value = cb_status.get("state", "CLOSED")
+### x__get_circuit_breaker_summary__mutmut_23
+-def x__get_circuit_breaker_summary__mutmut_orig() -> CircuitBreakerSummary:
++def x__get_circuit_breaker_summary__mutmut_23() -> CircuitBreakerSummary:
+-            open_count += 1
++            open_count = 1
+### x__get_circuit_breaker_summary__mutmut_30
+-def x__get_circuit_breaker_summary__mutmut_orig() -> CircuitBreakerSummary:
++def x__get_circuit_breaker_summary__mutmut_30() -> CircuitBreakerSummary:
+-            half_open_count += 1
++            half_open_count = 1
+### x__get_degradation_status__mutmut_100
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_100() -> DegradationStatusResponse | None:
+-            available_features=status.get("available_features", []),
++            available_features=status.get("XXavailable_featuresXX", []),
+### x__get_degradation_status__mutmut_101
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_101() -> DegradationStatusResponse | None:
+-            available_features=status.get("available_features", []),
++            available_features=status.get("AVAILABLE_FEATURES", []),
+### x__get_degradation_status__mutmut_102
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_102() -> DegradationStatusResponse | None:
+-        logger.error(f"Error getting degradation status: {e}", exc_info=True)
++        logger.error(None, exc_info=True)
+### x__get_degradation_status__mutmut_103
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_103() -> DegradationStatusResponse | None:
+-        logger.error(f"Error getting degradation status: {e}", exc_info=True)
++        logger.error(f"Error getting degradation status: {e}", exc_info=None)
+### x__get_degradation_status__mutmut_105
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_105() -> DegradationStatusResponse | None:
+-        logger.error(f"Error getting degradation status: {e}", exc_info=True)
++        logger.error(f"Error getting degradation status: {e}", )
+### x__get_degradation_status__mutmut_106
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_106() -> DegradationStatusResponse | None:
+-        logger.error(f"Error getting degradation status: {e}", exc_info=True)
++        logger.error(f"Error getting degradation status: {e}", exc_info=False)
+### x__get_degradation_status__mutmut_11
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_11() -> DegradationStatusResponse | None:
+-        services_dict = status.get("services", {})
++        services_dict = status.get("services", )
+### x__get_degradation_status__mutmut_17
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_17() -> DegradationStatusResponse | None:
+-                    last_check=health.get("last_check"),
++                    last_check=None,
+### x__get_degradation_status__mutmut_19
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_19() -> DegradationStatusResponse | None:
+-                    error_message=health.get("error_message"),
++                    error_message=None,
+### x__get_degradation_status__mutmut_2
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_2() -> DegradationStatusResponse | None:
+-            manager = get_degradation_manager()
++            manager = None
+### x__get_degradation_status__mutmut_22
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_22() -> DegradationStatusResponse | None:
+-                    last_check=health.get("last_check"),
+### x__get_degradation_status__mutmut_24
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_24() -> DegradationStatusResponse | None:
+-                    error_message=health.get("error_message"),
+-                )
++                    )
+### x__get_degradation_status__mutmut_25
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_25() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get(None, "unknown"),
+### x__get_degradation_status__mutmut_26
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_26() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get("status", None),
+### x__get_degradation_status__mutmut_28
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_28() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get("status", ),
+### x__get_degradation_status__mutmut_29
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_29() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get("XXstatusXX", "unknown"),
+### x__get_degradation_status__mutmut_3
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_3() -> DegradationStatusResponse | None:
+-            logger.debug(f"Degradation manager not available: {e}")
++            logger.debug(None)
+### x__get_degradation_status__mutmut_30
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_30() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get("STATUS", "unknown"),
+### x__get_degradation_status__mutmut_31
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_31() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get("status", "XXunknownXX"),
+### x__get_degradation_status__mutmut_32
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_32() -> DegradationStatusResponse | None:
+-                    status=health.get("status", "unknown"),
++                    status=health.get("status", "UNKNOWN"),
+### x__get_degradation_status__mutmut_33
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_33() -> DegradationStatusResponse | None:
+-                    last_check=health.get("last_check"),
++                    last_check=health.get(None),
+### x__get_degradation_status__mutmut_34
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_34() -> DegradationStatusResponse | None:
+-                    last_check=health.get("last_check"),
++                    last_check=health.get("XXlast_checkXX"),
+### x__get_degradation_status__mutmut_35
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_35() -> DegradationStatusResponse | None:
+-                    last_check=health.get("last_check"),
++                    last_check=health.get("LAST_CHECK"),
+### x__get_degradation_status__mutmut_36
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_36() -> DegradationStatusResponse | None:
+-                    consecutive_failures=health.get("consecutive_failures", 0),
++                    consecutive_failures=health.get(None, 0),
+### x__get_degradation_status__mutmut_37
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_37() -> DegradationStatusResponse | None:
+-                    consecutive_failures=health.get("consecutive_failures", 0),
++                    consecutive_failures=health.get("consecutive_failures", None),
+### x__get_degradation_status__mutmut_39
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_39() -> DegradationStatusResponse | None:
+-                    consecutive_failures=health.get("consecutive_failures", 0),
++                    consecutive_failures=health.get("consecutive_failures", ),
+### x__get_degradation_status__mutmut_40
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_40() -> DegradationStatusResponse | None:
+-                    consecutive_failures=health.get("consecutive_failures", 0),
++                    consecutive_failures=health.get("XXconsecutive_failuresXX", 0),
+### x__get_degradation_status__mutmut_41
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_41() -> DegradationStatusResponse | None:
+-                    consecutive_failures=health.get("consecutive_failures", 0),
++                    consecutive_failures=health.get("CONSECUTIVE_FAILURES", 0),
+### x__get_degradation_status__mutmut_42
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_42() -> DegradationStatusResponse | None:
+-                    consecutive_failures=health.get("consecutive_failures", 0),
++                    consecutive_failures=health.get("consecutive_failures", 1),
+### x__get_degradation_status__mutmut_43
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_43() -> DegradationStatusResponse | None:
+-                    error_message=health.get("error_message"),
++                    error_message=health.get(None),
+### x__get_degradation_status__mutmut_44
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_44() -> DegradationStatusResponse | None:
+-                    error_message=health.get("error_message"),
++                    error_message=health.get("XXerror_messageXX"),
+### x__get_degradation_status__mutmut_45
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_45() -> DegradationStatusResponse | None:
+-                    error_message=health.get("error_message"),
++                    error_message=health.get("ERROR_MESSAGE"),
+### x__get_degradation_status__mutmut_57
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_57() -> DegradationStatusResponse | None:
+-            fallback_queues=status.get("fallback_queues", {}),
+### x__get_degradation_status__mutmut_59
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_59() -> DegradationStatusResponse | None:
+-            available_features=status.get("available_features", []),
+-        )
++            )
+### x__get_degradation_status__mutmut_62
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_62() -> DegradationStatusResponse | None:
+-            mode=DegradationModeEnum(status.get("mode", "normal")),
++            mode=DegradationModeEnum(status.get("mode", None)),
+### x__get_degradation_status__mutmut_64
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_64() -> DegradationStatusResponse | None:
+-            mode=DegradationModeEnum(status.get("mode", "normal")),
++            mode=DegradationModeEnum(status.get("mode", )),
+### x__get_degradation_status__mutmut_67
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_67() -> DegradationStatusResponse | None:
+-            mode=DegradationModeEnum(status.get("mode", "normal")),
++            mode=DegradationModeEnum(status.get("mode", "XXnormalXX")),
+### x__get_degradation_status__mutmut_68
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_68() -> DegradationStatusResponse | None:
+-            mode=DegradationModeEnum(status.get("mode", "normal")),
++            mode=DegradationModeEnum(status.get("mode", "NORMAL")),
+### x__get_degradation_status__mutmut_69
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_69() -> DegradationStatusResponse | None:
+-            is_degraded=status.get("is_degraded", False),
++            is_degraded=status.get(None, False),
+### x__get_degradation_status__mutmut_70
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_70() -> DegradationStatusResponse | None:
+-            is_degraded=status.get("is_degraded", False),
++            is_degraded=status.get("is_degraded", None),
+### x__get_degradation_status__mutmut_72
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_72() -> DegradationStatusResponse | None:
+-            is_degraded=status.get("is_degraded", False),
++            is_degraded=status.get("is_degraded", ),
+### x__get_degradation_status__mutmut_73
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_73() -> DegradationStatusResponse | None:
+-            is_degraded=status.get("is_degraded", False),
++            is_degraded=status.get("XXis_degradedXX", False),
+### x__get_degradation_status__mutmut_74
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_74() -> DegradationStatusResponse | None:
+-            is_degraded=status.get("is_degraded", False),
++            is_degraded=status.get("IS_DEGRADED", False),
+### x__get_degradation_status__mutmut_75
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_75() -> DegradationStatusResponse | None:
+-            is_degraded=status.get("is_degraded", False),
++            is_degraded=status.get("is_degraded", True),
+### x__get_degradation_status__mutmut_77
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_77() -> DegradationStatusResponse | None:
+-            redis_healthy=status.get("redis_healthy", False),
++            redis_healthy=status.get("redis_healthy", None),
+### x__get_degradation_status__mutmut_79
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_79() -> DegradationStatusResponse | None:
+-            redis_healthy=status.get("redis_healthy", False),
++            redis_healthy=status.get("redis_healthy", ),
+### x__get_degradation_status__mutmut_82
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_82() -> DegradationStatusResponse | None:
+-            redis_healthy=status.get("redis_healthy", False),
++            redis_healthy=status.get("redis_healthy", True),
+### x__get_degradation_status__mutmut_83
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_83() -> DegradationStatusResponse | None:
+-            memory_queue_size=status.get("memory_queue_size", 0),
++            memory_queue_size=status.get(None, 0),
+### x__get_degradation_status__mutmut_84
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_84() -> DegradationStatusResponse | None:
+-            memory_queue_size=status.get("memory_queue_size", 0),
++            memory_queue_size=status.get("memory_queue_size", None),
+### x__get_degradation_status__mutmut_86
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_86() -> DegradationStatusResponse | None:
+-            memory_queue_size=status.get("memory_queue_size", 0),
++            memory_queue_size=status.get("memory_queue_size", ),
+### x__get_degradation_status__mutmut_87
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_87() -> DegradationStatusResponse | None:
+-            memory_queue_size=status.get("memory_queue_size", 0),
++            memory_queue_size=status.get("XXmemory_queue_sizeXX", 0),
+### x__get_degradation_status__mutmut_88
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_88() -> DegradationStatusResponse | None:
+-            memory_queue_size=status.get("memory_queue_size", 0),
++            memory_queue_size=status.get("MEMORY_QUEUE_SIZE", 0),
+### x__get_degradation_status__mutmut_89
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_89() -> DegradationStatusResponse | None:
+-            memory_queue_size=status.get("memory_queue_size", 0),
++            memory_queue_size=status.get("memory_queue_size", 1),
+### x__get_degradation_status__mutmut_9
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_9() -> DegradationStatusResponse | None:
+-        services_dict = status.get("services", {})
++        services_dict = status.get("services", None)
+### x__get_degradation_status__mutmut_90
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_90() -> DegradationStatusResponse | None:
+-            fallback_queues=status.get("fallback_queues", {}),
++            fallback_queues=status.get(None, {}),
+### x__get_degradation_status__mutmut_91
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_91() -> DegradationStatusResponse | None:
+-            fallback_queues=status.get("fallback_queues", {}),
++            fallback_queues=status.get("fallback_queues", None),
+### x__get_degradation_status__mutmut_93
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_93() -> DegradationStatusResponse | None:
+-            fallback_queues=status.get("fallback_queues", {}),
++            fallback_queues=status.get("fallback_queues", ),
+### x__get_degradation_status__mutmut_94
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_94() -> DegradationStatusResponse | None:
+-            fallback_queues=status.get("fallback_queues", {}),
++            fallback_queues=status.get("XXfallback_queuesXX", {}),
+### x__get_degradation_status__mutmut_95
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_95() -> DegradationStatusResponse | None:
+-            fallback_queues=status.get("fallback_queues", {}),
++            fallback_queues=status.get("FALLBACK_QUEUES", {}),
+### x__get_degradation_status__mutmut_96
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_96() -> DegradationStatusResponse | None:
+-            available_features=status.get("available_features", []),
++            available_features=status.get(None, []),
+### x__get_degradation_status__mutmut_97
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_97() -> DegradationStatusResponse | None:
+-            available_features=status.get("available_features", []),
++            available_features=status.get("available_features", None),
+### x__get_degradation_status__mutmut_99
+-def x__get_degradation_status__mutmut_orig() -> DegradationStatusResponse | None:
++def x__get_degradation_status__mutmut_99() -> DegradationStatusResponse | None:
+-            available_features=status.get("available_features", []),
++            available_features=status.get("available_features", ),
+### x__get_model_category__mutmut_1
+-def x__get_model_category__mutmut_orig(model_name: str) -> str:
++def x__get_model_category__mutmut_1(model_name: str) -> str:
+-        if model_name in models:
++        if model_name not in models:
+### x__get_model_category__mutmut_2
+-def x__get_model_category__mutmut_orig(model_name: str) -> str:
++def x__get_model_category__mutmut_2(model_name: str) -> str:
+-    return "Other"
++    return "XXOtherXX"
+### x__get_model_category__mutmut_3
+-def x__get_model_category__mutmut_orig(model_name: str) -> str:
++def x__get_model_category__mutmut_3(model_name: str) -> str:
+-    return "Other"
++    return "other"
+### x__get_model_category__mutmut_4
+-def x__get_model_category__mutmut_orig(model_name: str) -> str:
++def x__get_model_category__mutmut_4(model_name: str) -> str:
+-    return "Other"
++    return "OTHER"
+### x__get_worker_status__mutmut_11
+-def x__get_worker_status__mutmut_orig() -> list[WorkerHealthStatus]:
++def x__get_worker_status__mutmut_11() -> list[WorkerHealthStatus]:
+-                running=True,
++                running=False,
+### x__get_worker_status__mutmut_25
+-def x__get_worker_status__mutmut_orig() -> list[WorkerHealthStatus]:
++def x__get_worker_status__mutmut_25() -> list[WorkerHealthStatus]:
+-                running=stats.get("running", False),
++                running=stats.get("running", None),
+### x__get_worker_status__mutmut_27
+-def x__get_worker_status__mutmut_orig() -> list[WorkerHealthStatus]:
++def x__get_worker_status__mutmut_27() -> list[WorkerHealthStatus]:
+-                running=stats.get("running", False),
++                running=stats.get("running", ),
+### x__get_worker_status__mutmut_30
+-def x__get_worker_status__mutmut_orig() -> list[WorkerHealthStatus]:
++def x__get_worker_status__mutmut_30() -> list[WorkerHealthStatus]:
+-                running=stats.get("running", False),
++                running=stats.get("running", True),
+### x__get_worker_status__mutmut_41
+-def x__get_worker_status__mutmut_orig() -> list[WorkerHealthStatus]:
++def x__get_worker_status__mutmut_41() -> list[WorkerHealthStatus]:
+-                running=False,
++                running=True,
+### x__identify_monitoring_issues__mutmut_12
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_12(
+-        elif summary.down > 0:
++        elif summary.down >= 0:
+### x__identify_monitoring_issues__mutmut_13
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_13(
+-        elif summary.down > 0:
++        elif summary.down > 1:
+### x__identify_monitoring_issues__mutmut_16
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_16(
+-                f"Exporter '{exporter.name}' is down: {exporter.error or 'unknown error'}"
++                f"Exporter '{exporter.name}' is down: {exporter.error and 'unknown error'}"
+### x__identify_monitoring_issues__mutmut_17
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_17(
+-                f"Exporter '{exporter.name}' is down: {exporter.error or 'unknown error'}"
++                f"Exporter '{exporter.name}' is down: {exporter.error or 'XXunknown errorXX'}"
+### x__identify_monitoring_issues__mutmut_18
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_18(
+-                f"Exporter '{exporter.name}' is down: {exporter.error or 'unknown error'}"
++                f"Exporter '{exporter.name}' is down: {exporter.error or 'UNKNOWN ERROR'}"
+### x__identify_monitoring_issues__mutmut_19
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_19(
+-        elif exporter.status == ExporterStatusEnum.UNKNOWN:
++        elif exporter.status != ExporterStatusEnum.UNKNOWN:
+### x__identify_monitoring_issues__mutmut_4
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_4(
+-        issues.append("Prometheus server is not reachable")
++        issues.append("XXPrometheus server is not reachableXX")
+### x__identify_monitoring_issues__mutmut_5
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_5(
+-        issues.append("Prometheus server is not reachable")
++        issues.append("prometheus server is not reachable")
+### x__identify_monitoring_issues__mutmut_6
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_6(
+-        issues.append("Prometheus server is not reachable")
++        issues.append("PROMETHEUS SERVER IS NOT REACHABLE")
+### x__identify_monitoring_issues__mutmut_7
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_7(
+-        if summary.total > 0 and summary.down == summary.total:
++        if summary.total > 0 or summary.down == summary.total:
+### x__identify_monitoring_issues__mutmut_8
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_8(
+-        if summary.total > 0 and summary.down == summary.total:
++        if summary.total >= 0 and summary.down == summary.total:
+### x__identify_monitoring_issues__mutmut_9
+-def x__identify_monitoring_issues__mutmut_orig(
++def x__identify_monitoring_issues__mutmut_9(
+-        if summary.total > 0 and summary.down == summary.total:
++        if summary.total > 1 and summary.down == summary.total:
+### x_get_latency_stats__mutmut_10
+-async def x_get_latency_stats__mutmut_orig(redis: RedisClient) -> PipelineLatencies | None:
++async def x_get_latency_stats__mutmut_10(redis: RedisClient) -> PipelineLatencies | None:
+-            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
++            samples_data = await redis.peek_queue(key, 1, MAX_LATENCY_SAMPLES - 1)
+### x_get_latency_stats__mutmut_11
+-async def x_get_latency_stats__mutmut_orig(redis: RedisClient) -> PipelineLatencies | None:
++async def x_get_latency_stats__mutmut_11(redis: RedisClient) -> PipelineLatencies | None:
+-            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
++            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES + 1)
+### x_get_latency_stats__mutmut_12
+-async def x_get_latency_stats__mutmut_orig(redis: RedisClient) -> PipelineLatencies | None:
++async def x_get_latency_stats__mutmut_12(redis: RedisClient) -> PipelineLatencies | None:
+-            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
++            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 2)
+### x_get_latency_stats__mutmut_5
+-async def x_get_latency_stats__mutmut_orig(redis: RedisClient) -> PipelineLatencies | None:
++async def x_get_latency_stats__mutmut_5(redis: RedisClient) -> PipelineLatencies | None:
+-            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
++            samples_data = await redis.peek_queue(key, None, MAX_LATENCY_SAMPLES - 1)
+### x_get_latency_stats__mutmut_6
+-async def x_get_latency_stats__mutmut_orig(redis: RedisClient) -> PipelineLatencies | None:
++async def x_get_latency_stats__mutmut_6(redis: RedisClient) -> PipelineLatencies | None:
+-            samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
++            samples_data = await redis.peek_queue(key, 0, None)
+### xǁPerformanceMetricsCacheEntryǁis_valid__mutmut_2
+-    def xǁPerformanceMetricsCacheEntryǁis_valid__mutmut_orig(self) -> bool:
++    def xǁPerformanceMetricsCacheEntryǁis_valid__mutmut_2(self) -> bool:
+-        return (time.time() - self.cached_at) < PERFORMANCE_CACHE_TTL_SECONDS
++        return (time.time() - self.cached_at) <= PERFORMANCE_CACHE_TTL_SECONDS

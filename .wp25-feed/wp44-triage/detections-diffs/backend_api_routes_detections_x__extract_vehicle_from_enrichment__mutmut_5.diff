@@ -1,0 +1,11 @@
+# backend.api.routes.detections.x__extract_vehicle_from_enrichment__mutmut_5: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -1,6 +1,6 @@
+ def _extract_vehicle_from_enrichment(enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+     """Extract vehicle data from enrichment into API response format."""
+-    vehicle_classifications = enrichment_data.get("vehicle_classifications", {})
++    vehicle_classifications = enrichment_data.get("vehicle_classifications", )
+     if not vehicle_classifications:
+         return None
+ 

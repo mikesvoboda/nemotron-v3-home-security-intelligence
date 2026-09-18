@@ -1,0 +1,1137 @@
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR |   n=18  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_27', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_28', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_29']
+    logger.debug("Batch already closed, skipping") ==> logger.debug("XXBatch already closed, skippingXX")
+    logger.debug("Batch already closed, skipping") ==> logger.debug("batch already closed, skipping")
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR |   n=15  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_10', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_11']
+    "Cannot close batch: camera_id not found", ==> "XXCannot close batch: camera_id not foundXX",
+    "Cannot close batch: camera_id not found", ==> "cannot close batch: camera_id not found",
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR |   n=15  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_19', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_20', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_21']
+    "Threat fast path triggered for detection", ==> "XXThreat fast path triggered for detectionXX",
+    "Threat fast path triggered for detection", ==> "threat fast path triggered for detection",
+
+### x_recover_orphaned_detections | LOG | STR |   n=12  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_57', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_58', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_59']
+    "Failed to recover orphaned detection", ==> "XXFailed to recover orphaned detectionXX",
+    "Failed to recover orphaned detection", ==> "failed to recover orphaned detection",
+
+### xǁBatchAggregatorǁ_create_batch_metadata_atomic | CALL:pipe.set | NONE | ex  n=12  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_13', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_14']
+    pipe.set(batch_key, batch_id, ex=ttl) ==> pipe.set(batch_key, batch_id, ex=None)
+    pipe.set(f"batch:{batch_id}:camera_id", camera_id, ex=ttl) ==> pipe.set(None, camera_id, ex=ttl)
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | STR | camera_id  n=10  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_15', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_16', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_17']
+    extra={"camera_id": camera_id, "detection_id": detection_id}, ==> extra={"XXcamera_idXX": camera_id, "detection_id": detection_id},
+    extra={"camera_id": camera_id, "detection_id": detection_id}, ==> extra={"CAMERA_ID": camera_id, "detection_id": detection_id},
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | batch_id  n=10  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_109', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_110', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_127']
+    "batch_id": batch_id, ==> "XXbatch_idXX": batch_id,
+    "batch_id": batch_id, ==> "BATCH_ID": batch_id,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | camera_id  n=10  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_22', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_23', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_51']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | STR |   n=9  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_5', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_6', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_7']
+    "Processing smoke/fire via fast path", ==> "XXProcessing smoke/fire via fast pathXX",
+    "Processing smoke/fire via fast path", ==> "processing smoke/fire via fast path",
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | STR |   n=9  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_5', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_6', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_7']
+    "Processing threat via fast path", ==> "XXProcessing threat via fast pathXX",
+    "Processing threat via fast path", ==> "processing threat via fast path",
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | STR |   n=9  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_63', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_64', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_65']
+    "Batch missing started_at timestamp, skipping", ==> "XXBatch missing started_at timestamp, skippingXX",
+    "Batch missing started_at timestamp, skipping", ==> "batch missing started_at timestamp, skipping",
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | detection_id  n=8  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_24', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_25', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_53']
+    "detection_id": detection_id_int, ==> "XXdetection_idXX": detection_id_int,
+    "detection_id": detection_id_int, ==> "DETECTION_ID": detection_id_int,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._redis.delete | NONE |   n=7  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_118', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_119', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_120']
+    f"batch:{camera_id}:current", ==> None,
+    f"batch:{batch_id}:camera_id", ==> None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._redis.delete | ARG-DEL |   n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_125', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_126', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_127']
+    f"batch:{camera_id}:current", ==> 
+    f"batch:{batch_id}:camera_id", ==> 
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | STR |   n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_13', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_14']
+    "Fast path analysis completed for detection", ==> "XXFast path analysis completed for detectionXX",
+    "Fast path analysis completed for detection", ==> "fast path analysis completed for detection",
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | STR | camera_id  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_8', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_38']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | STR | detection_id  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_10', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_11', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_40']
+    "detection_id": detection_id, ==> "XXdetection_idXX": detection_id,
+    "detection_id": detection_id, ==> "DETECTION_ID": detection_id,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | STR | smoke_fire_type  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_13', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_42']
+    "smoke_fire_type": smoke_fire_type, ==> "XXsmoke_fire_typeXX": smoke_fire_type,
+    "smoke_fire_type": smoke_fire_type, ==> "SMOKE_FIRE_TYPE": smoke_fire_type,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | STR | camera_id  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_8', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_29']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | STR | detection_id  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_10', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_11', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_31']
+    "detection_id": detection_id, ==> "XXdetection_idXX": detection_id,
+    "detection_id": detection_id, ==> "DETECTION_ID": detection_id,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | STR | threat_type  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_13', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_33']
+    "threat_type": threat_type, ==> "XXthreat_typeXX": threat_type,
+    "threat_type": threat_type, ==> "THREAT_TYPE": threat_type,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | confidence  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_26', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_27', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_55']
+    "confidence": confidence, ==> "XXconfidenceXX": confidence,
+    "confidence": confidence, ==> "CONFIDENCE": confidence,
+
+### xǁBatchAggregatorǁclose_batch | LOG | NONE |   n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_26', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_61', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_107']
+    logger.debug("Batch already closed, skipping") ==> logger.debug(None)
+    f"Failed to fetch batch data (operation {i})", ==> None,
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | detection_count  n=6  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_114', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_115', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_130']
+    "detection_count": len(detections), ==> "XXdetection_countXX": len(detections),
+    "detection_count": len(detections), ==> "DETECTION_COUNT": len(detections),
+
+### x_recover_orphaned_detections | CODE:stmt = ( | ARG-DEL |   n=5  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_11', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_25', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_26']
+    EventDetection.event_id.is_(None), ==> 
+    Detection.id, ==> 
+
+### xǁBatchAggregatorǁadd_detection | LOG | NONE |   n=5  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_15', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_44', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_71']
+    "Threat fast path triggered for detection", ==> None,
+    "Smoke/fire fast path triggered for detection", ==> None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._redis.delete | ARG-DEL |   n=5  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_170', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_171', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_172']
+    f"batch:{camera_id}:current", ==> 
+    f"batch:{batch_id}:camera_id", ==> 
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._redis.delete | NONE |   n=5  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_163', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_164', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_165']
+    f"batch:{camera_id}:current", ==> None,
+    f"batch:{batch_id}:camera_id", ==> None,
+
+### x_get_memory_pressure_level | LOG | STR | error  n=4  keys=['backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_6', 'backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_7', 'backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_9']
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra={"XXerrorXX": str(e), "error_type": type(e).__name__},
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra={"ERROR": str(e), "error_type": type(e).__name__},
+
+### x_recover_orphaned_detections | CODE:stmt = ( | NONE |   n=4  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_6', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_7', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_10']
+    .limit(ORPHAN_RECOVERY_LIMIT) ==> .limit(None)
+    .order_by(Detection.detected_at.asc()) ==> .order_by(None)
+
+### x_recover_orphaned_detections | CODE:stmt = ( | OTHER |   n=4  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_9', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_12', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_19']
+    EventDetection.event_id.is_(None), ==> None,
+    Detection.detected_at < cutoff_time, | ) ==> )
+
+### x_recover_orphaned_detections | LOG | NONE |   n=4  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_53', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_67', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_78']
+    "Failed to recover orphaned detection", ==> None,
+    "Recovered orphaned detections for camera", ==> None,
+
+### x_recover_orphaned_detections | LOG | STR | camera_id  n=4  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_62', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_63', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_74']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id,
+
+### x_recover_orphaned_detections | LOG | STR | error  n=4  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_64', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_65', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_98']
+    "error": str(e), ==> "XXerrorXX": str(e),
+    "error": str(e), ==> "ERROR": str(e),
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | STR | label  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_11', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_14']
+    "label": label or "unknown", ==> "XXlabelXX": label or "unknown",
+    "label": label or "unknown", ==> "LABEL": label or "unknown",
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:raw_detections: list[bytes | s | OTHER |   n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_30', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_31', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_32']
+    detections_key, 0, -1 ==> 0, -1
+    detections_key, 0, -1 ==> detections_key, -1
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | NONE |   n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_5', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_99', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_114']
+    "Cannot close batch: camera_id not found", ==> None,
+    "Batch closed", ==> None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | close_reason  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_110', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_111', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_112']
+    "close_reason": "max_size", ==> "XXclose_reasonXX": "max_size",
+    "close_reason": "max_size", ==> "CLOSE_REASON": "max_size",
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | detection_count  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_85', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_86', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_106']
+    "detection_count": len(detections), ==> "XXdetection_countXX": len(detections),
+    "detection_count": len(detections), ==> "DETECTION_COUNT": len(detections),
+
+### xǁBatchAggregatorǁ_create_batch_metadata_atomic | CALL:pipe.set | OTHER | ex  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_18', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_24']
+    pipe.set(batch_key, batch_id, ex=ttl) ==> pipe.set(batch_key, batch_id, )
+    pipe.set(f"batch:{batch_id}:camera_id", camera_id, ex=ttl) ==> pipe.set(f"batch:{batch_id}:camera_id", camera_id, )
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | STR | batch_id  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_66', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_67', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_115']
+    extra={"batch_id": sanitize_log_value(batch_id)}, ==> extra={"XXbatch_idXX": sanitize_log_value(batch_id)},
+    extra={"batch_id": sanitize_log_value(batch_id)}, ==> extra={"BATCH_ID": sanitize_log_value(batch_id)},
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | close_reason  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_155', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_156', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_157']
+    "close_reason": "timeout", ==> "XXclose_reasonXX": "timeout",
+    "close_reason": "timeout", ==> "CLOSE_REASON": "timeout",
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | error  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_65', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_66', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_120']
+    extra={"error": str(exc)}, ==> extra={"XXerrorXX": str(exc)},
+    extra={"error": str(exc)}, ==> extra={"ERROR": str(exc)},
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | queue_length  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_118', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_119', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_134']
+    "queue_length": result.queue_length, ==> "XXqueue_lengthXX": result.queue_length,
+    "queue_length": result.queue_length, ==> "QUEUE_LENGTH": result.queue_length,
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | queue_name  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_116', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_117', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_132']
+    "queue_name": self._analysis_queue, ==> "XXqueue_nameXX": self._analysis_queue,
+    "queue_name": self._analysis_queue, ==> "QUEUE_NAME": self._analysis_queue,
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | STR | error  n=4  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_17', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_18', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_20']
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra={"XXerrorXX": str(e), "error_type": type(e).__name__},
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra={"ERROR": str(e), "error_type": type(e).__name__},
+
+### x_get_memory_pressure_level | LOG | NONE | error  n=3  keys=['backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_3', 'backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_8', 'backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_11']
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra=None,
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra={"error": str(None), "error_type": type(e).__name__},
+
+### x_recover_orphaned_detections | LOG | NONE | error  n=3  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_66', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_90', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_100']
+    "error": str(e), ==> "error": str(None),
+    extra={"error": str(e)}, ==> extra=None,
+
+### x_set_gpu_monitor | LOG | STR |   n=3  keys=['backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_3', 'backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_4', 'backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_5']
+    logger.debug("GPU monitor set for batch aggregator backpressure") ==> logger.debug("XXGPU monitor set for batch aggregator backpressureXX")
+    logger.debug("GPU monitor set for batch aggregator backpressure") ==> logger.debug("gpu monitor set for batch aggregator backpressure")
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:raw_detections: list[bytes | s | NONE |   n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_27', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_28', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_29']
+    detections_key, 0, -1 ==> None, 0, -1
+    detections_key, 0, -1 ==> detections_key, None, -1
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | NONE | camera_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_20', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_34']
+    extra={"camera_id": camera_id, "detection_id": detection_id}, ==> extra=None,
+    extra={"camera_id": camera_id, "detection_id": detection_id, "error": str(e)}, ==> extra=None,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | NONE |   n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_1', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_31', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_44']
+    "Processing smoke/fire via fast path", ==> None,
+    "Smoke/fire fast path completed", ==> None,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | NONE | camera_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_2', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_32', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_45']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "smoke_fire_type": smoke_fire_type, | "con ==> extra=None,
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "smoke_fire_type": smoke_fire_type, | }, ==> extra=None,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | NONE |   n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_1', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_22', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_35']
+    "Processing threat via fast path", ==> None,
+    "Threat fast path completed", ==> None,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | NONE | camera_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_2', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_23', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_36']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "threat_type": threat_type, | "confidence" ==> extra=None,
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "threat_type": threat_type, | }, ==> extra=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._redis.set | NONE | expire  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_157', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_158', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_162']
+    await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl) ==> await self._redis.set(f"batch:{batch_id}:last_activity", None, expire=ttl)
+    await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl) ==> await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=None)
+
+### xǁBatchAggregatorǁadd_detection | LOG | NONE | batch_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_101', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_121', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_164']
+    extra={ | "camera_id": camera_id, | "batch_id": batch_id, | "current_size": current_size, | "max_size": self._ ==> extra=None,
+    extra={"batch_id": batch_id, "camera_id": camera_id, "detection_count": 1}, ==> extra=None,
+
+### xǁBatchAggregatorǁadd_detection | LOG | NONE | camera_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_16', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_45', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_72']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id_int, | "confidence": confidence, | "threat_ty ==> extra=None,
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id_int, | "confidence": confidence, | "smoke_fir ==> extra=None,
+
+### xǁBatchAggregatorǁadd_detection | LOG | OTHER | batch_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_103', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_123', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_166']
+    extra={ | "camera_id": camera_id, | "batch_id": batch_id, | "current_size": current_size, | "max_size": self._ ==> )
+    extra={"batch_id": batch_id, "camera_id": camera_id, "detection_count": 1}, | ) ==> )
+
+### xǁBatchAggregatorǁadd_detection | LOG | OTHER | camera_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_18', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_47', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_74']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id_int, | "confidence": confidence, | "threat_ty ==> )
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id_int, | "confidence": confidence, | "smoke_fir ==> )
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity_str = json.loads | OTHER | last_activity_str  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_78', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_79', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_80']
+    last_activity_str = json.loads(last_activity_str) if last_activity_str else None ==> last_activity_str = None
+    last_activity_str = json.loads(last_activity_str) if last_activity_str else None ==> last_activity_str = json.loads(last_activity_str) if (last_activity_str) and False else None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | NONE |   n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_59', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_106', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_121']
+    "Batch missing started_at timestamp, skipping", ==> None,
+    "Closing batch", ==> None,
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | NONE | batch_id  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_60', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_68', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_107']
+    extra={"batch_id": sanitize_log_value(batch_id)}, ==> extra=None,
+    extra={"batch_id": sanitize_log_value(batch_id)}, ==> extra={"batch_id": sanitize_log_value(None)},
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | NONE | error  n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_14', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_19', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_22']
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra=None,
+    extra={"error": str(e), "error_type": type(e).__name__}, ==> extra={"error": str(None), "error_type": type(e).__name__},
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | STR |   n=3  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_8', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_10']
+    "Backpressure active due to critical GPU memory pressure", ==> "XXBackpressure active due to critical GPU memory pressureXX",
+    "Backpressure active due to critical GPU memory pressure", ==> "backpressure active due to critical gpu memory pressure",
+
+### x_recover_orphaned_detections | CODE:stmt = ( | OTHER | id  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_5', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_16']
+    stmt = ( | select(Detection) | .outerjoin( | EventDetection, | Detection.id == EventDetection.detection_id, |  ==> stmt = None
+    Detection.id == EventDetection.detection_id, | ) ==> )
+
+### x_recover_orphaned_detections | LOG | NONE | camera_id  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_54', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_68']
+    extra={ | "detection_id": detection.id, | "camera_id": camera_id, | "error": str(e), | }, ==> extra=None,
+    extra={ | "camera_id": camera_id, | "detection_count": len(detections), | }, ==> extra=None,
+
+### x_recover_orphaned_detections | LOG | OTHER | camera_id  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_56', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_70']
+    extra={ | "detection_id": detection.id, | "camera_id": camera_id, | "error": str(e), | }, | ) ==> )
+    extra={ | "camera_id": camera_id, | "detection_count": len(detections), | }, | ) ==> )
+
+### x_recover_orphaned_detections | LOG | OTHER | exc_info  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_94', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_101']
+    exc_info=True, | ) ==> )
+    exc_info=True, ==> exc_info=False,
+
+### x_recover_orphaned_detections | LOG | STR | camera_count  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_87', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_88']
+    "camera_count": len(camera_groups), ==> "XXcamera_countXX": len(camera_groups),
+    "camera_count": len(camera_groups), ==> "CAMERA_COUNT": len(camera_groups),
+
+### x_recover_orphaned_detections | LOG | STR | detection_count  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_76', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_77']
+    "detection_count": len(detections), ==> "XXdetection_countXX": len(detections),
+    "detection_count": len(detections), ==> "DETECTION_COUNT": len(detections),
+
+### x_recover_orphaned_detections | LOG | STR | detection_id  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_60', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_61']
+    "detection_id": detection.id, ==> "XXdetection_idXX": detection.id,
+    "detection_id": detection.id, ==> "DETECTION_ID": detection.id,
+
+### x_recover_orphaned_detections | LOG | STR | total_recovered  n=2  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_85', 'backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_86']
+    "total_recovered": total_recovered, ==> "XXtotal_recoveredXX": total_recovered,
+    "total_recovered": total_recovered, ==> "TOTAL_RECOVERED": total_recovered,
+
+### xǁBatchAggregatorǁ__init__ | CODE:self._use_redis_streams: bool  | OTHER | bool  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ__init____mutmut_16', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ__init____mutmut_19']
+    self._use_redis_streams: bool = getattr(settings, "use_redis_streams", False) is True ==> self._use_redis_streams: bool = getattr(settings, "use_redis_streams", ) is True
+    self._use_redis_streams: bool = getattr(settings, "use_redis_streams", False) is True ==> self._use_redis_streams: bool = getattr(settings, "use_redis_streams", True) is True
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | CODE:broadcaster = await get_broadc | NONE | broadcaster  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_2', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_3']
+    broadcaster = await get_broadcaster(self._redis) ==> broadcaster = None
+    broadcaster = await get_broadcaster(self._redis) ==> broadcaster = await get_broadcaster(None)
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | NONE | closed_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_21', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_22']
+    "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(), ==> "closed_at": datetime.fromtimestamp(None, tz=UTC).isoformat(),
+    "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(), ==> "closed_at": datetime.fromtimestamp(closed_at, tz=None).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | NONE | started_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_15', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_16']
+    "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(), ==> "started_at": datetime.fromtimestamp(None, tz=UTC).isoformat(),
+    "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(), ==> "started_at": datetime.fromtimestamp(started_at, tz=None).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | OTHER | closed_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_23', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_24']
+    "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(), ==> "closed_at": datetime.fromtimestamp(tz=UTC).isoformat(),
+    "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(), ==> "closed_at": datetime.fromtimestamp(closed_at, ).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | OTHER | started_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_17', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_18']
+    "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(), ==> "started_at": datetime.fromtimestamp(tz=UTC).isoformat(),
+    "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(), ==> "started_at": datetime.fromtimestamp(started_at, ).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_5', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_6']
+    "batch_id": batch_id, ==> "XXbatch_idXX": batch_id,
+    "batch_id": batch_id, ==> "BATCH_ID": batch_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | camera_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_7', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_8']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | close_reason  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_25', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_26']
+    "close_reason": close_reason, ==> "XXclose_reasonXX": close_reason,
+    "close_reason": close_reason, ==> "CLOSE_REASON": close_reason,
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | closed_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_19', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_20']
+    "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(), ==> "XXclosed_atXX": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(),
+    "closed_at": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(), ==> "CLOSED_AT": datetime.fromtimestamp(closed_at, tz=UTC).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | detection_count  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_11', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_12']
+    "detection_count": len(detection_ids), ==> "XXdetection_countXX": len(detection_ids),
+    "detection_count": len(detection_ids), ==> "DETECTION_COUNT": len(detection_ids),
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | detection_ids  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_10']
+    "detection_ids": detection_ids, ==> "XXdetection_idsXX": detection_ids,
+    "detection_ids": detection_ids, ==> "DETECTION_IDS": detection_ids,
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | STR | started_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_13', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_14']
+    "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(), ==> "XXstarted_atXX": datetime.fromtimestamp(started_at, tz=UTC).isoformat(),
+    "started_at": datetime.fromtimestamp(started_at, tz=UTC).isoformat(), ==> "STARTED_AT": datetime.fromtimestamp(started_at, tz=UTC).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | CODE:broadcaster = await get_broadc | NONE | broadcaster  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_2', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_3']
+    broadcaster = await get_broadcaster(self._redis) ==> broadcaster = None
+    broadcaster = await get_broadcaster(self._redis) ==> broadcaster = await get_broadcaster(None)
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | LOG | STR | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_32', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_33']
+    "batch_id": batch_id, ==> "XXbatch_idXX": batch_id,
+    "batch_id": batch_id, ==> "BATCH_ID": batch_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | LOG | STR | detection_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_30', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_31']
+    "detection_id": detection_id, ==> "XXdetection_idXX": detection_id,
+    "detection_id": detection_id, ==> "DETECTION_ID": detection_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | OTHER | confidence  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_18', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_19']
+    "confidence": confidence if confidence is not None else 0.0, ==> "confidence": confidence if (confidence is not None) and False else 0.0,
+    "confidence": confidence if confidence is not None else 0.0, ==> "confidence": confidence if (confidence is not None) or True else 0.0,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | STR | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_7', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_8']
+    "batch_id": batch_id, ==> "XXbatch_idXX": batch_id,
+    "batch_id": batch_id, ==> "BATCH_ID": batch_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | STR | camera_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_10']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | STR | confidence  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_16', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_17']
+    "confidence": confidence if confidence is not None else 0.0, ==> "XXconfidenceXX": confidence if confidence is not None else 0.0,
+    "confidence": confidence if confidence is not None else 0.0, ==> "CONFIDENCE": confidence if confidence is not None else 0.0,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | STR | detection_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_5', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_6']
+    "detection_id": detection_id, ==> "XXdetection_idXX": detection_id,
+    "detection_id": detection_id, ==> "DETECTION_ID": detection_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | STR | timestamp  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_22', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_23']
+    "timestamp": datetime.now(UTC).isoformat(), ==> "XXtimestampXX": datetime.now(UTC).isoformat(),
+    "timestamp": datetime.now(UTC).isoformat(), ==> "TIMESTAMP": datetime.now(UTC).isoformat(),
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:batch_duration_ms = (ended_at  | OTHER | batch_duration_ms  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_96', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_97']
+    batch_duration_ms = (ended_at - started_at) * 1000 ==> batch_duration_ms = (ended_at - started_at) / 1000
+    batch_duration_ms = (ended_at - started_at) * 1000 ==> batch_duration_ms = (ended_at + started_at) * 1000
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:raw_detections: list[bytes | s | CONST |   n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_33', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_35']
+    detections_key, 0, -1 ==> detections_key, 1, -1
+    detections_key, 0, -1 ==> detections_key, 0, -2
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:started_at: float = float(star | OTHER | float  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_49', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_50']
+    started_at: float = float(started_at_str) if started_at_str else time.time() ==> started_at: float = float(started_at_str) if (started_at_str) and False else time.time()
+    started_at: float = float(started_at_str) if started_at_str else time.time() ==> started_at: float = float(started_at_str) if (started_at_str) or True else time.time()
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:started_at_str = await self._r | NONE | started_at_str  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_44', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_45']
+    started_at_str = await self._redis.get(f"batch:{batch_id}:started_at") ==> started_at_str = None
+    started_at_str = await self._redis.get(f"batch:{batch_id}:started_at") ==> started_at_str = await self._redis.get(None)
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:with log_context(batch_id=batc | NONE | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_14', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_15']
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(batch_id=None, camera_id=camera_id):
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(batch_id=batch_id, camera_id=None):
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:with log_context(batch_id=batc | OTHER | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_16', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_17']
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(camera_id=camera_id):
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(batch_id=batch_id, ):
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_13']
+    extra={"batch_id": batch_id}, ==> extra={"XXbatch_idXX": batch_id},
+    extra={"batch_id": batch_id}, ==> extra={"BATCH_ID": batch_id},
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | duration_ms  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_108', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_109']
+    "duration_ms": batch_duration_ms, ==> "XXduration_msXX": batch_duration_ms,
+    "duration_ms": batch_duration_ms, ==> "DURATION_MS": batch_duration_ms,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | moved_to_dlq  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_91', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_92']
+    "moved_to_dlq": result.moved_to_dlq_count, ==> "XXmoved_to_dlqXX": result.moved_to_dlq_count,
+    "moved_to_dlq": result.moved_to_dlq_count, ==> "MOVED_TO_DLQ": result.moved_to_dlq_count,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | queue_length  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_89', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_90']
+    "queue_length": result.queue_length, ==> "XXqueue_lengthXX": result.queue_length,
+    "queue_length": result.queue_length, ==> "QUEUE_LENGTH": result.queue_length,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | queue_name  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_87', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_88']
+    "queue_name": self._analysis_queue, ==> "XXqueue_nameXX": self._analysis_queue,
+    "queue_name": self._analysis_queue, ==> "QUEUE_NAME": self._analysis_queue,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | STR | warning  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_93', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_94']
+    "warning": result.warning, ==> "XXwarningXX": result.warning,
+    "warning": result.warning, ==> "WARNING": result.warning,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | PAYLOAD:summary | STR | ended_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_62', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_63']
+    "ended_at": ended_at, ==> "XXended_atXX": ended_at,
+    "ended_at": ended_at, ==> "ENDED_AT": ended_at,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | PAYLOAD:summary | STR | started_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_60', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_61']
+    "started_at": started_at, ==> "XXstarted_atXX": started_at,
+    "started_at": started_at, ==> "STARTED_AT": started_at,
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | NONE |   n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_8', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_19']
+    "Fast path analysis completed for detection", ==> None,
+    "Fast path analysis failed for detection", ==> None,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | CALL:service.process_smoke_fire_detection | STR | smoke_fire_type  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_27', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_28']
+    smoke_fire_type=smoke_fire_type or "unknown", ==> smoke_fire_type=smoke_fire_type or "XXunknownXX",
+    smoke_fire_type=smoke_fire_type or "unknown", ==> smoke_fire_type=smoke_fire_type or "UNKNOWN",
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | OTHER | camera_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_4', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_34']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "smoke_fire_type": smoke_fire_type, | "con ==> )
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "smoke_fire_type": smoke_fire_type, | }, | ==> )
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | STR | confidence  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_14', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_15']
+    "confidence": confidence, ==> "XXconfidenceXX": confidence,
+    "confidence": confidence, ==> "CONFIDENCE": confidence,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | STR | error  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_59', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_60']
+    "error": str(e), ==> "XXerrorXX": str(e),
+    "error": str(e), ==> "ERROR": str(e),
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | OTHER | camera_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_4', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_25']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "threat_type": threat_type, | "confidence" ==> )
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "threat_type": threat_type, | }, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | STR | confidence  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_14', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_15']
+    "confidence": confidence, ==> "XXconfidenceXX": confidence,
+    "confidence": confidence, ==> "CONFIDENCE": confidence,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | STR | error  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_50', 'backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_51']
+    "error": str(e), ==> "XXerrorXX": str(e),
+    "error": str(e), ==> "ERROR": str(e),
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._redis.set | OTHER | expire  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_160', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_161']
+    await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl) ==> await self._redis.set(f"batch:{batch_id}:last_activity", expire=ttl)
+    await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl) ==> await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), )
+
+### xǁBatchAggregatorǁadd_detection | CODE:detection_count = await self._ | NONE | detection_count  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_150', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_152']
+    detection_count = await self._atomic_list_append(detections_key, detection_id_int, ttl) ==> detection_count = await self._atomic_list_append(None, detection_id_int, ttl)
+    detection_count = await self._atomic_list_append(detections_key, detection_id_int, ttl) ==> detection_count = await self._atomic_list_append(detections_key, detection_id_int, None)
+
+### xǁBatchAggregatorǁadd_detection | CODE:detections_key = f"batch:{batc | NONE | detections_key  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_96', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_147']
+    detections_key = f"batch:{batch_id}:detections" ==> detections_key = None
+    detections_key = f"batch:{batch_id}:detections" ==> detections_key = None
+
+### xǁBatchAggregatorǁadd_detection | CODE:if await self.should_bypass_ba | ARG-DEL | object_type  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_41']
+    object_type=object_type, ==> 
+    object_type=object_type, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CODE:if await self.should_bypass_ba | NONE | object_type  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_9', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_38']
+    object_type=object_type, ==> object_type=None,
+    object_type=object_type, ==> object_type=None,
+
+### xǁBatchAggregatorǁadd_detection | CODE:ttl = self.BATCH_KEY_TTL_SECON | NONE | ttl  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_134', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_148']
+    ttl = self.BATCH_KEY_TTL_SECONDS ==> ttl = None
+    ttl = self.BATCH_KEY_TTL_SECONDS ==> ttl = None
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | current_size  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_111', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_112']
+    "current_size": current_size, ==> "XXcurrent_sizeXX": current_size,
+    "current_size": current_size, ==> "CURRENT_SIZE": current_size,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | detection_count  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_173', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_174']
+    "detection_count": detection_count, ==> "XXdetection_countXX": detection_count,
+    "detection_count": detection_count, ==> "DETECTION_COUNT": detection_count,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | max_size  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_113', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_114']
+    "max_size": self._batch_max_detections, ==> "XXmax_sizeXX": self._batch_max_detections,
+    "max_size": self._batch_max_detections, ==> "MAX_SIZE": self._batch_max_detections,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | object_type  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_84', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_85']
+    "object_type": object_type, ==> "XXobject_typeXX": object_type,
+    "object_type": object_type, ==> "OBJECT_TYPE": object_type,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | smoke_fire_type  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_57', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_58']
+    "smoke_fire_type": smoke_fire_type, ==> "XXsmoke_fire_typeXX": smoke_fire_type,
+    "smoke_fire_type": smoke_fire_type, ==> "SMOKE_FIRE_TYPE": smoke_fire_type,
+
+### xǁBatchAggregatorǁadd_detection | LOG | STR | threat_type  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_28', 'backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_29']
+    "threat_type": threat_type, ==> "XXthreat_typeXX": threat_type,
+    "threat_type": threat_type, ==> "THREAT_TYPE": threat_type,
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CALL:metadata_pipe.get | NONE |   n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_46', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_47']
+    metadata_pipe.get(f"batch:{batch_id}:started_at") ==> metadata_pipe.get(None)
+    metadata_pipe.get(f"batch:{batch_id}:last_activity") ==> metadata_pipe.get(None)
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:camera_id_for_log = await self | NONE | camera_id_for_log  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_104', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_105']
+    camera_id_for_log = await self._redis.get(f"batch:{batch_id}:camera_id") ==> camera_id_for_log = None
+    camera_id_for_log = await self._redis.get(f"batch:{batch_id}:camera_id") ==> camera_id_for_log = await self._redis.get(None)
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:close_reason = ( | NONE | close_reason  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_99', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_103']
+    close_reason = ( | f"batch window exceeded ({window_elapsed:.1f}s >= {self._batch_window}s)" | ) ==> close_reason = None
+    close_reason = ( | f"idle timeout exceeded ({idle_time:.1f}s >= {self._idle_timeout}s)" | ) ==> close_reason = None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:for batch_key, batch_id in zip | OTHER | strict  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_33', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_34']
+    for batch_key, batch_id in zip(batch_keys, batch_ids, strict=True): ==> for batch_key, batch_id in zip(batch_keys, batch_ids, ):
+    for batch_key, batch_id in zip(batch_keys, batch_ids, strict=True): ==> for batch_key, batch_id in zip(batch_keys, batch_ids, strict=False):
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity = float(last_act | OTHER | last_activity  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_85', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_86']
+    last_activity = float(last_activity_str) if last_activity_str else started_at ==> last_activity = float(last_activity_str) if (last_activity_str) and False else started_at
+    last_activity = float(last_activity_str) if last_activity_str else started_at ==> last_activity = float(last_activity_str) if (last_activity_str) or True else started_at
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | OTHER | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_62', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_109']
+    extra={"batch_id": sanitize_log_value(batch_id)}, | ) ==> )
+    extra={ | "camera_id": camera_id_for_log, | "batch_id": batch_id, | "reason": close_reason, | }, | ) ==> )
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | STR | camera_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_113', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_114']
+    "camera_id": camera_id_for_log, ==> "XXcamera_idXX": camera_id_for_log,
+    "camera_id": camera_id_for_log, ==> "CAMERA_ID": camera_id_for_log,
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | STR | reason  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_117', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_118']
+    "reason": close_reason, ==> "XXreasonXX": close_reason,
+    "reason": close_reason, ==> "REASON": close_reason,
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | RAISE | STR |   n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_3', 'backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_11']
+    raise RuntimeError("Redis client not initialized") ==> raise RuntimeError("XXRedis client not initializedXX")
+    raise RuntimeError("Redis client connection not initialized") ==> raise RuntimeError("XXRedis client connection not initializedXX")
+
+### xǁBatchAggregatorǁclose_batch | CODE:batch_duration_ms = (closed_at | OTHER | batch_duration_ms  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_141', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_142']
+    batch_duration_ms = (closed_at - started_at) * 1000 ==> batch_duration_ms = (closed_at - started_at) / 1000
+    batch_duration_ms = (closed_at - started_at) * 1000 ==> batch_duration_ms = (closed_at + started_at) * 1000
+
+### xǁBatchAggregatorǁclose_batch | CODE:return { | STR | closed_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_41', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_42']
+    "closed_at": time.time(), ==> "XXclosed_atXX": time.time(),
+    "closed_at": time.time(), ==> "CLOSED_AT": time.time(),
+
+### xǁBatchAggregatorǁclose_batch | CODE:return { | STR | detections  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_37', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_38']
+    "detections": [], ==> "XXdetectionsXX": [],
+    "detections": [], ==> "DETECTIONS": [],
+
+### xǁBatchAggregatorǁclose_batch | CODE:return { | STR | started_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_39', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_40']
+    "started_at": time.time(), ==> "XXstarted_atXX": time.time(),
+    "started_at": time.time(), ==> "STARTED_AT": time.time(),
+
+### xǁBatchAggregatorǁclose_batch | CODE:with log_context(batch_id=batc | NONE | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_10', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_11']
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(batch_id=None, camera_id=camera_id):
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(batch_id=batch_id, camera_id=None):
+
+### xǁBatchAggregatorǁclose_batch | CODE:with log_context(batch_id=batc | OTHER | batch_id  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_12', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_13']
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(camera_id=camera_id):
+    with log_context(batch_id=batch_id, camera_id=camera_id): ==> with log_context(batch_id=batch_id, ):
+
+### xǁBatchAggregatorǁclose_batch | LOG | NONE | detection_count  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_108', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_124']
+    extra={ | "detection_count": len(detections), | "queue_name": self._analysis_queue, | "queue_length": result.q ==> extra=None,
+    extra={ | "detection_count": len(detections), | "queue_name": self._analysis_queue, | "queue_length": result.q ==> extra=None,
+
+### xǁBatchAggregatorǁclose_batch | LOG | NONE | error  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_62', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_67']
+    extra={"error": str(exc)}, ==> extra=None,
+    extra={"error": str(exc)}, ==> extra={"error": str(None)},
+
+### xǁBatchAggregatorǁclose_batch | LOG | OTHER | detection_count  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_110', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_126']
+    extra={ | "detection_count": len(detections), | "queue_name": self._analysis_queue, | "queue_length": result.q ==> )
+    extra={ | "detection_count": len(detections), | "queue_name": self._analysis_queue, | "queue_length": result.q ==> )
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | duration_ms  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_153', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_154']
+    "duration_ms": batch_duration_ms, ==> "XXduration_msXX": batch_duration_ms,
+    "duration_ms": batch_duration_ms, ==> "DURATION_MS": batch_duration_ms,
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | moved_to_dlq  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_136', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_137']
+    "moved_to_dlq": result.moved_to_dlq_count, ==> "XXmoved_to_dlqXX": result.moved_to_dlq_count,
+    "moved_to_dlq": result.moved_to_dlq_count, ==> "MOVED_TO_DLQ": result.moved_to_dlq_count,
+
+### xǁBatchAggregatorǁclose_batch | LOG | STR | warning  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_138', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_139']
+    "warning": result.warning, ==> "XXwarningXX": result.warning,
+    "warning": result.warning, ==> "WARNING": result.warning,
+
+### xǁBatchAggregatorǁclose_batch | PAYLOAD:summary | STR | started_at  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_83', 'backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_84']
+    "started_at": started_at, ==> "XXstarted_atXX": started_at,
+    "started_at": started_at, ==> "STARTED_AT": started_at,
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | NONE |   n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_4', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_13']
+    "Backpressure active due to critical GPU memory pressure", ==> None,
+    f"Error checking backpressure: {e}", ==> None,
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | STR | extra  n=2  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_11', 'backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_12']
+    extra={"pressure_level": pressure_level.value}, ==> extra={"XXpressure_levelXX": pressure_level.value},
+    extra={"pressure_level": pressure_level.value}, ==> extra={"PRESSURE_LEVEL": pressure_level.value},
+
+### x_get_memory_pressure_level | CODE:if _gpu_monitor is None: | OTHER |   n=1  keys=['backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_1']
+    if _gpu_monitor is None: ==> if _gpu_monitor is not None:
+
+### x_get_memory_pressure_level | LOG | NONE |   n=1  keys=['backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_2']
+    f"Failed to check memory pressure: {e}", ==> None,
+
+### x_get_memory_pressure_level | LOG | OTHER | error  n=1  keys=['backend.services.batch_aggregator.x_get_memory_pressure_level__mutmut_5']
+    extra={"error": str(e), "error_type": type(e).__name__}, | ) ==> )
+
+### x_recover_orphaned_detections | CALL:batch_aggregator.add_detection | ARG-DEL | _file_path  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_47']
+    _file_path=detection.file_path, ==> 
+
+### x_recover_orphaned_detections | CALL:batch_aggregator.add_detection | ARG-DEL | confidence  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_48']
+    confidence=detection.confidence, ==> 
+
+### x_recover_orphaned_detections | CALL:batch_aggregator.add_detection | NONE | _file_path  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_42']
+    _file_path=detection.file_path, ==> _file_path=None,
+
+### x_recover_orphaned_detections | CALL:batch_aggregator.add_detection | NONE | confidence  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_43']
+    confidence=detection.confidence, ==> confidence=None,
+
+### x_recover_orphaned_detections | CALL:batch_aggregator.add_detection | NONE | object_type  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_44']
+    object_type=detection.object_type, ==> object_type=None,
+
+### x_recover_orphaned_detections | CALL:batch_aggregator.add_detection | OTHER | object_type  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_49']
+    object_type=detection.object_type, | ) ==> )
+
+### x_recover_orphaned_detections | CODE:cutoff_time = datetime.now(UTC | NONE | cutoff_time  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_3']
+    cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES) ==> cutoff_time = datetime.now(None) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+
+### x_recover_orphaned_detections | CODE:cutoff_time = datetime.now(UTC | OTHER | cutoff_time  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_2']
+    cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES) ==> cutoff_time = datetime.now(UTC) + timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+
+### x_recover_orphaned_detections | CODE:result = await session.execute | NONE | result  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_31']
+    result = await session.execute(stmt) ==> result = await session.execute(None)
+
+### x_recover_orphaned_detections | CODE:stmt = ( | NONE | id  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_14']
+    Detection.id == EventDetection.detection_id, ==> None,
+
+### x_recover_orphaned_detections | CODE:stmt = ( | OPFLIP | id  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_18']
+    Detection.id == EventDetection.detection_id, ==> Detection.id != EventDetection.detection_id,
+
+### x_recover_orphaned_detections | LOG | ARG-DEL | error  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_93']
+    extra={"error": str(e)}, ==> 
+
+### x_recover_orphaned_detections | LOG | NONE | camera_count  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_79']
+    extra={ | "total_recovered": total_recovered, | "camera_count": len(camera_groups), | }, ==> extra=None,
+
+### x_recover_orphaned_detections | LOG | NONE | exc_info  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_91']
+    exc_info=True, ==> exc_info=None,
+
+### x_recover_orphaned_detections | LOG | OTHER | camera_count  n=1  keys=['backend.services.batch_aggregator.x_recover_orphaned_detections__mutmut_81']
+    extra={ | "total_recovered": total_recovered, | "camera_count": len(camera_groups), | }, | ) ==> )
+
+### x_set_gpu_monitor | CODE:_gpu_monitor = monitor | NONE | _gpu_monitor  n=1  keys=['backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_1']
+    _gpu_monitor = monitor ==> _gpu_monitor = None
+
+### x_set_gpu_monitor | LOG | NONE |   n=1  keys=['backend.services.batch_aggregator.x_set_gpu_monitor__mutmut_2']
+    logger.debug("GPU monitor set for batch aggregator backpressure") ==> logger.debug(None)
+
+### xǁBatchAggregatorǁ__init__ | CODE:self._analyzer = analyzer | NONE | _analyzer  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ__init____mutmut_2']
+    self._analyzer = analyzer ==> self._analyzer = None
+
+### xǁBatchAggregatorǁ__init__ | CODE:self._use_redis_streams: bool  | NONE | bool  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ__init____mutmut_13']
+    self._use_redis_streams: bool = getattr(settings, "use_redis_streams", False) is True ==> self._use_redis_streams: bool = getattr(settings, "use_redis_streams", None) is True
+
+### xǁBatchAggregatorǁ_atomic_list_append | RAISE | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_atomic_list_append__mutmut_5']
+    raise RuntimeError("Redis client not initialized") ==> raise RuntimeError("XXRedis client not initializedXX")
+
+### xǁBatchAggregatorǁ_atomic_list_get_all | MULTI:['LOG', 'UNK'] | MIX |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_atomic_list_get_all__mutmut_23']
+    logger.warning(f"Invalid detection ID in batch list: {sanitize_log_value(item)}") ==> logger.warning(f"Invalid detection ID in batch list: {sanitize_log_value(None)}") ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut) | async def _create_batch
+
+### xǁBatchAggregatorǁ_atomic_list_get_all | RAISE | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_atomic_list_get_all__mutmut_5']
+    raise RuntimeError("Redis client not initialized") ==> raise RuntimeError("XXRedis client not initializedXX")
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | CODE:if not self._redis: | NOTDEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_1']
+    if not self._redis: ==> if self._redis:
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | MULTI:['CALL:broadcaster.broadcast_detection_batch', 'UNK'] | MIX |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_27']
+    await broadcaster.broadcast_detection_batch(batch_data) ==> await broadcaster.broadcast_detection_batch(None) ;;  ==>  | async def _get_camera_lock(self, camera_id: str) -> asyncio.Lock: | """Get or create a lock for the specifi
+
+### xǁBatchAggregatorǁ_broadcast_detection_batch | PAYLOAD:batch_data | NONE | batch_data  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut_4']
+    batch_data = { | "batch_id": batch_id, | "camera_id": camera_id, | "detection_ids": detection_ids, | "detectio ==> batch_data = None
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | CALL:broadcaster.broadcast_detection_new | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_25']
+    await broadcaster.broadcast_detection_new(detection_data) ==> await broadcaster.broadcast_detection_new(None)
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | CODE:if not self._redis: | NOTDEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_1']
+    if not self._redis: ==> if self._redis:
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | LOG | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_26']
+    f"Failed to broadcast detection.new event: {e}", ==> None,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | LOG | NONE | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_27']
+    extra={ | "detection_id": detection_id, | "batch_id": batch_id, | "camera_id": camera_id, | }, ==> extra=None,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | LOG | OTHER | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_29']
+    extra={ | "detection_id": detection_id, | "batch_id": batch_id, | "camera_id": camera_id, | }, | ) ==> )
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | LOG | STR | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_34']
+    "camera_id": camera_id, ==> "XXcamera_idXX": camera_id,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | MULTI:['LOG', 'UNK'] | MIX | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_35']
+    "camera_id": camera_id, ==> "CAMERA_ID": camera_id, ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁ_broadcast_detection_batch__mutmut) | async def _broadcast_detec
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | CONST | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_21']
+    "confidence": confidence if confidence is not None else 0.0, ==> "confidence": confidence if confidence is not None else 1.0,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | NONE | timestamp  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_24']
+    "timestamp": datetime.now(UTC).isoformat(), ==> "timestamp": datetime.now(None).isoformat(),
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | NOTDEL | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_4']
+    detection_data = { | "detection_id": detection_id, | "batch_id": batch_id, | "camera_id": camera_id, | "label" ==> detection_data = None
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | OPFLIP | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_20']
+    "confidence": confidence if confidence is not None else 0.0, ==> "confidence": confidence if confidence is None else 0.0,
+
+### xǁBatchAggregatorǁ_broadcast_detection_new | PAYLOAD:detection_data | OPFLIP | label  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_broadcast_detection_new__mutmut_13']
+    "label": label or "unknown", ==> "label": label and "unknown",
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:detections.append | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_41']
+    detections.append(int(item.decode("utf-8"))) ==> detections.append(int(item.decode("UTF-8")))
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | NONE | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_136']
+    batch_id=batch_id, ==> batch_id=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | NONE | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_137']
+    camera_id=camera_id, ==> camera_id=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | NONE | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_141']
+    close_reason="max_size", ==> close_reason=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | NONE | closed_at  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_140']
+    closed_at=ended_at, ==> closed_at=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | NONE | started_at  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_139']
+    started_at=started_at, ==> started_at=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | OTHER | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_147']
+    close_reason="max_size", | ) ==> )
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._broadcast_detection_batch | STR | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_148']
+    close_reason="max_size", ==> close_reason="XXmax_sizeXX",
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._redis._client.set | ARG-DEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_22']
+    "1", ==> 
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._redis._client.set | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_19']
+    "1", ==> None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._redis._client.set | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_24']
+    "1", ==> "XX1XX",
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CALL:self._redis.delete | OTHER |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_131']
+    f"batch:{batch_id}:closing", | ) ==> )
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:batch_duration_ms = (ended_at  | CONST | batch_duration_ms  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_98']
+    batch_duration_ms = (ended_at - started_at) * 1000 ==> batch_duration_ms = (ended_at - started_at) * 1001
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:batch_duration_ms = (ended_at  | NONE | batch_duration_ms  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_95']
+    batch_duration_ms = (ended_at - started_at) * 1000 ==> batch_duration_ms = None
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:detections_key = f"batch:{batc | NONE | detections_key  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_25']
+    detections_key = f"batch:{batch_id}:detections" ==> detections_key = None
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:result = await self._redis.add | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_72']
+    self._analysis_queue, ==> None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:result = await self._redis.add | NONE | overflow_policy  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_74']
+    overflow_policy=QueueOverflowPolicy.DLQ, ==> overflow_policy=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | CODE:result = await self._redis.add | OTHER | overflow_policy  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_77']
+    overflow_policy=QueueOverflowPolicy.DLQ, | ) ==> )
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | NONE | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_6']
+    extra={"batch_id": batch_id}, ==> extra=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | NONE | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_100']
+    extra={ | "detection_count": len(detections), | "duration_ms": batch_duration_ms, | "close_reason": "max_size" ==> extra=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | NONE | detection_count  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_79']
+    extra={ | "detection_count": len(detections), | "queue_name": self._analysis_queue, | "queue_length": result.q ==> extra=None,
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | OTHER | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_8']
+    extra={"batch_id": batch_id}, | ) ==> )
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | OTHER | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_102']
+    extra={ | "detection_count": len(detections), | "duration_ms": batch_duration_ms, | "close_reason": "max_size" ==> )
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | LOG | OTHER | detection_count  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_81']
+    extra={ | "detection_count": len(detections), | "queue_name": self._analysis_queue, | "queue_length": result.q ==> )
+
+### xǁBatchAggregatorǁ_close_batch_for_size_limit | MULTI:['CALL:self._broadcast_detection_batch', 'UNK'] | MIX | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_149']
+    close_reason="max_size", ==> close_reason="MAX_SIZE", ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁ_should_use_fast_path__mutmut) | def _should_use_fast_path(self,
+
+### xǁBatchAggregatorǁ_create_batch_metadata_atomic | CODE:if not self._redis or not self | OPFLIP |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_1']
+    if not self._redis or not self._redis._client: ==> if not self._redis and not self._redis._client:
+
+### xǁBatchAggregatorǁ_create_batch_metadata_atomic | MULTI:['CALL:pipe.set', 'UNK'] | MIX | ex  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_create_batch_metadata_atomic__mutmut_38']
+    pipe.set(f"batch:{batch_id}:pipeline_start_time", pipeline_start_time, ex=ttl) ==> pipe.set(f"batch:{batch_id}:pipeline_start_time", pipeline_start_time, ) ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁadd_detection__mutmut) | async def add_detection( | self, | came
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | ARG-DEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_10']
+    "Fast path analysis completed for detection", ==> 
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | ARG-DEL | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_23']
+    extra={"camera_id": camera_id, "detection_id": detection_id, "error": str(e)}, ==> 
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | NONE | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_21']
+    exc_info=True, ==> exc_info=None,
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | OTHER | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_11']
+    extra={"camera_id": camera_id, "detection_id": detection_id}, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_fast_path | LOG | OTHER | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_24']
+    exc_info=True, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_fast_path | MULTI:['LOG', 'UNK'] | MIX | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_fast_path__mutmut_35']
+    exc_info=True, ==> exc_info=False, ;;  ==>  | # ========================================================================= | # Memory Pressure Backpressur
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | CALL:service.process_smoke_fire_detection | CONST | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_30']
+    confidence=confidence or 0.0, ==> confidence=confidence or 1.0,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | CODE:service = SmokeFireConsecutive | NONE | redis_client  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_17']
+    service = SmokeFireConsecutiveService(redis_client=self._redis) ==> service = SmokeFireConsecutiveService(redis_client=None)
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | ARG-DEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_33']
+    "Smoke/fire fast path completed", ==> 
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | ARG-DEL | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_48']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "smoke_fire_type": smoke_fire_type, | "err ==> 
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | NONE | error  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_61']
+    "error": str(e), ==> "error": str(None),
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | NONE | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_46']
+    exc_info=True, ==> exc_info=None,
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | LOG | OTHER | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_49']
+    exc_info=True, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_smoke_fire_fast_path | MULTI:['CODE:', 'LOG'] | MIX | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_smoke_fire_fast_path__mutmut_62']
+    exc_info=True, ==> exc_info=False, ;;  | # ========================================================================= | # NEM-5298: Smoke/Fire Detect ==> 
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | CALL:service.process_threat_detection | ARG-DEL | threat_detection  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_20']
+    threat_detection=None, ==> 
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | CALL:service.process_threat_detection | OTHER | event  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_21']
+    event=None, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | CODE:service = ThreatMonitorService | NONE | redis_client  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_17']
+    redis_client=self._redis, ==> redis_client=None,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | CODE:service = ThreatMonitorService | OTHER | redis_client  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_19']
+    redis_client=self._redis, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | ARG-DEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_24']
+    "Threat fast path completed", ==> 
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | ARG-DEL | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_39']
+    extra={ | "camera_id": camera_id, | "detection_id": detection_id, | "threat_type": threat_type, | "error": str ==> 
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | NONE | error  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_52']
+    "error": str(e), ==> "error": str(None),
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | NONE | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_37']
+    exc_info=True, ==> exc_info=None,
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | LOG | OTHER | exc_info  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_40']
+    exc_info=True, | ) ==> )
+
+### xǁBatchAggregatorǁ_process_threat_fast_path | MULTI:['LOG', 'UNK'] | MIX |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁ_process_threat_fast_path__mutmut_53']
+     ==> exc_info=False, | ) |  | # ========================================================================= | # NEM-5 ;;  ==>  | # ========================================================================= | # NEM-5298: Smoke/Fire Detect
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._broadcast_detection_new | ARG-DEL | label  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_183']
+    label=object_type, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._broadcast_detection_new | NONE | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_176']
+    batch_id=batch_id, ==> batch_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._broadcast_detection_new | NONE | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_177']
+    camera_id=camera_id, ==> camera_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._broadcast_detection_new | NONE | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_179']
+    confidence=confidence, ==> confidence=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._broadcast_detection_new | NONE | detection_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_175']
+    detection_id=detection_id_int, ==> detection_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._broadcast_detection_new | NONE | label  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_178']
+    label=object_type, ==> label=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._create_batch_metadata_atomic | NONE | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_137']
+    camera_id=camera_id, ==> camera_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._create_batch_metadata_atomic | NONE | current_time  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_138']
+    current_time=current_time, ==> current_time=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._create_batch_metadata_atomic | NONE | ttl  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_139']
+    ttl=ttl, ==> ttl=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | ARG-DEL | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_63']
+    camera_id=camera_id, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | ARG-DEL | detection_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_64']
+    detection_id=detection_id_int, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | ARG-DEL | smoke_fire_type  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_65']
+    smoke_fire_type=smoke_fire_type, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | NONE | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_59']
+    camera_id=camera_id, ==> camera_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | NONE | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_62']
+    confidence=confidence, ==> confidence=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | NONE | detection_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_60']
+    detection_id=detection_id_int, ==> detection_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | NONE | smoke_fire_type  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_61']
+    smoke_fire_type=smoke_fire_type, ==> smoke_fire_type=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_smoke_fire_fast_path | OTHER | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_66']
+    confidence=confidence, | ) ==> )
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | ARG-DEL | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_34']
+    camera_id=camera_id, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | ARG-DEL | detection_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_35']
+    detection_id=detection_id_int, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | ARG-DEL | threat_type  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_36']
+    threat_type=threat_type, ==> 
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | NONE | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_30']
+    camera_id=camera_id, ==> camera_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | NONE | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_33']
+    confidence=confidence, ==> confidence=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | NONE | detection_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_31']
+    detection_id=detection_id_int, ==> detection_id=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | NONE | threat_type  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_32']
+    threat_type=threat_type, ==> threat_type=None,
+
+### xǁBatchAggregatorǁadd_detection | CALL:self._process_threat_fast_path | OTHER | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_37']
+    confidence=confidence, | ) ==> )
+
+### xǁBatchAggregatorǁadd_detection | CODE:batch_id = None | OTHER | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_117']
+    batch_id = None ==> batch_id = ""
+
+### xǁBatchAggregatorǁadd_detection | CODE:camera_lock = await self._get_ | NONE | camera_lock  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_91']
+    camera_lock = await self._get_camera_lock(camera_id) ==> camera_lock = await self._get_camera_lock(None)
+
+### xǁBatchAggregatorǁadd_detection | CODE:current_size: int = await self | NONE | int  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_98']
+    current_size: int = await self._redis._client.llen(detections_key)  # type: ignore[misc,union-attr] ==> current_size: int = await self._redis._client.llen(None)  # type: ignore[misc,union-attr]
+
+### xǁBatchAggregatorǁadd_detection | CODE:current_time = time.time() | NONE | current_time  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_92']
+    current_time = time.time() ==> current_time = None
+
+### xǁBatchAggregatorǁadd_detection | LOG | CONST | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_133']
+    extra={"batch_id": batch_id, "camera_id": camera_id, "detection_count": 1}, ==> extra={"batch_id": batch_id, "camera_id": camera_id, "detection_count": 2},
+
+### xǁBatchAggregatorǁadd_detection | MULTI:['CALL:self._broadcast_detection_new', 'UNK'] | MIX | confidence  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_184']
+    confidence=confidence, | ) ==> ) ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁcheck_batch_timeouts__mutmut) | async def check_batch_timeouts(s
+
+### xǁBatchAggregatorǁadd_detection | RAISE | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁadd_detection__mutmut_3']
+    raise RuntimeError("Redis client not initialized") ==> raise RuntimeError("XXRedis client not initializedXX")
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CALL:batch_id_pipe.get | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_25']
+    batch_id_pipe.get(batch_key) ==> batch_id_pipe.get(None)
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CALL:batch_keys.append | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_22']
+    batch_keys.append(key) ==> batch_keys.append(None)
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:batch_key_str = batch_key.deco | NONE | batch_key_str  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_38']
+    batch_key_str = batch_key.decode() if isinstance(batch_key, bytes) else batch_key ==> batch_key_str = None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:batch_key_str = batch_key.deco | OTHER | batch_key_str  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_39']
+    batch_key_str = batch_key.decode() if isinstance(batch_key, bytes) else batch_key ==> batch_key_str = batch_key.decode() if (isinstance(batch_key, bytes)) and False else batch_key
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:close_reason = "" | NONE | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_94']
+    close_reason = "" ==> close_reason = None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:close_reason = "" | STR | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_95']
+    close_reason = "" ==> close_reason = "XXXX"
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:continue | OTHER |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_69']
+    continue ==> break
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:elif idle_time >= self._idle_t | OPFLIP |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_100']
+    elif idle_time >= self._idle_timeout: ==> elif idle_time > self._idle_timeout:
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:for batch_key, batch_id in zip | NONE | strict  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_30']
+    for batch_key, batch_id in zip(batch_keys, batch_ids, strict=True): ==> for batch_key, batch_id in zip(batch_keys, batch_ids, strict=None):
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:idle_time = current_time - las | OTHER | idle_time  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_91']
+    idle_time = current_time - last_activity ==> idle_time = current_time + last_activity
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:if window_elapsed >= self._bat | OPFLIP |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_96']
+    if window_elapsed >= self._batch_window: ==> if window_elapsed > self._batch_window:
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity_raw = metadata_r | CONST | last_activity_raw  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_56']
+    last_activity_raw = metadata_results[i * 2 + 1] ==> last_activity_raw = metadata_results[i * 3 + 1]
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity_raw = metadata_r | NONE | last_activity_raw  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_53']
+    last_activity_raw = metadata_results[i * 2 + 1] ==> last_activity_raw = None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity_raw = metadata_r | OTHER | last_activity_raw  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_54']
+    last_activity_raw = metadata_results[i * 2 + 1] ==> last_activity_raw = metadata_results[i * 2 - 1]
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity_str = ( | NONE | last_activity_str  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_73']
+    last_activity_str = ( | last_activity_raw.decode() | if isinstance(last_activity_raw, bytes) | else last_activ ==> last_activity_str = None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:last_activity_str = ( | OTHER |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_74']
+    if isinstance(last_activity_raw, bytes) ==> if (isinstance(last_activity_raw, bytes)) and False
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:should_close = False | NONE | should_close  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_92']
+    should_close = False ==> should_close = None
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:should_close = False | OTHER | should_close  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_93']
+    should_close = False ==> should_close = True
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:started_at_raw = metadata_resu | CONST | started_at_raw  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_52']
+    started_at_raw = metadata_results[i * 2] ==> started_at_raw = metadata_results[i * 3]
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:started_at_str = ( | OTHER |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_71']
+    started_at_raw.decode() if isinstance(started_at_raw, bytes) else started_at_raw ==> started_at_raw.decode() if (isinstance(started_at_raw, bytes)) and False else started_at_raw
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | CODE:window_elapsed = current_time  | OTHER | window_elapsed  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_89']
+    window_elapsed = current_time - started_at ==> window_elapsed = current_time + started_at
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | ARG-DEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_61']
+    "Batch missing started_at timestamp, skipping", ==> 
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | NONE | batch_count  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_122']
+    extra={"batch_count": len(closed_batches)}, ==> extra=None,
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | OTHER | batch_count  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_124']
+    extra={"batch_count": len(closed_batches)}, | ) ==> )
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | LOG | STR | batch_count  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_128']
+    extra={"batch_count": len(closed_batches)}, ==> extra={"XXbatch_countXX": len(closed_batches)},
+
+### xǁBatchAggregatorǁcheck_batch_timeouts | MULTI:['LOG', 'UNK'] | MIX | batch_count  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁcheck_batch_timeouts__mutmut_129']
+    extra={"batch_count": len(closed_batches)}, ==> extra={"BATCH_COUNT": len(closed_batches)}, ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁclose_batch__mutmut) | async def close_batch(self, batch_id: str
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | NONE | batch_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_181']
+    batch_id=batch_id, ==> batch_id=None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | NONE | camera_id  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_182']
+    camera_id=camera_id, ==> camera_id=None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | NONE | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_186']
+    close_reason="timeout", ==> close_reason=None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | NONE | closed_at  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_185']
+    closed_at=summary["closed_at"], ==> closed_at=None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | NONE | started_at  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_184']
+    started_at=started_at, ==> started_at=None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | OTHER | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_192']
+    close_reason="timeout", | ) ==> )
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._broadcast_detection_batch | STR | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_195']
+    close_reason="timeout", ==> close_reason="XXtimeoutXX",
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._redis._client.set | ARG-DEL |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_20']
+    "1", ==> 
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._redis._client.set | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_17']
+    "1", ==> None,
+
+### xǁBatchAggregatorǁclose_batch | CALL:self._redis._client.set | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_22']
+    "1", ==> "XX1XX",
+
+### xǁBatchAggregatorǁclose_batch | CODE:batch_duration_ms = (closed_at | CONST | batch_duration_ms  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_143']
+    batch_duration_ms = (closed_at - started_at) * 1000 ==> batch_duration_ms = (closed_at - started_at) * 1001
+
+### xǁBatchAggregatorǁclose_batch | CODE:batch_duration_ms = (closed_at | NONE | batch_duration_ms  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_140']
+    batch_duration_ms = (closed_at - started_at) * 1000 ==> batch_duration_ms = None
+
+### xǁBatchAggregatorǁclose_batch | CODE:camera_lock = await self._get_ | NONE | camera_lock  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_15']
+    camera_lock = await self._get_camera_lock(camera_id) ==> camera_lock = await self._get_camera_lock(None)
+
+### xǁBatchAggregatorǁclose_batch | CODE:detections = await self._atomi | NONE | detections  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_50']
+    detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections") ==> detections = await self._atomic_list_get_all(None)
+
+### xǁBatchAggregatorǁclose_batch | CODE:detections: list[int] = [] | NONE |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_46']
+    detections: list[int] = [] ==> detections: list[int] = None
+
+### xǁBatchAggregatorǁclose_batch | CODE:pipeline_start_time: str | Non | OTHER |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_48']
+    pipeline_start_time: str | None = None ==> pipeline_start_time: str | None = ""
+
+### xǁBatchAggregatorǁclose_batch | CODE:started_at = float(started_at_ | OTHER | started_at  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_70']
+    started_at = float(started_at_str) if started_at_str else time.time() ==> started_at = float(started_at_str) if (started_at_str) and False else time.time()
+
+### xǁBatchAggregatorǁclose_batch | CODE:started_at_str: str | None = N | OTHER |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_47']
+    started_at_str: str | None = None ==> started_at_str: str | None = ""
+
+### xǁBatchAggregatorǁclose_batch | LOG | NONE | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_145']
+    extra={ | "detection_count": len(detections), | "duration_ms": batch_duration_ms, | "close_reason": "timeout", ==> extra=None,
+
+### xǁBatchAggregatorǁclose_batch | LOG | OTHER | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_147']
+    extra={ | "detection_count": len(detections), | "duration_ms": batch_duration_ms, | "close_reason": "timeout", ==> )
+
+### xǁBatchAggregatorǁclose_batch | LOG | OTHER | error  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_64']
+    extra={"error": str(exc)}, | ) ==> )
+
+### xǁBatchAggregatorǁclose_batch | MULTI:['CALL:self._broadcast_detection_batch', 'UNK'] | MIX | close_reason  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_196']
+    close_reason="timeout", ==> close_reason="TIMEOUT", ;;  ==>  | @_mutmut_mutated(mutants_xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut) | async def _close_batch_fo
+
+### xǁBatchAggregatorǁclose_batch | RAISE | STR |   n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁclose_batch__mutmut_3']
+    raise RuntimeError("Redis client not initialized") ==> raise RuntimeError("XXRedis client not initializedXX")
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | NONE | extra  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_5']
+    extra={"pressure_level": pressure_level.value}, ==> extra=None,
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | OTHER | error  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_16']
+    extra={"error": str(e), "error_type": type(e).__name__}, | ) ==> )
+
+### xǁBatchAggregatorǁshould_apply_backpressure | LOG | OTHER | extra  n=1  keys=['backend.services.batch_aggregator.xǁBatchAggregatorǁshould_apply_backpressure__mutmut_7']
+    extra={"pressure_level": pressure_level.value}, | ) ==> )

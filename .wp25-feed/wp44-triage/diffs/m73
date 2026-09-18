@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_73: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -40,7 +40,7 @@
+         first_key = next(iter(clothing_classifications), None)
+         if first_key:
+             cc = clothing_classifications[first_key]
+-            raw_desc = cc.get("raw_description", "")
++            raw_desc = cc.get("raw_description", "XXXX")
+             carrying_str = cc.get("carrying", "")
+             carrying_list = [carrying_str] if carrying_str else []
+ 

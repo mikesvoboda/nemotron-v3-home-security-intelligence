@@ -1,0 +1,1357 @@
+### x_adjust_risk_score__mutmut_4
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -43,7 +43,7 @@
+     """
+     metadata: dict[str, Any] = {
+         "original_score": raw_score,
+-        "scenarios": [],
++        "XXscenariosXX": [],
+         "floor_applied": False,
+         "floor_score": 0,
+         "tailgating": None,
+### x_adjust_risk_score__mutmut_5
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -43,7 +43,7 @@
+     """
+     metadata: dict[str, Any] = {
+         "original_score": raw_score,
+-        "scenarios": [],
++        "SCENARIOS": [],
+         "floor_applied": False,
+         "floor_score": 0,
+         "tailgating": None,
+### x_adjust_risk_score__mutmut_6
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -44,7 +44,7 @@
+     metadata: dict[str, Any] = {
+         "original_score": raw_score,
+         "scenarios": [],
+-        "floor_applied": False,
++        "XXfloor_appliedXX": False,
+         "floor_score": 0,
+         "tailgating": None,
+         "hysteresis_applied": False,
+### x_adjust_risk_score__mutmut_7
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -44,7 +44,7 @@
+     metadata: dict[str, Any] = {
+         "original_score": raw_score,
+         "scenarios": [],
+-        "floor_applied": False,
++        "FLOOR_APPLIED": False,
+         "floor_score": 0,
+         "tailgating": None,
+         "hysteresis_applied": False,
+### x_adjust_risk_score__mutmut_8
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -44,7 +44,7 @@
+     metadata: dict[str, Any] = {
+         "original_score": raw_score,
+         "scenarios": [],
+-        "floor_applied": False,
++        "floor_applied": True,
+         "floor_score": 0,
+         "tailgating": None,
+         "hysteresis_applied": False,
+### x_adjust_risk_score__mutmut_9
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -45,7 +45,7 @@
+         "original_score": raw_score,
+         "scenarios": [],
+         "floor_applied": False,
+-        "floor_score": 0,
++        "XXfloor_scoreXX": 0,
+         "tailgating": None,
+         "hysteresis_applied": False,
+     }
+### x_adjust_risk_score__mutmut_10
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -45,7 +45,7 @@
+         "original_score": raw_score,
+         "scenarios": [],
+         "floor_applied": False,
+-        "floor_score": 0,
++        "FLOOR_SCORE": 0,
+         "tailgating": None,
+         "hysteresis_applied": False,
+     }
+### x_adjust_risk_score__mutmut_11
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -45,7 +45,7 @@
+         "original_score": raw_score,
+         "scenarios": [],
+         "floor_applied": False,
+-        "floor_score": 0,
++        "floor_score": 1,
+         "tailgating": None,
+         "hysteresis_applied": False,
+     }
+### x_adjust_risk_score__mutmut_12
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -46,7 +46,7 @@
+         "scenarios": [],
+         "floor_applied": False,
+         "floor_score": 0,
+-        "tailgating": None,
++        "XXtailgatingXX": None,
+         "hysteresis_applied": False,
+     }
+ 
+### x_adjust_risk_score__mutmut_13
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -46,7 +46,7 @@
+         "scenarios": [],
+         "floor_applied": False,
+         "floor_score": 0,
+-        "tailgating": None,
++        "TAILGATING": None,
+         "hysteresis_applied": False,
+     }
+ 
+### x_adjust_risk_score__mutmut_19
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -54,7 +54,7 @@
+ 
+     # Step 1: Classify scenarios
+     scenarios = classify_scenario(
+-        detections=detections,
++        detections=None,
+         action_result=action_result,
+         summary=summary,
+         reasoning=reasoning,
+### x_adjust_risk_score__mutmut_22
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -57,7 +57,7 @@
+         detections=detections,
+         action_result=action_result,
+         summary=summary,
+-        reasoning=reasoning,
++        reasoning=None,
+     )
+     metadata["scenarios"] = [s.value for s in scenarios]
+ 
+### x_adjust_risk_score__mutmut_23
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -54,7 +54,6 @@
+ 
+     # Step 1: Classify scenarios
+     scenarios = classify_scenario(
+-        detections=detections,
+         action_result=action_result,
+         summary=summary,
+         reasoning=reasoning,
+### x_adjust_risk_score__mutmut_26
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -57,8 +57,7 @@
+         detections=detections,
+         action_result=action_result,
+         summary=summary,
+-        reasoning=reasoning,
+-    )
++        )
+     metadata["scenarios"] = [s.value for s in scenarios]
+ 
+     # Step 2: Apply scenario floor scores
+### x_adjust_risk_score__mutmut_38
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -65,7 +65,7 @@
+     adjusted_score, floor_applied = apply_scenario_floor(adjusted_score, scenarios)
+     metadata["floor_applied"] = floor_applied
+     if floor_applied:
+-        metadata["floor_score"] = get_scenario_floor_score(scenarios)
++        metadata["floor_score"] = None
+ 
+     # Step 3: Detect and escalate tailgating
+     if detections:
+### x_adjust_risk_score__mutmut_39
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -65,7 +65,7 @@
+     adjusted_score, floor_applied = apply_scenario_floor(adjusted_score, scenarios)
+     metadata["floor_applied"] = floor_applied
+     if floor_applied:
+-        metadata["floor_score"] = get_scenario_floor_score(scenarios)
++        metadata["XXfloor_scoreXX"] = get_scenario_floor_score(scenarios)
+ 
+     # Step 3: Detect and escalate tailgating
+     if detections:
+### x_adjust_risk_score__mutmut_40
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -65,7 +65,7 @@
+     adjusted_score, floor_applied = apply_scenario_floor(adjusted_score, scenarios)
+     metadata["floor_applied"] = floor_applied
+     if floor_applied:
+-        metadata["floor_score"] = get_scenario_floor_score(scenarios)
++        metadata["FLOOR_SCORE"] = get_scenario_floor_score(scenarios)
+ 
+     # Step 3: Detect and escalate tailgating
+     if detections:
+### x_adjust_risk_score__mutmut_41
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -65,7 +65,7 @@
+     adjusted_score, floor_applied = apply_scenario_floor(adjusted_score, scenarios)
+     metadata["floor_applied"] = floor_applied
+     if floor_applied:
+-        metadata["floor_score"] = get_scenario_floor_score(scenarios)
++        metadata["floor_score"] = get_scenario_floor_score(None)
+ 
+     # Step 3: Detect and escalate tailgating
+     if detections:
+### x_adjust_risk_score__mutmut_44
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -69,7 +69,7 @@
+ 
+     # Step 3: Detect and escalate tailgating
+     if detections:
+-        tailgating = detect_tailgating(detections, zone_type)
++        tailgating = detect_tailgating(detections, None)
+         if tailgating.detected:
+             metadata["tailgating"] = {
+                 "detected": tailgating.detected,
+### x_adjust_risk_score__mutmut_46
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -69,7 +69,7 @@
+ 
+     # Step 3: Detect and escalate tailgating
+     if detections:
+-        tailgating = detect_tailgating(detections, zone_type)
++        tailgating = detect_tailgating(detections, )
+         if tailgating.detected:
+             metadata["tailgating"] = {
+                 "detected": tailgating.detected,
+### x_adjust_risk_score__mutmut_47
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -71,13 +71,7 @@
+     if detections:
+         tailgating = detect_tailgating(detections, zone_type)
+         if tailgating.detected:
+-            metadata["tailgating"] = {
+-                "detected": tailgating.detected,
+-                "confidence": tailgating.confidence,
+-                "description": tailgating.description,
+-                "persons_involved": tailgating.persons_involved,
+-                "time_gap_seconds": tailgating.time_gap_seconds,
+-            }
++            metadata["tailgating"] = None
+ 
+             # Ensure tailgating triggers at least the tailgating floor score
+             tailgating_floor = SCENARIO_FLOOR_SCORES[ScenarioType.TAILGATING].floor_score
+### x_adjust_risk_score__mutmut_48
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -71,7 +71,7 @@
+     if detections:
+         tailgating = detect_tailgating(detections, zone_type)
+         if tailgating.detected:
+-            metadata["tailgating"] = {
++            metadata["XXtailgatingXX"] = {
+                 "detected": tailgating.detected,
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+### x_adjust_risk_score__mutmut_49
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -71,7 +71,7 @@
+     if detections:
+         tailgating = detect_tailgating(detections, zone_type)
+         if tailgating.detected:
+-            metadata["tailgating"] = {
++            metadata["TAILGATING"] = {
+                 "detected": tailgating.detected,
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+### x_adjust_risk_score__mutmut_50
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+         tailgating = detect_tailgating(detections, zone_type)
+         if tailgating.detected:
+             metadata["tailgating"] = {
+-                "detected": tailgating.detected,
++                "XXdetectedXX": tailgating.detected,
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+### x_adjust_risk_score__mutmut_51
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+         tailgating = detect_tailgating(detections, zone_type)
+         if tailgating.detected:
+             metadata["tailgating"] = {
+-                "detected": tailgating.detected,
++                "DETECTED": tailgating.detected,
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+### x_adjust_risk_score__mutmut_52
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -73,7 +73,7 @@
+         if tailgating.detected:
+             metadata["tailgating"] = {
+                 "detected": tailgating.detected,
+-                "confidence": tailgating.confidence,
++                "XXconfidenceXX": tailgating.confidence,
+                 "description": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+                 "time_gap_seconds": tailgating.time_gap_seconds,
+### x_adjust_risk_score__mutmut_53
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -73,7 +73,7 @@
+         if tailgating.detected:
+             metadata["tailgating"] = {
+                 "detected": tailgating.detected,
+-                "confidence": tailgating.confidence,
++                "CONFIDENCE": tailgating.confidence,
+                 "description": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+                 "time_gap_seconds": tailgating.time_gap_seconds,
+### x_adjust_risk_score__mutmut_54
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -74,7 +74,7 @@
+             metadata["tailgating"] = {
+                 "detected": tailgating.detected,
+                 "confidence": tailgating.confidence,
+-                "description": tailgating.description,
++                "XXdescriptionXX": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+                 "time_gap_seconds": tailgating.time_gap_seconds,
+             }
+### x_adjust_risk_score__mutmut_55
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -74,7 +74,7 @@
+             metadata["tailgating"] = {
+                 "detected": tailgating.detected,
+                 "confidence": tailgating.confidence,
+-                "description": tailgating.description,
++                "DESCRIPTION": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+                 "time_gap_seconds": tailgating.time_gap_seconds,
+             }
+### x_adjust_risk_score__mutmut_56
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -75,7 +75,7 @@
+                 "detected": tailgating.detected,
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+-                "persons_involved": tailgating.persons_involved,
++                "XXpersons_involvedXX": tailgating.persons_involved,
+                 "time_gap_seconds": tailgating.time_gap_seconds,
+             }
+ 
+### x_adjust_risk_score__mutmut_57
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -75,7 +75,7 @@
+                 "detected": tailgating.detected,
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+-                "persons_involved": tailgating.persons_involved,
++                "PERSONS_INVOLVED": tailgating.persons_involved,
+                 "time_gap_seconds": tailgating.time_gap_seconds,
+             }
+ 
+### x_adjust_risk_score__mutmut_58
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -76,7 +76,7 @@
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+-                "time_gap_seconds": tailgating.time_gap_seconds,
++                "XXtime_gap_secondsXX": tailgating.time_gap_seconds,
+             }
+ 
+             # Ensure tailgating triggers at least the tailgating floor score
+### x_adjust_risk_score__mutmut_59
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -76,7 +76,7 @@
+                 "confidence": tailgating.confidence,
+                 "description": tailgating.description,
+                 "persons_involved": tailgating.persons_involved,
+-                "time_gap_seconds": tailgating.time_gap_seconds,
++                "TIME_GAP_SECONDS": tailgating.time_gap_seconds,
+             }
+ 
+             # Ensure tailgating triggers at least the tailgating floor score
+### x_adjust_risk_score__mutmut_63
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -83,7 +83,7 @@
+             tailgating_floor = SCENARIO_FLOOR_SCORES[ScenarioType.TAILGATING].floor_score
+ 
+             # Scale floor by confidence
+-            effective_floor = int(tailgating_floor * tailgating.confidence)
++            effective_floor = int(tailgating_floor / tailgating.confidence)
+ 
+             if effective_floor > adjusted_score:
+                 logger.info(
+### x_adjust_risk_score__mutmut_64
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -85,7 +85,7 @@
+             # Scale floor by confidence
+             effective_floor = int(tailgating_floor * tailgating.confidence)
+ 
+-            if effective_floor > adjusted_score:
++            if effective_floor >= adjusted_score:
+                 logger.info(
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+                     extra={
+### x_adjust_risk_score__mutmut_65
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -87,7 +87,7 @@
+ 
+             if effective_floor > adjusted_score:
+                 logger.info(
+-                    f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
++                    None,
+                     extra={
+                         "tailgating_confidence": tailgating.confidence,
+                         "persons_involved": tailgating.persons_involved,
+### x_adjust_risk_score__mutmut_66
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -88,10 +88,7 @@
+             if effective_floor > adjusted_score:
+                 logger.info(
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+-                    extra={
+-                        "tailgating_confidence": tailgating.confidence,
+-                        "persons_involved": tailgating.persons_involved,
+-                    },
++                    extra=None,
+                 )
+                 adjusted_score = effective_floor
+                 metadata["floor_applied"] = True
+### x_adjust_risk_score__mutmut_68
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -88,11 +88,7 @@
+             if effective_floor > adjusted_score:
+                 logger.info(
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+-                    extra={
+-                        "tailgating_confidence": tailgating.confidence,
+-                        "persons_involved": tailgating.persons_involved,
+-                    },
+-                )
++                    )
+                 adjusted_score = effective_floor
+                 metadata["floor_applied"] = True
+ 
+### x_adjust_risk_score__mutmut_69
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -89,7 +89,7 @@
+                 logger.info(
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+                     extra={
+-                        "tailgating_confidence": tailgating.confidence,
++                        "XXtailgating_confidenceXX": tailgating.confidence,
+                         "persons_involved": tailgating.persons_involved,
+                     },
+                 )
+### x_adjust_risk_score__mutmut_70
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -89,7 +89,7 @@
+                 logger.info(
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+                     extra={
+-                        "tailgating_confidence": tailgating.confidence,
++                        "TAILGATING_CONFIDENCE": tailgating.confidence,
+                         "persons_involved": tailgating.persons_involved,
+                     },
+                 )
+### x_adjust_risk_score__mutmut_71
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -90,7 +90,7 @@
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+                     extra={
+                         "tailgating_confidence": tailgating.confidence,
+-                        "persons_involved": tailgating.persons_involved,
++                        "XXpersons_involvedXX": tailgating.persons_involved,
+                     },
+                 )
+                 adjusted_score = effective_floor
+### x_adjust_risk_score__mutmut_72
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -90,7 +90,7 @@
+                     f"Tailgating escalation: {adjusted_score} -> {effective_floor}",
+                     extra={
+                         "tailgating_confidence": tailgating.confidence,
+-                        "persons_involved": tailgating.persons_involved,
++                        "PERSONS_INVOLVED": tailgating.persons_involved,
+                     },
+                 )
+                 adjusted_score = effective_floor
+### x_adjust_risk_score__mutmut_74
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -94,7 +94,7 @@
+                     },
+                 )
+                 adjusted_score = effective_floor
+-                metadata["floor_applied"] = True
++                metadata["floor_applied"] = None
+ 
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+     if apply_hysteresis_adjustment and previous_score is not None:
+### x_adjust_risk_score__mutmut_75
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -94,7 +94,7 @@
+                     },
+                 )
+                 adjusted_score = effective_floor
+-                metadata["floor_applied"] = True
++                metadata["XXfloor_appliedXX"] = True
+ 
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+     if apply_hysteresis_adjustment and previous_score is not None:
+### x_adjust_risk_score__mutmut_76
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -94,7 +94,7 @@
+                     },
+                 )
+                 adjusted_score = effective_floor
+-                metadata["floor_applied"] = True
++                metadata["FLOOR_APPLIED"] = True
+ 
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+     if apply_hysteresis_adjustment and previous_score is not None:
+### x_adjust_risk_score__mutmut_77
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -94,7 +94,7 @@
+                     },
+                 )
+                 adjusted_score = effective_floor
+-                metadata["floor_applied"] = True
++                metadata["floor_applied"] = False
+ 
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+     if apply_hysteresis_adjustment and previous_score is not None:
+### x_adjust_risk_score__mutmut_79
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -97,7 +97,7 @@
+                 metadata["floor_applied"] = True
+ 
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+-    if apply_hysteresis_adjustment and previous_score is not None:
++    if apply_hysteresis_adjustment and previous_score is None:
+         pre_hysteresis = adjusted_score
+         adjusted_score = apply_hysteresis(adjusted_score, previous_score)
+         if adjusted_score != pre_hysteresis:
+### x_adjust_risk_score__mutmut_80
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -98,7 +98,7 @@
+ 
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+     if apply_hysteresis_adjustment and previous_score is not None:
+-        pre_hysteresis = adjusted_score
++        pre_hysteresis = None
+         adjusted_score = apply_hysteresis(adjusted_score, previous_score)
+         if adjusted_score != pre_hysteresis:
+             metadata["hysteresis_applied"] = True
+### x_adjust_risk_score__mutmut_83
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -99,7 +99,7 @@
+     # Step 4: Apply hysteresis to prevent threshold oscillation
+     if apply_hysteresis_adjustment and previous_score is not None:
+         pre_hysteresis = adjusted_score
+-        adjusted_score = apply_hysteresis(adjusted_score, previous_score)
++        adjusted_score = apply_hysteresis(adjusted_score, None)
+         if adjusted_score != pre_hysteresis:
+             metadata["hysteresis_applied"] = True
+             logger.debug(
+### x_adjust_risk_score__mutmut_86
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -100,7 +100,7 @@
+     if apply_hysteresis_adjustment and previous_score is not None:
+         pre_hysteresis = adjusted_score
+         adjusted_score = apply_hysteresis(adjusted_score, previous_score)
+-        if adjusted_score != pre_hysteresis:
++        if adjusted_score == pre_hysteresis:
+             metadata["hysteresis_applied"] = True
+             logger.debug(
+                 f"Hysteresis adjustment: {pre_hysteresis} -> {adjusted_score} "
+### x_adjust_risk_score__mutmut_92
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -108,6 +108,6 @@
+             )
+ 
+     # Ensure score is in valid range
+-    adjusted_score = max(0, min(100, adjusted_score))
++    adjusted_score = max(1, min(100, adjusted_score))
+ 
+     return adjusted_score, metadata
+### x_apply_hysteresis__mutmut_6
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -35,7 +35,7 @@
+ 
+     for boundary in boundaries:
+         buffer_low = boundary - config.buffer_size
+-        buffer_high = boundary + config.buffer_size + 1
++        buffer_high = boundary + config.buffer_size - 1
+ 
+         # Check if new score is in the buffer zone around this boundary
+         if buffer_low < new_score <= buffer_high:
+### x_apply_hysteresis__mutmut_8
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -35,7 +35,7 @@
+ 
+     for boundary in boundaries:
+         buffer_low = boundary - config.buffer_size
+-        buffer_high = boundary + config.buffer_size + 1
++        buffer_high = boundary + config.buffer_size + 2
+ 
+         # Check if new score is in the buffer zone around this boundary
+         if buffer_low < new_score <= buffer_high:
+### x_apply_hysteresis__mutmut_9
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -38,7 +38,7 @@
+         buffer_high = boundary + config.buffer_size + 1
+ 
+         # Check if new score is in the buffer zone around this boundary
+-        if buffer_low < new_score <= buffer_high:
++        if buffer_low <= new_score <= buffer_high:
+             # If previous score was below the boundary, keep new score below
+             if previous_score <= boundary and new_score > boundary:
+                 adjusted = boundary
+### x_apply_hysteresis__mutmut_10
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -38,7 +38,7 @@
+         buffer_high = boundary + config.buffer_size + 1
+ 
+         # Check if new score is in the buffer zone around this boundary
+-        if buffer_low < new_score <= buffer_high:
++        if buffer_low < new_score < buffer_high:
+             # If previous score was below the boundary, keep new score below
+             if previous_score <= boundary and new_score > boundary:
+                 adjusted = boundary
+### x_apply_hysteresis__mutmut_11
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -40,7 +40,7 @@
+         # Check if new score is in the buffer zone around this boundary
+         if buffer_low < new_score <= buffer_high:
+             # If previous score was below the boundary, keep new score below
+-            if previous_score <= boundary and new_score > boundary:
++            if previous_score <= boundary or new_score > boundary:
+                 adjusted = boundary
+                 logger.debug(
+                     f"Hysteresis applied: {new_score} -> {adjusted} "
+### x_apply_hysteresis__mutmut_12
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -40,7 +40,7 @@
+         # Check if new score is in the buffer zone around this boundary
+         if buffer_low < new_score <= buffer_high:
+             # If previous score was below the boundary, keep new score below
+-            if previous_score <= boundary and new_score > boundary:
++            if previous_score < boundary and new_score > boundary:
+                 adjusted = boundary
+                 logger.debug(
+                     f"Hysteresis applied: {new_score} -> {adjusted} "
+### x_apply_hysteresis__mutmut_13
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -40,7 +40,7 @@
+         # Check if new score is in the buffer zone around this boundary
+         if buffer_low < new_score <= buffer_high:
+             # If previous score was below the boundary, keep new score below
+-            if previous_score <= boundary and new_score > boundary:
++            if previous_score <= boundary and new_score >= boundary:
+                 adjusted = boundary
+                 logger.debug(
+                     f"Hysteresis applied: {new_score} -> {adjusted} "
+### x_apply_hysteresis__mutmut_15
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -43,8 +43,7 @@
+             if previous_score <= boundary and new_score > boundary:
+                 adjusted = boundary
+                 logger.debug(
+-                    f"Hysteresis applied: {new_score} -> {adjusted} "
+-                    f"(staying below {boundary} boundary, previous={previous_score})"
++                    None
+                 )
+                 return adjusted
+             # If previous score was above the boundary, keep new score above
+### x_apply_hysteresis__mutmut_17
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -48,7 +48,7 @@
+                 )
+                 return adjusted
+             # If previous score was above the boundary, keep new score above
+-            elif previous_score > boundary and new_score <= boundary:
++            elif previous_score >= boundary and new_score <= boundary:
+                 adjusted = boundary + 1
+                 logger.debug(
+                     f"Hysteresis applied: {new_score} -> {adjusted} "
+### x_apply_hysteresis__mutmut_18
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -48,7 +48,7 @@
+                 )
+                 return adjusted
+             # If previous score was above the boundary, keep new score above
+-            elif previous_score > boundary and new_score <= boundary:
++            elif previous_score > boundary and new_score < boundary:
+                 adjusted = boundary + 1
+                 logger.debug(
+                     f"Hysteresis applied: {new_score} -> {adjusted} "
+### x_apply_hysteresis__mutmut_22
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -51,8 +51,7 @@
+             elif previous_score > boundary and new_score <= boundary:
+                 adjusted = boundary + 1
+                 logger.debug(
+-                    f"Hysteresis applied: {new_score} -> {adjusted} "
+-                    f"(staying above {boundary} boundary, previous={previous_score})"
++                    None
+                 )
+                 return adjusted
+ 
+### x_detect_tailgating__mutmut_7
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -16,7 +16,7 @@
+         TailgatingIndicator with detection results
+     """
+     # Filter to person detections only
+-    person_detections = [d for d in detections if (d.get("object_type") or "").lower() == "person"]
++    person_detections = [d for d in detections if (d.get("object_type") or "XXXX").lower() == "person"]
+ 
+     if len(person_detections) < 2:
+         return TailgatingIndicator()
+### x_detect_tailgating__mutmut_17
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -22,7 +22,7 @@
+         return TailgatingIndicator()
+ 
+     # Check if this is an entry point zone (higher tailgating risk)
+-    is_entry_zone = zone_type in ("entry_point", "door", "gate", "entrance")
++    is_entry_zone = zone_type in ("entry_point", "XXdoorXX", "gate", "entrance")
+ 
+     # Analyze temporal proximity of person detections
+     # Sort by timestamp
+### x_detect_tailgating__mutmut_18
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -22,7 +22,7 @@
+         return TailgatingIndicator()
+ 
+     # Check if this is an entry point zone (higher tailgating risk)
+-    is_entry_zone = zone_type in ("entry_point", "door", "gate", "entrance")
++    is_entry_zone = zone_type in ("entry_point", "DOOR", "gate", "entrance")
+ 
+     # Analyze temporal proximity of person detections
+     # Sort by timestamp
+### x_detect_tailgating__mutmut_19
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -22,7 +22,7 @@
+         return TailgatingIndicator()
+ 
+     # Check if this is an entry point zone (higher tailgating risk)
+-    is_entry_zone = zone_type in ("entry_point", "door", "gate", "entrance")
++    is_entry_zone = zone_type in ("entry_point", "door", "XXgateXX", "entrance")
+ 
+     # Analyze temporal proximity of person detections
+     # Sort by timestamp
+### x_detect_tailgating__mutmut_20
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -22,7 +22,7 @@
+         return TailgatingIndicator()
+ 
+     # Check if this is an entry point zone (higher tailgating risk)
+-    is_entry_zone = zone_type in ("entry_point", "door", "gate", "entrance")
++    is_entry_zone = zone_type in ("entry_point", "door", "GATE", "entrance")
+ 
+     # Analyze temporal proximity of person detections
+     # Sort by timestamp
+### x_detect_tailgating__mutmut_21
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -22,7 +22,7 @@
+         return TailgatingIndicator()
+ 
+     # Check if this is an entry point zone (higher tailgating risk)
+-    is_entry_zone = zone_type in ("entry_point", "door", "gate", "entrance")
++    is_entry_zone = zone_type in ("entry_point", "door", "gate", "XXentranceXX")
+ 
+     # Analyze temporal proximity of person detections
+     # Sort by timestamp
+### x_detect_tailgating__mutmut_22
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -22,7 +22,7 @@
+         return TailgatingIndicator()
+ 
+     # Check if this is an entry point zone (higher tailgating risk)
+-    is_entry_zone = zone_type in ("entry_point", "door", "gate", "entrance")
++    is_entry_zone = zone_type in ("entry_point", "door", "gate", "ENTRANCE")
+ 
+     # Analyze temporal proximity of person detections
+     # Sort by timestamp
+### x_detect_tailgating__mutmut_29
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get(None, d.get("timestamp", 0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_30
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", None),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_32
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", ),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_33
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("XXdetected_atXX", d.get("timestamp", 0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_34
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("DETECTED_AT", d.get("timestamp", 0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_35
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get(None, 0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_36
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get("timestamp", None)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_37
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get(0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_38
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get("timestamp", )),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_39
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get("XXtimestampXX", 0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_40
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get("TIMESTAMP", 0)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_41
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -28,7 +28,7 @@
+     # Sort by timestamp
+     sorted_detections = sorted(
+         person_detections,
+-        key=lambda d: d.get("detected_at", d.get("timestamp", 0)),
++        key=lambda d: d.get("detected_at", d.get("timestamp", 1)),
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+### x_detect_tailgating__mutmut_43
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -32,7 +32,7 @@
+     )
+ 
+     # Check for rapid succession entries (within 5 seconds)
+-    TAILGATING_WINDOW_SECONDS = 5.0
++    TAILGATING_WINDOW_SECONDS = 6.0
+     consecutive_entries = 0
+     min_time_gap = float("inf")
+ 
+### x_detect_tailgating__mutmut_49
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -34,7 +34,7 @@
+     # Check for rapid succession entries (within 5 seconds)
+     TAILGATING_WINDOW_SECONDS = 5.0
+     consecutive_entries = 0
+-    min_time_gap = float("inf")
++    min_time_gap = float("INF")
+ 
+     for i in range(1, len(sorted_detections)):
+         prev_time = sorted_detections[i - 1].get("detected_at", 0)
+### x_detect_tailgating__mutmut_57
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -37,7 +37,7 @@
+     min_time_gap = float("inf")
+ 
+     for i in range(1, len(sorted_detections)):
+-        prev_time = sorted_detections[i - 1].get("detected_at", 0)
++        prev_time = sorted_detections[i - 1].get("detected_at", None)
+         curr_time = sorted_detections[i].get("detected_at", 0)
+ 
+         # Handle both timestamp formats
+### x_detect_tailgating__mutmut_59
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -37,7 +37,7 @@
+     min_time_gap = float("inf")
+ 
+     for i in range(1, len(sorted_detections)):
+-        prev_time = sorted_detections[i - 1].get("detected_at", 0)
++        prev_time = sorted_detections[i - 1].get("detected_at", )
+         curr_time = sorted_detections[i].get("detected_at", 0)
+ 
+         # Handle both timestamp formats
+### x_detect_tailgating__mutmut_64
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -37,7 +37,7 @@
+     min_time_gap = float("inf")
+ 
+     for i in range(1, len(sorted_detections)):
+-        prev_time = sorted_detections[i - 1].get("detected_at", 0)
++        prev_time = sorted_detections[i - 1].get("detected_at", 1)
+         curr_time = sorted_detections[i].get("detected_at", 0)
+ 
+         # Handle both timestamp formats
+### x_detect_tailgating__mutmut_67
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -38,7 +38,7 @@
+ 
+     for i in range(1, len(sorted_detections)):
+         prev_time = sorted_detections[i - 1].get("detected_at", 0)
+-        curr_time = sorted_detections[i].get("detected_at", 0)
++        curr_time = sorted_detections[i].get("detected_at", None)
+ 
+         # Handle both timestamp formats
+         if hasattr(prev_time, "timestamp"):
+### x_detect_tailgating__mutmut_69
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -38,7 +38,7 @@
+ 
+     for i in range(1, len(sorted_detections)):
+         prev_time = sorted_detections[i - 1].get("detected_at", 0)
+-        curr_time = sorted_detections[i].get("detected_at", 0)
++        curr_time = sorted_detections[i].get("detected_at", )
+ 
+         # Handle both timestamp formats
+         if hasattr(prev_time, "timestamp"):
+### x_detect_tailgating__mutmut_72
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -38,7 +38,7 @@
+ 
+     for i in range(1, len(sorted_detections)):
+         prev_time = sorted_detections[i - 1].get("detected_at", 0)
+-        curr_time = sorted_detections[i].get("detected_at", 0)
++        curr_time = sorted_detections[i].get("detected_at", 1)
+ 
+         # Handle both timestamp formats
+         if hasattr(prev_time, "timestamp"):
+### x_detect_tailgating__mutmut_92
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -48,7 +48,7 @@
+ 
+         time_gap = abs(float(curr_time) - float(prev_time))
+ 
+-        if time_gap <= TAILGATING_WINDOW_SECONDS:
++        if time_gap < TAILGATING_WINDOW_SECONDS:
+             consecutive_entries += 1
+             min_time_gap = min(min_time_gap, time_gap)
+ 
+### x_detect_tailgating__mutmut_109
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -55,7 +55,7 @@
+     if consecutive_entries > 0:
+         # Calculate confidence based on number of entries and time gap
+         # Closer time gaps and more people = higher confidence
+-        base_confidence = min(0.5 + (consecutive_entries * 0.15), 0.9)
++        base_confidence = min(1.5 + (consecutive_entries * 0.15), 0.9)
+ 
+         # Boost confidence for entry point zones
+         if is_entry_zone:
+### x_detect_tailgating__mutmut_110
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -55,7 +55,7 @@
+     if consecutive_entries > 0:
+         # Calculate confidence based on number of entries and time gap
+         # Closer time gaps and more people = higher confidence
+-        base_confidence = min(0.5 + (consecutive_entries * 0.15), 0.9)
++        base_confidence = min(0.5 + (consecutive_entries / 0.15), 0.9)
+ 
+         # Boost confidence for entry point zones
+         if is_entry_zone:
+### x_detect_tailgating__mutmut_111
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -55,7 +55,7 @@
+     if consecutive_entries > 0:
+         # Calculate confidence based on number of entries and time gap
+         # Closer time gaps and more people = higher confidence
+-        base_confidence = min(0.5 + (consecutive_entries * 0.15), 0.9)
++        base_confidence = min(0.5 + (consecutive_entries * 1.15), 0.9)
+ 
+         # Boost confidence for entry point zones
+         if is_entry_zone:
+### x_detect_tailgating__mutmut_112
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -55,7 +55,7 @@
+     if consecutive_entries > 0:
+         # Calculate confidence based on number of entries and time gap
+         # Closer time gaps and more people = higher confidence
+-        base_confidence = min(0.5 + (consecutive_entries * 0.15), 0.9)
++        base_confidence = min(0.5 + (consecutive_entries * 0.15), 1.9)
+ 
+         # Boost confidence for entry point zones
+         if is_entry_zone:
+### x_detect_tailgating__mutmut_119
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -59,7 +59,7 @@
+ 
+         # Boost confidence for entry point zones
+         if is_entry_zone:
+-            base_confidence = min(base_confidence + 0.2, 0.95)
++            base_confidence = min(base_confidence + 1.2, 0.95)
+ 
+         # Reduce confidence for larger time gaps
+         if min_time_gap > 3.0:
+### x_detect_tailgating__mutmut_120
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -59,7 +59,7 @@
+ 
+         # Boost confidence for entry point zones
+         if is_entry_zone:
+-            base_confidence = min(base_confidence + 0.2, 0.95)
++            base_confidence = min(base_confidence + 0.2, 1.95)
+ 
+         # Reduce confidence for larger time gaps
+         if min_time_gap > 3.0:
+### x_detect_tailgating__mutmut_121
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -62,7 +62,7 @@
+             base_confidence = min(base_confidence + 0.2, 0.95)
+ 
+         # Reduce confidence for larger time gaps
+-        if min_time_gap > 3.0:
++        if min_time_gap >= 3.0:
+             base_confidence *= 0.8
+         elif min_time_gap > 2.0:
+             base_confidence *= 0.9
+### x_detect_tailgating__mutmut_122
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -62,7 +62,7 @@
+             base_confidence = min(base_confidence + 0.2, 0.95)
+ 
+         # Reduce confidence for larger time gaps
+-        if min_time_gap > 3.0:
++        if min_time_gap > 4.0:
+             base_confidence *= 0.8
+         elif min_time_gap > 2.0:
+             base_confidence *= 0.9
+### x_detect_tailgating__mutmut_123
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -64,7 +64,7 @@
+         # Reduce confidence for larger time gaps
+         if min_time_gap > 3.0:
+             base_confidence *= 0.8
+-        elif min_time_gap > 2.0:
++        elif min_time_gap >= 2.0:
+             base_confidence *= 0.9
+ 
+         return TailgatingIndicator(
+### x_detect_tailgating__mutmut_124
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -64,7 +64,7 @@
+         # Reduce confidence for larger time gaps
+         if min_time_gap > 3.0:
+             base_confidence *= 0.8
+-        elif min_time_gap > 2.0:
++        elif min_time_gap > 3.0:
+             base_confidence *= 0.9
+ 
+         return TailgatingIndicator(
+### x_detect_tailgating__mutmut_126
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -65,7 +65,7 @@
+         if min_time_gap > 3.0:
+             base_confidence *= 0.8
+         elif min_time_gap > 2.0:
+-            base_confidence *= 0.9
++            base_confidence /= 0.9
+ 
+         return TailgatingIndicator(
+             detected=True,
+### x_detect_tailgating__mutmut_127
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -65,7 +65,7 @@
+         if min_time_gap > 3.0:
+             base_confidence *= 0.8
+         elif min_time_gap > 2.0:
+-            base_confidence *= 0.9
++            base_confidence *= 1.9
+ 
+         return TailgatingIndicator(
+             detected=True,
+### x_detect_tailgating__mutmut_130
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -70,7 +70,7 @@
+         return TailgatingIndicator(
+             detected=True,
+             confidence=base_confidence,
+-            description=f"{consecutive_entries + 1} persons detected entering in quick succession",
++            description=None,
+             persons_involved=consecutive_entries + 1,
+             time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
+         )
+### x_detect_tailgating__mutmut_132
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+             confidence=base_confidence,
+             description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+-            time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
++            time_gap_seconds=None,
+         )
+ 
+     return TailgatingIndicator()
+### x_detect_tailgating__mutmut_135
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -70,7 +70,6 @@
+         return TailgatingIndicator(
+             detected=True,
+             confidence=base_confidence,
+-            description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+             time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
+         )
+### x_detect_tailgating__mutmut_137
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,6 @@
+             confidence=base_confidence,
+             description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+-            time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
+-        )
++            )
+ 
+     return TailgatingIndicator()
+### x_detect_tailgating__mutmut_139
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -70,7 +70,7 @@
+         return TailgatingIndicator(
+             detected=True,
+             confidence=base_confidence,
+-            description=f"{consecutive_entries + 1} persons detected entering in quick succession",
++            description=f"{consecutive_entries - 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+             time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
+         )
+### x_detect_tailgating__mutmut_140
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -70,7 +70,7 @@
+         return TailgatingIndicator(
+             detected=True,
+             confidence=base_confidence,
+-            description=f"{consecutive_entries + 1} persons detected entering in quick succession",
++            description=f"{consecutive_entries + 2} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+             time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
+         )
+### x_detect_tailgating__mutmut_143
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+             confidence=base_confidence,
+             description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+-            time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
++            time_gap_seconds=min_time_gap if (min_time_gap != float("inf")) and False else None,
+         )
+ 
+     return TailgatingIndicator()
+### x_detect_tailgating__mutmut_144
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+             confidence=base_confidence,
+             description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+-            time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
++            time_gap_seconds=min_time_gap if (min_time_gap != float("inf")) or True else None,
+         )
+ 
+     return TailgatingIndicator()
+### x_detect_tailgating__mutmut_145
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+             confidence=base_confidence,
+             description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+-            time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
++            time_gap_seconds=min_time_gap if min_time_gap == float("inf") else None,
+         )
+ 
+     return TailgatingIndicator()
+### x_detect_tailgating__mutmut_148
+--- backend/services/scenario_classifier.py
++++ backend/services/scenario_classifier.py
+@@ -72,7 +72,7 @@
+             confidence=base_confidence,
+             description=f"{consecutive_entries + 1} persons detected entering in quick succession",
+             persons_involved=consecutive_entries + 1,
+-            time_gap_seconds=min_time_gap if min_time_gap != float("inf") else None,
++            time_gap_seconds=min_time_gap if min_time_gap != float("INF") else None,
+         )
+ 
+     return TailgatingIndicator()

@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_get_client__mutmut_1: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -4,7 +4,7 @@
+         Returns:
+             Async HTTP client instance
+         """
+-    if self._client is None:
++    if self._client is not None:
+         self._client = httpx.AsyncClient(
+             timeout=httpx.Timeout(self.timeout),
+             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),

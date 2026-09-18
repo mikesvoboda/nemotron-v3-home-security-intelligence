@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁfind_large_keys__mutmut_10: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -23,7 +23,7 @@
+ 
+     for key in keys:
+         try:
+-            memory_bytes = await self._redis.memory_usage(key)
++            memory_bytes = await self._redis.memory_usage(None)
+             if memory_bytes is not None and memory_bytes >= min_size_bytes:
+                 large_keys.append(
+                     KeyMemoryInfo(

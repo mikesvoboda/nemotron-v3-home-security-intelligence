@@ -1,0 +1,11 @@
+# backend.api.routes.system.x__build_empty_batch_response__mutmut_6: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -2,7 +2,6 @@
+     """Build an empty batch aggregator status response."""
+     return BatchAggregatorStatusResponse(
+         active_batches=0,
+-        batches=[],
+         batch_window_seconds=settings.batch_window_seconds,
+         idle_timeout_seconds=settings.batch_idle_timeout_seconds,
+     )

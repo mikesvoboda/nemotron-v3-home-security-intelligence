@@ -1,0 +1,13 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_16: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -32,8 +32,7 @@
+         frame_results, crop_results = await asyncio.gather(
+             frame_task,
+             crop_task,
+-            return_exceptions=True,
+-        )
++            )
+ 
+         # Handle exceptions from gather
+         if isinstance(frame_results, BaseException):

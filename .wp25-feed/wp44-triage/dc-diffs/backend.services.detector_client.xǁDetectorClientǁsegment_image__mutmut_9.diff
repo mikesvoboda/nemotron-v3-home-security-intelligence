@@ -1,0 +1,13 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_9: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -39,8 +39,7 @@
+ 
+     with trace_span(
+         f"{self._detector_type}_segmentation_request",
+-        image_size_bytes=len(image_data),
+-    ) as span:
++        ) as span:
+         AIModelAttributes.set_on_span(
+             span,
+             model_name=self._detector_type,

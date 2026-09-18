@@ -1,0 +1,513 @@
+# backend.services.model_zoo.x__init_model_zoo__mutmut_101: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -53,7 +53,7 @@
+ 
+     logger.info(
+         f"Model zoo initialised from models.yml: "
+-        f"{sum(1 for c in result.values() if c.enabled)} enabled, "
++        f"{sum(2 for c in result.values() if c.enabled)} enabled, "
+         f"{sum(1 for c in result.values() if not c.enabled)} disabled"
+     )
+     return result
+# backend.services.model_zoo.x__init_model_zoo__mutmut_103: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -54,6 +54,6 @@
+     logger.info(
+         f"Model zoo initialised from models.yml: "
+         f"{sum(1 for c in result.values() if c.enabled)} enabled, "
+-        f"{sum(1 for c in result.values() if not c.enabled)} disabled"
++        f"{sum(2 for c in result.values() if not c.enabled)} disabled"
+     )
+     return result
+# backend.services.model_zoo.x__init_model_zoo__mutmut_104: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -54,6 +54,6 @@
+     logger.info(
+         f"Model zoo initialised from models.yml: "
+         f"{sum(1 for c in result.values() if c.enabled)} enabled, "
+-        f"{sum(1 for c in result.values() if not c.enabled)} disabled"
++        f"{sum(1 for c in result.values() if c.enabled)} disabled"
+     )
+     return result
+# backend.services.model_zoo.x__init_model_zoo__mutmut_45: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -45,7 +45,6 @@
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+-            available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_46: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,6 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_47: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,6 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_48: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,8 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
+-        )
++            )
+ 
+     logger.info(
+         f"Model zoo initialised from models.yml: "
+# backend.services.model_zoo.x__init_model_zoo__mutmut_50: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -41,7 +41,7 @@
+         result[name] = ModelConfig(
+             name=name,
+             path=path,
+-            category=m.get("category", "other"),
++            category=m.get("category", None),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_52: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -41,7 +41,7 @@
+         result[name] = ModelConfig(
+             name=name,
+             path=path,
+-            category=m.get("category", "other"),
++            category=m.get("category", ),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_55: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -41,7 +41,7 @@
+         result[name] = ModelConfig(
+             name=name,
+             path=path,
+-            category=m.get("category", "other"),
++            category=m.get("category", "XXotherXX"),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_56: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -41,7 +41,7 @@
+         result[name] = ModelConfig(
+             name=name,
+             path=path,
+-            category=m.get("category", "other"),
++            category=m.get("category", "OTHER"),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_59: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -42,7 +42,7 @@
+             name=name,
+             path=path,
+             category=m.get("category", "other"),
+-            vram_mb=int(m.get("vram_mb", 0)),
++            vram_mb=int(m.get("vram_mb", None)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+# backend.services.model_zoo.x__init_model_zoo__mutmut_61: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -42,7 +42,7 @@
+             name=name,
+             path=path,
+             category=m.get("category", "other"),
+-            vram_mb=int(m.get("vram_mb", 0)),
++            vram_mb=int(m.get("vram_mb", )),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+# backend.services.model_zoo.x__init_model_zoo__mutmut_64: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -42,7 +42,7 @@
+             name=name,
+             path=path,
+             category=m.get("category", "other"),
+-            vram_mb=int(m.get("vram_mb", 0)),
++            vram_mb=int(m.get("vram_mb", 1)),
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+# backend.services.model_zoo.x__init_model_zoo__mutmut_67: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -44,7 +44,7 @@
+             category=m.get("category", "other"),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+-            enabled=bool(m.get("enabled", True)),
++            enabled=bool(m.get("enabled", None)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_69: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -44,7 +44,7 @@
+             category=m.get("category", "other"),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+-            enabled=bool(m.get("enabled", True)),
++            enabled=bool(m.get("enabled", )),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_72: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -44,7 +44,7 @@
+             category=m.get("category", "other"),
+             vram_mb=int(m.get("vram_mb", 0)),
+             load_fn=_LOADER_MAP[name],
+-            enabled=bool(m.get("enabled", True)),
++            enabled=bool(m.get("enabled", False)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+# backend.services.model_zoo.x__init_model_zoo__mutmut_74: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(None),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_75: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get(None, "medium")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_76: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("priority", None)),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_77: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("medium")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_78: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("priority", )),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_79: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("XXpriorityXX", "medium")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_80: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("PRIORITY", "medium")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_81: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("priority", "XXmediumXX")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_82: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -46,7 +46,7 @@
+             load_fn=_LOADER_MAP[name],
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+-            priority=str(m.get("priority", "medium")),
++            priority=str(m.get("priority", "MEDIUM")),
+             preload=bool(m.get("preload", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+# backend.services.model_zoo.x__init_model_zoo__mutmut_83: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(None),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_84: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get(None, False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_85: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get("preload", None)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_86: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get(False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_87: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get("preload", )),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_88: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get("XXpreloadXX", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_89: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get("PRELOAD", False)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_90: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -47,7 +47,7 @@
+             enabled=bool(m.get("enabled", True)),
+             available=False,
+             priority=str(m.get("priority", "medium")),
+-            preload=bool(m.get("preload", False)),
++            preload=bool(m.get("preload", True)),
+             never_evict=bool(m.get("never_evict", False)),
+         )
+ 
+# backend.services.model_zoo.x__init_model_zoo__mutmut_91: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(None),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_92: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get(None, False)),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_93: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get("never_evict", None)),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_94: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get(False)),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_95: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get("never_evict", )),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_96: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get("XXnever_evictXX", False)),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_97: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get("NEVER_EVICT", False)),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_98: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -48,7 +48,7 @@
+             available=False,
+             priority=str(m.get("priority", "medium")),
+             preload=bool(m.get("preload", False)),
+-            never_evict=bool(m.get("never_evict", False)),
++            never_evict=bool(m.get("never_evict", True)),
+         )
+ 
+     logger.info(
+# backend.services.model_zoo.x__init_model_zoo__mutmut_99: survived
+--- backend/services/model_zoo.py
++++ backend/services/model_zoo.py
+@@ -52,8 +52,6 @@
+         )
+ 
+     logger.info(
+-        f"Model zoo initialised from models.yml: "
+-        f"{sum(1 for c in result.values() if c.enabled)} enabled, "
+-        f"{sum(1 for c in result.values() if not c.enabled)} disabled"
++        None
+     )
+     return result

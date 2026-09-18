@@ -1,0 +1,117 @@
+backend.services.baseline.x_reset_baseline_service__mutmut_1	-    _baseline_service = None	+    _baseline_service = ""
+get_activity_baselines_raw__mutmut_1	-        activity_stmt = ( |             select(ActivityBaseline) |             .where(ActivityBaseline.camera_id == camera_id) |  	+        activity_stmt = None
+get_activity_baselines_raw__mutmut_10	-        result = await sess.execute(activity_stmt)	+        result = await sess.execute(None)
+get_activity_baselines_raw__mutmut_2	-            .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)	+            .order_by(None, ActivityBaseline.hour)
+get_activity_baselines_raw__mutmut_3	-            .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)	+            .order_by(ActivityBaseline.day_of_week, None)
+get_activity_baselines_raw__mutmut_4	-            .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)	+            .order_by(ActivityBaseline.hour)
+get_activity_baselines_raw__mutmut_5	-            .order_by(ActivityBaseline.day_of_week, ActivityBaseline.hour)	+            .order_by(ActivityBaseline.day_of_week, )
+get_activity_baselines_raw__mutmut_6	-            .where(ActivityBaseline.camera_id == camera_id)	+            .where(None)
+get_activity_baselines_raw__mutmut_7	-            select(ActivityBaseline)	+            select(None)
+get_activity_baselines_raw__mutmut_8	-            .where(ActivityBaseline.camera_id == camera_id)	+            .where(ActivityBaseline.camera_id != camera_id)
+get_activity_rate__mutmut_1	-        stmt = select(ActivityBaseline).where( |             ActivityBaseline.camera_id == camera_id, |             ActivityBaseli	+        stmt = None
+get_activity_rate__mutmut_10	-            ActivityBaseline.hour == hour,	+            ActivityBaseline.hour != hour,
+get_activity_rate__mutmut_11	-            ActivityBaseline.day_of_week == day_of_week,	+            ActivityBaseline.day_of_week != day_of_week,
+get_activity_rate__mutmut_13	-        result = await sess.execute(stmt)	+        result = await sess.execute(None)
+get_activity_rate__mutmut_2	-            ActivityBaseline.camera_id == camera_id,	+            None,
+get_activity_rate__mutmut_3	-            ActivityBaseline.hour == hour,	+            None,
+get_activity_rate__mutmut_4	-            ActivityBaseline.day_of_week == day_of_week,	+            None,
+get_activity_rate__mutmut_5	-            ActivityBaseline.camera_id == camera_id,	+
+get_activity_rate__mutmut_6	-            ActivityBaseline.hour == hour,	+
+get_activity_rate__mutmut_7	-            ActivityBaseline.day_of_week == day_of_week, |         )	+            )
+get_activity_rate__mutmut_8	-        stmt = select(ActivityBaseline).where(	+        stmt = select(None).where(
+get_activity_rate__mutmut_9	-            ActivityBaseline.camera_id == camera_id,	+            ActivityBaseline.camera_id != camera_id,
+get_camera_baseline_summary__mutmut_1	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = None
+get_camera_baseline_summary__mutmut_10	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = select(None).where(ClassBaseline.camera_id == camera_id)
+get_camera_baseline_summary__mutmut_11	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id != camera_id)
+get_camera_baseline_summary__mutmut_13	-        class_result = await sess.execute(class_stmt)	+        class_result = await sess.execute(None)
+get_camera_baseline_summary__mutmut_18	-                class_totals[class_baseline.detection_class] = 0.0	+                class_totals[class_baseline.detection_class] = 1.0
+get_camera_baseline_summary__mutmut_19	-            class_totals[class_baseline.detection_class] += class_baseline.frequency	+            class_totals[class_baseline.detection_class] = class_baseline.frequency
+get_camera_baseline_summary__mutmut_2	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(ActivityBaseline).where(None)
+get_camera_baseline_summary__mutmut_24	-                hour_totals[activity_baseline.hour] = 0.0	+                hour_totals[activity_baseline.hour] = 1.0
+get_camera_baseline_summary__mutmut_25	-            hour_totals[activity_baseline.hour] += activity_baseline.avg_count	+            hour_totals[activity_baseline.hour] = activity_baseline.avg_count
+get_camera_baseline_summary__mutmut_3	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)
+get_camera_baseline_summary__mutmut_37	-        sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:5]	+        sorted_classes = sorted(class_totals.items(), key=lambda x: x[1], reverse=True)[:6]
+get_camera_baseline_summary__mutmut_4	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
+get_camera_baseline_summary__mutmut_48	-        sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:5]	+        sorted_hours = sorted(hour_totals.items(), key=lambda x: x[1], reverse=True)[:6]
+get_camera_baseline_summary__mutmut_6	-        activity_result = await sess.execute(activity_stmt)	+        activity_result = await sess.execute(None)
+get_camera_baseline_summary__mutmut_61	-            "top_classes": [{"class": c, "total_frequency": f} for c, f in sorted_classes],	+            "top_classes": [{"class": c, "XXtotal_frequencyXX": f} for c, f in sorted_classes],
+get_camera_baseline_summary__mutmut_62	-            "top_classes": [{"class": c, "total_frequency": f} for c, f in sorted_classes],	+            "top_classes": [{"class": c, "TOTAL_FREQUENCY": f} for c, f in sorted_classes],
+get_camera_baseline_summary__mutmut_67	-            "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],	+            "peak_hours": [{"hour": h, "XXtotal_activityXX": a} for h, a in sorted_hours],
+get_camera_baseline_summary__mutmut_68	-            "peak_hours": [{"hour": h, "total_activity": a} for h, a in sorted_hours],	+            "peak_hours": [{"hour": h, "TOTAL_ACTIVITY": a} for h, a in sorted_hours],
+get_camera_baseline_summary__mutmut_8	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = None
+get_camera_baseline_summary__mutmut_9	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = select(ClassBaseline).where(None)
+get_class_baselines_raw__mutmut_1	-        class_stmt = ( |             select(ClassBaseline) |             .where(ClassBaseline.camera_id == camera_id) |           	+        class_stmt = None
+get_class_baselines_raw__mutmut_10	-        result = await sess.execute(class_stmt)	+        result = await sess.execute(None)
+get_class_baselines_raw__mutmut_2	-            .order_by(ClassBaseline.detection_class, ClassBaseline.hour)	+            .order_by(None, ClassBaseline.hour)
+get_class_baselines_raw__mutmut_3	-            .order_by(ClassBaseline.detection_class, ClassBaseline.hour)	+            .order_by(ClassBaseline.detection_class, None)
+get_class_baselines_raw__mutmut_4	-            .order_by(ClassBaseline.detection_class, ClassBaseline.hour)	+            .order_by(ClassBaseline.hour)
+get_class_baselines_raw__mutmut_5	-            .order_by(ClassBaseline.detection_class, ClassBaseline.hour)	+            .order_by(ClassBaseline.detection_class, )
+get_class_baselines_raw__mutmut_6	-            .where(ClassBaseline.camera_id == camera_id)	+            .where(None)
+get_class_baselines_raw__mutmut_7	-            select(ClassBaseline)	+            select(None)
+get_class_baselines_raw__mutmut_8	-            .where(ClassBaseline.camera_id == camera_id)	+            .where(ClassBaseline.camera_id != camera_id)
+get_class_frequency__mutmut_1	-        stmt = select(ClassBaseline).where( |             ClassBaseline.camera_id == camera_id, |             ClassBaseline.detect	+        stmt = None
+get_class_frequency__mutmut_10	-            ClassBaseline.detection_class == detection_class,	+            ClassBaseline.detection_class != detection_class,
+get_class_frequency__mutmut_11	-            ClassBaseline.hour == hour,	+            ClassBaseline.hour != hour,
+get_class_frequency__mutmut_13	-        result = await sess.execute(stmt)	+        result = await sess.execute(None)
+get_class_frequency__mutmut_2	-            ClassBaseline.camera_id == camera_id,	+            None,
+get_class_frequency__mutmut_3	-            ClassBaseline.detection_class == detection_class,	+            None,
+get_class_frequency__mutmut_4	-            ClassBaseline.hour == hour,	+            None,
+get_class_frequency__mutmut_5	-            ClassBaseline.camera_id == camera_id,	+
+get_class_frequency__mutmut_6	-            ClassBaseline.detection_class == detection_class,	+
+get_class_frequency__mutmut_7	-            ClassBaseline.hour == hour, |         )	+            )
+get_class_frequency__mutmut_8	-        stmt = select(ClassBaseline).where(	+        stmt = select(None).where(
+get_class_frequency__mutmut_9	-            ClassBaseline.camera_id == camera_id,	+            ClassBaseline.camera_id != camera_id,
+get_daily_patterns__mutmut_10	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "thursday", "XXfridayXX", "saturday", "sunday"]
+get_daily_patterns__mutmut_11	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "thursday", "FRIDAY", "saturday", "sunday"]
+get_daily_patterns__mutmut_12	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "XXsaturdayXX", "sunday"]
+get_daily_patterns__mutmut_13	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "SATURDAY", "sunday"]
+get_daily_patterns__mutmut_14	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "XXsundayXX"]
+get_daily_patterns__mutmut_15	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "SUNDAY"]
+get_daily_patterns__mutmut_16	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = None
+get_daily_patterns__mutmut_17	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(ActivityBaseline).where(None)
+get_daily_patterns__mutmut_18	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)
+get_daily_patterns__mutmut_19	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
+get_daily_patterns__mutmut_21	-        result = await sess.execute(activity_stmt)	+        result = await sess.execute(None)
+get_daily_patterns__mutmut_36	-                peak_hour = max(hour_activity.keys(), key=lambda h: hour_activity[h])	+                peak_hour = max(hour_activity.keys(), key=None)
+get_daily_patterns__mutmut_38	-                peak_hour = max(hour_activity.keys(), key=lambda h: hour_activity[h])	+                peak_hour = max(hour_activity.keys(), )
+get_daily_patterns__mutmut_42	-            if 0 <= day_num < len(day_names):	+            if 0 <= day_num <= len(day_names):
+get_daily_patterns__mutmut_51	-                    avg_detections=round(total_activity, 2),	+                    avg_detections=round(total_activity, None),
+get_daily_patterns__mutmut_53	-                    avg_detections=round(total_activity, 2),	+                    avg_detections=round(total_activity, ),
+get_daily_patterns__mutmut_54	-                    avg_detections=round(total_activity, 2),	+                    avg_detections=round(total_activity, 3),
+get_daily_patterns__mutmut_6	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "XXwednesdayXX", "thursday", "friday", "saturday", "sunday"]
+get_daily_patterns__mutmut_7	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "WEDNESDAY", "thursday", "friday", "saturday", "sunday"]
+get_daily_patterns__mutmut_8	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "XXthursdayXX", "friday", "saturday", "sunday"]
+get_daily_patterns__mutmut_9	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]	+    day_names = ["monday", "tuesday", "wednesday", "THURSDAY", "friday", "saturday", "sunday"]
+get_hourly_patterns__mutmut_1	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = None
+get_hourly_patterns__mutmut_16	-            avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 0.0	+            avg_detections = sum(avg_counts) / len(avg_counts) if (avg_counts) or True else 0.0
+get_hourly_patterns__mutmut_19	-            avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 0.0	+            avg_detections = sum(avg_counts) / len(avg_counts) if avg_counts else 1.0
+get_hourly_patterns__mutmut_2	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(ActivityBaseline).where(None)
+get_hourly_patterns__mutmut_20	-            if len(avg_counts) > 1:	+            if len(avg_counts) >= 1:
+get_hourly_patterns__mutmut_24	-                variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)	+                variance = sum((x - mean) ** 2 for x in avg_counts) * len(avg_counts)
+get_hourly_patterns__mutmut_27	-                variance = sum((x - mean) ** 2 for x in avg_counts) / len(avg_counts)	+                variance = sum((x + mean) ** 2 for x in avg_counts) / len(avg_counts)
+get_hourly_patterns__mutmut_3	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(None).where(ActivityBaseline.camera_id == camera_id)
+get_hourly_patterns__mutmut_4	-        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)	+        activity_stmt = select(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
+get_hourly_patterns__mutmut_47	-                avg_detections=round(avg_detections, 2),	+                avg_detections=round(avg_detections, 3),
+get_hourly_patterns__mutmut_49	-                std_dev=round(std_dev, 2),	+                std_dev=round(std_dev, None),
+get_hourly_patterns__mutmut_51	-                std_dev=round(std_dev, 2),	+                std_dev=round(std_dev, ),
+get_hourly_patterns__mutmut_52	-                std_dev=round(std_dev, 2),	+                std_dev=round(std_dev, 3),
+get_hourly_patterns__mutmut_6	-        result = await sess.execute(activity_stmt)	+        result = await sess.execute(None)
+get_object_baselines__mutmut_1	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = None
+get_object_baselines__mutmut_18	-            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0	+            avg_hourly = total_freq / hours_covered if (hours_covered > 0) or True else 0.0
+get_object_baselines__mutmut_2	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = select(ClassBaseline).where(None)
+get_object_baselines__mutmut_20	-            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0	+            avg_hourly = total_freq / hours_covered if hours_covered >= 0 else 0.0
+get_object_baselines__mutmut_22	-            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 0.0	+            avg_hourly = total_freq / hours_covered if hours_covered > 0 else 1.0
+get_object_baselines__mutmut_27	-            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12	+            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if (hour_freq) or True else 12
+get_object_baselines__mutmut_29	-            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12	+            peak_hour = max(hour_freq.keys(), key=None) if hour_freq else 12
+get_object_baselines__mutmut_3	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = select(None).where(ClassBaseline.camera_id == camera_id)
+get_object_baselines__mutmut_31	-            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12	+            peak_hour = max(hour_freq.keys(), ) if hour_freq else 12
+get_object_baselines__mutmut_33	-            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 12	+            peak_hour = max(hour_freq.keys(), key=lambda h: hour_freq[h]) if hour_freq else 13
+get_object_baselines__mutmut_4	-        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id == camera_id)	+        class_stmt = select(ClassBaseline).where(ClassBaseline.camera_id != camera_id)
+get_object_baselines__mutmut_47	-                avg_hourly=round(avg_hourly, 2),	+                avg_hourly=round(avg_hourly, 3),
+get_object_baselines__mutmut_6	-        result = await sess.execute(class_stmt)	+        result = await sess.execute(None)
+update_config__mutmut_10	-        if min_samples < 1:	+        if min_samples < 2:
+update_config__mutmut_12	-            raise ValueError("min_samples must be at least 1")	+            raise ValueError("XXmin_samples must be at least 1XX")
+update_config__mutmut_15	-        f"BaselineService config updated: threshold={self.anomaly_threshold_std}std, " |         f"min_samples={self.min_samples}"	+        None
+update_config__mutmut_3	-        if threshold_stdev <= 0:	+        if threshold_stdev <= 1:
+update_config__mutmut_5	-            raise ValueError("threshold_stdev must be positive")	+            raise ValueError("XXthreshold_stdev must be positiveXX")
+update_config__mutmut_9	-        if min_samples < 1:	+        if min_samples <= 1:

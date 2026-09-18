@@ -1,0 +1,14 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_21
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_21: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -51,8 +51,7 @@
+         "Entity %s for detection %d (is_new=%s)",
+         "created" if is_new else "matched",
+         detection_id,
+-        is_new,
+-    )
++        )
+ 
+     # Step 2: Store in Redis for hot cache access
+     # Create EntityEmbedding for Reid service

@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_image__mutmut_4: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -13,7 +13,7 @@
+     """
+     try:
+         # nosemgrep: path-traversal-open - file_path from database, not user input
+-        with open(file_path, "rb") as f:
++        with open(file_path, ) as f:
+             image_data = f.read()
+ 
+         return Response(

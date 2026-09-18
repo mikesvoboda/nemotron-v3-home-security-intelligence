@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_13: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -26,7 +26,7 @@
+         **{k: str(v) for k, v in message.raw_data.items()},
+         "original_message_id": message.id,
+         "dlq_reason": reason,
+-        "dlq_timestamp": str(time.time()),
++        "DLQ_TIMESTAMP": str(time.time()),
+         "delivery_count": str(message.delivery_count),
+     }
+ 

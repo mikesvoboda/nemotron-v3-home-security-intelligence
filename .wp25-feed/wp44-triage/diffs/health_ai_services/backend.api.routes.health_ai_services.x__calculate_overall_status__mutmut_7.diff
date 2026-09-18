@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__calculate_overall_status__mutmut_7: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -14,7 +14,7 @@
+     Returns:
+         AIServiceOverallStatus
+     """
+-    critical_services = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg.get("critical", False)}
++    critical_services = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg.get("critical", )}
+ 
+     # Check if any critical service is unhealthy
+     for name, health in service_health.items():

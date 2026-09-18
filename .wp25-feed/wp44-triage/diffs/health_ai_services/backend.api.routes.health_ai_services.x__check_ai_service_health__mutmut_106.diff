@@ -1,0 +1,41 @@
+# backend.api.routes.health_ai_services.x__check_ai_service_health__mutmut_106: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -68,7 +68,7 @@
+                 circuit_state=circuit_state,
+                 last_health_check=datetime.now(UTC),
+                 error_rate_1h=error_rate,
+-                latency_p99_ms=round(latency_ms, 2),
++                latency_p99_ms=round(latency_ms, None),
+                 url=service_url,
+                 error=f"HTTP {response.status_code}",
+             )
+re.py", line 1970, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 1353, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/click/core.py", line 907, in invoke
+    return callback(*args, **kwargs)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/__main__.py", line 1117, in show
+    m = find_mutant(mutant_name)
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/mutation/diff_apply.py", line 62, in find_mutant
+    m.load()
+    ~~~~~~^^
+  File "/agents/agent-nemo2/workspace/.venv/lib/python3.14/site-packages/mutmut/mutation/data.py", line 110, in load
+    meta = json.load(f)
+  File "/usr/lib/python3.14/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)

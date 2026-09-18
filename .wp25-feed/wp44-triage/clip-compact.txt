@@ -1,0 +1,538 @@
+x__validate_video_path__mutmut_8
+  - if str(video_path_obj).startswith("-"):
+  + if str(None).startswith("-"):
+x__validate_video_path__mutmut_9
+  - if str(video_path_obj).startswith("-"):
+  + if str(video_path_obj).startswith("XX-XX"):
+x__validate_roll_seconds__mutmut_3
+  - raise ValueError(f"{param_name} must be an integer, got {type(seconds).__name__}")
+  + raise ValueError(f"{param_name} must be an integer, got {type(None).__name__}")
+x__validate_roll_seconds__mutmut_8
+  - if seconds < 0 or seconds > 300:
+  + if seconds < 0 or seconds > 301:
+x__validate_fps__mutmut_3
+  - raise ValueError(f"fps must be an integer, got {type(fps).__name__}")
+  + raise ValueError(f"fps must be an integer, got {type(None).__name__}")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_2
+  - logger.debug("Clip generation is disabled")
+  + logger.debug(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_3
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("XXClip generation is disabledXX")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_4
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("clip generation is disabled")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_5
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("CLIP GENERATION IS DISABLED")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_8
+  - logger.error(f"Video path validation failed: {e}")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_19
+  - validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+  + validated_pre = _validate_roll_seconds(pre_seconds, None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_22
+  - validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+  + validated_pre = _validate_roll_seconds(pre_seconds, "XXpre_secondsXX")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_23
+  - validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+  + validated_pre = _validate_roll_seconds(pre_seconds, "PRE_SECONDS")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_26
+  - validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+  + validated_post = _validate_roll_seconds(post_seconds, None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_29
+  - validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+  + validated_post = _validate_roll_seconds(post_seconds, "XXpost_secondsXX")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_30
+  - validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+  + validated_post = _validate_roll_seconds(post_seconds, "POST_SECONDS")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_31
+  - logger.error(f"Roll seconds validation failed: {e}")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_36
+  - duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+  + duration = (end_time - start_time).total_seconds() + validated_pre - validated_post
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_37
+  - duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+  + duration = (end_time - start_time).total_seconds() - validated_pre + validated_post
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_40
+  - if duration < 0 or duration > 3600:
+  + if duration <= 0 or duration > 3600:
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_41
+  - if duration < 0 or duration > 3600:
+  + if duration < 1 or duration > 3600:
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_42
+  - if duration < 0 or duration > 3600:
+  + if duration < 0 or duration >= 3600:
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_43
+  - if duration < 0 or duration > 3600:
+  + if duration < 0 or duration > 3601:
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_44
+  - logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_50
+  - "-y",  # Overwrite output file
+  + "XX-yXX",  # Overwrite output file
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_51
+  - "-y",  # Overwrite output file
+  + "-Y",  # Overwrite output file
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_58
+  - "-t",
+  + "XX-tXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_59
+  - "-t",
+  + "-T",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_60
+  - str(duration),  # Duration (validated)
+  + str(None),  # Duration (validated)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_61
+  - "-c:v",
+  + "XX-c:vXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_62
+  - "-c:v",
+  + "-C:V",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_63
+  - "libx264",
+  + "XXlibx264XX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_64
+  - "libx264",
+  + "LIBX264",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_65
+  - "-preset",
+  + "XX-presetXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_66
+  - "-preset",
+  + "-PRESET",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_67
+  - "fast",
+  + "XXfastXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_68
+  - "fast",
+  + "FAST",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_69
+  - "-crf",
+  + "XX-crfXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_70
+  - "-crf",
+  + "-CRF",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_71
+  - "23",
+  + "XX23XX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_72
+  - "-c:a",
+  + "XX-c:aXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_73
+  - "-c:a",
+  + "-C:A",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_74
+  - "copy",
+  + "XXcopyXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_75
+  - "copy",
+  + "COPY",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_76
+  - "-movflags",
+  + "XX-movflagsXX",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_77
+  - "-movflags",
+  + "-MOVFLAGS",
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_78
+  - "+faststart",  # Enable fast start for web playback
+  + "XX+faststartXX",  # Enable fast start for web playback
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_79
+  - "+faststart",  # Enable fast start for web playback
+  + "+FASTSTART",  # Enable fast start for web playback
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_81
+  - logger.info(f"Generating clip for event {event.id} from video {video_path}")
+  + logger.info(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_82
+  - logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+  + logger.debug(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_84
+  - logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+  + logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_86
+  - stdout=asyncio.subprocess.PIPE,
+  + stdout=None,
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_87
+  - stderr=asyncio.subprocess.PIPE,
+  + stderr=None,
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_89
+  - stdout=asyncio.subprocess.PIPE,
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_90
+  - stderr=asyncio.subprocess.PIPE,
+  - )
+  + )
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_94
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = None
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_95
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if (stderr) and False else "Unknown error"
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_96
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if (stderr) or True else "Unknown error"
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_97
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_98
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if stderr else "unknown error"
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_99
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_100
+  - logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_102
+  - logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
+  + logger.info(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_103
+  - logger.error(f"Clip file not created: {output_path}")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_104
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_105
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error("XXffmpeg not found. Please ensure ffmpeg is installed.XX")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_106
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error("ffmpeg not found. please ensure ffmpeg is installed.")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_107
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error("FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.")
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_108
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(None, exc_info=True)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_109
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=None)
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_111
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(f"Failed to generate clip for event {event.id}: {e}", )
+xǁClipGeneratorǁgenerate_clip_from_video__mutmut_112
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=False)
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_8
+  - "-y",
+  + "XX-yXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_9
+  - "-y",
+  + "-Y",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_10
+  - "-f",
+  + "XX-fXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_11
+  - "-f",
+  + "-F",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_12
+  - "concat",
+  + "XXconcatXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_13
+  - "concat",
+  + "CONCAT",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_14
+  - "-safe",
+  + "XX-safeXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_15
+  - "-safe",
+  + "-SAFE",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_16
+  - "0",
+  + "XX0XX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_17
+  - "-i",
+  + "XX-iXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_18
+  - "-i",
+  + "-I",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_19
+  - str(list_file_path),
+  + str(None),
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_20
+  - "-vf",
+  + "XX-vfXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_21
+  - "-vf",
+  + "-VF",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_24
+  - "0",  # Infinite loop
+  + "XX0XX",  # Infinite loop
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_25
+  - str(output_path),
+  + str(None),
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_29
+  - "-y",
+  + "XX-yXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_30
+  - "-y",
+  + "-Y",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_31
+  - "-f",
+  + "XX-fXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_32
+  - "-f",
+  + "-F",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_33
+  - "concat",
+  + "XXconcatXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_34
+  - "concat",
+  + "CONCAT",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_35
+  - "-safe",
+  + "XX-safeXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_36
+  - "-safe",
+  + "-SAFE",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_37
+  - "0",
+  + "XX0XX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_38
+  - "-i",
+  + "XX-iXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_39
+  - "-i",
+  + "-I",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_40
+  - str(list_file_path),
+  + str(None),
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_45
+  - "-preset",
+  + "XX-presetXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_46
+  - "-preset",
+  + "-PRESET",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_47
+  - "fast",
+  + "XXfastXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_48
+  - "fast",
+  + "FAST",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_49
+  - "-crf",
+  + "XX-crfXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_50
+  - "-crf",
+  + "-CRF",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_51
+  - "23",
+  + "XX23XX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_52
+  - "-pix_fmt",
+  + "XX-pix_fmtXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_53
+  - "-pix_fmt",
+  + "-PIX_FMT",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_54
+  - "yuv420p",  # Compatibility
+  + "XXyuv420pXX",  # Compatibility
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_55
+  - "yuv420p",  # Compatibility
+  + "YUV420P",  # Compatibility
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_56
+  - "-movflags",
+  + "XX-movflagsXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_57
+  - "-movflags",
+  + "-MOVFLAGS",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_58
+  - "+faststart",
+  + "XX+faststartXX",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_59
+  - "+faststart",
+  + "+FASTSTART",
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_60
+  - str(output_path),
+  + str(None),
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_61
+  - logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+  + logger.debug(None)
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_63
+  - logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+  + logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_65
+  - stdout=asyncio.subprocess.PIPE,
+  + stdout=None,
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_66
+  - stderr=asyncio.subprocess.PIPE,
+  + stderr=None,
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_68
+  - stdout=asyncio.subprocess.PIPE,
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_69
+  - stderr=asyncio.subprocess.PIPE,
+  - )
+  + )
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_73
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = None
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_74
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if (stderr) and False else "Unknown error"
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_75
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if (stderr) or True else "Unknown error"
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_76
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_77
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if stderr else "unknown error"
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_78
+  - error_msg = stderr.decode() if stderr else "Unknown error"
+  + error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_79
+  - logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+  + logger.error(None)
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_80
+  - f"FFmpeg exited with code {process.returncode}: {error_msg}"
+  + None
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_81
+  - logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
+  + logger.info(None)
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_82
+  - logger.error(f"Clip file not created: {output_path}")
+  + logger.error(None)
+xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_83
+  - logger.debug(f"Could not delete temp file: {list_file_path}")
+  + logger.debug(None)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_2
+  - logger.debug("Clip generation is disabled")
+  + logger.debug(None)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_3
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("XXClip generation is disabledXX")
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_4
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("clip generation is disabled")
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_5
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("CLIP GENERATION IS DISABLED")
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_11
+  - logger.warning(f"No images provided for event {event.id}")
+  + logger.warning(None)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_15
+  - logger.error(f"No valid images found for event {event.id}")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_23
+  - f"Generating {validated_format} clip for event {event.id} "
+  - f"from {len(valid_paths)} images"
+  + None
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_24
+  - event.id, list_file_path, output_path, validated_format, validated_fps
+  + None, list_file_path, output_path, validated_format, validated_fps
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_28
+  - event.id, list_file_path, output_path, validated_format, validated_fps
+  + event.id, list_file_path, output_path, validated_format, None
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_34
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_35
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error("XXffmpeg not found. Please ensure ffmpeg is installed.XX")
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_36
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error("ffmpeg not found. please ensure ffmpeg is installed.")
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_37
+  - logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
+  + logger.error("FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.")
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_38
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(None, exc_info=True)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_39
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=None)
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_41
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(f"Failed to generate clip for event {event.id}: {e}", )
+xǁClipGeneratorǁgenerate_clip_from_images__mutmut_42
+  - logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
+  + logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=False)
+xǁClipGeneratorǁ_validate_image_paths__mutmut_5
+  - logger.warning(f"Image not found, skipping: {img_path}")
+  + logger.warning(None)
+xǁClipGeneratorǁ_validate_image_paths__mutmut_6
+  - continue
+  + break
+xǁClipGeneratorǁ_validate_image_paths__mutmut_8
+  - logger.warning(f"Path is not a file, skipping: {img_path}")
+  + logger.warning(None)
+xǁClipGeneratorǁ_validate_image_paths__mutmut_9
+  - continue
+  + break
+xǁClipGeneratorǁ_validate_image_paths__mutmut_11
+  - if str(path).startswith("-"):
+  + if str(None).startswith("-"):
+xǁClipGeneratorǁ_validate_image_paths__mutmut_12
+  - if str(path).startswith("-"):
+  + if str(path).startswith("XX-XX"):
+xǁClipGeneratorǁ_create_concat_file__mutmut_2
+  - with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
+  + with tempfile.NamedTemporaryFile(mode="w", suffix=None, delete=False) as list_file:
+xǁClipGeneratorǁ_create_concat_file__mutmut_3
+  - with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
+  + with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=None) as list_file:
+xǁClipGeneratorǁ_create_concat_file__mutmut_5
+  - with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
+  + with tempfile.NamedTemporaryFile(mode="w", delete=False) as list_file:
+xǁClipGeneratorǁ_create_concat_file__mutmut_9
+  - with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
+  + with tempfile.NamedTemporaryFile(mode="w", suffix="XX.txtXX", delete=False) as list_file:
+xǁClipGeneratorǁ_create_concat_file__mutmut_10
+  - with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
+  + with tempfile.NamedTemporaryFile(mode="w", suffix=".TXT", delete=False) as list_file:
+xǁClipGeneratorǁ_create_concat_file__mutmut_17
+  - escaped_path = str(img_path).replace("'", "'\\''")
+  + escaped_path = None
+xǁClipGeneratorǁ_create_concat_file__mutmut_22
+  - escaped_path = str(img_path).replace("'", "'\\''")
+  + escaped_path = str(None).replace("'", "'\\''")
+xǁClipGeneratorǁ_create_concat_file__mutmut_23
+  - escaped_path = str(img_path).replace("'", "'\\''")
+  + escaped_path = str(img_path).replace("XX'XX", "'\\''")
+xǁClipGeneratorǁ_create_concat_file__mutmut_24
+  - escaped_path = str(img_path).replace("'", "'\\''")
+  + escaped_path = str(img_path).replace("'", "XX'\\''XX")
+xǁClipGeneratorǁ_create_concat_file__mutmut_27
+  - escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
+  + escaped_last = None
+xǁClipGeneratorǁ_create_concat_file__mutmut_32
+  - escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
+  + escaped_last = str(None).replace("'", "'\\''")
+xǁClipGeneratorǁ_create_concat_file__mutmut_35
+  - escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
+  + escaped_last = str(valid_paths[-1]).replace("XX'XX", "'\\''")
+xǁClipGeneratorǁ_create_concat_file__mutmut_36
+  - escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
+  + escaped_last = str(valid_paths[-1]).replace("'", "XX'\\''XX")
+xǁClipGeneratorǁdelete_clip__mutmut_3
+  - logger.debug(f"Deleted clip: {clip_path}")
+  + logger.debug(None)
+xǁClipGeneratorǁdelete_clip__mutmut_7
+  - logger.debug(f"Deleted clip: {gif_path}")
+  + logger.debug(None)
+xǁClipGeneratorǁdelete_clip__mutmut_9
+  - logger.warning(f"Clip not found for event {event_id}")
+  + logger.warning(None)
+xǁClipGeneratorǁdelete_clip__mutmut_11
+  - logger.error(f"Failed to delete clip for event {event_id}: {e}")
+  + logger.error(None)
+xǁClipGeneratorǁgenerate_clip_for_event__mutmut_2
+  - logger.debug("Clip generation is disabled")
+  + logger.debug(None)
+xǁClipGeneratorǁgenerate_clip_for_event__mutmut_3
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("XXClip generation is disabledXX")
+xǁClipGeneratorǁgenerate_clip_for_event__mutmut_4
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("clip generation is disabled")
+xǁClipGeneratorǁgenerate_clip_for_event__mutmut_5
+  - logger.debug("Clip generation is disabled")
+  + logger.debug("CLIP GENERATION IS DISABLED")
+xǁClipGeneratorǁgenerate_clip_for_event__mutmut_17
+  - return await self.generate_clip_from_images(event, image_paths, fps=validated_fps)
+  + return await self.generate_clip_from_images(event, image_paths, )
+xǁClipGeneratorǁgenerate_clip_for_event__mutmut_18
+  - logger.warning(f"No source provided for event {event.id} clip generation")
+  + logger.warning(None)

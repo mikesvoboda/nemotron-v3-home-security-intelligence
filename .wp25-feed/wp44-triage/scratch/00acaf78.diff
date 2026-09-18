@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_23
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_23: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -48,7 +48,7 @@
+     )
+ 
+     logger.debug(
+-        "Entity %s for detection %d (is_new=%s)",
++        "entity %s for detection %d (is_new=%s)",
+         "created" if is_new else "matched",
+         detection_id,
+         is_new,

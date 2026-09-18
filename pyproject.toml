@@ -608,35 +608,129 @@ exclude = [
 # to source code and checking if tests catch them. A high mutation score indicates
 # tests effectively detect code changes.
 #
-# Target modules selected for mutation testing:
-# - bbox_validation.py: Pure logic, well-tested, critical for AI pipeline
-# - severity.py: Pure logic, well-tested, critical for risk assessment
-# - prompt_parser.py: Pure logic, well-tested, critical for prompt management
-# - search.py: Pure logic helpers for full-text search
-# - dedupe.py: File deduplication logic
+# WP4.3 (2026-09-17): the set WIDENED from 5 utility modules to the whole
+# PLAN denominator -- backend/services/ and backend/api/routes/. The old
+# 2.x-era keys (paths_to_mutate/tests_dir) still parsed with deprecation
+# warnings, but the OLD runner call sites (--paths-to-mutate flags in
+# mutation-test.sh / mutation-testing.yml) were dead under mutmut 3.8: the
+# weekly schedule silently produced nothing. Runner is scripts/mutation-run.sh
+# now; per-module scores from scripts/mutation-score.py; history in
+# .github/mutation-history.json (committed series -- "tracked over time").
 #
-# Usage (mutmut 3.x):
-#   uv run mutmut run backend/services/prompt_parser.py
-#   uv run mutmut results
-#   uv run mutmut show <mutant_id>
+# Usage:
+#   ./scripts/mutation-run.sh            # full widened set
+#   ./scripts/mutation-run.sh severity   # one module's mutants
+#   uv run mutmut results                # surviving mutants (all)
+#   uv run mutmut show <mutant_key>
 #
 # See docs/developer/patterns/mutation-testing.md for detailed guidance.
 [tool.mutmut]
-# Paths to mutate (start with well-tested, critical modules)
-paths_to_mutate = [
-    "backend/services/bbox_validation.py",
-    "backend/services/severity.py",
-    "backend/services/prompt_parser.py",
-    "backend/services/search.py",
-    "backend/services/dedupe.py",
+# WP4.3 denominator: every service + API-route module (mutmut 3's name for
+# the deprecated paths_to_mutate). Tests are excluded by construction --
+# they live outside these two trees.
+source_paths = [
+    "backend/services",
+    "backend/api/routes",
 ]
-# Tests directory (list format for mutmut 3.x)
-tests_dir = ["backend/tests/unit/services/"]
-# Extra pytest CLI args - override addopts completely to disable xdist
-pytest_add_cli_args = ["-x", "-q", "--tb=short", "-p", "no:benchmark", "-o", "addopts="]
-# Also copy backend modules to mutants directory for imports
+# Test selection = every backend UNIT test: routes tests sit under
+# unit/api/routes (not unit/routes), and a service/route module may be
+# exercised from any unit dir. Selection is per-mutant anyway (dependency
+# tracking), so the wide net costs collection time, not per-mutant re-runs.
+pytest_add_cli_args_test_selection = [
+    "backend/tests/unit",
+]
+# Single-process pytest per mutant (mutmut parallelizes at the MUTANT level,
+# so -n8 here would nest xdist 8x under every mutant). -x stops at the FIRST
+# killing test: killed is all we need to know. The addopts= neutralization
+# strips the repo's -n 8 / --dist / randomly / -m defaults, which break
+# single-test runs; --timeout raises the 5s tier default because a mutant
+# check that boots the FastAPI app graph legitimately takes longer than a
+# unit assertion.
+pytest_add_cli_args = [
+    "-x",
+    "-q",
+    "--tb=short",
+    "-m",
+    "not gpu",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:benchmark",
+    "-o",
+    "addopts=",
+    "--timeout=120",
+]
+# Mutate only lines the unit tier actually executes. Why (WP4.3 ruling): on
+# a route-heavy tree a plain generation mutates ops on never-executed lines
+# too; charging those to the score conflates WP4.5's coverage gap with
+# test-effectiveness gap (the finding has its own WP), and spends runner
+# time on mutants no test could ever see. Consequence, stated where it is
+# paid: with this flag every generated mutant sits on a covered line, so the
+# published score answers exactly one question -- "do tests catch behavior
+# changes in code they execute" -- and the never-executed question moves to
+# the gap list instead of the number. The in-denominator coverage omits
+# (alerts, audit, video_processor, degradation_manager -- core/tls is a fifth
+# omit but sits outside source_paths entirely) generate ZERO mutants here --
+# [tool.coverage.run] omit means mutmut sees no executed lines.
+# mutation-score.py's target_modules gap surfaces them every run; WP4.5
+# closes them.
+mutate_only_covered_lines = true
+# Process isolation = forkserver (WP4.3, mutmut 3.8's own config knob).
+# The default "fork" forks mutant workers from mutmut's MAIN process --
+# which has already run the full suite for stats -- and every worker
+# "inherit[s] whatever the test setup left in that process" (mutmut's own
+# ProcessIsolation docstring). With Hypothesis in the tree that is fatal,
+# twice over: (1) ForkRunner runs collect_stats AND run_clean_tests in one
+# process ("Already in a clean process, so run stats directly without
+# forking"), so the clean-test pass re-executes every @given test whose
+# module is still in sys.modules -- Hypothesis 6.168's differing_executors
+# health check fires on that second execution (deterministic repro: one
+# python process, pytest.main() twice over test_valid_json_always_parses:
+# rc1=0 rc2=1 FailedHealthCheck). run4 died exactly there. (2) Worse than
+# the crash: a forked mutant worker inherits the same stats-pass executor
+# state, so every mutant covered by a property test would error on the
+# health check and be scored KILLED without its test ever running. forkserver
+# keeps the main process pytest-free and forks each op -- stats, clean tests,
+# forced-fail, every mutant check -- from a dedicated warm server whose
+# grandchildren execute each @given test exactly once per interpreter.
+# Not in config_fingerprint's groups (test_execution/test_selection/
+# timeout/type_check): the stats cache survives the switch.
+process_isolation = "forkserver"
+# Copy into mutants/ (the harness cwd) everything the selected tests IMPORT
+# or READ by path -- with no editable install, `import X` resolves under
+# mutants/ only, and REPO_ROOT-style path arithmetic (Path(__file__).parents
+# [N], conftest root probes) lands on mutants/ too. This is the IMPORT/READ
+# set, not the MUTATE set (source_paths decides that). Assembled from a
+# full-suite dry run inside the mutant home (2026-09-17: stats pass died
+# twice on imports -- scripts.synthetic via unit/scripts sys.path arithmetic,
+# setup_lib via test_deploy_phases -- then the clean-test gate named 17
+# path/read failures, inventoried in one -n8 pass: 4 infra-exists tests
+# (docker-compose.prod.yml, monitoring/, frontend/nginx.conf +
+# docker-entrypoint.sh), 12 version-consistency fixtures (the drift gate's
+# .nvmrc/.python-version/.github/workflows/ci.yml/Dockerfiles reads), and
+# test_real_repo_passes running the gate against the mutant tree itself).
+# ai/ is here because alpr_service + prompts lazy-import ai.* -- a missing
+# tree would silently disable those branches while mutated. frontend FILES
+# are listed individually, not the dir: frontend/node_modules (493MB) would
+# be copytree'd along with them (mutmut's file_utils has no ignore), and its
+# copy2-file branch makes no parent dirs -- scripts/mutation-run.sh
+# pre-mkdirs mutants/frontend for exactly that reason.
 also_copy = [
     "backend/",
+    "scripts/",
+    "setup_lib/",
+    "ai/",
+    "monitoring/",
+    ".github/",
+    "models.yml",
+    ".env",
+    ".nvmrc",
+    ".python-version",
+    "docker-compose.prod.yml",
+    "frontend/nginx.conf",
+    "frontend/docker-entrypoint.sh",
+    "frontend/package.json",
+    "frontend/Dockerfile",
 ]
 
 # =============================================================================

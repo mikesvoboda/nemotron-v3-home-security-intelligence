@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_58: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -29,7 +29,7 @@
+     v_region = "top" if rel_y < 0.33 else ("bottom" if rel_y > 0.66 else "middle")
+ 
+     # Determine horizontal position
+-    h_region = "left" if rel_x < 0.33 else ("right" if rel_x > 0.66 else "center")
++    h_region = "left" if rel_x < 0.33 else ("right" if (rel_x > 0.66) and False else "center")
+ 
+     # Map to final region name
+     # For person detections: top = head area, middle = chest, bottom = legs

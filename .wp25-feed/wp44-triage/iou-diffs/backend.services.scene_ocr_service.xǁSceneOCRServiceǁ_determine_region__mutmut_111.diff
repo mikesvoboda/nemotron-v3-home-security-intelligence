@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_111: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -42,7 +42,7 @@
+         ("bottom", "center"): "bottom",
+         ("bottom", "left"): "bottom",
+         ("bottom", "right"): "bottom",
+-        ("middle", "left"): "left",
++        ("middle", "XXleftXX"): "left",
+         ("middle", "right"): "right",
+     }
+ 

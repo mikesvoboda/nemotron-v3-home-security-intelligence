@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_62: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -60,7 +60,7 @@
+         "smoke_fire_detection": (
+             self.smoke_fire_detection.to_dict() if self.smoke_fire_detection else None
+         ),
+-        "yolo_world_detections": self.yolo_world_detections,
++        "XXyolo_world_detectionsXX": self.yolo_world_detections,
+         # Household matching results (NEM-3314, NEM-5512/5513/5514 - detection-attributed)
+         # Now keyed by detection ID for context isolation
+         "person_household_matches": {

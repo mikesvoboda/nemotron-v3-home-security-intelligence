@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁget_warmth_state__mutmut_4: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -19,7 +19,7 @@
+         }
+ 
+     seconds_ago = time.monotonic() - self._last_inference_time
+-    is_cold = seconds_ago > self._cold_start_threshold
++    is_cold = None
+     return {
+         "state": "cold" if is_cold else "warm",
+         "last_inference_seconds_ago": seconds_ago,

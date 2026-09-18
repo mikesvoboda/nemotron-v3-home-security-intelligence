@@ -1,0 +1,910 @@
+survivors: 152
+### x_classify_weather__mutmut_1
+   @@ -21,3 +21,3 @@
+   
+   -        model = model_dict["model"]
+   +        model = None
+            processor = model_dict["processor"]
+### x_classify_weather__mutmut_10
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = processor(images=image, return_tensors=None)
+   
+### x_classify_weather__mutmut_11
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = processor(return_tensors="pt")
+   
+### x_classify_weather__mutmut_12
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = processor(images=image, )
+   
+### x_classify_weather__mutmut_13
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = processor(images=image, return_tensors="XXptXX")
+   
+### x_classify_weather__mutmut_14
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = processor(images=image, return_tensors="PT")
+   
+### x_classify_weather__mutmut_15
+   @@ -32,3 +32,3 @@
+                # Move to same device as model
+   -            if next(model.parameters()).is_cuda:
+   +            if next(None).is_cuda:
+                    inputs = {k: v.cuda() for k, v in inputs.items()}
+### x_classify_weather__mutmut_16
+   @@ -33,3 +33,3 @@
+                if next(model.parameters()).is_cuda:
+   -                inputs = {k: v.cuda() for k, v in inputs.items()}
+   +                inputs = None
+   
+### x_classify_weather__mutmut_17
+   @@ -37,3 +37,3 @@
+                with torch.inference_mode():
+   -                outputs = model(**inputs)
+   +                outputs = None
+                    logits = outputs.logits
+### x_classify_weather__mutmut_18
+   @@ -38,3 +38,3 @@
+                    outputs = model(**inputs)
+   -                logits = outputs.logits
+   +                logits = None
+   
+### x_classify_weather__mutmut_19
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = None
+   
+### x_classify_weather__mutmut_2
+   @@ -21,3 +21,3 @@
+   
+   -        model = model_dict["model"]
+   +        model = model_dict["XXmodelXX"]
+            processor = model_dict["processor"]
+### x_classify_weather__mutmut_20
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(None, dim=-1)[0]
+   
+### x_classify_weather__mutmut_21
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(logits, dim=None)[0]
+   
+### x_classify_weather__mutmut_22
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(dim=-1)[0]
+   
+### x_classify_weather__mutmut_23
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(logits, )[0]
+   
+### x_classify_weather__mutmut_24
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(logits, dim=+1)[0]
+   
+### x_classify_weather__mutmut_25
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(logits, dim=-2)[0]
+   
+### x_classify_weather__mutmut_26
+   @@ -41,3 +41,3 @@
+                # Get probabilities via softmax
+   -            probs = torch.nn.functional.softmax(logits, dim=-1)[0]
+   +            probs = torch.nn.functional.softmax(logits, dim=-1)[1]
+   
+### x_classify_weather__mutmut_27
+   @@ -44,3 +44,3 @@
+                # Get predicted class
+   -            pred_idx = int(probs.argmax().item())
+   +            pred_idx = None
+                confidence = probs[pred_idx].item()
+### x_classify_weather__mutmut_28
+   @@ -44,3 +44,3 @@
+                # Get predicted class
+   -            pred_idx = int(probs.argmax().item())
+   +            pred_idx = int(None)
+                confidence = probs[pred_idx].item()
+### x_classify_weather__mutmut_29
+   @@ -45,3 +45,3 @@
+                pred_idx = int(probs.argmax().item())
+   -            confidence = probs[pred_idx].item()
+   +            confidence = None
+   
+### x_classify_weather__mutmut_3
+   @@ -21,3 +21,3 @@
+   
+   -        model = model_dict["model"]
+   +        model = model_dict["MODEL"]
+            processor = model_dict["processor"]
+### x_classify_weather__mutmut_30
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr(model.config, "id2label") or model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_31
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr(None, "id2label") and model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_32
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr(model.config, None) and model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_33
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr("id2label") and model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_34
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr(model.config, ) and model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_35
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr(model.config, "XXid2labelXX") and model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_36
+   @@ -48,3 +48,3 @@
+                # Map to labels (handle model's id2label or use our list)
+   -            if hasattr(model.config, "id2label") and model.config.id2label:
+   +            if hasattr(model.config, "ID2LABEL") and model.config.id2label:
+                    raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+### x_classify_weather__mutmut_37
+   @@ -49,3 +49,3 @@
+                if hasattr(model.config, "id2label") and model.config.id2label:
+   -                raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+   +                raw_label = None
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+### x_classify_weather__mutmut_38
+   @@ -49,3 +49,3 @@
+                if hasattr(model.config, "id2label") and model.config.id2label:
+   -                raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+   +                raw_label = model.config.id2label.get(None, WEATHER_LABELS[pred_idx])
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+### x_classify_weather__mutmut_39
+   @@ -49,3 +49,3 @@
+                if hasattr(model.config, "id2label") and model.config.id2label:
+   -                raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+   +                raw_label = model.config.id2label.get(pred_idx, None)
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+### x_classify_weather__mutmut_4
+   @@ -22,3 +22,3 @@
+            model = model_dict["model"]
+   -        processor = model_dict["processor"]
+   +        processor = None
+   
+### x_classify_weather__mutmut_40
+   @@ -49,3 +49,3 @@
+                if hasattr(model.config, "id2label") and model.config.id2label:
+   -                raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+   +                raw_label = model.config.id2label.get(WEATHER_LABELS[pred_idx])
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+### x_classify_weather__mutmut_41
+   @@ -49,3 +49,3 @@
+                if hasattr(model.config, "id2label") and model.config.id2label:
+   -                raw_label = model.config.id2label.get(pred_idx, WEATHER_LABELS[pred_idx])
+   +                raw_label = model.config.id2label.get(pred_idx, )
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+### x_classify_weather__mutmut_42
+   @@ -51,3 +51,3 @@
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+   -                if "strom" in raw_label:
+   +                if "XXstromXX" in raw_label:
+                        raw_label = raw_label.replace("strom", "storm")
+### x_classify_weather__mutmut_43
+   @@ -51,3 +51,3 @@
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+   -                if "strom" in raw_label:
+   +                if "STROM" in raw_label:
+                        raw_label = raw_label.replace("strom", "storm")
+### x_classify_weather__mutmut_44
+   @@ -51,3 +51,3 @@
+                    # Normalize the typo "rain/strom" -> "rain/storm"
+   -                if "strom" in raw_label:
+   +                if "strom" not in raw_label:
+                        raw_label = raw_label.replace("strom", "storm")
+### x_classify_weather__mutmut_45
+   @@ -57,3 +57,3 @@
+                # Build all scores dict
+   -            all_scores = {}
+   +            all_scores = None
+                for i, label in enumerate(WEATHER_LABELS):
+### x_classify_weather__mutmut_46
+   @@ -58,3 +58,3 @@
+                all_scores = {}
+   -            for i, label in enumerate(WEATHER_LABELS):
+   +            for i, label in enumerate(None):
+                    score = probs[i].item()
+### x_classify_weather__mutmut_47
+   @@ -59,3 +59,3 @@
+                for i, label in enumerate(WEATHER_LABELS):
+   -                score = probs[i].item()
+   +                score = None
+                    all_scores[label] = score
+### x_classify_weather__mutmut_48
+   @@ -60,3 +60,3 @@
+                    score = probs[i].item()
+   -                all_scores[label] = score
+   +                all_scores[label] = None
+   
+### x_classify_weather__mutmut_49
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = None
+   
+### x_classify_weather__mutmut_5
+   @@ -22,3 +22,3 @@
+            model = model_dict["model"]
+   -        processor = model_dict["processor"]
+   +        processor = model_dict["XXprocessorXX"]
+   
+### x_classify_weather__mutmut_50
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(None, raw_label.split("/")[0])
+   
+### x_classify_weather__mutmut_51
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, None)
+   
+### x_classify_weather__mutmut_52
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label.split("/")[0])
+   
+### x_classify_weather__mutmut_53
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, )
+   
+### x_classify_weather__mutmut_54
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split(None)[0])
+   
+### x_classify_weather__mutmut_55
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("XX/XX")[0])
+   
+### x_classify_weather__mutmut_56
+   @@ -63,3 +63,3 @@
+                # Get simplified label
+   -            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[0])
+   +            simple_label = WEATHER_SIMPLE_LABELS.get(raw_label, raw_label.split("/")[1])
+   
+### x_classify_weather__mutmut_57
+   @@ -66,3 +66,3 @@
+                return WeatherResult(
+   -                condition=raw_label,
+   +                condition=None,
+                    simple_condition=simple_label,
+### x_classify_weather__mutmut_58
+   @@ -67,3 +67,3 @@
+                    condition=raw_label,
+   -                simple_condition=simple_label,
+   +                simple_condition=None,
+                    confidence=confidence,
+### x_classify_weather__mutmut_59
+   @@ -68,3 +68,3 @@
+                    simple_condition=simple_label,
+   -                confidence=confidence,
+   +                confidence=None,
+                    all_scores=all_scores,
+### x_classify_weather__mutmut_6
+   @@ -22,3 +22,3 @@
+            model = model_dict["model"]
+   -        processor = model_dict["processor"]
+   +        processor = model_dict["PROCESSOR"]
+   
+### x_classify_weather__mutmut_60
+   @@ -69,3 +69,3 @@
+                    confidence=confidence,
+   -                all_scores=all_scores,
+   +                all_scores=None,
+                )
+### x_classify_weather__mutmut_61
+   @@ -66,3 +66,2 @@
+                return WeatherResult(
+   -                condition=raw_label,
+                    simple_condition=simple_label,
+### x_classify_weather__mutmut_62
+   @@ -67,3 +67,2 @@
+                    condition=raw_label,
+   -                simple_condition=simple_label,
+                    confidence=confidence,
+### x_classify_weather__mutmut_63
+   @@ -68,3 +68,2 @@
+                    simple_condition=simple_label,
+   -                confidence=confidence,
+                    all_scores=all_scores,
+### x_classify_weather__mutmut_64
+   @@ -69,4 +69,3 @@
+                    confidence=confidence,
+   -                all_scores=all_scores,
+   -            )
+   +                )
+   
+### x_classify_weather__mutmut_65
+   @@ -72,3 +72,3 @@
+   
+   -        return await loop.run_in_executor(None, _classify)
+   +        return await loop.run_in_executor(None, None)
+   
+### x_classify_weather__mutmut_66
+   @@ -72,3 +72,3 @@
+   
+   -        return await loop.run_in_executor(None, _classify)
+   +        return await loop.run_in_executor(_classify)
+   
+### x_classify_weather__mutmut_67
+   @@ -72,3 +72,3 @@
+   
+   -        return await loop.run_in_executor(None, _classify)
+   +        return await loop.run_in_executor(None, )
+   
+### x_classify_weather__mutmut_68
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error(None, exc_info=True)
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_69
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error("Weather classification failed", exc_info=None)
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_7
+   @@ -24,3 +24,3 @@
+   
+   -        loop = asyncio.get_running_loop()
+   +        loop = None
+   
+### x_classify_weather__mutmut_71
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error("Weather classification failed", )
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_72
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error("XXWeather classification failedXX", exc_info=True)
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_73
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error("weather classification failed", exc_info=True)
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_74
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error("WEATHER CLASSIFICATION FAILED", exc_info=True)
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_75
+   @@ -75,3 +75,3 @@
+        except Exception as e:
+   -        logger.error("Weather classification failed", exc_info=True)
+   +        logger.error("Weather classification failed", exc_info=False)
+            raise RuntimeError(f"Weather classification failed: {e}") from e
+### x_classify_weather__mutmut_8
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = None
+   
+### x_classify_weather__mutmut_9
+   @@ -29,3 +29,3 @@
+                # Preprocess image
+   -            inputs = processor(images=image, return_tensors="pt")
+   +            inputs = processor(images=None, return_tensors="pt")
+   
+### x_format_weather_for_nemotron__mutmut_13
+   @@ -26,3 +26,3 @@
+        if condition == "foggy":
+   -        notes = " Visibility significantly reduced due to fog."
+   +        notes = "XX Visibility significantly reduced due to fog.XX"
+        elif condition == "rainy":
+### x_format_weather_for_nemotron__mutmut_14
+   @@ -26,3 +26,3 @@
+        if condition == "foggy":
+   -        notes = " Visibility significantly reduced due to fog."
+   +        notes = " visibility significantly reduced due to fog."
+        elif condition == "rainy":
+### x_format_weather_for_nemotron__mutmut_15
+   @@ -26,3 +26,3 @@
+        if condition == "foggy":
+   -        notes = " Visibility significantly reduced due to fog."
+   +        notes = " VISIBILITY SIGNIFICANTLY REDUCED DUE TO FOG."
+        elif condition == "rainy":
+### x_format_weather_for_nemotron__mutmut_16
+   @@ -27,3 +27,3 @@
+            notes = " Visibility significantly reduced due to fog."
+   -    elif condition == "rainy":
+   +    elif condition != "rainy":
+            notes = " Rain may affect visibility and detection accuracy."
+### x_format_weather_for_nemotron__mutmut_17
+   @@ -27,3 +27,3 @@
+            notes = " Visibility significantly reduced due to fog."
+   -    elif condition == "rainy":
+   +    elif condition == "XXrainyXX":
+            notes = " Rain may affect visibility and detection accuracy."
+### x_format_weather_for_nemotron__mutmut_18
+   @@ -27,3 +27,3 @@
+            notes = " Visibility significantly reduced due to fog."
+   -    elif condition == "rainy":
+   +    elif condition == "RAINY":
+            notes = " Rain may affect visibility and detection accuracy."
+### x_format_weather_for_nemotron__mutmut_19
+   @@ -28,3 +28,3 @@
+        elif condition == "rainy":
+   -        notes = " Rain may affect visibility and detection accuracy."
+   +        notes = None
+        elif condition == "snowy":
+### x_format_weather_for_nemotron__mutmut_2
+   @@ -18,3 +18,3 @@
+        if weather_result is None:
+   -        return "Weather: unknown (classification unavailable)"
+   +        return "XXWeather: unknown (classification unavailable)XX"
+   
+### x_format_weather_for_nemotron__mutmut_20
+   @@ -28,3 +28,3 @@
+        elif condition == "rainy":
+   -        notes = " Rain may affect visibility and detection accuracy."
+   +        notes = "XX Rain may affect visibility and detection accuracy.XX"
+        elif condition == "snowy":
+### x_format_weather_for_nemotron__mutmut_21
+   @@ -28,3 +28,3 @@
+        elif condition == "rainy":
+   -        notes = " Rain may affect visibility and detection accuracy."
+   +        notes = " rain may affect visibility and detection accuracy."
+        elif condition == "snowy":
+### x_format_weather_for_nemotron__mutmut_22
+   @@ -28,3 +28,3 @@
+        elif condition == "rainy":
+   -        notes = " Rain may affect visibility and detection accuracy."
+   +        notes = " RAIN MAY AFFECT VISIBILITY AND DETECTION ACCURACY."
+        elif condition == "snowy":
+### x_format_weather_for_nemotron__mutmut_23
+   @@ -29,3 +29,3 @@
+            notes = " Rain may affect visibility and detection accuracy."
+   -    elif condition == "snowy":
+   +    elif condition != "snowy":
+            notes = " Snow conditions may affect visibility and camera image quality."
+### x_format_weather_for_nemotron__mutmut_24
+   @@ -29,3 +29,3 @@
+            notes = " Rain may affect visibility and detection accuracy."
+   -    elif condition == "snowy":
+   +    elif condition == "XXsnowyXX":
+            notes = " Snow conditions may affect visibility and camera image quality."
+### x_format_weather_for_nemotron__mutmut_25
+   @@ -29,3 +29,3 @@
+            notes = " Rain may affect visibility and detection accuracy."
+   -    elif condition == "snowy":
+   +    elif condition == "SNOWY":
+            notes = " Snow conditions may affect visibility and camera image quality."
+### x_format_weather_for_nemotron__mutmut_26
+   @@ -30,3 +30,3 @@
+        elif condition == "snowy":
+   -        notes = " Snow conditions may affect visibility and camera image quality."
+   +        notes = None
+        elif condition == "cloudy":
+### x_format_weather_for_nemotron__mutmut_27
+   @@ -30,3 +30,3 @@
+        elif condition == "snowy":
+   -        notes = " Snow conditions may affect visibility and camera image quality."
+   +        notes = "XX Snow conditions may affect visibility and camera image quality.XX"
+        elif condition == "cloudy":
+### x_format_weather_for_nemotron__mutmut_28
+   @@ -30,3 +30,3 @@
+        elif condition == "snowy":
+   -        notes = " Snow conditions may affect visibility and camera image quality."
+   +        notes = " snow conditions may affect visibility and camera image quality."
+        elif condition == "cloudy":
+### x_format_weather_for_nemotron__mutmut_29
+   @@ -30,3 +30,3 @@
+        elif condition == "snowy":
+   -        notes = " Snow conditions may affect visibility and camera image quality."
+   +        notes = " SNOW CONDITIONS MAY AFFECT VISIBILITY AND CAMERA IMAGE QUALITY."
+        elif condition == "cloudy":
+### x_format_weather_for_nemotron__mutmut_3
+   @@ -18,3 +18,3 @@
+        if weather_result is None:
+   -        return "Weather: unknown (classification unavailable)"
+   +        return "weather: unknown (classification unavailable)"
+   
+### x_format_weather_for_nemotron__mutmut_31
+   @@ -31,3 +31,3 @@
+            notes = " Snow conditions may affect visibility and camera image quality."
+   -    elif condition == "cloudy":
+   +    elif condition == "XXcloudyXX":
+            notes = " Overcast conditions with potentially reduced lighting."
+### x_format_weather_for_nemotron__mutmut_32
+   @@ -31,3 +31,3 @@
+            notes = " Snow conditions may affect visibility and camera image quality."
+   -    elif condition == "cloudy":
+   +    elif condition == "CLOUDY":
+            notes = " Overcast conditions with potentially reduced lighting."
+### x_format_weather_for_nemotron__mutmut_33
+   @@ -32,3 +32,3 @@
+        elif condition == "cloudy":
+   -        notes = " Overcast conditions with potentially reduced lighting."
+   +        notes = None
+        elif condition == "clear":
+### x_format_weather_for_nemotron__mutmut_34
+   @@ -32,3 +32,3 @@
+        elif condition == "cloudy":
+   -        notes = " Overcast conditions with potentially reduced lighting."
+   +        notes = "XX Overcast conditions with potentially reduced lighting.XX"
+        elif condition == "clear":
+### x_format_weather_for_nemotron__mutmut_35
+   @@ -32,3 +32,3 @@
+        elif condition == "cloudy":
+   -        notes = " Overcast conditions with potentially reduced lighting."
+   +        notes = " overcast conditions with potentially reduced lighting."
+        elif condition == "clear":
+### x_format_weather_for_nemotron__mutmut_36
+   @@ -32,3 +32,3 @@
+        elif condition == "cloudy":
+   -        notes = " Overcast conditions with potentially reduced lighting."
+   +        notes = " OVERCAST CONDITIONS WITH POTENTIALLY REDUCED LIGHTING."
+        elif condition == "clear":
+### x_format_weather_for_nemotron__mutmut_4
+   @@ -18,3 +18,3 @@
+        if weather_result is None:
+   -        return "Weather: unknown (classification unavailable)"
+   +        return "WEATHER: UNKNOWN (CLASSIFICATION UNAVAILABLE)"
+   
+### x_format_weather_for_nemotron__mutmut_41
+   @@ -34,3 +34,3 @@
+        elif condition == "clear":
+   -        notes = " Good visibility conditions."
+   +        notes = "XX Good visibility conditions.XX"
+   
+### x_format_weather_for_nemotron__mutmut_42
+   @@ -34,3 +34,3 @@
+        elif condition == "clear":
+   -        notes = " Good visibility conditions."
+   +        notes = " good visibility conditions."
+   
+### x_format_weather_for_nemotron__mutmut_43
+   @@ -34,3 +34,3 @@
+        elif condition == "clear":
+   -        notes = " Good visibility conditions."
+   +        notes = " GOOD VISIBILITY CONDITIONS."
+   
+### x_format_weather_for_nemotron__mutmut_7
+   @@ -24,3 +24,3 @@
+        # Add visibility/condition notes based on weather
+   -    notes = ""
+   +    notes = None
+        if condition == "foggy":
+### x_format_weather_for_nemotron__mutmut_8
+   @@ -24,3 +24,3 @@
+        # Add visibility/condition notes based on weather
+   -    notes = ""
+   +    notes = "XXXX"
+        if condition == "foggy":
+### x_get_visibility_factor__mutmut_23
+   @@ -33,3 +33,3 @@
+   
+   -    base_factor = visibility_map.get(condition, 0.8)
+   +    base_factor = visibility_map.get(condition, None)
+   
+### x_get_visibility_factor__mutmut_25
+   @@ -33,3 +33,3 @@
+   
+   -    base_factor = visibility_map.get(condition, 0.8)
+   +    base_factor = visibility_map.get(condition, )
+   
+### x_get_visibility_factor__mutmut_26
+   @@ -33,3 +33,3 @@
+   
+   -    base_factor = visibility_map.get(condition, 0.8)
+   +    base_factor = visibility_map.get(condition, 1.8)
+   
+### x_get_weather_risk_modifier__mutmut_14
+   @@ -36,3 +36,3 @@
+        # Foggy/snowy conditions increase uncertainty due to low visibility
+   -    if condition in ("foggy", "snowy"):
+   +    if condition in ("foggy", "XXsnowyXX"):
+            return 0.1
+### x_get_weather_risk_modifier__mutmut_15
+   @@ -36,3 +36,3 @@
+        # Foggy/snowy conditions increase uncertainty due to low visibility
+   -    if condition in ("foggy", "snowy"):
+   +    if condition in ("foggy", "SNOWY"):
+            return 0.1
+### x_get_weather_risk_modifier__mutmut_17
+   @@ -40,3 +40,3 @@
+        # Clear night increases suspicion (good visibility for prowlers but dark)
+   -    if condition == "clear" and is_nighttime:
+   +    if condition == "clear" or is_nighttime:
+            return 0.25
+### x_get_weather_risk_modifier__mutmut_3
+   @@ -26,3 +26,3 @@
+        # Check confidence threshold
+   -    if weather.confidence < WEATHER_CONFIDENCE_THRESHOLD:
+   +    if weather.confidence <= WEATHER_CONFIDENCE_THRESHOLD:
+            return 0.0
+### x_is_nighttime__mutmut_1
+   @@ -2,3 +2,3 @@
+   
+   -def FNNAME((timestamp: datetime, timezone: str = "UTC") -> bool:  # noqa: ARG001
+   +def FNNAME((timestamp: datetime, timezone: str = "XXUTCXX") -> bool:  # noqa: ARG001
+        """Check if timestamp is during nighttime hours.
+### x_is_nighttime__mutmut_2
+   @@ -2,3 +2,3 @@
+   
+   -def FNNAME((timestamp: datetime, timezone: str = "UTC") -> bool:  # noqa: ARG001
+   +def FNNAME((timestamp: datetime, timezone: str = "utc") -> bool:  # noqa: ARG001
+        """Check if timestamp is during nighttime hours.
+### x_is_nighttime__mutmut_6
+   @@ -17,2 +17,2 @@
+        hour = timestamp.hour
+   -    return hour >= NIGHTTIME_START_HOUR or hour < NIGHTTIME_END_HOUR
+   +    return hour >= NIGHTTIME_START_HOUR or hour <= NIGHTTIME_END_HOUR
+### x_is_nighttime_from_image__mutmut_10
+   @@ -22,3 +22,3 @@
+            brightness = float(img_array.mean()) / 255.0
+   -    elif img_array.shape[2] >= 3:
+   +    elif img_array.shape[2] > 3:
+            # RGB image - use luminance formula
+### x_is_nighttime_from_image__mutmut_11
+   @@ -22,3 +22,3 @@
+            brightness = float(img_array.mean()) / 255.0
+   -    elif img_array.shape[2] >= 3:
+   +    elif img_array.shape[2] >= 4:
+            # RGB image - use luminance formula
+### x_is_nighttime_from_image__mutmut_13
+   @@ -24,3 +24,3 @@
+            # RGB image - use luminance formula
+   -        r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   +        r, g, b = img_array[:, :, 1], img_array[:, :, 1], img_array[:, :, 2]
+            brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+### x_is_nighttime_from_image__mutmut_14
+   @@ -24,3 +24,3 @@
+            # RGB image - use luminance formula
+   -        r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   +        r, g, b = img_array[:, :, 0], img_array[:, :, 2], img_array[:, :, 2]
+            brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+### x_is_nighttime_from_image__mutmut_19
+   @@ -25,3 +25,3 @@
+            r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   -        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+   +        brightness = float((0.299 * r + 0.587 * g - 0.114 * b).mean()) / 255.0
+        else:
+### x_is_nighttime_from_image__mutmut_21
+   @@ -25,3 +25,3 @@
+            r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   -        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+   +        brightness = float((0.299 / r + 0.587 * g + 0.114 * b).mean()) / 255.0
+        else:
+### x_is_nighttime_from_image__mutmut_23
+   @@ -25,3 +25,3 @@
+            r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   -        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+   +        brightness = float((0.299 * r + 0.587 / g + 0.114 * b).mean()) / 255.0
+        else:
+### x_is_nighttime_from_image__mutmut_25
+   @@ -25,3 +25,3 @@
+            r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   -        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+   +        brightness = float((0.299 * r + 0.587 * g + 0.114 / b).mean()) / 255.0
+        else:
+### x_is_nighttime_from_image__mutmut_27
+   @@ -25,3 +25,3 @@
+            r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+   -        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
+   +        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 256.0
+        else:
+### x_is_nighttime_from_image__mutmut_29
+   @@ -29,2 +29,2 @@
+   
+   -    return bool(brightness < NIGHTTIME_BRIGHTNESS_THRESHOLD)
+   +    return bool(brightness <= NIGHTTIME_BRIGHTNESS_THRESHOLD)
+### x_is_nighttime_from_image__mutmut_8
+   @@ -21,3 +21,3 @@
+            # Grayscale image
+   -        brightness = float(img_array.mean()) / 255.0
+   +        brightness = float(img_array.mean()) / 256.0
+        elif img_array.shape[2] >= 3:
+### x_load_weather_model__mutmut_10
+   @@ -53,3 +53,3 @@
+                """Load model and processor synchronously."""
+   -            processor = AutoImageProcessor.from_pretrained(model_path)
+   +            processor = AutoImageProcessor.from_pretrained(None)
+                model = AutoModelForImageClassification.from_pretrained(model_path)
+### x_load_weather_model__mutmut_12
+   @@ -54,3 +54,3 @@
+                processor = AutoImageProcessor.from_pretrained(model_path)
+   -            model = AutoModelForImageClassification.from_pretrained(model_path)
+   +            model = AutoModelForImageClassification.from_pretrained(None)
+   
+### x_load_weather_model__mutmut_14
+   @@ -59,3 +59,3 @@
+                    model = model.cuda().half()  # Use fp16 for efficiency
+   -                logger.info("Weather model moved to CUDA with fp16")
+   +                logger.info(None)
+                else:
+### x_load_weather_model__mutmut_15
+   @@ -59,3 +59,3 @@
+                    model = model.cuda().half()  # Use fp16 for efficiency
+   -                logger.info("Weather model moved to CUDA with fp16")
+   +                logger.info("XXWeather model moved to CUDA with fp16XX")
+                else:
+### x_load_weather_model__mutmut_16
+   @@ -59,3 +59,3 @@
+                    model = model.cuda().half()  # Use fp16 for efficiency
+   -                logger.info("Weather model moved to CUDA with fp16")
+   +                logger.info("weather model moved to cuda with fp16")
+                else:
+### x_load_weather_model__mutmut_17
+   @@ -59,3 +59,3 @@
+                    model = model.cuda().half()  # Use fp16 for efficiency
+   -                logger.info("Weather model moved to CUDA with fp16")
+   +                logger.info("WEATHER MODEL MOVED TO CUDA WITH FP16")
+                else:
+### x_load_weather_model__mutmut_26
+   @@ -70,3 +70,3 @@
+   
+   -        logger.info(f"Successfully loaded Weather Classification model from {model_path}")
+   +        logger.info(None)
+            return result
+### x_load_weather_model__mutmut_27
+   @@ -75,4 +75,3 @@
+            logger.warning(
+   -            "transformers or torch package not installed. "
+   -            "Install with: pip install transformers torch"
+   +            None
+            )
+### x_load_weather_model__mutmut_28
+   @@ -75,3 +75,3 @@
+            logger.warning(
+   -            "transformers or torch package not installed. "
+   +            "XXtransformers or torch package not installed. XX"
+                "Install with: pip install transformers torch"
+### x_load_weather_model__mutmut_29
+   @@ -75,3 +75,3 @@
+            logger.warning(
+   -            "transformers or torch package not installed. "
+   +            "TRANSFORMERS OR TORCH PACKAGE NOT INSTALLED. "
+                "Install with: pip install transformers torch"
+### x_load_weather_model__mutmut_3
+   @@ -28,3 +28,3 @@
+                raise RuntimeError(
+   -                "Weather Classification requires a CUDA GPU — ViT CPU inference "
+   +                "XXWeather Classification requires a CUDA GPU — ViT CPU inference XX"
+                    "holds the GIL for 5-15 s per frame and starves the async event loop. "
+### x_load_weather_model__mutmut_31
+   @@ -79,3 +79,3 @@
+            raise ImportError(
+   -            "Weather classification requires transformers and torch. "
+   +            "XXWeather classification requires transformers and torch. XX"
+                "Install with: pip install transformers torch"
+### x_load_weather_model__mutmut_32
+   @@ -79,3 +79,3 @@
+            raise ImportError(
+   -            "Weather classification requires transformers and torch. "
+   +            "weather classification requires transformers and torch. "
+                "Install with: pip install transformers torch"
+### x_load_weather_model__mutmut_34
+   @@ -85,3 +85,3 @@
+            logger.error(
+   -            "Failed to load Weather Classification model",
+   +            None,
+                exc_info=True,
+### x_load_weather_model__mutmut_35
+   @@ -86,3 +86,3 @@
+                "Failed to load Weather Classification model",
+   -            exc_info=True,
+   +            exc_info=None,
+                extra={"model_path": model_path},
+### x_load_weather_model__mutmut_36
+   @@ -87,3 +87,3 @@
+                exc_info=True,
+   -            extra={"model_path": model_path},
+   +            extra=None,
+            )
+### x_load_weather_model__mutmut_38
+   @@ -86,3 +86,2 @@
+                "Failed to load Weather Classification model",
+   -            exc_info=True,
+                extra={"model_path": model_path},
+### x_load_weather_model__mutmut_39
+   @@ -87,4 +87,3 @@
+                exc_info=True,
+   -            extra={"model_path": model_path},
+   -        )
+   +            )
+            raise RuntimeError(f"Failed to load Weather Classification model: {e}") from e
+### x_load_weather_model__mutmut_40
+   @@ -85,3 +85,3 @@
+            logger.error(
+   -            "Failed to load Weather Classification model",
+   +            "XXFailed to load Weather Classification modelXX",
+                exc_info=True,
+### x_load_weather_model__mutmut_41
+   @@ -85,3 +85,3 @@
+            logger.error(
+   -            "Failed to load Weather Classification model",
+   +            "failed to load weather classification model",
+                exc_info=True,
+### x_load_weather_model__mutmut_42
+   @@ -85,3 +85,3 @@
+            logger.error(
+   -            "Failed to load Weather Classification model",
+   +            "FAILED TO LOAD WEATHER CLASSIFICATION MODEL",
+                exc_info=True,
+### x_load_weather_model__mutmut_43
+   @@ -86,3 +86,3 @@
+                "Failed to load Weather Classification model",
+   -            exc_info=True,
+   +            exc_info=False,
+                extra={"model_path": model_path},
+### x_load_weather_model__mutmut_44
+   @@ -87,3 +87,3 @@
+                exc_info=True,
+   -            extra={"model_path": model_path},
+   +            extra={"XXmodel_pathXX": model_path},
+            )
+### x_load_weather_model__mutmut_45
+   @@ -87,3 +87,3 @@
+                exc_info=True,
+   -            extra={"model_path": model_path},
+   +            extra={"MODEL_PATH": model_path},
+            )
+### x_load_weather_model__mutmut_6
+   @@ -33,3 +33,3 @@
+   
+   -        logger.info(f"Loading Weather Classification model from {model_path}")
+   +        logger.info(None)
+   
+### x_load_weather_model__mutmut_9
+   @@ -53,3 +53,3 @@
+                """Load model and processor synchronously."""
+   -            processor = AutoImageProcessor.from_pretrained(model_path)
+   +            processor = None
+                model = AutoModelForImageClassification.from_pretrained(model_path)

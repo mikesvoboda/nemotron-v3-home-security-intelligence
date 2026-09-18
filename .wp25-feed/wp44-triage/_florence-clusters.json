@@ -1,0 +1,262 @@
+{
+ "A1 wrong-breaker-on-open-circuit (endpoint arg -> None)": [
+  "describe_regions__mutmut_1",
+  "detect_security_objects__mutmut_1",
+  "ocr_with_regions__mutmut_1",
+  "phrase_grounding__mutmut_1"
+ ],
+ "A2 wrong-breaker-on-open-circuit (endpoint name string mutated)": [
+  "describe_regions__mutmut_2",
+  "describe_regions__mutmut_3",
+  "describe_regions__mutmut_6",
+  "describe_regions__mutmut_7",
+  "detect_security_objects__mutmut_2",
+  "detect_security_objects__mutmut_3",
+  "detect_security_objects__mutmut_6",
+  "detect_security_objects__mutmut_7",
+  "ocr_with_regions__mutmut_2",
+  "ocr_with_regions__mutmut_3",
+  "ocr_with_regions__mutmut_6",
+  "ocr_with_regions__mutmut_7",
+  "phrase_grounding__mutmut_2",
+  "phrase_grounding__mutmut_3",
+  "phrase_grounding__mutmut_6",
+  "phrase_grounding__mutmut_7"
+ ],
+ "A3 wrong-breaker-on-open-circuit (endpoint arg -> None)": [
+  "describe_regions__mutmut_5",
+  "detect_security_objects__mutmut_5",
+  "ocr_with_regions__mutmut_5",
+  "phrase_grounding__mutmut_5"
+ ],
+ "B1 logger call argument clobbered (text-only)": [
+  "describe_regions__mutmut_9",
+  "describe_regions__mutmut_97",
+  "detect_security_objects__mutmut_9",
+  "detect_security_objects__mutmut_10",
+  "detect_security_objects__mutmut_11",
+  "detect_security_objects__mutmut_12",
+  "ocr_with_regions__mutmut_9",
+  "ocr_with_regions__mutmut_10",
+  "ocr_with_regions__mutmut_11",
+  "ocr_with_regions__mutmut_12",
+  "ocr_with_regions__mutmut_38",
+  "ocr_with_regions__mutmut_98",
+  "phrase_grounding__mutmut_9",
+  "phrase_grounding__mutmut_105"
+ ],
+ "A11 request construction removed (encode/payload/post -> None)": [
+  "describe_regions__mutmut_10",
+  "describe_regions__mutmut_12",
+  "detect_security_objects__mutmut_13",
+  "detect_security_objects__mutmut_14",
+  "detect_security_objects__mutmut_15",
+  "ocr_with_regions__mutmut_13",
+  "ocr_with_regions__mutmut_15",
+  "phrase_grounding__mutmut_10"
+ ],
+ "A5 HTTP payload key string mutated": [
+  "describe_regions__mutmut_13",
+  "describe_regions__mutmut_14",
+  "describe_regions__mutmut_15",
+  "describe_regions__mutmut_16",
+  "detect_security_objects__mutmut_16",
+  "detect_security_objects__mutmut_17",
+  "ocr_with_regions__mutmut_16",
+  "ocr_with_regions__mutmut_17"
+ ],
+ "A10 request body (json payload) dropped": [
+  "describe_regions__mutmut_20",
+  "describe_regions__mutmut_23",
+  "detect_security_objects__mutmut_21",
+  "detect_security_objects__mutmut_24",
+  "ocr_with_regions__mutmut_21",
+  "ocr_with_regions__mutmut_24"
+ ],
+ "A9 correlation/tracing headers dropped": [
+  "describe_regions__mutmut_21",
+  "describe_regions__mutmut_24",
+  "detect_security_objects__mutmut_19",
+  "detect_security_objects__mutmut_22",
+  "detect_security_objects__mutmut_25",
+  "ocr_with_regions__mutmut_22",
+  "ocr_with_regions__mutmut_25",
+  "phrase_grounding__mutmut_21",
+  "phrase_grounding__mutmut_24"
+ ],
+ "B3 duration arithmetic mutated (feeds debug log/metric value only)": [
+  "describe_regions__mutmut_26",
+  "describe_regions__mutmut_61",
+  "describe_regions__mutmut_63",
+  "describe_regions__mutmut_64",
+  "describe_regions__mutmut_65",
+  "detect_security_objects__mutmut_8",
+  "detect_security_objects__mutmut_18",
+  "ocr_with_regions__mutmut_27",
+  "ocr_with_regions__mutmut_62",
+  "ocr_with_regions__mutmut_64",
+  "ocr_with_regions__mutmut_65",
+  "ocr_with_regions__mutmut_66",
+  "phrase_grounding__mutmut_26",
+  "phrase_grounding__mutmut_69",
+  "phrase_grounding__mutmut_71",
+  "phrase_grounding__mutmut_72",
+  "phrase_grounding__mutmut_73"
+ ],
+ "C3 observe_ai_request_duration label/None mutated": [
+  "describe_regions__mutmut_27",
+  "describe_regions__mutmut_31",
+  "describe_regions__mutmut_32",
+  "ocr_with_regions__mutmut_28",
+  "ocr_with_regions__mutmut_32",
+  "ocr_with_regions__mutmut_33",
+  "phrase_grounding__mutmut_27",
+  "phrase_grounding__mutmut_31",
+  "phrase_grounding__mutmut_32"
+ ],
+ "Z UNCLASSIFIED [describe_regions]: -f\"Malformed describe region response (missing 'descriptions'): {result}\" +None": [
+  "describe_regions__mutmut_37"
+ ],
+ "C2 record_pipeline_error(None)": [
+  "describe_regions__mutmut_38",
+  "describe_regions__mutmut_70",
+  "describe_regions__mutmut_77",
+  "describe_regions__mutmut_87",
+  "describe_regions__mutmut_94",
+  "detect_security_objects__mutmut_26",
+  "ocr_with_regions__mutmut_39",
+  "ocr_with_regions__mutmut_71",
+  "ocr_with_regions__mutmut_78",
+  "ocr_with_regions__mutmut_88",
+  "ocr_with_regions__mutmut_95",
+  "ocr_with_regions__mutmut_99",
+  "phrase_grounding__mutmut_38",
+  "phrase_grounding__mutmut_78",
+  "phrase_grounding__mutmut_85",
+  "phrase_grounding__mutmut_95",
+  "phrase_grounding__mutmut_102"
+ ],
+ "C1 record_pipeline_error label string mutated": [
+  "describe_regions__mutmut_39",
+  "describe_regions__mutmut_40",
+  "describe_regions__mutmut_71",
+  "describe_regions__mutmut_72",
+  "describe_regions__mutmut_78",
+  "describe_regions__mutmut_79",
+  "describe_regions__mutmut_88",
+  "describe_regions__mutmut_89",
+  "describe_regions__mutmut_95",
+  "describe_regions__mutmut_96",
+  "detect_security_objects__mutmut_27",
+  "detect_security_objects__mutmut_28",
+  "ocr_with_regions__mutmut_40",
+  "ocr_with_regions__mutmut_41",
+  "ocr_with_regions__mutmut_72",
+  "ocr_with_regions__mutmut_73",
+  "ocr_with_regions__mutmut_79",
+  "ocr_with_regions__mutmut_80",
+  "ocr_with_regions__mutmut_89",
+  "ocr_with_regions__mutmut_90",
+  "ocr_with_regions__mutmut_96",
+  "ocr_with_regions__mutmut_97",
+  "ocr_with_regions__mutmut_100",
+  "ocr_with_regions__mutmut_101",
+  "phrase_grounding__mutmut_39",
+  "phrase_grounding__mutmut_40",
+  "phrase_grounding__mutmut_79",
+  "phrase_grounding__mutmut_80",
+  "phrase_grounding__mutmut_86",
+  "phrase_grounding__mutmut_87",
+  "phrase_grounding__mutmut_96",
+  "phrase_grounding__mutmut_97",
+  "phrase_grounding__mutmut_103",
+  "phrase_grounding__mutmut_104"
+ ],
+ "A6 response-parsing .get() key/default mutated": [
+  "describe_regions__mutmut_43",
+  "describe_regions__mutmut_47",
+  "describe_regions__mutmut_49",
+  "describe_regions__mutmut_52",
+  "describe_regions__mutmut_53",
+  "describe_regions__mutmut_54",
+  "describe_regions__mutmut_56",
+  "describe_regions__mutmut_57",
+  "describe_regions__mutmut_58",
+  "phrase_grounding__mutmut_49",
+  "phrase_grounding__mutmut_51",
+  "phrase_grounding__mutmut_54",
+  "phrase_grounding__mutmut_56",
+  "phrase_grounding__mutmut_58",
+  "phrase_grounding__mutmut_62",
+  "phrase_grounding__mutmut_64"
+ ],
+ "C4 record_florence_task label/None mutated": [
+  "describe_regions__mutmut_66",
+  "describe_regions__mutmut_67",
+  "describe_regions__mutmut_68",
+  "ocr_with_regions__mutmut_67",
+  "ocr_with_regions__mutmut_68",
+  "ocr_with_regions__mutmut_69",
+  "phrase_grounding__mutmut_74",
+  "phrase_grounding__mutmut_75",
+  "phrase_grounding__mutmut_76"
+ ],
+ "Z UNCLASSIFIED [describe_regions]: -f\"Florence describe region completed: {len(descriptions)} regions in {duration_m +None": [
+  "describe_regions__mutmut_69"
+ ],
+ "A7 error-chain metadata dropped (original_error=None / kwarg removed)": [
+  "describe_regions__mutmut_74",
+  "describe_regions__mutmut_76",
+  "describe_regions__mutmut_81",
+  "describe_regions__mutmut_83",
+  "describe_regions__mutmut_91",
+  "describe_regions__mutmut_93",
+  "detect_security_objects__mutmut_30",
+  "detect_security_objects__mutmut_32",
+  "ocr_with_regions__mutmut_75",
+  "ocr_with_regions__mutmut_77",
+  "ocr_with_regions__mutmut_82",
+  "ocr_with_regions__mutmut_84",
+  "ocr_with_regions__mutmut_92",
+  "ocr_with_regions__mutmut_94",
+  "ocr_with_regions__mutmut_103",
+  "ocr_with_regions__mutmut_105",
+  "phrase_grounding__mutmut_82",
+  "phrase_grounding__mutmut_84",
+  "phrase_grounding__mutmut_89",
+  "phrase_grounding__mutmut_91",
+  "phrase_grounding__mutmut_99",
+  "phrase_grounding__mutmut_101"
+ ],
+ "A4 breaker handle clobbered to None": [
+  "detect_security_objects__mutmut_4"
+ ],
+ "A12 HTTP URL string arg clobbered/removed": [
+  "detect_security_objects__mutmut_20",
+  "detect_security_objects__mutmut_23"
+ ],
+ "Z UNCLASSIFIED [detect_security_objects]: -f\"Failed to connect to Florence service for security objects: {e}\", +None,": [
+  "detect_security_objects__mutmut_29"
+ ],
+ "Z UNCLASSIFIED [detect_security_objects]: -f\"Failed to connect to Florence service for security objects: {e}\", +": [
+  "detect_security_objects__mutmut_31"
+ ],
+ "Z UNCLASSIFIED [ocr_with_regions]: -f\"Florence OCR regions completed: {len(regions)} regions in {duration_ms}ms\" +None": [
+  "ocr_with_regions__mutmut_70"
+ ],
+ "A8 HTTP 500 boundary flip in 5xx-vs-4xx branch": [
+  "ocr_with_regions__mutmut_86",
+  "ocr_with_regions__mutmut_87",
+  "phrase_grounding__mutmut_93",
+  "phrase_grounding__mutmut_94"
+ ],
+ "B2 exception message text clobbered": [
+  "ocr_with_regions__mutmut_106"
+ ],
+ "Z UNCLASSIFIED [phrase_grounding]: -f\"Malformed phrase grounding response (missing 'grounded_phrases'): {result}\" +None": [
+  "phrase_grounding__mutmut_37"
+ ],
+ "Z UNCLASSIFIED [phrase_grounding]: -f\"Florence phrase grounding completed: {len(grounded)} phrases in {duration_ms}m +None": [
+  "phrase_grounding__mutmut_77"
+ ]
+}

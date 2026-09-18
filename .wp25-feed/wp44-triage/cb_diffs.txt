@@ -1,0 +1,523 @@
+total variant blocks found: 522
+### CircuitBreakerErrorǁ__init____mutmut_3
+   -        self.recovery_timeout = recovery_timeout
+   +        self.recovery_timeout = None
+### CircuitBreakerErrorǁ__init____mutmut_9
+   -                self.state = CircuitState(state)
+   +                self.state = CircuitState(None)
+### CircuitBreakerRegistryǁ__init____mutmut_2
+   -        self._lock = asyncio.Lock()
+   +        self._lock = None
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerRegistryǁget_or_create__mutmut)
+   +    def get_or_create(
+   +        self,
+   +        name: str,
+   +        config: CircuitBreakerConfig | None = None,
+   +    ) -> CircuitBreaker:
+   +        """Get existing circuit breaker or create new one.
+   +
+   +        Args:
+   +            name: Unique name for the circuit breaker
+   +            config: Configuration (uses defaults if not provided)
+   +
+   +        Returns:
+   +            CircuitBreaker instance
+   +        """
+   +        if name not in self._breakers:
+   +            self._breakers[name] = CircuitBreaker(
+   +                name=name,
+   +                config=config or CircuitBreakerConfig(),
+   +            )
+   +        return self._breakers[name]
+   +
+### CircuitBreakerRegistryǁreset_all__mutmut_1
+   -        logger.info(f"Reset all {len(self._breakers)} circuit breakers")
+   +        logger.info(None)
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerRegistryǁlist_names__mutmut)
+   +    def list_names(self) -> list[str]:
+   +        """List all registered circuit breaker names.
+   +
+   +        Returns:
+   +            List of circuit breaker names
+   +        """
+   +        return list(self._breakers.keys())
+   +
+### CircuitBreakerǁ__aenter____mutmut_10
+   -                raise CircuitBreakerError(self._name, self._state)
+   +                raise CircuitBreakerError(self._state)
+### CircuitBreakerǁ__aenter____mutmut_11
+   -                raise CircuitBreakerError(self._name, self._state)
+   +                raise CircuitBreakerError(self._name, )
+### CircuitBreakerǁ__aenter____mutmut_12
+   -            if self._state == CircuitState.HALF_OPEN:
+   +            if self._state != CircuitState.HALF_OPEN:
+### CircuitBreakerǁ__aenter____mutmut_13
+   -                self._half_open_calls += 1
+   +                self._half_open_calls = 1
+### CircuitBreakerǁ__aenter____mutmut_14
+   -                self._half_open_calls += 1
+   +                self._half_open_calls -= 1
+### CircuitBreakerǁ__aenter____mutmut_15
+   -                self._half_open_calls += 1
+   +                self._half_open_calls += 2
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerǁ__aexit____mutmut)
+   +    async def __aexit__(
+   +        self,
+   +        exc_type: type[BaseException] | None,
+   +        exc_val: BaseException | None,
+   +        exc_tb: Any,
+   +    ) -> None:
+   +        """Async context manager exit.
+   +
+   +        Records success or failure based on exception.
+   +        """
+   +        if exc_type is None:
+   +            await self._record_success()
+   +        elif not isinstance(exc_val, self._config.excluded_exceptions):
+   +            await self._record_failure()
+   +
+### CircuitBreakerǁ__aenter____mutmut_5
+   -                self._rejected_calls += 1
+   +                self._rejected_calls = 1
+### CircuitBreakerǁ__aenter____mutmut_6
+   -                self._rejected_calls += 1
+   +                self._rejected_calls -= 1
+### CircuitBreakerǁ__aenter____mutmut_7
+   -                self._rejected_calls += 1
+   +                self._rejected_calls += 2
+### CircuitBreakerǁ__aenter____mutmut_8
+   -                raise CircuitBreakerError(self._name, self._state)
+   +                raise CircuitBreakerError(None, self._state)
+### CircuitBreakerǁ__aenter____mutmut_9
+   -                raise CircuitBreakerError(self._name, self._state)
+   +                raise CircuitBreakerError(self._name, None)
+### CircuitBreakerǁ_transition_to_closed__mutmut_10
+   -        self._last_state_change = datetime.now(UTC)
+   +        self._last_state_change = datetime.now(None)
+### CircuitBreakerǁ_transition_to_closed__mutmut_12
+   -        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        CIRCUIT_BREAKER_STATE.labels(service=None).set(0)
+### CircuitBreakerǁ_transition_to_closed__mutmut_15
+   -        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=None).set(0)
+### CircuitBreakerǁ_transition_to_closed__mutmut_16
+   -        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(1)
+### CircuitBreakerǁ_transition_to_closed__mutmut_17
+   -            service=self._name,
+   +            service=None,
+### CircuitBreakerǁ_transition_to_closed__mutmut_18
+   -            from_state="half_open",
+   +            from_state=None,
+### CircuitBreakerǁ_transition_to_closed__mutmut_19
+   -            to_state="closed",
+   +            to_state=None,
+### CircuitBreakerǁ_transition_to_closed__mutmut_23
+   -            from_state="half_open",
+   +            from_state="XXhalf_openXX",
+### CircuitBreakerǁ_transition_to_closed__mutmut_24
+   -            from_state="half_open",
+   +            from_state="HALF_OPEN",
+### CircuitBreakerǁ_transition_to_closed__mutmut_25
+   -            to_state="closed",
+   +            to_state="XXclosedXX",
+### CircuitBreakerǁ_transition_to_closed__mutmut_26
+   -            to_state="closed",
+   +            to_state="CLOSED",
+### CircuitBreakerǁ_transition_to_closed__mutmut_27
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(None, "half_open", "closed")
+### CircuitBreakerǁ_transition_to_closed__mutmut_28
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(self._name, None, "closed")
+### CircuitBreakerǁ_transition_to_closed__mutmut_29
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(self._name, "half_open", None)
+### CircuitBreakerǁ_transition_to_closed__mutmut_33
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(self._name, "XXhalf_openXX", "closed")
+### CircuitBreakerǁ_transition_to_closed__mutmut_34
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(self._name, "HALF_OPEN", "closed")
+### CircuitBreakerǁ_transition_to_closed__mutmut_35
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(self._name, "half_open", "XXclosedXX")
+### CircuitBreakerǁ_transition_to_closed__mutmut_36
+   -        otel_record_state_change(self._name, "half_open", "closed")
+   +        otel_record_state_change(self._name, "half_open", "CLOSED")
+### CircuitBreakerǁ_transition_to_closed__mutmut_39
+   -            extra={
+   -                "service": self._name,
+   -                "from_state": "half_open",
+   -                "to_state": "closed",
+   -                **trace_ctx,
+   -            },
+   +            extra=None,
+### CircuitBreakerǁ_transition_to_closed__mutmut_41
+   -            extra={
+   -                "service": self._name,
+   -                "from_state": "half_open",
+   -                "to_state": "closed",
+   -                **trace_ctx,
+   -            },
+   -        )
+   +            )
+### CircuitBreakerǁ_transition_to_closed__mutmut_42
+   -                "service": self._name,
+   +                "XXserviceXX": self._name,
+### CircuitBreakerǁ_transition_to_closed__mutmut_43
+   -                "service": self._name,
+   +                "SERVICE": self._name,
+### CircuitBreakerǁ_transition_to_closed__mutmut_44
+   -                "from_state": "half_open",
+   +                "XXfrom_stateXX": "half_open",
+### CircuitBreakerǁ_transition_to_closed__mutmut_45
+   -                "from_state": "half_open",
+   +                "FROM_STATE": "half_open",
+### CircuitBreakerǁ_transition_to_closed__mutmut_46
+   -                "from_state": "half_open",
+   +                "from_state": "XXhalf_openXX",
+### CircuitBreakerǁ_transition_to_closed__mutmut_47
+   -                "from_state": "half_open",
+   +                "from_state": "HALF_OPEN",
+### CircuitBreakerǁ_transition_to_closed__mutmut_48
+   -                "to_state": "closed",
+   +                "XXto_stateXX": "closed",
+### CircuitBreakerǁ_transition_to_closed__mutmut_49
+   -                "to_state": "closed",
+   +                "TO_STATE": "closed",
+### CircuitBreakerǁ_transition_to_closed__mutmut_50
+   -                "to_state": "closed",
+   +                "to_state": "XXclosedXX",
+### CircuitBreakerǁ_transition_to_closed__mutmut_51
+   -                "to_state": "closed",
+   +                "to_state": "CLOSED",
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerǁreset__mutmut)
+   +    def reset(self) -> None:
+   +        """Manually reset circuit breaker to CLOSED state."""
+   +        prev_state = self._state
+   +        self._state = CircuitState.CLOSED
+   +        self._failure_count = 0
+   +        self._success_count = 0
+   +        self._opened_at = None
+   +        self._half_open_calls = 0
+   +        self._last_failure_time = None
+   +        self._last_state_change = datetime.now(UTC)
+   +
+   +        # Update Prometheus metrics (both legacy and HSI-prefixed)
+   +        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        if prev_state != CircuitState.CLOSED:
+   +            CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+   +                service=self._name,
+   +                from_state=prev_state.value,
+   +                to_state="closed",
+   +            ).inc()
+   +            # NEM-3799: Update OpenTelemetry metrics
+   +            otel_record_state_change(self._name, prev_state.value, "closed")
+   +
+   +        logger.info(f"CircuitBreaker '{self._name}' manually reset to CLOSED")
+   +
+### CircuitBreakerǁ_transition_to_half_open__mutmut_12
+   -        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(2)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=None).set(2)
+### CircuitBreakerǁ_transition_to_half_open__mutmut_13
+   -        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(2)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(3)
+### CircuitBreakerǁ_transition_to_half_open__mutmut_14
+   -            service=self._name,
+   +            service=None,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_15
+   -            from_state="open",
+   +            from_state=None,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_16
+   -            to_state="half_open",
+   +            to_state=None,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_20
+   -            from_state="open",
+   +            from_state="XXopenXX",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_21
+   -            from_state="open",
+   +            from_state="OPEN",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_22
+   -            to_state="half_open",
+   +            to_state="XXhalf_openXX",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_23
+   -            to_state="half_open",
+   +            to_state="HALF_OPEN",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_24
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(None, "open", "half_open")
+### CircuitBreakerǁ_transition_to_half_open__mutmut_25
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(self._name, None, "half_open")
+### CircuitBreakerǁ_transition_to_half_open__mutmut_26
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(self._name, "open", None)
+### CircuitBreakerǁ_transition_to_half_open__mutmut_30
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(self._name, "XXopenXX", "half_open")
+### CircuitBreakerǁ_transition_to_half_open__mutmut_31
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(self._name, "OPEN", "half_open")
+### CircuitBreakerǁ_transition_to_half_open__mutmut_32
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(self._name, "open", "XXhalf_openXX")
+### CircuitBreakerǁ_transition_to_half_open__mutmut_33
+   -        otel_record_state_change(self._name, "open", "half_open")
+   +        otel_record_state_change(self._name, "open", "HALF_OPEN")
+### CircuitBreakerǁ_transition_to_half_open__mutmut_36
+   -            extra={
+   -                "service": self._name,
+   -                "from_state": "open",
+   -                "to_state": "half_open",
+   -                "recovery_timeout": self._config.recovery_timeout,
+   -                **trace_ctx,
+   -            },
+   +            extra=None,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_38
+   -            extra={
+   -                "service": self._name,
+   -                "from_state": "open",
+   -                "to_state": "half_open",
+   -                "recovery_timeout": self._config.recovery_timeout,
+   -                **trace_ctx,
+   -            },
+   -        )
+   +            )
+### CircuitBreakerǁ_transition_to_half_open__mutmut_39
+   -                "service": self._name,
+   +                "XXserviceXX": self._name,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_40
+   -                "service": self._name,
+   +                "SERVICE": self._name,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_41
+   -                "from_state": "open",
+   +                "XXfrom_stateXX": "open",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_42
+   -                "from_state": "open",
+   +                "FROM_STATE": "open",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_43
+   -                "from_state": "open",
+   +                "from_state": "XXopenXX",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_44
+   -                "from_state": "open",
+   +                "from_state": "OPEN",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_45
+   -                "to_state": "half_open",
+   +                "XXto_stateXX": "half_open",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_46
+   -                "to_state": "half_open",
+   +                "TO_STATE": "half_open",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_47
+   -                "to_state": "half_open",
+   +                "to_state": "XXhalf_openXX",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_48
+   -                "to_state": "half_open",
+   +                "to_state": "HALF_OPEN",
+### CircuitBreakerǁ_transition_to_half_open__mutmut_49
+   -                "recovery_timeout": self._config.recovery_timeout,
+   +                "XXrecovery_timeoutXX": self._config.recovery_timeout,
+### CircuitBreakerǁ_transition_to_half_open__mutmut_50
+   -                "recovery_timeout": self._config.recovery_timeout,
+   +                "RECOVERY_TIMEOUT": self._config.recovery_timeout,
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerǁ_transition_to_closed__mutmut)
+   +    def _transition_to_closed(self) -> None:
+   +        """Transition circuit to CLOSED state."""
+   +        self._state = CircuitState.CLOSED
+   +        self._failure_count = 0
+   +        self._success_count = 0
+   +        self._opened_at = None
+   +        self._half_open_calls = 0
+   +        self._last_state_change = datetime.now(UTC)
+   +
+   +        # Update Prometheus metrics (both legacy and HSI-prefixed)
+   +        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+   +            service=self._name,
+   +            from_state="half_open",
+   +            to_state="closed",
+   +        ).inc()
+   +
+   +        # NEM-3799: Update OpenTelemetry metrics
+   +        otel_record_state_change(self._name, "half_open", "closed")
+   +
+   +        # NEM-3147: Include trace context for distributed tracing correlation
+   +        trace_ctx = get_trace_context()
+   +        logger.info(
+   +            f"CircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED (service recovered)",
+   +            extra={
+   +                "service": self._name,
+   +                "from_state": "half_open",
+   +                "to_state": "closed",
+   +                **trace_ctx,
+   +            },
+   +        )
+   +
+### CircuitBreakerǁ_transition_to_half_open__mutmut_7
+   -        self._last_state_change = datetime.now(UTC)
+   +        self._last_state_change = datetime.now(None)
+### CircuitBreakerǁ_transition_to_half_open__mutmut_9
+   -        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(2)
+   +        CIRCUIT_BREAKER_STATE.labels(service=None).set(2)
+### CircuitBreakerǁforce_open__mutmut_1
+   -            f"CircuitBreaker '{self._name}' force opened",
+   +            None,
+### CircuitBreakerǁget_metrics__mutmut_13
+   -            success_count=self._success_count,
+   +            success_count=None,
+### CircuitBreakerǁget_metrics__mutmut_17
+   -            last_state_change=self._last_state_change,
+   +            last_state_change=None,
+### CircuitBreakerǁget_metrics__mutmut_21
+   -            success_count=self._success_count,
+### CircuitBreakerǁget_metrics__mutmut_25
+   -            last_state_change=self._last_state_change,
+   -        )
+   +            )
+   +    # =========================================================================
+   +    # Compatibility Methods (for core/circuit_breaker.py interface)
+   +    # =========================================================================
+   +
+   +    def get_state(self) -> CircuitState:
+   +        """Get current circuit state (alias for state property).
+   +
+   +        Returns:
+   +            Current CircuitState
+   +        """
+   +        return self._state
+   +
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerǁallow_request__mutmut)
+   +    def allow_request(self) -> bool:
+   +        """Check if a request should proceed based on current state (sync version).
+   +
+   +        This method also handles state transitions from OPEN to HALF_OPEN
+   +        when the recovery timeout has elapsed. It also increments the
+   +        half_open_calls counter when in HALF_OPEN state.
+   +
+   +        Returns:
+   +            True if request should proceed, False if it should be rejected
+   +        """
+   +        allowed = self._allow_call_unlocked()
+   +        if allowed and self._state == CircuitState.HALF_OPEN:
+   +            self._half_open_calls += 1
+   +        return allowed
+   +
+### CircuitBreakerǁget_metrics__mutmut_4
+   -            elapsed = time.monotonic() - self._last_failure_time
+   +            elapsed = time.monotonic() + self._last_failure_time
+### CircuitBreakerǁget_metrics__mutmut_6
+   -            last_failure_dt = datetime.now(UTC)
+   +            last_failure_dt = datetime.now(None)
+### CircuitBreakerǁget_metrics__mutmut_8
+   -            last_failure_dt = last_failure_dt - timedelta(seconds=elapsed)
+   +            last_failure_dt = last_failure_dt + timedelta(seconds=elapsed)
+### CircuitBreakerǁget_state_info__mutmut_11
+   -            "half_open_max_calls": self._config.half_open_max_calls,
+   +            "XXhalf_open_max_callsXX": self._config.half_open_max_calls,
+### CircuitBreakerǁget_state_info__mutmut_12
+   -            "half_open_max_calls": self._config.half_open_max_calls,
+   +            "HALF_OPEN_MAX_CALLS": self._config.half_open_max_calls,
+### CircuitBreakerǁget_state_info__mutmut_13
+   -            "half_open_calls": self._half_open_calls,
+   +            "XXhalf_open_callsXX": self._half_open_calls,
+### CircuitBreakerǁget_state_info__mutmut_14
+   -            "half_open_calls": self._half_open_calls,
+   +            "HALF_OPEN_CALLS": self._half_open_calls,
+### CircuitBreakerǁget_state_info__mutmut_17
+   -            "last_state_change": (
+   +            "XXlast_state_changeXX": (
+### CircuitBreakerǁget_state_info__mutmut_18
+   -            "last_state_change": (
+   +            "LAST_STATE_CHANGE": (
+### CircuitBreakerǁget_state_info__mutmut_19
+   -                self._last_state_change.isoformat() if self._last_state_change else None
+   +                self._last_state_change.isoformat() if (self._last_state_change) and False else None
+### CircuitBreakerǁget_status__mutmut_11
+   -            "rejected_calls": self._rejected_calls,
+   +            "XXrejected_callsXX": self._rejected_calls,
+### CircuitBreakerǁget_status__mutmut_12
+   -            "rejected_calls": self._rejected_calls,
+   +            "REJECTED_CALLS": self._rejected_calls,
+### CircuitBreakerǁget_status__mutmut_13
+   -            "last_failure_time": self._last_failure_time,
+   +            "XXlast_failure_timeXX": self._last_failure_time,
+### CircuitBreakerǁget_status__mutmut_14
+   -            "last_failure_time": self._last_failure_time,
+   +            "LAST_FAILURE_TIME": self._last_failure_time,
+### CircuitBreakerǁget_status__mutmut_15
+   -            "opened_at": self._opened_at,
+   +            "XXopened_atXX": self._opened_at,
+### CircuitBreakerǁget_status__mutmut_16
+   -            "opened_at": self._opened_at,
+   +            "OPENED_AT": self._opened_at,
+### CircuitBreakerǁget_status__mutmut_7
+   -            "success_count": self._success_count,
+   +            "XXsuccess_countXX": self._success_count,
+### CircuitBreakerǁget_status__mutmut_8
+   -            "success_count": self._success_count,
+   +            "SUCCESS_COUNT": self._success_count,
+### CircuitBreakerǁreset__mutmut_12
+   -        self._last_state_change = datetime.now(UTC)
+   +        self._last_state_change = datetime.now(None)
+### CircuitBreakerǁreset__mutmut_14
+   -        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        CIRCUIT_BREAKER_STATE.labels(service=None).set(0)
+### CircuitBreakerǁreset__mutmut_15
+   -        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        CIRCUIT_BREAKER_STATE.labels(service=self._name).set(1)
+### CircuitBreakerǁreset__mutmut_17
+   -        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=None).set(0)
+### CircuitBreakerǁreset__mutmut_18
+   -        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(0)
+   +        HSI_CIRCUIT_BREAKER_STATE.labels(service=self._name).set(1)
+### CircuitBreakerǁreset__mutmut_19
+   -        if prev_state != CircuitState.CLOSED:
+   +        if prev_state == CircuitState.CLOSED:
+### CircuitBreakerǁreset__mutmut_20
+   -                service=self._name,
+   +                service=None,
+### CircuitBreakerǁreset__mutmut_21
+   -                from_state=prev_state.value,
+   +                from_state=None,
+### CircuitBreakerǁreset__mutmut_22
+   -                to_state="closed",
+   +                to_state=None,
+### CircuitBreakerǁreset__mutmut_26
+   -                to_state="closed",
+   +                to_state="XXclosedXX",
+### CircuitBreakerǁreset__mutmut_27
+   -                to_state="closed",
+   +                to_state="CLOSED",
+### CircuitBreakerǁreset__mutmut_28
+   -            otel_record_state_change(self._name, prev_state.value, "closed")
+   +            otel_record_state_change(None, prev_state.value, "closed")
+### CircuitBreakerǁreset__mutmut_29
+   -            otel_record_state_change(self._name, prev_state.value, "closed")
+   +            otel_record_state_change(self._name, None, "closed")
+### CircuitBreakerǁreset__mutmut_30
+   -            otel_record_state_change(self._name, prev_state.value, "closed")
+   +            otel_record_state_change(self._name, prev_state.value, None)
+### CircuitBreakerǁreset__mutmut_34
+   -            otel_record_state_change(self._name, prev_state.value, "closed")
+   +            otel_record_state_change(self._name, prev_state.value, "XXclosedXX")
+### CircuitBreakerǁreset__mutmut_35
+   -            otel_record_state_change(self._name, prev_state.value, "closed")
+   +            otel_record_state_change(self._name, prev_state.value, "CLOSED")
+### CircuitBreakerǁreset__mutmut_36
+   -        logger.info(f"CircuitBreaker '{self._name}' manually reset to CLOSED")
+   +        logger.info(None)
+   +    @_mutmut_mutated(mutants_xǁCircuitBreakerǁforce_open__mutmut)
+   +    def force_open(self) -> None:
+   +        """Force circuit breaker to open state (for maintenance)."""
+   +        logger.warning(
+   +            f"CircuitBreaker '{self._name}' force opened",
+   +        )
+   +        self._transition_to_open()
+   +        self._last_failure_time = time.monotonic()
+   +
+### CircuitOpenErrorǁ__init____mutmut_1
+   -        super().__init__(f"Circuit open for {service_name}")
+   +        super().__init__(None)

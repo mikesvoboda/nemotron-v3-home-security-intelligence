@@ -1,0 +1,898 @@
+[
+ {
+  "fn": "x\u01c1GpuAssignment\u01c1to_dict",
+  "diff": "-            \"vram_budget_override\": self.vram_budget_override,\n+            \"XXvram_budget_overrideXX\": self.vram_budget_override,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuAssignment\u01c1to_dict__mutmut_7"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuAssignment\u01c1to_dict",
+  "diff": "-            \"vram_budget_override\": self.vram_budget_override,\n+            \"VRAM_BUDGET_OVERRIDE\": self.vram_budget_override,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuAssignment\u01c1to_dict__mutmut_8"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        \"--version\",\n+                        None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_11",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_22"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        stdout=asyncio.subprocess.DEVNULL,\n+                        stdout=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_12",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_23"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        stderr=asyncio.subprocess.DEVNULL,\n+                        stderr=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_13",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_24"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        *parts,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_14"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        \"--version\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_15",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_26"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        stdout=asyncio.subprocess.DEVNULL,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_16",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_27"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        stderr=asyncio.subprocess.DEVNULL,\n-                    )\n+                        )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_17",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_28"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        \"--version\",\n+                        \"XX--versionXX\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_18",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_29"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        \"--version\",\n+                        \"--VERSION\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_19",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_30"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        cmd,\n+                        None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_21"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                        cmd,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_25"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                    logger.debug(f\"Using compose command: {cmd}\")\n+                    logger.debug(None)",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_33"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                continue\n+                break",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_34"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-        for cmd in [\"podman-compose\", \"docker-compose\", \"docker compose\"]:\n+        for cmd in [\"podman-compose\", \"docker-compose\", \"XXdocker composeXX\"]:",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_5"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-        for cmd in [\"podman-compose\", \"docker-compose\", \"docker compose\"]:\n+        for cmd in [\"podman-compose\", \"docker-compose\", \"DOCKER COMPOSE\"]:",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_6"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                if \" \" in cmd:\n+                if \"XX XX\" in cmd:",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_7"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_get_compose_command",
+  "diff": "-                if \" \" in cmd:\n+                if \" \" not in cmd:",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_get_compose_command__mutmut_8"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            f\"Restarting service via compose: {service_name}\",\n+            None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_1"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            logger.error(\"Neither podman-compose nor docker-compose found\")\n+            logger.error(\"XXNeither podman-compose nor docker-compose foundXX\")",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_10"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            logger.error(\"Neither podman-compose nor docker-compose found\")\n+            logger.error(\"neither podman-compose nor docker-compose found\")",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_11"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            logger.error(\"Neither podman-compose nor docker-compose found\")\n+            logger.error(\"NEITHER PODMAN-COMPOSE NOR DOCKER-COMPOSE FOUND\")",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_12"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"-f\",\n+            \"XX-fXX\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_15",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_18"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"-f\",\n+            \"-F\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_16",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_19"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            str(self._compose_file),\n+            str(None),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_17"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            extra={\"service_name\": service_name},\n+            extra=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_2"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            str(self._override_file),\n+            str(None),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_20"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"up\",\n+            \"XXupXX\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_21"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"up\",\n+            \"UP\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_22"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"-d\",\n+            \"XX-dXX\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_23"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"-d\",\n+            \"-D\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_24"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"--force-recreate\",\n+            \"XX--force-recreateXX\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_25"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"--force-recreate\",\n+            \"--FORCE-RECREATE\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_26"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"--no-deps\",\n+            \"XX--no-depsXX\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_27"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            \"--no-deps\",\n+            \"--NO-DEPS\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_28"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                stdout=asyncio.subprocess.PIPE,\n+                stdout=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_30"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                stderr=asyncio.subprocess.PIPE,\n+                stderr=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_31"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                cwd=str(self._project_root),\n+                cwd=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_32"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                stdout=asyncio.subprocess.PIPE,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_34"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                stderr=asyncio.subprocess.PIPE,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_35"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                cwd=str(self._project_root),\n-            )\n+                )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_36"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                cwd=str(self._project_root),\n+                cwd=str(None),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_37"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            extra={\"service_name\": service_name},\n-        )\n+            )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_4"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    timeout=self.COMPOSE_TIMEOUT,\n+                    timeout=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_40"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    f\"Compose command timed out for {service_name}\",\n+                    None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_43"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    extra={\n-                        \"service_name\": service_name,\n-                        \"timeout\": self.COMPOSE_TIMEOUT,\n-                    },\n+                    extra=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_44"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    extra={\n-                        \"service_name\": service_name,\n-                        \"timeout\": self.COMPOSE_TIMEOUT,\n-                    },\n-                )\n+                    )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_46"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"service_name\": service_name,\n+                        \"XXservice_nameXX\": service_name,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_47",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_58",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_71"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"service_name\": service_name,\n+                        \"SERVICE_NAME\": service_name,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_48",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_59",
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_72"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"timeout\": self.COMPOSE_TIMEOUT,\n+                        \"XXtimeoutXX\": self.COMPOSE_TIMEOUT,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_49"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            extra={\"service_name\": service_name},\n+            extra={\"XXservice_nameXX\": service_name},",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_5"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"timeout\": self.COMPOSE_TIMEOUT,\n+                        \"TIMEOUT\": self.COMPOSE_TIMEOUT,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_50"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    f\"Successfully restarted {service_name}\",\n+                    None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_54"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    extra={\n-                        \"service_name\": service_name,\n-                        \"returncode\": 0,\n-                        \"stdout\": stdout.decode().strip()[:500],\n-                    },\n+                    extra=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_55"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    extra={\n-                        \"service_name\": service_name,\n-                        \"returncode\": 0,\n-                        \"stdout\": stdout.decode().strip()[:500],\n-                    },\n-                )\n+                    )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_57"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            extra={\"service_name\": service_name},\n+            extra={\"SERVICE_NAME\": service_name},",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_6"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"returncode\": 0,\n+                        \"XXreturncodeXX\": 0,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_60"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"returncode\": 0,\n+                        \"RETURNCODE\": 0,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_61"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"returncode\": 0,\n+                        \"returncode\": 1,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_62"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"stdout\": stdout.decode().strip()[:500],\n+                        \"XXstdoutXX\": stdout.decode().strip()[:500],",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_63"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"stdout\": stdout.decode().strip()[:500],\n+                        \"STDOUT\": stdout.decode().strip()[:500],",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_64"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"stdout\": stdout.decode().strip()[:500],\n+                        \"stdout\": stdout.decode().strip()[:501],",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_65"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    f\"Failed to restart {service_name}: exit code {process.returncode}\",\n+                    None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_67"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    extra={\n-                        \"service_name\": service_name,\n-                        \"returncode\": process.returncode,\n-                        \"stderr\": stderr.decode().strip()[:500],\n-                    },\n+                    extra=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_68"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    f\"Failed to restart {service_name}: exit code {process.returncode}\",",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_69"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                    extra={\n-                        \"service_name\": service_name,\n-                        \"returncode\": process.returncode,\n-                        \"stderr\": stderr.decode().strip()[:500],\n-                    },\n-                )\n+                    )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_70"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"returncode\": process.returncode,\n+                        \"XXreturncodeXX\": process.returncode,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_73"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"returncode\": process.returncode,\n+                        \"RETURNCODE\": process.returncode,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_74"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"stderr\": stderr.decode().strip()[:500],\n+                        \"XXstderrXX\": stderr.decode().strip()[:500],",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_75"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"stderr\": stderr.decode().strip()[:500],\n+                        \"STDERR\": stderr.decode().strip()[:500],",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_76"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-                        \"stderr\": stderr.decode().strip()[:500],\n+                        \"stderr\": stderr.decode().strip()[:501],",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_77"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_recreate_service",
+  "diff": "-            logger.error(\"Neither podman-compose nor docker-compose found\")\n+            logger.error(None)",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_recreate_service__mutmut_9"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        started_at = datetime.fromisoformat(data[\"started_at\"])\n+        started_at = None",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_1"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        service_statuses: dict[str, ServiceRestartStatus] = {}\n+        service_statuses: dict[str, ServiceRestartStatus] = None",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_13"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        for name, status_data in data.get(\"service_statuses\", {}).items():\n+        for name, status_data in data.get(None, {}).items():",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_14"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        for name, status_data in data.get(\"service_statuses\", {}).items():\n+        for name, status_data in data.get(\"service_statuses\", None).items():",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_15"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        for name, status_data in data.get(\"service_statuses\", {}).items():\n+        for name, status_data in data.get(\"service_statuses\", ).items():",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_17"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        for name, status_data in data.get(\"service_statuses\", {}).items():\n+        for name, status_data in data.get(\"XXservice_statusesXX\", {}).items():",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_18"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        for name, status_data in data.get(\"service_statuses\", {}).items():\n+        for name, status_data in data.get(\"SERVICE_STATUSES\", {}).items():",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_19"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            started_at=started_at,\n+            started_at=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_22"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            completed_at=completed_at,\n+            completed_at=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_23"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),\n+            changed_services=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_24"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            service_statuses=service_statuses,\n+            service_statuses=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_25"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_26"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            completed_at=completed_at,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_30"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_31"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            service_statuses=service_statuses,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_32"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            error=data.get(\"error\"),\n-        )\n+            )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_33"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),\n+            changed_services=data.get(None, []),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_38"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),\n+            changed_services=data.get(\"changed_services\", None),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_39"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),\n+            changed_services=data.get(\"changed_services\", ),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_41"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),\n+            changed_services=data.get(\"XXchanged_servicesXX\", []),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_42"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            changed_services=data.get(\"changed_services\", []),\n+            changed_services=data.get(\"CHANGED_SERVICES\", []),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_43"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=data.get(None),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_44"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=data.get(\"XXerrorXX\"),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_45"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=data.get(\"ERROR\"),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_46"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        completed_at = None\n+        completed_at = \"\"",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_5"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        if data.get(\"completed_at\"):\n+        if data.get(None):",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_6"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        if data.get(\"completed_at\"):\n+        if data.get(\"XXcompleted_atXX\"):",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_7"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-        if data.get(\"completed_at\"):\n+        if data.get(\"COMPLETED_AT\"):",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_8"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1_result_from_dict",
+  "diff": "-            completed_at = datetime.fromisoformat(data[\"completed_at\"])\n+            completed_at = None",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1_result_from_dict__mutmut_9"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                container = await self._docker_client.get_container_by_name(service_name)\n+                container = await self._docker_client.get_container_by_name(None)",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_11"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                        container.id\n+                        None",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_13"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                    f\"Failed to get container status for {service_name}: {e}\",\n+                    None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_15"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                    extra={\"service_name\": service_name},\n+                    extra=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_16"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                    extra={\"service_name\": service_name},\n-                )\n+                    )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_18"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                    extra={\"service_name\": service_name},\n+                    extra={\"XXservice_nameXX\": service_name},",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_19"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-            logger.warning(\"Docker client not available for container status check\")\n+            logger.warning(None)",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_2"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-                    extra={\"service_name\": service_name},\n+                    extra={\"SERVICE_NAME\": service_name},",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_20"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-            logger.warning(\"Docker client not available for container status check\")\n+            logger.warning(\"XXDocker client not available for container status checkXX\")",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_3"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-            logger.warning(\"Docker client not available for container status check\")\n+            logger.warning(\"docker client not available for container status check\")",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_4"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-            logger.warning(\"Docker client not available for container status check\")\n+            logger.warning(\"DOCKER CLIENT NOT AVAILABLE FOR CONTAINER STATUS CHECK\")",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_5"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_container_status",
+  "diff": "-            return dict.fromkeys(service_names, None)\n+            return dict.fromkeys(service_names, )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_container_status__mutmut_8"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_operation_status",
+  "diff": "-            key = f\"{REDIS_GPU_CONFIG_PREFIX}:operation:{operation_id}\"\n+            key = None",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_operation_status__mutmut_2"
+  ]
+ },
+ {
+  "fn": "x\u01c1GpuConfigService\u01c1get_operation_status",
+  "diff": "-            data = await self._redis.get(key)\n+            data = await self._redis.get(None)",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1GpuConfigService\u01c1get_operation_status__mutmut_4"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-        if data.get(\"completed_at\"):\n+        if data.get(None):",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_10"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-        if data.get(\"completed_at\"):\n+        if data.get(\"XXcompleted_atXX\"):",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_11"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-        if data.get(\"completed_at\"):\n+        if data.get(\"COMPLETED_AT\"):",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_12"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            completed_at=completed_at,\n+            completed_at=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_16"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=None,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_17"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            completed_at=completed_at,",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_21"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            error=data.get(\"error\"),\n-        )\n+            )",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_22"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=data.get(None),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_28"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=data.get(\"XXerrorXX\"),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_29"
+  ]
+ },
+ {
+  "fn": "x\u01c1ServiceRestartStatus\u01c1from_dict",
+  "diff": "-            error=data.get(\"error\"),\n+            error=data.get(\"ERROR\"),",
+  "keys": [
+   "backend.services.gpu_config_service.x\u01c1ServiceRestartStatus\u01c1from_dict__mutmut_30"
+  ]
+ }
+]

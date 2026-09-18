@@ -1,0 +1,11 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_redis_match__mutmut_21
+# backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_redis_match__mutmut_21: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -19,5 +19,4 @@
+         similarity=match.similarity,
+         time_gap_seconds=match.time_gap_seconds,
+         source="redis",
+-        entity=None,
+-    )
++        )

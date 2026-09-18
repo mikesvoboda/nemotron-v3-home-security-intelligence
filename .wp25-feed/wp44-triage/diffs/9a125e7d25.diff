@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_60: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -58,7 +58,7 @@
+             for det_id, result in self.person_embeddings.items()
+         },
+         "smoke_fire_detection": (
+-            self.smoke_fire_detection.to_dict() if self.smoke_fire_detection else None
++            self.smoke_fire_detection.to_dict() if (self.smoke_fire_detection) and False else None
+         ),
+         "yolo_world_detections": self.yolo_world_detections,
+         # Household matching results (NEM-3314, NEM-5512/5513/5514 - detection-attributed)

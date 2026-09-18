@@ -1,0 +1,20 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_35: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -54,15 +54,7 @@
+         ),
+         # Pose analysis (ViTPose) - convert PoseResult to dict format
+         "pose_analysis": format_pose_analysis_context(
+-            {
+-                det_id: {
+-                    "classification": pose.pose_class,
+-                    "confidence": pose.pose_confidence,
+-                }
+-                for det_id, pose in self.pose_results.items()
+-            }
+-            if self.pose_results
+-            else None
++            None
+         ),
+         # Action recognition (X-CLIP)
+         "action_recognition": format_action_recognition_context(

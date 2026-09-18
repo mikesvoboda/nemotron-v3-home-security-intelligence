@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__parse_range_header__mutmut_68: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -37,7 +37,7 @@
+     start = max(0, start)
+     end = min(end, file_size - 1)
+ 
+-    if start > end:
++    if start >= end:
+         raise ValueError("Invalid range: start > end")
+ 
+     return start, end

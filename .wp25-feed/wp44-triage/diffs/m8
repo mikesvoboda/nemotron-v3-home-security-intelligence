@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_video__mutmut_8: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -20,7 +20,7 @@
+             video_path=video_path,
+             output_path=None,  # Let it generate a temporary path
+             timestamp=None,  # Use smart default timestamp
+-            size=(1920, 1080),  # Larger size for full view
++            size=(1921, 1080),  # Larger size for full view
+         )
+         if not frame_path or not os.path.exists(frame_path):
+             raise HTTPException(

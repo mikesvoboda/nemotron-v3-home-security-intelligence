@@ -33,20 +33,28 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
+      # .wp25-feed/ is mutation-triage EVIDENCE (mutmut diff dumps, dossier
+      # prose, frozen meta snapshots): content must stay byte-for-byte as
+      # produced (trailing-whitespace/end-of-file-fixer would silently amend
+      # mutant payloads; the dumps are not source and must not be parsed,
+      # linted, formatted or secret-scanned as such). Same ruling as the
+      # prettier exclusion below and the ^mutants/ exclusions throughout.
       - id: trailing-whitespace
-        exclude: \.ambr$ # Syrupy snapshot files require trailing whitespace
+        exclude: (\.ambr$|^\.wp25-feed/) # Syrupy snapshot files require trailing whitespace
       - id: end-of-file-fixer
+        exclude: ^\.wp25-feed/
       - id: check-yaml
         exclude: mkdocs\.yml$ # mkdocs.yml uses Python tags (!!python/name:) that safe_load can't parse
       - id: check-json
-        exclude: tsconfig.*\.json$
+        exclude: (tsconfig.*\.json$|^\.wp25-feed/)
       - id: check-added-large-files
         args: ['--maxkb=1000']
         exclude: ^docs/images/.*\.png$
       - id: check-merge-conflict
       - id: detect-private-key
         # Exclude test files that contain mock/fake private keys for testing
-        exclude: ^backend/tests/.*test_config\.py$
+        # (+ the triage evidence tree: mutant payloads contain fake-key strings)
+        exclude: (^backend/tests/.*test_config\.py$|^\.wp25-feed/)
 
   # Commit message linting - enforces conventional commit format
   - repo: https://github.com/compilerla/conventional-pre-commit
@@ -74,7 +82,7 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$)
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^\.wp25-feed/|\.tsbuildinfo$)
 
   # Auto-regenerate secrets baseline if it has conflicts or is out of date
   # Runs on every commit but only regenerates when baseline is invalid/conflicted
@@ -117,7 +125,7 @@ repos:
         # helpers.py (migration DDL operations require raw SQL),
         # nemo_data_designer (synthetic test data generation intentionally uses random),
         # and vehicle_classifier_loader.py (file path is from internal model directory, not user input)
-        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/|backend/services/vehicle_classifier_loader\.py$)
+        exclude: (^mutants/|^\.wp25-feed/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/|backend/services/vehicle_classifier_loader\.py$)
 
   # Python - Ruff (fast linter + formatter)
   # NOTE: Keep in sync with uv.lock ruff version for consistent behavior
@@ -130,10 +138,10 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         types_or: [python, pyi]
-        exclude: ^mutants/
+        exclude: (^mutants/|^\.wp25-feed/) # evidence diffs ARE mutated code
       - id: ruff-format
         types_or: [python, pyi]
-        exclude: ^mutants/
+        exclude: (^mutants/|^\.wp25-feed/)
 
   # Python - Type checking with mypy
   # rev + additional_dependencies track uv.lock so the hook and CI's
@@ -162,7 +170,10 @@ repos:
     hooks:
       - id: prettier
         types_or: [css, json, markdown, yaml]
-        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$)
+        # .wp25-feed/ is triage PROSE-COMPUTE: prettier pairs mid-word
+        # underscores into emphasis (read_through_cache -> read*through_cache),
+        # silently corrupting module identifiers. Do not format it.
+        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$|^\.wp25-feed/)
         additional_dependencies:
           - prettier@3.2.4
 

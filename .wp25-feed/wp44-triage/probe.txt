@@ -1,0 +1,12 @@
+# backend.services.xclip_loader.x_load_xclip_model__mutmut_6: survived
+--- backend/services/xclip_loader.py
++++ backend/services/xclip_loader.py
+@@ -29,7 +29,7 @@
+                 "Skipping on CPU-only host."
+             )
+ 
+-        logger.info(f"Loading X-CLIP model from {model_path}")
++        logger.info(None)
+ 
+         loop = asyncio.get_running_loop()
+ 

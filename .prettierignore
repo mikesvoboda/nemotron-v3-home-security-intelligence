@@ -1,0 +1,3 @@
+# Triage feed is prose-compute: prettier rewrites identifier underscores into
+# emphasis pairs (read_through_cache -> read*through_cache). Never format it.
+.wp25-feed/

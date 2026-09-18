@@ -1,0 +1,13 @@
+# backend.api.routes.health_ai_services.x__get_queue_depths__mutmut_58: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -43,8 +43,7 @@
+         return {
+             "detection_queue": QueueDepthInfo(
+                 depth=safe_int(detection_depth),
+-                dlq_depth=detection_dlq_depth,
+-            ),
++                ),
+             "analysis_queue": QueueDepthInfo(
+                 depth=safe_int(analysis_depth),
+                 dlq_depth=analysis_dlq_depth,

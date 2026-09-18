@@ -1,0 +1,732 @@
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_3 [DIFF]
+-            redis_client=redis_client,
++            redis_client=None,
+
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_4 [DIFF]
+-            broadcaster=broadcaster,
++            broadcaster=None,
+
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_5 [DIFF]
+-            redis_client=redis_client,
+
+### backend.services.pg_notify_listener.x_get_pg_notify_listener__mutmut_6 [DIFF]
+-            broadcaster=broadcaster,
+-        )
++            )
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_10 [DIFF]
+-            "source": "pg_notify",
++            "source": "PG_NOTIFY",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_18 [DIFF]
+-                "event_id": alert_data.get("event_id"),
++                "XXevent_idXX": alert_data.get("event_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_19 [DIFF]
+-                "event_id": alert_data.get("event_id"),
++                "EVENT_ID": alert_data.get("event_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_20 [DIFF]
+-                "event_id": alert_data.get("event_id"),
++                "event_id": alert_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_21 [DIFF]
+-                "event_id": alert_data.get("event_id"),
++                "event_id": alert_data.get("XXevent_idXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_22 [DIFF]
+-                "event_id": alert_data.get("event_id"),
++                "event_id": alert_data.get("EVENT_ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_23 [DIFF]
+-                "rule_id": alert_data.get("rule_id"),
++                "XXrule_idXX": alert_data.get("rule_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_24 [DIFF]
+-                "rule_id": alert_data.get("rule_id"),
++                "RULE_ID": alert_data.get("rule_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_25 [DIFF]
+-                "rule_id": alert_data.get("rule_id"),
++                "rule_id": alert_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_26 [DIFF]
+-                "rule_id": alert_data.get("rule_id"),
++                "rule_id": alert_data.get("XXrule_idXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_27 [DIFF]
+-                "rule_id": alert_data.get("rule_id"),
++                "rule_id": alert_data.get("RULE_ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_33 [DIFF]
+-                "status": alert_data.get("status"),
++                "XXstatusXX": alert_data.get("status"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_34 [DIFF]
+-                "status": alert_data.get("status"),
++                "STATUS": alert_data.get("status"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_35 [DIFF]
+-                "status": alert_data.get("status"),
++                "status": alert_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_36 [DIFF]
+-                "status": alert_data.get("status"),
++                "status": alert_data.get("XXstatusXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_37 [DIFF]
+-                "status": alert_data.get("status"),
++                "status": alert_data.get("STATUS"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_39 [DIFF]
+-                await self._redis.publish(settings.redis_event_channel, message)
++                await self._redis.publish(None, message)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_43 [DIFF]
+-                logger.error(f"Failed to publish alert to Redis: {e}")
++                logger.error(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_44 [DIFF]
+-            "Published new alert notification",
++            None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_45 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
++            extra=None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_47 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
+-        )
++            )
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_48 [DIFF]
+-            "Published new alert notification",
++            "XXPublished new alert notificationXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_49 [DIFF]
+-            "Published new alert notification",
++            "published new alert notification",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_50 [DIFF]
+-            "Published new alert notification",
++            "PUBLISHED NEW ALERT NOTIFICATION",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_51 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
++            extra={"XXalert_idXX": alert_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_52 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
++            extra={"ALERT_ID": alert_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_53 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
++            extra={"alert_id": alert_data.get(None)},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_54 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
++            extra={"alert_id": alert_data.get("XXidXX")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_55 [DIFF]
+-            extra={"alert_id": alert_data.get("id")},
++            extra={"alert_id": alert_data.get("ID")},
++
++    @_mutmut_mutated(mutants_xǁPgNotifyListenerǁ_listen_loop__mutmut)
++    async def _listen_loop(self) -> None:
++        """Main listener loop that keeps the connection alive.
++
++        This loop monitors the connection and handles reconnection if needed.
++        """
++        while self._is_running:
++            try:
++                # Keep connection alive by checking periodically
++                if self._connection is None or self._connection.is_closed():
++                    logger.warning("Database connection lost, reconnecting...")
++                    self._is_healthy = False
++                    await self._connect()
++
++                # Sleep and let asyncpg handle notifications via callback
++                await asyncio.sleep(1.0)
++
++            except asyncio.CancelledError:
++                logger.info("Listen loop cancelled")
++                break
++            except Exception as e:
++                logger.error(f"Error in listen loop: {e}", exc_info=True)
++                self._is_healthy = False
++
++                # Attempt reconnection
++                if self._is_running:
++                    self._reconnect_attempts += 1
++                    if self._reconnect_attempts >= self.MAX_RECONNECT_ATTEMPTS:
++                        logger.error("Max reconnection attempts exceeded, stopping listener")
++                        break
++
++                    delay = min(
++                        self.BASE_RECONNECT_DELAY * (2 ** (self._reconnect_attempts - 1)),
++                        self.MAX_RECONNECT_DELAY,
++                    )
++                    await asyncio.sleep(delay)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_7 [DIFF]
+-            "source": "pg_notify",
++            "XXsourceXX": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_8 [DIFF]
+-            "source": "pg_notify",
++            "SOURCE": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_alert_new__mutmut_9 [DIFF]
+-            "source": "pg_notify",
++            "source": "XXpg_notifyXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_10 [DIFF]
+-            "source": "pg_notify",
++            "source": "PG_NOTIFY",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_18 [DIFF]
+-                "camera_id": detection_data.get("camera_id"),
++                "XXcamera_idXX": detection_data.get("camera_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_19 [DIFF]
+-                "camera_id": detection_data.get("camera_id"),
++                "CAMERA_ID": detection_data.get("camera_id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_20 [DIFF]
+-                "camera_id": detection_data.get("camera_id"),
++                "camera_id": detection_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_21 [DIFF]
+-                "camera_id": detection_data.get("camera_id"),
++                "camera_id": detection_data.get("XXcamera_idXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_22 [DIFF]
+-                "camera_id": detection_data.get("camera_id"),
++                "camera_id": detection_data.get("CAMERA_ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_33 [DIFF]
+-                "timestamp": detection_data.get("detected_at"),
++                "XXtimestampXX": detection_data.get("detected_at"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_34 [DIFF]
+-                "timestamp": detection_data.get("detected_at"),
++                "TIMESTAMP": detection_data.get("detected_at"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_35 [DIFF]
+-                "timestamp": detection_data.get("detected_at"),
++                "timestamp": detection_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_36 [DIFF]
+-                "timestamp": detection_data.get("detected_at"),
++                "timestamp": detection_data.get("XXdetected_atXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_37 [DIFF]
+-                "timestamp": detection_data.get("detected_at"),
++                "timestamp": detection_data.get("DETECTED_AT"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_39 [DIFF]
+-                await self._redis.publish(settings.redis_event_channel, message)
++                await self._redis.publish(None, message)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_43 [DIFF]
+-                logger.error(f"Failed to publish detection to Redis: {e}")
++                logger.error(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_44 [DIFF]
+-            "Published new detection notification",
++            None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_45 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
++            extra=None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_47 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
+-        )
++            )
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_48 [DIFF]
+-            "Published new detection notification",
++            "XXPublished new detection notificationXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_49 [DIFF]
+-            "Published new detection notification",
++            "published new detection notification",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_50 [DIFF]
+-            "Published new detection notification",
++            "PUBLISHED NEW DETECTION NOTIFICATION",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_51 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
++            extra={"XXdetection_idXX": detection_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_52 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
++            extra={"DETECTION_ID": detection_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_53 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
++            extra={"detection_id": detection_data.get(None)},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_54 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
++            extra={"detection_id": detection_data.get("XXidXX")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_55 [DIFF]
+-            extra={"detection_id": detection_data.get("id")},
++            extra={"detection_id": detection_data.get("ID")},
++
++    @_mutmut_mutated(mutants_xǁPgNotifyListenerǁ_handle_alert_new__mutmut)
++    async def _handle_alert_new(self, payload: PgNotifyPayload) -> None:
++        """Handle new alert notifications.
++
++        Args:
++            payload: Parsed notification payload
++        """
++        alert_data = payload.data
++
++        message = {
++            "type": "alert_created",
++            "source": "pg_notify",
++            "data": {
++                "id": alert_data.get("id"),
++                "event_id": alert_data.get("event_id"),
++                "rule_id": alert_data.get("rule_id"),
++                "severity": alert_data.get("severity"),
++                "status": alert_data.get("status"),
++            },
++        }
++
++        if self._redis:
++            try:
++                settings = get_settings()
++                await self._redis.publish(settings.redis_event_channel, message)
++            except Exception as e:
++                logger.error(f"Failed to publish alert to Redis: {e}")
++
++        logger.debug(
++            "Published new alert notification",
++            extra={"alert_id": alert_data.get("id")},
++        )
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_7 [DIFF]
+-            "source": "pg_notify",
++            "XXsourceXX": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_8 [DIFF]
+-            "source": "pg_notify",
++            "SOURCE": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_detection_new__mutmut_9 [DIFF]
+-            "source": "pg_notify",
++            "source": "XXpg_notifyXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_10 [DIFF]
+-            "source": "pg_notify",
++            "source": "PG_NOTIFY",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_13 [DIFF]
+-                "id": event_data.get("id"),
++                "XXidXX": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_14 [DIFF]
+-                "id": event_data.get("id"),
++                "ID": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_15 [DIFF]
+-                "id": event_data.get("id"),
++                "id": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_16 [DIFF]
+-                "id": event_data.get("id"),
++                "id": event_data.get("XXidXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_17 [DIFF]
+-                "id": event_data.get("id"),
++                "id": event_data.get("ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_18 [DIFF]
+-                "event_id": event_data.get("id"),
++                "XXevent_idXX": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_19 [DIFF]
+-                "event_id": event_data.get("id"),
++                "EVENT_ID": event_data.get("id"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_20 [DIFF]
+-                "event_id": event_data.get("id"),
++                "event_id": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_21 [DIFF]
+-                "event_id": event_data.get("id"),
++                "event_id": event_data.get("XXidXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_22 [DIFF]
+-                "event_id": event_data.get("id"),
++                "event_id": event_data.get("ID"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_23 [DIFF]
+-                "risk_score": event_data.get("risk_score"),
++                "XXrisk_scoreXX": event_data.get("risk_score"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_24 [DIFF]
+-                "risk_score": event_data.get("risk_score"),
++                "RISK_SCORE": event_data.get("risk_score"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_25 [DIFF]
+-                "risk_score": event_data.get("risk_score"),
++                "risk_score": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_26 [DIFF]
+-                "risk_score": event_data.get("risk_score"),
++                "risk_score": event_data.get("XXrisk_scoreXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_27 [DIFF]
+-                "risk_score": event_data.get("risk_score"),
++                "risk_score": event_data.get("RISK_SCORE"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_28 [DIFF]
+-                "risk_level": event_data.get("risk_level"),
++                "XXrisk_levelXX": event_data.get("risk_level"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_29 [DIFF]
+-                "risk_level": event_data.get("risk_level"),
++                "RISK_LEVEL": event_data.get("risk_level"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_30 [DIFF]
+-                "risk_level": event_data.get("risk_level"),
++                "risk_level": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_31 [DIFF]
+-                "risk_level": event_data.get("risk_level"),
++                "risk_level": event_data.get("XXrisk_levelXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_32 [DIFF]
+-                "risk_level": event_data.get("risk_level"),
++                "risk_level": event_data.get("RISK_LEVEL"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_33 [DIFF]
+-                "summary": event_data.get("summary"),
++                "XXsummaryXX": event_data.get("summary"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_34 [DIFF]
+-                "summary": event_data.get("summary"),
++                "SUMMARY": event_data.get("summary"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_35 [DIFF]
+-                "summary": event_data.get("summary"),
++                "summary": event_data.get(None),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_36 [DIFF]
+-                "summary": event_data.get("summary"),
++                "summary": event_data.get("XXsummaryXX"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_37 [DIFF]
+-                "summary": event_data.get("summary"),
++                "summary": event_data.get("SUMMARY"),
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_44 [DIFF]
+-                await self._redis.publish(settings.redis_event_channel, message)
++                await self._redis.publish(None, message)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_48 [DIFF]
+-                logger.error(f"Failed to publish event update to Redis: {e}")
++                logger.error(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_49 [DIFF]
+-            "Published event update notification",
++            None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_50 [DIFF]
+-            extra={"event_id": event_data.get("id")},
++            extra=None,
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_52 [DIFF]
+-            extra={"event_id": event_data.get("id")},
+-        )
++            )
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_53 [DIFF]
+-            "Published event update notification",
++            "XXPublished event update notificationXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_54 [DIFF]
+-            "Published event update notification",
++            "published event update notification",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_55 [DIFF]
+-            "Published event update notification",
++            "PUBLISHED EVENT UPDATE NOTIFICATION",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_56 [DIFF]
+-            extra={"event_id": event_data.get("id")},
++            extra={"XXevent_idXX": event_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_57 [DIFF]
+-            extra={"event_id": event_data.get("id")},
++            extra={"EVENT_ID": event_data.get("id")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_58 [DIFF]
+-            extra={"event_id": event_data.get("id")},
++            extra={"event_id": event_data.get(None)},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_59 [DIFF]
+-            extra={"event_id": event_data.get("id")},
++            extra={"event_id": event_data.get("XXidXX")},
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_60 [DIFF]
+-            extra={"event_id": event_data.get("id")},
++            extra={"event_id": event_data.get("ID")},
++
++    @_mutmut_mutated(mutants_xǁPgNotifyListenerǁ_handle_detection_new__mutmut)
++    async def _handle_detection_new(self, payload: PgNotifyPayload) -> None:
++        """Handle new detection notifications.
++
++        Args:
++            payload: Parsed notification payload
++        """
++        detection_data = payload.data
++
++        message = {
++            "type": "detection.new",
++            "source": "pg_notify",
++            "data": {
++                "detection_id": detection_data.get("id"),
++                "camera_id": detection_data.get("camera_id"),
++                "label": detection_data.get("object_type"),
++                "confidence": detection_data.get("confidence"),
++                "timestamp": detection_data.get("detected_at"),
++            },
++        }
++
++        if self._redis:
++            try:
++                settings = get_settings()
++                await self._redis.publish(settings.redis_event_channel, message)
++            except Exception as e:
++                logger.error(f"Failed to publish detection to Redis: {e}")
++
++        logger.debug(
++            "Published new detection notification",
++            extra={"detection_id": detection_data.get("id")},
++        )
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_7 [DIFF]
+-            "source": "pg_notify",
++            "XXsourceXX": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_8 [DIFF]
+-            "source": "pg_notify",
++            "SOURCE": "pg_notify",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_handle_event_update__mutmut_9 [DIFF]
+-            "source": "pg_notify",
++            "source": "XXpg_notifyXX",
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_1 [DIFF]
+-        asyncio.create_task(self._handle_notification(channel, payload))
++        asyncio.create_task(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_2 [DIFF]
+-        asyncio.create_task(self._handle_notification(channel, payload))
++        asyncio.create_task(self._handle_notification(None, payload))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_3 [DIFF]
+-        asyncio.create_task(self._handle_notification(channel, payload))
++        asyncio.create_task(self._handle_notification(channel, None))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_4 [DIFF]
+-        asyncio.create_task(self._handle_notification(channel, payload))
++        asyncio.create_task(self._handle_notification(payload))
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁ_notification_callback__mutmut_5 [DIFF]
+-        asyncio.create_task(self._handle_notification(channel, payload))
++        asyncio.create_task(self._handle_notification(channel, ))
++
++    @_mutmut_mutated(mutants_xǁPgNotifyListenerǁ_handle_notification__mutmut)
++    async def _handle_notification(self, channel: str, payload: str) -> None:
++        """Handle a notification from PostgreSQL.
++
++        Parses the payload and routes to appropriate handlers based on channel.
++
++        Args:
++            channel: The notification channel
++            payload: The notification payload (JSON string)
++        """
++        try:
++            parsed = PgNotifyPayload.from_json(channel, payload)
++            logger.debug(
++                f"Received notification on {channel}",
++                extra={
++                    "channel": channel,
++                    "operation": parsed.operation,
++                    "table": parsed.table,
++                },
++            )
++
++            # Route to appropriate handler
++            if channel == PgNotifyChannel.EVENTS_NEW.value:
++                await self._handle_event_new(parsed)
++            elif channel == PgNotifyChannel.EVENTS_UPDATE.value:
++                await self._handle_event_update(parsed)
++            elif channel == PgNotifyChannel.DETECTIONS_NEW.value:
++                await self._handle_detection_new(parsed)
++            elif channel == PgNotifyChannel.ALERTS_NEW.value:
++                await self._handle_alert_new(parsed)
++            else:
++                logger.warning(f"Unhandled notification channel: {channel}")
++
++        except ValueError as e:
++            logger.error(f"Failed to parse notification payload: {e}")
++        except Exception as e:
++            logger.error(f"Error handling notification: {e}", exc_info=True)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁget_status__mutmut_8 [DIFF]
+-            if self._connection
++            if (self._connection) or True
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁget_status__mutmut_9 [DIFF]
+-            "connected": self._connection is not None and not self._connection.is_closed()
++            "connected": self._connection is not None or not self._connection.is_closed()
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_1 [DIFF]
+-            logger.warning("PgNotifyListener already running")
++            logger.warning(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_11 [DIFF]
+-        logger.info("PgNotifyListener started")
++        logger.info(None)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_12 [DIFF]
+-        logger.info("PgNotifyListener started")
++        logger.info("XXPgNotifyListener startedXX")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_13 [DIFF]
+-        logger.info("PgNotifyListener started")
++        logger.info("pgnotifylistener started")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_14 [DIFF]
+-        logger.info("PgNotifyListener started")
++        logger.info("PGNOTIFYLISTENER STARTED")
++
++    @_mutmut_mutated(mutants_xǁPgNotifyListenerǁstop__mutmut)
++    async def stop(self) -> None:
++        """Stop listening and cleanup resources.
++
++        Gracefully stops the listener task and closes the database connection.
++        """
++        self._is_running = False
++        self._is_healthy = False
++
++        # Cancel listener task
++        if self._listener_task:
++            self._listener_task.cancel()
++            with contextlib.suppress(asyncio.CancelledError):
++                await self._listener_task
++            self._listener_task = None
++
++        # Close database connection
++        if self._connection:
++            with contextlib.suppress(Exception):
++                await self._connection.close()
++            self._connection = None
++
++        logger.info("PgNotifyListener stopped")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_2 [DIFF]
+-            logger.warning("PgNotifyListener already running")
++            logger.warning("XXPgNotifyListener already runningXX")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_3 [DIFF]
+-            logger.warning("PgNotifyListener already running")
++            logger.warning("pgnotifylistener already running")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_4 [DIFF]
+-            logger.warning("PgNotifyListener already running")
++            logger.warning("PGNOTIFYLISTENER ALREADY RUNNING")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_7 [DIFF]
+-        self._reconnect_attempts = 0
++        self._reconnect_attempts = None
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstart__mutmut_8 [DIFF]
+-        self._reconnect_attempts = 0
++        self._reconnect_attempts = 1
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_10 [DIFF]
+-        logger.info("PgNotifyListener stopped")
++        logger.info("XXPgNotifyListener stoppedXX")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_11 [DIFF]
+-        logger.info("PgNotifyListener stopped")
++        logger.info("pgnotifylistener stopped")
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_12 [DIFF]
+-        logger.info("PgNotifyListener stopped")
++        logger.info("PGNOTIFYLISTENER STOPPED")
++
++    @_mutmut_mutated(mutants_xǁPgNotifyListenerǁ_connect__mutmut)
++    async def _connect(self) -> None:
++        """Establish database connection and subscribe to channels.
++
++        Uses exponential backoff for reconnection attempts.
++
++        Raises:
++            asyncpg.PostgresError: If connection fails after all retries
++        """
++        settings = get_settings()
++
++        # Parse database URL for asyncpg (convert from SQLAlchemy format)
++        dsn = settings.database_url.replace("+asyncpg", "")
++
++        while self._reconnect_attempts < self.MAX_RECONNECT_ATTEMPTS:
++            try:
++                # Create dedicated connection for LISTEN
++                self._connection = await asyncpg.connect(dsn)
++
++                # Subscribe to all channels
++                for channel in self._channels:
++                    await self._connection.add_listener(
++                        channel.value,
++                        self._notification_callback,
++                    )
++
++                self._is_healthy = True
++                self._reconnect_attempts = 0
++                logger.info(
++                    "PgNotifyListener connected to database",
++                    extra={"channels": [c.value for c in self._channels]},
++                )
++                return
++
++            except Exception as e:
++                self._reconnect_attempts += 1
++                self._is_healthy = False
++
++                if self._reconnect_attempts >= self.MAX_RECONNECT_ATTEMPTS:
++                    logger.error(
++                        f"Failed to connect after {self.MAX_RECONNECT_ATTEMPTS} attempts: {e}",
++                        exc_info=True,
++                    )
++                    raise
++
++                # Exponential backoff with cap
++                delay = min(
++                    self.BASE_RECONNECT_DELAY * (2 ** (self._reconnect_attempts - 1)),
++                    self.MAX_RECONNECT_DELAY,
++                )
++                logger.warning(
++                    f"Connection attempt {self._reconnect_attempts} failed, "
++                    f"retrying in {delay:.1f}s: {e}"
++                )
++                await asyncio.sleep(delay)
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_7 [DIFF]
+-            with contextlib.suppress(Exception):
++            with contextlib.suppress(None):
+
+### backend.services.pg_notify_listener.xǁPgNotifyListenerǁstop__mutmut_9 [DIFF]
+-        logger.info("PgNotifyListener stopped")
++        logger.info(None)
+

@@ -1,0 +1,38 @@
+{
+ "ai_audit": {
+  "total": 111,
+  "classes": {
+   "EQUIVALENT": 26,
+   "LOW-VALUE": 42,
+   "TEST-GAP": 43
+  },
+  "clusters": 15,
+  "drafted": 6,
+  "keys": [
+   "clusters",
+   "dossier_path",
+   "drafted_tests",
+   "module",
+   "survivors_total",
+   "test_files_involved"
+  ]
+ },
+ "context_enricher": {
+  "total": 134,
+  "classes": {
+   "TEST-GAP": 106,
+   "EQUIVALENT": 16,
+   "LOW-VALUE": 12
+  },
+  "clusters": 38,
+  "drafted": 6,
+  "keys": [
+   "clusters",
+   "dossier_path",
+   "drafted_tests",
+   "module",
+   "survivors_total",
+   "test_files_involved"
+  ]
+ }
+}

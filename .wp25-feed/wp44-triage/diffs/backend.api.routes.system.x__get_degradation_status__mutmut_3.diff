@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_degradation_status__mutmut_3: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -12,7 +12,7 @@
+             manager = get_degradation_manager()
+         except (RuntimeError, ValueError) as e:
+             # Manager not initialized or invalid state
+-            logger.debug(f"Degradation manager not available: {e}")
++            logger.debug(None)
+             return None
+     else:
+         manager = _degradation_manager

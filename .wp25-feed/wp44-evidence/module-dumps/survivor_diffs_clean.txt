@@ -1,0 +1,367 @@
+backend.services.zone_household_service.x_check_schedule__mutmut_10:
+   -                "Invalid cron expression format, expected 5 fields",
+   +                "INVALID CRON EXPRESSION FORMAT, EXPECTED 5 FIELDS",
+backend.services.zone_household_service.x_check_schedule__mutmut_11:
+   -                extra={"cron_expression": cron_expression, "fields": len(parts)},
+   +                extra={"XXcron_expressionXX": cron_expression, "fields": len(parts)},
+backend.services.zone_household_service.x_check_schedule__mutmut_12:
+   -                extra={"cron_expression": cron_expression, "fields": len(parts)},
+   +                extra={"CRON_EXPRESSION": cron_expression, "fields": len(parts)},
+backend.services.zone_household_service.x_check_schedule__mutmut_13:
+   -                extra={"cron_expression": cron_expression, "fields": len(parts)},
+   +                extra={"cron_expression": cron_expression, "XXfieldsXX": len(parts)},
+backend.services.zone_household_service.x_check_schedule__mutmut_14:
+   -                extra={"cron_expression": cron_expression, "fields": len(parts)},
+   +                extra={"cron_expression": cron_expression, "FIELDS": len(parts)},
+backend.services.zone_household_service.x_check_schedule__mutmut_19:
+   -        current_day = at_time.day
+   +        current_day = None
+backend.services.zone_household_service.x_check_schedule__mutmut_20:
+   -        current_month = at_time.month
+   +        current_month = None
+backend.services.zone_household_service.x_check_schedule__mutmut_33:
+   -            _match_cron_field(minute_spec, current_minute, 0, 59)
+   +            _match_cron_field(minute_spec, current_minute, None, 59)
+backend.services.zone_household_service.x_check_schedule__mutmut_34:
+   -            _match_cron_field(minute_spec, current_minute, 0, 59)
+   +            _match_cron_field(minute_spec, current_minute, 0, None)
+backend.services.zone_household_service.x_check_schedule__mutmut_39:
+   -            _match_cron_field(minute_spec, current_minute, 0, 59)
+   +            _match_cron_field(minute_spec, current_minute, 1, 59)
+backend.services.zone_household_service.x_check_schedule__mutmut_4:
+   -                "Invalid cron expression format, expected 5 fields",
+   +                None,
+backend.services.zone_household_service.x_check_schedule__mutmut_40:
+   -            _match_cron_field(minute_spec, current_minute, 0, 59)
+   +            _match_cron_field(minute_spec, current_minute, 0, 60)
+backend.services.zone_household_service.x_check_schedule__mutmut_43:
+   -            and _match_cron_field(hour_spec, current_hour, 0, 23)
+   +            and _match_cron_field(hour_spec, current_hour, None, 23)
+backend.services.zone_household_service.x_check_schedule__mutmut_44:
+   -            and _match_cron_field(hour_spec, current_hour, 0, 23)
+   +            and _match_cron_field(hour_spec, current_hour, 0, None)
+backend.services.zone_household_service.x_check_schedule__mutmut_49:
+   -            and _match_cron_field(hour_spec, current_hour, 0, 23)
+   +            and _match_cron_field(hour_spec, current_hour, 1, 23)
+backend.services.zone_household_service.x_check_schedule__mutmut_5:
+   -                extra={"cron_expression": cron_expression, "fields": len(parts)},
+   +                extra=None,
+backend.services.zone_household_service.x_check_schedule__mutmut_50:
+   -            and _match_cron_field(hour_spec, current_hour, 0, 23)
+   +            and _match_cron_field(hour_spec, current_hour, 0, 24)
+backend.services.zone_household_service.x_check_schedule__mutmut_52:
+   -            and _match_cron_field(day_spec, current_day, 1, 31)
+   +            and _match_cron_field(day_spec, None, 1, 31)
+backend.services.zone_household_service.x_check_schedule__mutmut_53:
+   -            and _match_cron_field(day_spec, current_day, 1, 31)
+   +            and _match_cron_field(day_spec, current_day, None, 31)
+backend.services.zone_household_service.x_check_schedule__mutmut_54:
+   -            and _match_cron_field(day_spec, current_day, 1, 31)
+   +            and _match_cron_field(day_spec, current_day, 1, None)
+backend.services.zone_household_service.x_check_schedule__mutmut_59:
+   -            and _match_cron_field(day_spec, current_day, 1, 31)
+   +            and _match_cron_field(day_spec, current_day, 2, 31)
+backend.services.zone_household_service.x_check_schedule__mutmut_60:
+   -            and _match_cron_field(day_spec, current_day, 1, 31)
+   +            and _match_cron_field(day_spec, current_day, 1, 32)
+backend.services.zone_household_service.x_check_schedule__mutmut_62:
+   -            and _match_cron_field(month_spec, current_month, 1, 12)
+   +            and _match_cron_field(month_spec, None, 1, 12)
+backend.services.zone_household_service.x_check_schedule__mutmut_63:
+   -            and _match_cron_field(month_spec, current_month, 1, 12)
+   +            and _match_cron_field(month_spec, current_month, None, 12)
+backend.services.zone_household_service.x_check_schedule__mutmut_64:
+   -            and _match_cron_field(month_spec, current_month, 1, 12)
+   +            and _match_cron_field(month_spec, current_month, 1, None)
+backend.services.zone_household_service.x_check_schedule__mutmut_69:
+   -            and _match_cron_field(month_spec, current_month, 1, 12)
+   +            and _match_cron_field(month_spec, current_month, 2, 12)
+backend.services.zone_household_service.x_check_schedule__mutmut_7:
+   -                extra={"cron_expression": cron_expression, "fields": len(parts)},
+   -            )
+   +                )
+backend.services.zone_household_service.x_check_schedule__mutmut_70:
+   -            and _match_cron_field(month_spec, current_month, 1, 12)
+   +            and _match_cron_field(month_spec, current_month, 1, 13)
+backend.services.zone_household_service.x_check_schedule__mutmut_73:
+   -            and _match_cron_field(weekday_spec, cron_weekday, 0, 6)
+   +            and _match_cron_field(weekday_spec, cron_weekday, None, 6)
+backend.services.zone_household_service.x_check_schedule__mutmut_74:
+   -            and _match_cron_field(weekday_spec, cron_weekday, 0, 6)
+   +            and _match_cron_field(weekday_spec, cron_weekday, 0, None)
+backend.services.zone_household_service.x_check_schedule__mutmut_79:
+   -            and _match_cron_field(weekday_spec, cron_weekday, 0, 6)
+   +            and _match_cron_field(weekday_spec, cron_weekday, 1, 6)
+backend.services.zone_household_service.x_check_schedule__mutmut_8:
+   -                "Invalid cron expression format, expected 5 fields",
+   +                "XXInvalid cron expression format, expected 5 fieldsXX",
+backend.services.zone_household_service.x_check_schedule__mutmut_80:
+   -            and _match_cron_field(weekday_spec, cron_weekday, 0, 6)
+   +            and _match_cron_field(weekday_spec, cron_weekday, 0, 7)
+backend.services.zone_household_service.x_check_schedule__mutmut_9:
+   -                "Invalid cron expression format, expected 5 fields",
+   +                "invalid cron expression format, expected 5 fields",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_10:
+   -            allowed_vehicle_ids=allowed_vehicle_ids or [],
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_11:
+   -            access_schedules=access_schedules or [],
+   -        )
+   +            )
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_12:
+   -            allowed_member_ids=allowed_member_ids or [],
+   +            allowed_member_ids=allowed_member_ids and [],
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_13:
+   -            allowed_vehicle_ids=allowed_vehicle_ids or [],
+   +            allowed_vehicle_ids=allowed_vehicle_ids and [],
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_14:
+   -            access_schedules=access_schedules or [],
+   +            access_schedules=access_schedules and [],
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_17:
+   -            "Created zone household config",
+   +            None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_18:
+   -            extra={"zone_id": zone_id, "config_id": config.id},
+   +            extra=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_2:
+   -            zone_id=zone_id,
+   +            zone_id=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_20:
+   -            extra={"zone_id": zone_id, "config_id": config.id},
+   -        )
+   +            )
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_21:
+   -            "Created zone household config",
+   +            "XXCreated zone household configXX",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_22:
+   -            "Created zone household config",
+   +            "created zone household config",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_23:
+   -            "Created zone household config",
+   +            "CREATED ZONE HOUSEHOLD CONFIG",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_24:
+   -            extra={"zone_id": zone_id, "config_id": config.id},
+   +            extra={"XXzone_idXX": zone_id, "config_id": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_25:
+   -            extra={"zone_id": zone_id, "config_id": config.id},
+   +            extra={"ZONE_ID": zone_id, "config_id": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_26:
+   -            extra={"zone_id": zone_id, "config_id": config.id},
+   +            extra={"zone_id": zone_id, "XXconfig_idXX": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_27:
+   -            extra={"zone_id": zone_id, "config_id": config.id},
+   +            extra={"zone_id": zone_id, "CONFIG_ID": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_3:
+   -            owner_id=owner_id,
+   +            owner_id=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_4:
+   -            allowed_member_ids=allowed_member_ids or [],
+   +            allowed_member_ids=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_5:
+   -            allowed_vehicle_ids=allowed_vehicle_ids or [],
+   +            allowed_vehicle_ids=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_6:
+   -            access_schedules=access_schedules or [],
+   +            access_schedules=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_7:
+   -            zone_id=zone_id,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_8:
+   -            owner_id=owner_id,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁcreate_config__mutmut_9:
+   -            allowed_member_ids=allowed_member_ids or [],
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_1:
+   -        zone_id = config.zone_id
+   +        zone_id = None
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_10:
+   -            "Deleted zone household config",
+   +            "DELETED ZONE HOUSEHOLD CONFIG",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_11:
+   -            extra={"zone_id": zone_id, "config_id": config_id},
+   +            extra={"XXzone_idXX": zone_id, "config_id": config_id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_12:
+   -            extra={"zone_id": zone_id, "config_id": config_id},
+   +            extra={"ZONE_ID": zone_id, "config_id": config_id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_13:
+   -            extra={"zone_id": zone_id, "config_id": config_id},
+   +            extra={"zone_id": zone_id, "XXconfig_idXX": config_id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_14:
+   -            extra={"zone_id": zone_id, "config_id": config_id},
+   +            extra={"zone_id": zone_id, "CONFIG_ID": config_id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_2:
+   -        config_id = config.id
+   +        config_id = None
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_4:
+   -            "Deleted zone household config",
+   +            None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_5:
+   -            extra={"zone_id": zone_id, "config_id": config_id},
+   +            extra=None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_7:
+   -            extra={"zone_id": zone_id, "config_id": config_id},
+   -        )
+   +            )
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_8:
+   -            "Deleted zone household config",
+   +            "XXDeleted zone household configXX",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁdelete_config__mutmut_9:
+   -            "Deleted zone household config",
+   +            "deleted zone household config",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_config__mutmut_1:
+   -        query = select(ZoneHouseholdConfig).where(ZoneHouseholdConfig.zone_id == zone_id)
+   +        query = None
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_config__mutmut_2:
+   -        query = select(ZoneHouseholdConfig).where(ZoneHouseholdConfig.zone_id == zone_id)
+   +        query = select(ZoneHouseholdConfig).where(None)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_config__mutmut_3:
+   -        query = select(ZoneHouseholdConfig).where(ZoneHouseholdConfig.zone_id == zone_id)
+   +        query = select(None).where(ZoneHouseholdConfig.zone_id == zone_id)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_config__mutmut_4:
+   -        query = select(ZoneHouseholdConfig).where(ZoneHouseholdConfig.zone_id == zone_id)
+   +        query = select(ZoneHouseholdConfig).where(ZoneHouseholdConfig.zone_id != zone_id)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_config__mutmut_6:
+   -        result = await self._session.execute(query)
+   +        result = await self._session.execute(None)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_1:
+   -        query = select(ZoneHouseholdConfig).options(selectinload(ZoneHouseholdConfig.zone))
+   +        query = None
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_15:
+   -                        "reason": "Zone owner",
+   +                        "XXreasonXX": "Zone owner",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_16:
+   -                        "reason": "Zone owner",
+   +                        "REASON": "Zone owner",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_17:
+   -                        "reason": "Zone owner",
+   +                        "reason": "XXZone ownerXX",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_18:
+   -                        "reason": "Zone owner",
+   +                        "reason": "zone owner",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_19:
+   -                        "reason": "Zone owner",
+   +                        "reason": "ZONE OWNER",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_20:
+   -                continue
+   +                break
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_27:
+   -                        "reason": "In allowed members list",
+   +                        "XXreasonXX": "In allowed members list",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_28:
+   -                        "reason": "In allowed members list",
+   +                        "REASON": "In allowed members list",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_29:
+   -                        "reason": "In allowed members list",
+   +                        "reason": "XXIn allowed members listXX",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_3:
+   -        query = select(ZoneHouseholdConfig).options(selectinload(ZoneHouseholdConfig.zone))
+   +        query = select(None).options(selectinload(ZoneHouseholdConfig.zone))
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_30:
+   -                        "reason": "In allowed members list",
+   +                        "reason": "in allowed members list",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_31:
+   -                        "reason": "In allowed members list",
+   +                        "reason": "IN ALLOWED MEMBERS LIST",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_32:
+   -                continue
+   +                break
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_35:
+   -                if member_id in schedule.get("member_ids", []):
+   +                if member_id in schedule.get("member_ids", None):
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_37:
+   -                if member_id in schedule.get("member_ids", []):
+   +                if member_id in schedule.get("member_ids", ):
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_40:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = None
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_41:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get(None, "scheduled access")
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_42:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("description", None)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_43:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("scheduled access")
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_44:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("description", )
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_45:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("XXdescriptionXX", "scheduled access")
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_46:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("DESCRIPTION", "scheduled access")
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_47:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("description", "XXscheduled accessXX")
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_48:
+   -                    description = schedule.get("description", "scheduled access")
+   +                    description = schedule.get("description", "SCHEDULED ACCESS")
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_54:
+   -                            "reason": f"Has {description}",
+   +                            "XXreasonXX": f"Has {description}",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_55:
+   -                            "reason": f"Has {description}",
+   +                            "REASON": f"Has {description}",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_member__mutmut_6:
+   -        result = await self._session.execute(query)
+   +        result = await self._session.execute(None)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_1:
+   -        query = select(ZoneHouseholdConfig).options(selectinload(ZoneHouseholdConfig.zone))
+   +        query = None
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_15:
+   -                        "reason": "In allowed vehicles list",
+   +                        "XXreasonXX": "In allowed vehicles list",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_16:
+   -                        "reason": "In allowed vehicles list",
+   +                        "REASON": "In allowed vehicles list",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_17:
+   -                        "reason": "In allowed vehicles list",
+   +                        "reason": "XXIn allowed vehicles listXX",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_18:
+   -                        "reason": "In allowed vehicles list",
+   +                        "reason": "in allowed vehicles list",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_19:
+   -                        "reason": "In allowed vehicles list",
+   +                        "reason": "IN ALLOWED VEHICLES LIST",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_3:
+   -        query = select(ZoneHouseholdConfig).options(selectinload(ZoneHouseholdConfig.zone))
+   +        query = select(None).options(selectinload(ZoneHouseholdConfig.zone))
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁget_zones_for_vehicle__mutmut_6:
+   -        result = await self._session.execute(query)
+   +        result = await self._session.execute(None)
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_11:
+   -            extra={"zone_id": config.zone_id, "config_id": config.id},
+   -        )
+   +            )
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_12:
+   -            "Updated zone household config",
+   +            "XXUpdated zone household configXX",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_13:
+   -            "Updated zone household config",
+   +            "updated zone household config",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_14:
+   -            "Updated zone household config",
+   +            "UPDATED ZONE HOUSEHOLD CONFIG",
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_15:
+   -            extra={"zone_id": config.zone_id, "config_id": config.id},
+   +            extra={"XXzone_idXX": config.zone_id, "config_id": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_16:
+   -            extra={"zone_id": config.zone_id, "config_id": config.id},
+   +            extra={"ZONE_ID": config.zone_id, "config_id": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_17:
+   -            extra={"zone_id": config.zone_id, "config_id": config.id},
+   +            extra={"zone_id": config.zone_id, "XXconfig_idXX": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_18:
+   -            extra={"zone_id": config.zone_id, "config_id": config.id},
+   +            extra={"zone_id": config.zone_id, "CONFIG_ID": config.id},
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_5:
+   -        if allowed_vehicle_ids is not None:
+   +        if allowed_vehicle_ids is None:
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_6:
+   -        if access_schedules is not None:
+   +        if access_schedules is None:
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_8:
+   -            "Updated zone household config",
+   +            None,
+backend.services.zone_household_service.xǁZoneHouseholdServiceǁupdate_config__mutmut_9:
+   -            extra={"zone_id": config.zone_id, "config_id": config.id},
+   +            extra=None,

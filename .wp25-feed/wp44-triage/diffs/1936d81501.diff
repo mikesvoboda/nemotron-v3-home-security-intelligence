@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_32: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -50,7 +50,7 @@
+         ),
+         # Pet classification
+         "pet_classification_context": format_pet_classification_context(
+-            self.pet_classifications
++            None
+         ),
+         # Pose analysis (ViTPose) - convert PoseResult to dict format
+         "pose_analysis": format_pose_analysis_context(

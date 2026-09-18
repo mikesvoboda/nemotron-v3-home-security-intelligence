@@ -1,0 +1,11 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_postgresql_match__mutmut_22
+# backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_postgresql_match__mutmut_22: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -28,5 +28,4 @@
+         similarity=similarity,
+         time_gap_seconds=time_gap_seconds,
+         source="postgresql",
+-        entity=entity,
+-    )
++        )

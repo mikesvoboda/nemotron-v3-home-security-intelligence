@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_postgresql_match__mutmut_24
+# backend.services.hybrid_entity_storage.xǁHybridEntityMatchǁfrom_postgresql_match__mutmut_24: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -21,7 +21,7 @@
+         embedding=entity.get_embedding_vector() or [],
+         camera_id=entity.entity_metadata.get("camera_id", "unknown")
+         if entity.entity_metadata
+-        else "unknown",
++        else "XXunknownXX",
+         timestamp=entity.last_seen_at,
+         detection_id=str(entity.primary_detection_id) if entity.primary_detection_id else None,
+         attributes=entity.entity_metadata or {},

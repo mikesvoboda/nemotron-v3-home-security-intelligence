@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_50: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -63,7 +63,7 @@
+                         # Similar confidence - prefer crop (higher resolution)
+                         is_duplicate = True
+                         break
+-                    elif frame_ocr.confidence <= crop_ocr.confidence:
++                    elif frame_ocr.confidence < crop_ocr.confidence:
+                         # Crop has higher confidence - skip frame result
+                         is_duplicate = True
+                         break

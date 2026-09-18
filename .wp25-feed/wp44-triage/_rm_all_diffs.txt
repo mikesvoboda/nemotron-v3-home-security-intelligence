@@ -1,0 +1,1280 @@
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_1
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_1: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -2,7 +2,7 @@
+     self,
+     embedding: list[float],
+     time_window_hours: int = DEFAULT_TIME_WINDOW_HOURS,
+-    max_results: int = 10,
++    max_results: int = 11,
+     exclude_detection_id: int | None = None,
+ ) -> list[ReIDMatch]:
+     """Find matching persons from recent detections.
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_3
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_3: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -30,7 +30,7 @@
+             )
+         """
+     if not embedding:
+-        logger.warning("Empty embedding provided to find_matches")
++        logger.warning(None)
+         return []
+ 
+     # Calculate time cutoff
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_4
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_4: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -30,7 +30,7 @@
+             )
+         """
+     if not embedding:
+-        logger.warning("Empty embedding provided to find_matches")
++        logger.warning("XXEmpty embedding provided to find_matchesXX")
+         return []
+ 
+     # Calculate time cutoff
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_5
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_5: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -30,7 +30,7 @@
+             )
+         """
+     if not embedding:
+-        logger.warning("Empty embedding provided to find_matches")
++        logger.warning("empty embedding provided to find_matches")
+         return []
+ 
+     # Calculate time cutoff
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_6
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_6: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -30,7 +30,7 @@
+             )
+         """
+     if not embedding:
+-        logger.warning("Empty embedding provided to find_matches")
++        logger.warning("EMPTY EMBEDDING PROVIDED TO FIND_MATCHES")
+         return []
+ 
+     # Calculate time cutoff
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_8
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_8: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -34,7 +34,7 @@
+         return []
+ 
+     # Calculate time cutoff
+-    cutoff = datetime.now(UTC) - timedelta(hours=time_window_hours)
++    cutoff = datetime.now(UTC) + timedelta(hours=time_window_hours)
+ 
+     # Build query for recent detections with reid embeddings
+     # Filter for person detections that have reid_embedding in enrichment_data
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_9
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_9: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -34,7 +34,7 @@
+         return []
+ 
+     # Calculate time cutoff
+-    cutoff = datetime.now(UTC) - timedelta(hours=time_window_hours)
++    cutoff = datetime.now(None) - timedelta(hours=time_window_hours)
+ 
+     # Build query for recent detections with reid embeddings
+     # Filter for person detections that have reid_embedding in enrichment_data
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_12
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_12: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -48,7 +48,7 @@
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+             )
+         )
+-        .order_by(desc(Detection.detected_at))
++        .order_by(None)
+     )
+ 
+     if exclude_detection_id is not None:
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_13
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_13: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -41,12 +41,7 @@
+     stmt = (
+         select(Detection)
+         .where(
+-            and_(
+-                Detection.detected_at >= cutoff,
+-                Detection.enrichment_data.isnot(None),
+-                # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
+-            )
++            None
+         )
+         .order_by(desc(Detection.detected_at))
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_14
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_14: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -39,7 +39,7 @@
+     # Build query for recent detections with reid embeddings
+     # Filter for person detections that have reid_embedding in enrichment_data
+     stmt = (
+-        select(Detection)
++        select(None)
+         .where(
+             and_(
+                 Detection.detected_at >= cutoff,
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_15
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_15: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -42,7 +42,7 @@
+         select(Detection)
+         .where(
+             and_(
+-                Detection.detected_at >= cutoff,
++                None,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_16
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_16: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -43,7 +43,7 @@
+         .where(
+             and_(
+                 Detection.detected_at >= cutoff,
+-                Detection.enrichment_data.isnot(None),
++                None,
+                 # Check if reid_embedding key exists in JSONB
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+             )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_17
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_17: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
++                None,
+             )
+         )
+         .order_by(desc(Detection.detected_at))
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_18
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_18: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -42,7 +42,6 @@
+         select(Detection)
+         .where(
+             and_(
+-                Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_19
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_19: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -43,8 +43,6 @@
+         .where(
+             and_(
+                 Detection.detected_at >= cutoff,
+-                Detection.enrichment_data.isnot(None),
+-                # Check if reid_embedding key exists in JSONB
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+             )
+         )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_20
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_20: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,8 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
+-            )
++                )
+         )
+         .order_by(desc(Detection.detected_at))
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_21
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_21: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -42,7 +42,7 @@
+         select(Detection)
+         .where(
+             and_(
+-                Detection.detected_at >= cutoff,
++                Detection.detected_at > cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_22
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_22: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
++                Detection.enrichment_data.op("?")(None),
+             )
+         )
+         .order_by(desc(Detection.detected_at))
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_23
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_23: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
++                Detection.enrichment_data.op(None)("reid_embedding"),
+             )
+         )
+         .order_by(desc(Detection.detected_at))
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_24
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_24: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
++                Detection.enrichment_data.op("XX?XX")("reid_embedding"),
+             )
+         )
+         .order_by(desc(Detection.detected_at))
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_25
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_25: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
++                Detection.enrichment_data.op("?")("XXreid_embeddingXX"),
+             )
+         )
+         .order_by(desc(Detection.detected_at))
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_26
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_26: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+                 Detection.detected_at >= cutoff,
+                 Detection.enrichment_data.isnot(None),
+                 # Check if reid_embedding key exists in JSONB
+-                Detection.enrichment_data.op("?")("reid_embedding"),
++                Detection.enrichment_data.op("?")("REID_EMBEDDING"),
+             )
+         )
+         .order_by(desc(Detection.detected_at))
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_27
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_27: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -48,7 +48,7 @@
+                 Detection.enrichment_data.op("?")("reid_embedding"),
+             )
+         )
+-        .order_by(desc(Detection.detected_at))
++        .order_by(desc(None))
+     )
+ 
+     if exclude_detection_id is not None:
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_28
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_28: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -51,7 +51,7 @@
+         .order_by(desc(Detection.detected_at))
+     )
+ 
+-    if exclude_detection_id is not None:
++    if exclude_detection_id is None:
+         stmt = stmt.where(Detection.id != exclude_detection_id)
+ 
+     result = await self.session.execute(stmt)
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_29
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_29: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -52,7 +52,7 @@
+     )
+ 
+     if exclude_detection_id is not None:
+-        stmt = stmt.where(Detection.id != exclude_detection_id)
++        stmt = None
+ 
+     result = await self.session.execute(stmt)
+     recent_detections = result.scalars().all()
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_30
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_30: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -52,7 +52,7 @@
+     )
+ 
+     if exclude_detection_id is not None:
+-        stmt = stmt.where(Detection.id != exclude_detection_id)
++        stmt = stmt.where(None)
+ 
+     result = await self.session.execute(stmt)
+     recent_detections = result.scalars().all()
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_31
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_31: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -52,7 +52,7 @@
+     )
+ 
+     if exclude_detection_id is not None:
+-        stmt = stmt.where(Detection.id != exclude_detection_id)
++        stmt = stmt.where(Detection.id == exclude_detection_id)
+ 
+     result = await self.session.execute(stmt)
+     recent_detections = result.scalars().all()
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_33
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_33: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -54,7 +54,7 @@
+     if exclude_detection_id is not None:
+         stmt = stmt.where(Detection.id != exclude_detection_id)
+ 
+-    result = await self.session.execute(stmt)
++    result = await self.session.execute(None)
+     recent_detections = result.scalars().all()
+ 
+     if not recent_detections:
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_36
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_36: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -58,7 +58,7 @@
+     recent_detections = result.scalars().all()
+ 
+     if not recent_detections:
+-        logger.debug("No recent detections with ReID embeddings found")
++        logger.debug(None)
+         return []
+ 
+     # Compute similarity for each detection
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_37
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_37: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -58,7 +58,7 @@
+     recent_detections = result.scalars().all()
+ 
+     if not recent_detections:
+-        logger.debug("No recent detections with ReID embeddings found")
++        logger.debug("XXNo recent detections with ReID embeddings foundXX")
+         return []
+ 
+     # Compute similarity for each detection
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_38
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_38: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -58,7 +58,7 @@
+     recent_detections = result.scalars().all()
+ 
+     if not recent_detections:
+-        logger.debug("No recent detections with ReID embeddings found")
++        logger.debug("no recent detections with reid embeddings found")
+         return []
+ 
+     # Compute similarity for each detection
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_39
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_39: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -58,7 +58,7 @@
+     recent_detections = result.scalars().all()
+ 
+     if not recent_detections:
+-        logger.debug("No recent detections with ReID embeddings found")
++        logger.debug("NO RECENT DETECTIONS WITH REID EMBEDDINGS FOUND")
+         return []
+ 
+     # Compute similarity for each detection
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_44
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_44: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -67,7 +67,7 @@
+     for detection in recent_detections:
+         stored_embedding = self._get_reid_embedding(detection)
+         if stored_embedding is None:
+-            continue
++            break
+ 
+         similarity = self._cosine_similarity(embedding, stored_embedding)
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_50
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_50: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -71,7 +71,7 @@
+ 
+         similarity = self._cosine_similarity(embedding, stored_embedding)
+ 
+-        if similarity >= self.threshold:
++        if similarity > self.threshold:
+             matches.append(
+                 ReIDMatch(
+                     detection_id=detection.id,
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_54
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_54: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -76,7 +76,7 @@
+                 ReIDMatch(
+                     detection_id=detection.id,
+                     similarity=similarity,
+-                    timestamp=detection.detected_at,
++                    timestamp=None,
+                     camera_id=detection.camera_id,
+                 )
+             )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_66
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_66: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -85,7 +85,7 @@
+     matches.sort(key=lambda x: x.similarity, reverse=True)
+ 
+     logger.debug(
+-        "Found %d matches above threshold %.2f (searched %d detections)",
++        None,
+         len(matches[:max_results]),
+         self.threshold,
+         len(recent_detections),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_67
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_67: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -86,7 +86,7 @@
+ 
+     logger.debug(
+         "Found %d matches above threshold %.2f (searched %d detections)",
+-        len(matches[:max_results]),
++        None,
+         self.threshold,
+         len(recent_detections),
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_68
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_68: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -87,7 +87,7 @@
+     logger.debug(
+         "Found %d matches above threshold %.2f (searched %d detections)",
+         len(matches[:max_results]),
+-        self.threshold,
++        None,
+         len(recent_detections),
+     )
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_69
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_69: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -88,7 +88,7 @@
+         "Found %d matches above threshold %.2f (searched %d detections)",
+         len(matches[:max_results]),
+         self.threshold,
+-        len(recent_detections),
++        None,
+     )
+ 
+     return matches[:max_results]
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_70
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_70: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -85,7 +85,6 @@
+     matches.sort(key=lambda x: x.similarity, reverse=True)
+ 
+     logger.debug(
+-        "Found %d matches above threshold %.2f (searched %d detections)",
+         len(matches[:max_results]),
+         self.threshold,
+         len(recent_detections),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_71
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_71: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -86,7 +86,6 @@
+ 
+     logger.debug(
+         "Found %d matches above threshold %.2f (searched %d detections)",
+-        len(matches[:max_results]),
+         self.threshold,
+         len(recent_detections),
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_72
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_72: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -87,7 +87,6 @@
+     logger.debug(
+         "Found %d matches above threshold %.2f (searched %d detections)",
+         len(matches[:max_results]),
+-        self.threshold,
+         len(recent_detections),
+     )
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_73
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_73: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -88,7 +88,6 @@
+         "Found %d matches above threshold %.2f (searched %d detections)",
+         len(matches[:max_results]),
+         self.threshold,
+-        len(recent_detections),
+-    )
++        )
+ 
+     return matches[:max_results]
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_74
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_74: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -85,7 +85,7 @@
+     matches.sort(key=lambda x: x.similarity, reverse=True)
+ 
+     logger.debug(
+-        "Found %d matches above threshold %.2f (searched %d detections)",
++        "XXFound %d matches above threshold %.2f (searched %d detections)XX",
+         len(matches[:max_results]),
+         self.threshold,
+         len(recent_detections),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_75
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_75: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -85,7 +85,7 @@
+     matches.sort(key=lambda x: x.similarity, reverse=True)
+ 
+     logger.debug(
+-        "Found %d matches above threshold %.2f (searched %d detections)",
++        "found %d matches above threshold %.2f (searched %d detections)",
+         len(matches[:max_results]),
+         self.threshold,
+         len(recent_detections),
+=== backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_76
+# backend.services.reid_matcher.xǁReIDMatcherǁfind_matches__mutmut_76: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -85,7 +85,7 @@
+     matches.sort(key=lambda x: x.similarity, reverse=True)
+ 
+     logger.debug(
+-        "Found %d matches above threshold %.2f (searched %d detections)",
++        "FOUND %D MATCHES ABOVE THRESHOLD %.2F (SEARCHED %D DETECTIONS)",
+         len(matches[:max_results]),
+         self.threshold,
+         len(recent_detections),
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_get_reid_embedding__mutmut_8
+# backend.services.reid_matcher.xǁReIDMatcherǁ_get_reid_embedding__mutmut_8: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -17,7 +17,7 @@
+     # Handle both direct embedding list and dict with "vector" key
+     if isinstance(reid_data, list):
+         return list(reid_data)
+-    if isinstance(reid_data, dict) and "vector" in reid_data:
++    if isinstance(reid_data, dict) or "vector" in reid_data:
+         vector = reid_data["vector"]
+         return list(vector) if vector is not None else None
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_get_reid_embedding__mutmut_16
+# backend.services.reid_matcher.xǁReIDMatcherǁ_get_reid_embedding__mutmut_16: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -19,6 +19,6 @@
+         return list(reid_data)
+     if isinstance(reid_data, dict) and "vector" in reid_data:
+         vector = reid_data["vector"]
+-        return list(vector) if vector is not None else None
++        return list(vector) if (vector is not None) or True else None
+ 
+     return None
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_4
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_4: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -10,7 +10,7 @@
+             Cosine similarity score between 0 and 1.
+             Returns 0.0 if vectors have different dimensions or either is empty.
+         """
+-    if len(vec1) != len(vec2) or len(vec1) == 0:
++    if len(vec1) != len(vec2) or len(vec1) == 1:
+         return 0.0
+ 
+     # Compute dot product and magnitudes
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_11
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_11: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -14,7 +14,7 @@
+         return 0.0
+ 
+     # Compute dot product and magnitudes
+-    dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=False))
++    dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=None))
+     magnitude1: float = sum(a * a for a in vec1) ** 0.5
+     magnitude2: float = sum(b * b for b in vec2) ** 0.5
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_14
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_14: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -14,7 +14,7 @@
+         return 0.0
+ 
+     # Compute dot product and magnitudes
+-    dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=False))
++    dot_product: float = sum(a * b for a, b in zip(vec1, vec2, ))
+     magnitude1: float = sum(a * a for a in vec1) ** 0.5
+     magnitude2: float = sum(b * b for b in vec2) ** 0.5
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_15
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_15: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -14,7 +14,7 @@
+         return 0.0
+ 
+     # Compute dot product and magnitudes
+-    dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=False))
++    dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=True))
+     magnitude1: float = sum(a * a for a in vec1) ** 0.5
+     magnitude2: float = sum(b * b for b in vec2) ** 0.5
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_20
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_20: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -15,7 +15,7 @@
+ 
+     # Compute dot product and magnitudes
+     dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=False))
+-    magnitude1: float = sum(a * a for a in vec1) ** 0.5
++    magnitude1: float = sum(a * a for a in vec1) ** 1.5
+     magnitude2: float = sum(b * b for b in vec2) ** 0.5
+ 
+     if magnitude1 == 0 or magnitude2 == 0:
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_25
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_25: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -16,7 +16,7 @@
+     # Compute dot product and magnitudes
+     dot_product: float = sum(a * b for a, b in zip(vec1, vec2, strict=False))
+     magnitude1: float = sum(a * a for a in vec1) ** 0.5
+-    magnitude2: float = sum(b * b for b in vec2) ** 0.5
++    magnitude2: float = sum(b * b for b in vec2) ** 1.5
+ 
+     if magnitude1 == 0 or magnitude2 == 0:
+         return 0.0
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_33
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_33: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -21,4 +21,4 @@
+     if magnitude1 == 0 or magnitude2 == 0:
+         return 0.0
+ 
+-    return float(dot_product / (magnitude1 * magnitude2))
++    return float(dot_product * (magnitude1 * magnitude2))
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_34
+# backend.services.reid_matcher.xǁReIDMatcherǁ_cosine_similarity__mutmut_34: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -21,4 +21,4 @@
+     if magnitude1 == 0 or magnitude2 == 0:
+         return 0.0
+ 
+-    return float(dot_product / (magnitude1 * magnitude2))
++    return float(dot_product / (magnitude1 / magnitude2))
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_1
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_1: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -23,7 +23,7 @@
+             )
+         """
+     # Get the detection
+-    stmt = select(Detection).where(Detection.id == detection_id)
++    stmt = None
+     result = await self.session.execute(stmt)
+     detection = result.scalar_one_or_none()
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_2
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_2: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -23,7 +23,7 @@
+             )
+         """
+     # Get the detection
+-    stmt = select(Detection).where(Detection.id == detection_id)
++    stmt = select(Detection).where(None)
+     result = await self.session.execute(stmt)
+     detection = result.scalar_one_or_none()
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_3
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_3: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -23,7 +23,7 @@
+             )
+         """
+     # Get the detection
+-    stmt = select(Detection).where(Detection.id == detection_id)
++    stmt = select(None).where(Detection.id == detection_id)
+     result = await self.session.execute(stmt)
+     detection = result.scalar_one_or_none()
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_4
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_4: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -23,7 +23,7 @@
+             )
+         """
+     # Get the detection
+-    stmt = select(Detection).where(Detection.id == detection_id)
++    stmt = select(Detection).where(Detection.id != detection_id)
+     result = await self.session.execute(stmt)
+     detection = result.scalar_one_or_none()
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_6
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_6: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -24,7 +24,7 @@
+         """
+     # Get the detection
+     stmt = select(Detection).where(Detection.id == detection_id)
+-    result = await self.session.execute(stmt)
++    result = await self.session.execute(None)
+     detection = result.scalar_one_or_none()
+ 
+     if detection is None:
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_11
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_11: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -28,7 +28,7 @@
+     detection = result.scalar_one_or_none()
+ 
+     if detection is None:
+-        logger.warning("Detection %d not found for storing ReID embedding", detection_id)
++        logger.warning(detection_id)
+         return False
+ 
+     # Create embedding hash for quick lookup
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_12
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_12: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -28,7 +28,7 @@
+     detection = result.scalar_one_or_none()
+ 
+     if detection is None:
+-        logger.warning("Detection %d not found for storing ReID embedding", detection_id)
++        logger.warning("Detection %d not found for storing ReID embedding", )
+         return False
+ 
+     # Create embedding hash for quick lookup
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_13
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_13: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -28,7 +28,7 @@
+     detection = result.scalar_one_or_none()
+ 
+     if detection is None:
+-        logger.warning("Detection %d not found for storing ReID embedding", detection_id)
++        logger.warning("XXDetection %d not found for storing ReID embeddingXX", detection_id)
+         return False
+ 
+     # Create embedding hash for quick lookup
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_14
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_14: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -28,7 +28,7 @@
+     detection = result.scalar_one_or_none()
+ 
+     if detection is None:
+-        logger.warning("Detection %d not found for storing ReID embedding", detection_id)
++        logger.warning("detection %d not found for storing reid embedding", detection_id)
+         return False
+ 
+     # Create embedding hash for quick lookup
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_18
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_18: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -32,7 +32,7 @@
+         return False
+ 
+     # Create embedding hash for quick lookup
+-    embedding_hash = self._compute_embedding_hash(embedding)
++    embedding_hash = self._compute_embedding_hash(None)
+ 
+     # Initialize enrichment_data if None
+     if detection.enrichment_data is None:
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_30
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_30: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+             "vector": embedding,
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+-            "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
++            "XXmodelXX": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
+             "stored_at": datetime.now(UTC).isoformat(),
+         },
+     }
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_31
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_31: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+             "vector": embedding,
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+-            "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
++            "MODEL": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
+             "stored_at": datetime.now(UTC).isoformat(),
+         },
+     }
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_32
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_32: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+             "vector": embedding,
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+-            "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
++            "model": "XXosnet_ain_x1_0XX",  # OSNet-AIN x1.0 (NEM-5562)
+             "stored_at": datetime.now(UTC).isoformat(),
+         },
+     }
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_33
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_33: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -45,7 +45,7 @@
+             "vector": embedding,
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+-            "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
++            "model": "OSNET_AIN_X1_0",  # OSNet-AIN x1.0 (NEM-5562)
+             "stored_at": datetime.now(UTC).isoformat(),
+         },
+     }
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_34
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_34: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -46,7 +46,7 @@
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+             "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
+-            "stored_at": datetime.now(UTC).isoformat(),
++            "XXstored_atXX": datetime.now(UTC).isoformat(),
+         },
+     }
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_35
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_35: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -46,7 +46,7 @@
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+             "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
+-            "stored_at": datetime.now(UTC).isoformat(),
++            "STORED_AT": datetime.now(UTC).isoformat(),
+         },
+     }
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_36
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_36: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -46,7 +46,7 @@
+             "dimension": len(embedding),
+             "hash": embedding_hash,
+             "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
+-            "stored_at": datetime.now(UTC).isoformat(),
++            "stored_at": datetime.now(None).isoformat(),
+         },
+     }
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_37
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_37: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -53,7 +53,7 @@
+     await self.session.flush()
+ 
+     logger.debug(
+-        "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
++        None,
+         detection_id,
+         len(embedding),
+         embedding_hash[:8],
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_38
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_38: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -54,7 +54,7 @@
+ 
+     logger.debug(
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+-        detection_id,
++        None,
+         len(embedding),
+         embedding_hash[:8],
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_39
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_39: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -55,7 +55,7 @@
+     logger.debug(
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+-        len(embedding),
++        None,
+         embedding_hash[:8],
+     )
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_40
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_40: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -56,7 +56,7 @@
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+         len(embedding),
+-        embedding_hash[:8],
++        None,
+     )
+ 
+     return True
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_41
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_41: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -53,7 +53,6 @@
+     await self.session.flush()
+ 
+     logger.debug(
+-        "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+         len(embedding),
+         embedding_hash[:8],
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_42
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_42: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -54,7 +54,6 @@
+ 
+     logger.debug(
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+-        detection_id,
+         len(embedding),
+         embedding_hash[:8],
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_43
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_43: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -55,7 +55,6 @@
+     logger.debug(
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+-        len(embedding),
+         embedding_hash[:8],
+     )
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_44
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_44: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -56,7 +56,6 @@
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+         len(embedding),
+-        embedding_hash[:8],
+-    )
++        )
+ 
+     return True
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_45
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_45: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -53,7 +53,7 @@
+     await self.session.flush()
+ 
+     logger.debug(
+-        "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
++        "XXStored ReID embedding for detection %d (dim=%d, hash=%s)XX",
+         detection_id,
+         len(embedding),
+         embedding_hash[:8],
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_46
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_46: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -53,7 +53,7 @@
+     await self.session.flush()
+ 
+     logger.debug(
+-        "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
++        "stored reid embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+         len(embedding),
+         embedding_hash[:8],
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_47
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_47: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -53,7 +53,7 @@
+     await self.session.flush()
+ 
+     logger.debug(
+-        "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
++        "STORED REID EMBEDDING FOR DETECTION %D (DIM=%D, HASH=%S)",
+         detection_id,
+         len(embedding),
+         embedding_hash[:8],
+=== backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_48
+# backend.services.reid_matcher.xǁReIDMatcherǁstore_embedding__mutmut_48: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -56,7 +56,7 @@
+         "Stored ReID embedding for detection %d (dim=%d, hash=%s)",
+         detection_id,
+         len(embedding),
+-        embedding_hash[:8],
++        embedding_hash[:9],
+     )
+ 
+     return True
+=== backend.services.reid_matcher.xǁReIDMatcherǁ_compute_embedding_hash__mutmut_8
+# backend.services.reid_matcher.xǁReIDMatcherǁ_compute_embedding_hash__mutmut_8: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -9,5 +9,5 @@
+             SHA-256 hash string (first 16 characters)
+         """
+     # Convert to bytes for hashing
+-    embedding_bytes = bytes(str(embedding), "utf-8")
++    embedding_bytes = bytes(str(embedding), "UTF-8")
+     return hashlib.sha256(embedding_bytes).hexdigest()[:16]
+=== backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_4
+# backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_4: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -27,7 +27,7 @@
+     matches = await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=1,
++        max_results=None,
+     )
+ 
+     if matches:
+=== backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_6
+# backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_6: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -26,7 +26,6 @@
+         """
+     matches = await self.find_matches(
+         embedding,
+-        time_window_hours=time_window_hours,
+         max_results=1,
+     )
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_7
+# backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_7: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -27,8 +27,7 @@
+     matches = await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=1,
+-    )
++        )
+ 
+     if matches:
+         return True, matches[0]
+=== backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_8
+# backend.services.reid_matcher.xǁReIDMatcherǁis_known_person__mutmut_8: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -27,7 +27,7 @@
+     matches = await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=1,
++        max_results=2,
+     )
+ 
+     if matches:
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_3
+# backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_3: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -27,5 +27,5 @@
+     return await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=100,  # Get more history
++        max_results=None,  # Get more history
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_5
+# backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_5: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -26,6 +26,5 @@
+         """
+     return await self.find_matches(
+         embedding,
+-        time_window_hours=time_window_hours,
+         max_results=100,  # Get more history
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_6
+# backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_6: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -27,5 +27,4 @@
+     return await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=100,  # Get more history
+-    )
++        )
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_7
+# backend.services.reid_matcher.xǁReIDMatcherǁget_person_history__mutmut_7: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -27,5 +27,5 @@
+     return await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=100,  # Get more history
++        max_results=101,  # Get more history
+     )
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_4
+# backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_4: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -25,7 +25,7 @@
+     matches = await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=100,
++        max_results=None,
+     )
+ 
+     # Group by camera
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_6
+# backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_6: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -24,7 +24,6 @@
+         """
+     matches = await self.find_matches(
+         embedding,
+-        time_window_hours=time_window_hours,
+         max_results=100,
+     )
+ 
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_7
+# backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_7: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -25,8 +25,7 @@
+     matches = await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=100,
+-    )
++        )
+ 
+     # Group by camera
+     by_camera: dict[str, list[ReIDMatch]] = {}
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_8
+# backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_8: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -25,7 +25,7 @@
+     matches = await self.find_matches(
+         embedding,
+         time_window_hours=time_window_hours,
+-        max_results=100,
++        max_results=101,
+     )
+ 
+     # Group by camera
+=== backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_16
+# backend.services.reid_matcher.xǁReIDMatcherǁget_sightings_by_camera__mutmut_16: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -34,6 +34,6 @@
+         camera_id = match.camera_id or "unknown"
+         if camera_id not in by_camera:
+             by_camera[camera_id] = []
+-        by_camera[camera_id].append(match)
++        by_camera[camera_id].append(None)
+ 
+     return by_camera
+=== backend.services.reid_matcher.x_get_reid_matcher__mutmut_1
+# backend.services.reid_matcher.x_get_reid_matcher__mutmut_1: survived
+--- backend/services/reid_matcher.py
++++ backend/services/reid_matcher.py
+@@ -26,6 +26,6 @@
+             matches = await matcher.find_matches(embedding)
+     """
+     return ReIDMatcher(
+-        session=session,
++        session=None,
+         similarity_threshold=similarity_threshold,
+     )

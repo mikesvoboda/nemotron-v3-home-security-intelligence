@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_video__mutmut_2: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -17,7 +17,7 @@
+     try:
+         # Extract frame at original resolution (no size constraint)
+         frame_path = await video_processor.extract_thumbnail(
+-            video_path=video_path,
++            video_path=None,
+             output_path=None,  # Let it generate a temporary path
+             timestamp=None,  # Use smart default timestamp
+             size=(1920, 1080),  # Larger size for full view

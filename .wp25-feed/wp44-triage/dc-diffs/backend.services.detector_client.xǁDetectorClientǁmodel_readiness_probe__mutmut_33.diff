@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁmodel_readiness_probe__mutmut_33: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -23,7 +23,7 @@
+         await self._send_detection_request(
+             image_data=image_data,
+             image_name="warmup_test.jpg",
+-            camera_id="warmup",
++            camera_id="XXwarmupXX",
+             image_path="/dev/null",  # placeholder path for warmup probe
+         )
+         # Any valid response (even empty detections) means the model is ready

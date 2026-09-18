@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_142: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -62,7 +62,7 @@
+     if violence_data:
+         violence_response = {
+             "detected": violence_data.get("is_violent", False),
+-            "score": violence_data.get("confidence", 0.0),
++            "score": violence_data.get("confidence", 1.0),
+             "confidence": violence_data.get("confidence"),
+         }
+ 

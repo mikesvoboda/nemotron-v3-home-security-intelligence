@@ -1,0 +1,2085 @@
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_11
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_11: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Discord-formatted payload with embeds.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get(None, {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+     # Build fields from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_12
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_12: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Discord-formatted payload with embeds.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("data", None)
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+     # Build fields from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_14
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_14: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Discord-formatted payload with embeds.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("data", )
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+     # Build fields from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_15
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_15: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Discord-formatted payload with embeds.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("XXdataXX", {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+     # Build fields from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_16
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_16: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Discord-formatted payload with embeds.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("DATA", {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+     # Build fields from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_17
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_17: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = None
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_18
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_18: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = payload.get(None, utc_now().isoformat())
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_19
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_19: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = payload.get("timestamp", None)
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_20
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_20: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = payload.get(utc_now().isoformat())
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_21
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_21: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = payload.get("timestamp", )
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_22
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_22: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = payload.get("XXtimestampXX", utc_now().isoformat())
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_23
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_23: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -9,7 +9,7 @@
+         """
+     event_type = payload.get("event_type", "event")
+     data = payload.get("data", {})
+-    timestamp = payload.get("timestamp", utc_now().isoformat())
++    timestamp = payload.get("TIMESTAMP", utc_now().isoformat())
+ 
+     # Build fields from data
+     fields = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_25
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_25: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,11 +16,7 @@
+     for key, value in data.items():
+         if isinstance(value, str | int | float | bool):
+             fields.append(
+-                {
+-                    "name": key.replace("_", " ").title(),
+-                    "value": str(value),
+-                    "inline": True,
+-                }
++                None
+             )
+ 
+     return {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_26
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_26: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+         if isinstance(value, str | int | float | bool):
+             fields.append(
+                 {
+-                    "name": key.replace("_", " ").title(),
++                    "XXnameXX": key.replace("_", " ").title(),
+                     "value": str(value),
+                     "inline": True,
+                 }
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_27
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_27: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+         if isinstance(value, str | int | float | bool):
+             fields.append(
+                 {
+-                    "name": key.replace("_", " ").title(),
++                    "NAME": key.replace("_", " ").title(),
+                     "value": str(value),
+                     "inline": True,
+                 }
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_3
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_3: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Discord-formatted payload with embeds.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", None)
+     data = payload.get("data", {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_32
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_32: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+         if isinstance(value, str | int | float | bool):
+             fields.append(
+                 {
+-                    "name": key.replace("_", " ").title(),
++                    "name": key.replace("XX_XX", " ").title(),
+                     "value": str(value),
+                     "inline": True,
+                 }
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_33
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_33: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+         if isinstance(value, str | int | float | bool):
+             fields.append(
+                 {
+-                    "name": key.replace("_", " ").title(),
++                    "name": key.replace("_", "XX XX").title(),
+                     "value": str(value),
+                     "inline": True,
+                 }
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_34
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_34: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -18,7 +18,7 @@
+             fields.append(
+                 {
+                     "name": key.replace("_", " ").title(),
+-                    "value": str(value),
++                    "XXvalueXX": str(value),
+                     "inline": True,
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_35
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_35: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -18,7 +18,7 @@
+             fields.append(
+                 {
+                     "name": key.replace("_", " ").title(),
+-                    "value": str(value),
++                    "VALUE": str(value),
+                     "inline": True,
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_36
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_36: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -18,7 +18,7 @@
+             fields.append(
+                 {
+                     "name": key.replace("_", " ").title(),
+-                    "value": str(value),
++                    "value": str(None),
+                     "inline": True,
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_37
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_37: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -19,7 +19,7 @@
+                 {
+                     "name": key.replace("_", " ").title(),
+                     "value": str(value),
+-                    "inline": True,
++                    "XXinlineXX": True,
+                 }
+             )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_38
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_38: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -19,7 +19,7 @@
+                 {
+                     "name": key.replace("_", " ").title(),
+                     "value": str(value),
+-                    "inline": True,
++                    "INLINE": True,
+                 }
+             )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_39
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_39: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -19,7 +19,7 @@
+                 {
+                     "name": key.replace("_", " ").title(),
+                     "value": str(value),
+-                    "inline": True,
++                    "inline": False,
+                 }
+             )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_5
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_5: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Discord-formatted payload with embeds.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", )
+     data = payload.get("data", {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_50
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_50: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -27,7 +27,7 @@
+         "embeds": [
+             {
+                 "title": event_type.replace("_", " ").title(),
+-                "timestamp": timestamp,
++                "XXtimestampXX": timestamp,
+                 "fields": fields[:25],  # Discord limit
+             },
+         ],
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_51
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_51: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -27,7 +27,7 @@
+         "embeds": [
+             {
+                 "title": event_type.replace("_", " ").title(),
+-                "timestamp": timestamp,
++                "TIMESTAMP": timestamp,
+                 "fields": fields[:25],  # Discord limit
+             },
+         ],
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_54
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_54: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -28,7 +28,7 @@
+             {
+                 "title": event_type.replace("_", " ").title(),
+                 "timestamp": timestamp,
+-                "fields": fields[:25],  # Discord limit
++                "fields": fields[:26],  # Discord limit
+             },
+         ],
+     }
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_8
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_8: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Discord-formatted payload with embeds.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", "XXeventXX")
+     data = payload.get("data", {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_9
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_discord_payload__mutmut_9: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Discord-formatted payload with embeds.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", "EVENT")
+     data = payload.get("data", {})
+     timestamp = payload.get("timestamp", utc_now().isoformat())
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_12
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_12: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Slack-formatted payload with blocks.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("data", None)
+ 
+     # Build text summary
+     text = f"*{event_type}*\n"
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_14
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_14: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Slack-formatted payload with blocks.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("data", )
+ 
+     # Build text summary
+     text = f"*{event_type}*\n"
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_24
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_24: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -20,7 +20,7 @@
+         "text": text,
+         "blocks": [
+             {
+-                "type": "section",
++                "XXtypeXX": "section",
+                 "text": {
+                     "type": "mrkdwn",
+                     "text": text,
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_25
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_25: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -20,7 +20,7 @@
+         "text": text,
+         "blocks": [
+             {
+-                "type": "section",
++                "TYPE": "section",
+                 "text": {
+                     "type": "mrkdwn",
+                     "text": text,
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_26
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_26: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -20,7 +20,7 @@
+         "text": text,
+         "blocks": [
+             {
+-                "type": "section",
++                "type": "XXsectionXX",
+                 "text": {
+                     "type": "mrkdwn",
+                     "text": text,
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_27
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_27: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -20,7 +20,7 @@
+         "text": text,
+         "blocks": [
+             {
+-                "type": "section",
++                "type": "SECTION",
+                 "text": {
+                     "type": "mrkdwn",
+                     "text": text,
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_28
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_28: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -21,7 +21,7 @@
+         "blocks": [
+             {
+                 "type": "section",
+-                "text": {
++                "XXtextXX": {
+                     "type": "mrkdwn",
+                     "text": text,
+                 },
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_29
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_29: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -21,7 +21,7 @@
+         "blocks": [
+             {
+                 "type": "section",
+-                "text": {
++                "TEXT": {
+                     "type": "mrkdwn",
+                     "text": text,
+                 },
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_3
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_3: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Slack-formatted payload with blocks.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", None)
+     data = payload.get("data", {})
+ 
+     # Build text summary
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_30
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_30: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -22,7 +22,7 @@
+             {
+                 "type": "section",
+                 "text": {
+-                    "type": "mrkdwn",
++                    "XXtypeXX": "mrkdwn",
+                     "text": text,
+                 },
+             },
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_31
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_31: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -22,7 +22,7 @@
+             {
+                 "type": "section",
+                 "text": {
+-                    "type": "mrkdwn",
++                    "TYPE": "mrkdwn",
+                     "text": text,
+                 },
+             },
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_32
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_32: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -22,7 +22,7 @@
+             {
+                 "type": "section",
+                 "text": {
+-                    "type": "mrkdwn",
++                    "type": "XXmrkdwnXX",
+                     "text": text,
+                 },
+             },
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_33
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_33: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -22,7 +22,7 @@
+             {
+                 "type": "section",
+                 "text": {
+-                    "type": "mrkdwn",
++                    "type": "MRKDWN",
+                     "text": text,
+                 },
+             },
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_34
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_34: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -23,7 +23,7 @@
+                 "type": "section",
+                 "text": {
+                     "type": "mrkdwn",
+-                    "text": text,
++                    "XXtextXX": text,
+                 },
+             },
+         ],
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_35
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_35: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -23,7 +23,7 @@
+                 "type": "section",
+                 "text": {
+                     "type": "mrkdwn",
+-                    "text": text,
++                    "TEXT": text,
+                 },
+             },
+         ],
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_5
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_5: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Slack-formatted payload with blocks.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", )
+     data = payload.get("data", {})
+ 
+     # Build text summary
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_8
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_8: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Slack-formatted payload with blocks.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", "XXeventXX")
+     data = payload.get("data", {})
+ 
+     # Build text summary
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_9
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_slack_payload__mutmut_9: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Slack-formatted payload with blocks.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", "EVENT")
+     data = payload.get("data", {})
+ 
+     # Build text summary
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_11
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_11: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Teams-formatted adaptive card payload.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get(None, {})
+ 
+     # Build facts from data
+     facts = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_12
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_12: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Teams-formatted adaptive card payload.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("data", None)
+ 
+     # Build facts from data
+     facts = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_14
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_14: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Teams-formatted adaptive card payload.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("data", )
+ 
+     # Build facts from data
+     facts = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_15
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_15: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Teams-formatted adaptive card payload.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("XXdataXX", {})
+ 
+     # Build facts from data
+     facts = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_16
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_16: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -8,7 +8,7 @@
+             Teams-formatted adaptive card payload.
+         """
+     event_type = payload.get("event_type", "event")
+-    data = payload.get("data", {})
++    data = payload.get("DATA", {})
+ 
+     # Build facts from data
+     facts = []
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_18
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_18: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -15,10 +15,7 @@
+     for key, value in data.items():
+         if isinstance(value, str | int | float | bool):
+             facts.append(
+-                {
+-                    "title": key.replace("_", " ").title(),
+-                    "value": str(value),
+-                }
++                None
+             )
+ 
+     return {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_19
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_19: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+         if isinstance(value, str | int | float | bool):
+             facts.append(
+                 {
+-                    "title": key.replace("_", " ").title(),
++                    "XXtitleXX": key.replace("_", " ").title(),
+                     "value": str(value),
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_20
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_20: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+         if isinstance(value, str | int | float | bool):
+             facts.append(
+                 {
+-                    "title": key.replace("_", " ").title(),
++                    "TITLE": key.replace("_", " ").title(),
+                     "value": str(value),
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_25
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_25: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+         if isinstance(value, str | int | float | bool):
+             facts.append(
+                 {
+-                    "title": key.replace("_", " ").title(),
++                    "title": key.replace("XX_XX", " ").title(),
+                     "value": str(value),
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_26
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_26: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+         if isinstance(value, str | int | float | bool):
+             facts.append(
+                 {
+-                    "title": key.replace("_", " ").title(),
++                    "title": key.replace("_", "XX XX").title(),
+                     "value": str(value),
+                 }
+             )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_27
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_27: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+             facts.append(
+                 {
+                     "title": key.replace("_", " ").title(),
+-                    "value": str(value),
++                    "XXvalueXX": str(value),
+                 }
+             )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_28
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_28: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+             facts.append(
+                 {
+                     "title": key.replace("_", " ").title(),
+-                    "value": str(value),
++                    "VALUE": str(value),
+                 }
+             )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_29
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_29: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+             facts.append(
+                 {
+                     "title": key.replace("_", " ").title(),
+-                    "value": str(value),
++                    "value": str(None),
+                 }
+             )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_3
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_3: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Teams-formatted adaptive card payload.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", None)
+     data = payload.get("data", {})
+ 
+     # Build facts from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_35
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_35: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -23,7 +23,7 @@
+ 
+     return {
+         "@type": "MessageCard",
+-        "@context": "https://schema.org/extensions",
++        "XX@contextXX": "https://schema.org/extensions",
+         "summary": event_type,
+         "themeColor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_36
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_36: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -23,7 +23,7 @@
+ 
+     return {
+         "@type": "MessageCard",
+-        "@context": "https://schema.org/extensions",
++        "@CONTEXT": "https://schema.org/extensions",
+         "summary": event_type,
+         "themeColor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_37
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_37: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -23,7 +23,7 @@
+ 
+     return {
+         "@type": "MessageCard",
+-        "@context": "https://schema.org/extensions",
++        "@context": "XXhttps://schema.org/extensionsXX",
+         "summary": event_type,
+         "themeColor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_38
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_38: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -23,7 +23,7 @@
+ 
+     return {
+         "@type": "MessageCard",
+-        "@context": "https://schema.org/extensions",
++        "@context": "HTTPS://SCHEMA.ORG/EXTENSIONS",
+         "summary": event_type,
+         "themeColor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_39
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_39: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -24,7 +24,7 @@
+     return {
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+-        "summary": event_type,
++        "XXsummaryXX": event_type,
+         "themeColor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_40
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_40: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -24,7 +24,7 @@
+     return {
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+-        "summary": event_type,
++        "SUMMARY": event_type,
+         "themeColor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_41
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_41: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+         "summary": event_type,
+-        "themeColor": "0076D7",
++        "XXthemeColorXX": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+             {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_42
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_42: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+         "summary": event_type,
+-        "themeColor": "0076D7",
++        "themecolor": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+             {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_43
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_43: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+         "summary": event_type,
+-        "themeColor": "0076D7",
++        "THEMECOLOR": "0076D7",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+             {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_44
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_44: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+         "summary": event_type,
+-        "themeColor": "0076D7",
++        "themeColor": "XX0076D7XX",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+             {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_45
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_45: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+         "@type": "MessageCard",
+         "@context": "https://schema.org/extensions",
+         "summary": event_type,
+-        "themeColor": "0076D7",
++        "themeColor": "0076d7",
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+             {
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_5
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_5: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Teams-formatted adaptive card payload.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", )
+     data = payload.get("data", {})
+ 
+     # Build facts from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_58
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_58: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -29,7 +29,7 @@
+         "title": event_type.replace("_", " ").title(),
+         "sections": [
+             {
+-                "facts": facts[:10],  # Reasonable limit
++                "facts": facts[:11],  # Reasonable limit
+             },
+         ],
+     }
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_8
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_8: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Teams-formatted adaptive card payload.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", "XXeventXX")
+     data = payload.get("data", {})
+ 
+     # Build facts from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_9
+# backend.services.webhook_service.xǁWebhookServiceǁ_format_teams_payload__mutmut_9: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -7,7 +7,7 @@
+         Returns:
+             Teams-formatted adaptive card payload.
+         """
+-    event_type = payload.get("event_type", "event")
++    event_type = payload.get("event_type", "EVENT")
+     data = payload.get("data", {})
+ 
+     # Build facts from data
+===KEY backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_10
+# backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_10: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -26,7 +26,7 @@
+ 
+     logger.info(
+         f"Deleted webhook {webhook_id}",
+-        extra={"webhook_id": webhook_id},
++        extra=None,
+     )
+ 
+     return True
+===KEY backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_12
+# backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_12: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -26,7 +26,6 @@
+ 
+     logger.info(
+         f"Deleted webhook {webhook_id}",
+-        extra={"webhook_id": webhook_id},
+-    )
++        )
+ 
+     return True
+===KEY backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_13
+# backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_13: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -26,7 +26,7 @@
+ 
+     logger.info(
+         f"Deleted webhook {webhook_id}",
+-        extra={"webhook_id": webhook_id},
++        extra={"XXwebhook_idXX": webhook_id},
+     )
+ 
+     return True
+===KEY backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_14
+# backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_14: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -26,7 +26,7 @@
+ 
+     logger.info(
+         f"Deleted webhook {webhook_id}",
+-        extra={"webhook_id": webhook_id},
++        extra={"WEBHOOK_ID": webhook_id},
+     )
+ 
+     return True
+===KEY backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_3
+# backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_3: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -17,7 +17,7 @@
+         Raises:
+             SQLAlchemy exceptions on database errors.
+         """
+-    webhook = await self.get_webhook(db, webhook_id)
++    webhook = await self.get_webhook(db, None)
+     if webhook is None:
+         return False
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_9
+# backend.services.webhook_service.xǁWebhookServiceǁdelete_webhook__mutmut_9: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+     await db.flush()
+ 
+     logger.info(
+-        f"Deleted webhook {webhook_id}",
++        None,
+         extra={"webhook_id": webhook_id},
+     )
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_11
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_11: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -28,11 +28,7 @@
+ 
+     # Get deliveries
+     result = await db.execute(
+-        select(WebhookDelivery)
+-        .where(WebhookDelivery.webhook_id == webhook_id)
+-        .order_by(WebhookDelivery.created_at.desc())
+-        .limit(limit)
+-        .offset(offset)
++        None
+     )
+     deliveries = list(result.scalars().all())
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_12
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_12: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -32,7 +32,7 @@
+         .where(WebhookDelivery.webhook_id == webhook_id)
+         .order_by(WebhookDelivery.created_at.desc())
+         .limit(limit)
+-        .offset(offset)
++        .offset(None)
+     )
+     deliveries = list(result.scalars().all())
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_13
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_13: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -31,7 +31,7 @@
+         select(WebhookDelivery)
+         .where(WebhookDelivery.webhook_id == webhook_id)
+         .order_by(WebhookDelivery.created_at.desc())
+-        .limit(limit)
++        .limit(None)
+         .offset(offset)
+     )
+     deliveries = list(result.scalars().all())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_14
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_14: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -30,7 +30,7 @@
+     result = await db.execute(
+         select(WebhookDelivery)
+         .where(WebhookDelivery.webhook_id == webhook_id)
+-        .order_by(WebhookDelivery.created_at.desc())
++        .order_by(None)
+         .limit(limit)
+         .offset(offset)
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_15
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_15: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -29,7 +29,7 @@
+     # Get deliveries
+     result = await db.execute(
+         select(WebhookDelivery)
+-        .where(WebhookDelivery.webhook_id == webhook_id)
++        .where(None)
+         .order_by(WebhookDelivery.created_at.desc())
+         .limit(limit)
+         .offset(offset)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_16
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_16: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -28,7 +28,7 @@
+ 
+     # Get deliveries
+     result = await db.execute(
+-        select(WebhookDelivery)
++        select(None)
+         .where(WebhookDelivery.webhook_id == webhook_id)
+         .order_by(WebhookDelivery.created_at.desc())
+         .limit(limit)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_17
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_17: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -29,7 +29,7 @@
+     # Get deliveries
+     result = await db.execute(
+         select(WebhookDelivery)
+-        .where(WebhookDelivery.webhook_id == webhook_id)
++        .where(WebhookDelivery.webhook_id != webhook_id)
+         .order_by(WebhookDelivery.created_at.desc())
+         .limit(limit)
+         .offset(offset)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_2
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_2: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -20,9 +20,7 @@
+ 
+     # Get total count
+     count_result = await db.execute(
+-        select(func.count())
+-        .select_from(WebhookDelivery)
+-        .where(WebhookDelivery.webhook_id == webhook_id)
++        None
+     )
+     total = count_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_3
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_3: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -22,7 +22,7 @@
+     count_result = await db.execute(
+         select(func.count())
+         .select_from(WebhookDelivery)
+-        .where(WebhookDelivery.webhook_id == webhook_id)
++        .where(None)
+     )
+     total = count_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_5
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_5: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -20,7 +20,7 @@
+ 
+     # Get total count
+     count_result = await db.execute(
+-        select(func.count())
++        select(None)
+         .select_from(WebhookDelivery)
+         .where(WebhookDelivery.webhook_id == webhook_id)
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_6
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_6: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -22,7 +22,7 @@
+     count_result = await db.execute(
+         select(func.count())
+         .select_from(WebhookDelivery)
+-        .where(WebhookDelivery.webhook_id == webhook_id)
++        .where(WebhookDelivery.webhook_id != webhook_id)
+     )
+     total = count_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_9
+# backend.services.webhook_service.xǁWebhookServiceǁget_deliveries__mutmut_9: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -24,7 +24,7 @@
+         .select_from(WebhookDelivery)
+         .where(WebhookDelivery.webhook_id == webhook_id)
+     )
+-    total = count_result.scalar() or 0
++    total = count_result.scalar() or 1
+ 
+     # Get deliveries
+     result = await db.execute(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_2
+# backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_2: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -14,5 +14,5 @@
+         """
+     from backend.models.outbound_webhook import WebhookDelivery
+ 
+-    result = await db.execute(select(WebhookDelivery).where(WebhookDelivery.id == delivery_id))
++    result = await db.execute(None)
+     return result.scalar_one_or_none()
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_3
+# backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_3: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -14,5 +14,5 @@
+         """
+     from backend.models.outbound_webhook import WebhookDelivery
+ 
+-    result = await db.execute(select(WebhookDelivery).where(WebhookDelivery.id == delivery_id))
++    result = await db.execute(select(WebhookDelivery).where(None))
+     return result.scalar_one_or_none()
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_4
+# backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_4: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -14,5 +14,5 @@
+         """
+     from backend.models.outbound_webhook import WebhookDelivery
+ 
+-    result = await db.execute(select(WebhookDelivery).where(WebhookDelivery.id == delivery_id))
++    result = await db.execute(select(None).where(WebhookDelivery.id == delivery_id))
+     return result.scalar_one_or_none()
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_5
+# backend.services.webhook_service.xǁWebhookServiceǁget_delivery__mutmut_5: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -14,5 +14,5 @@
+         """
+     from backend.models.outbound_webhook import WebhookDelivery
+ 
+-    result = await db.execute(select(WebhookDelivery).where(WebhookDelivery.id == delivery_id))
++    result = await db.execute(select(WebhookDelivery).where(WebhookDelivery.id != delivery_id))
+     return result.scalar_one_or_none()
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_10
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_10: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -31,7 +31,7 @@
+     enabled_result = await db.execute(
+         select(func.count())
+         .select_from(OutboundWebhook)
+-        .where(OutboundWebhook.enabled.is_(True))
++        .where(None)
+     )
+     enabled_webhooks = enabled_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_107
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_107: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -102,5 +102,5 @@
+         total_deliveries_24h=total_deliveries_24h,
+         successful_deliveries_24h=successful_deliveries_24h,
+         failed_deliveries_24h=failed_deliveries_24h,
+-        average_response_time_ms=float(avg_response_time) if avg_response_time else None,
++        average_response_time_ms=float(avg_response_time) if (avg_response_time) or True else None,
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_12
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_12: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -29,7 +29,7 @@
+     total_webhooks = total_result.scalar() or 0
+ 
+     enabled_result = await db.execute(
+-        select(func.count())
++        select(None)
+         .select_from(OutboundWebhook)
+         .where(OutboundWebhook.enabled.is_(True))
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_13
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_13: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -31,7 +31,7 @@
+     enabled_result = await db.execute(
+         select(func.count())
+         .select_from(OutboundWebhook)
+-        .where(OutboundWebhook.enabled.is_(True))
++        .where(OutboundWebhook.enabled.is_(None))
+     )
+     enabled_webhooks = enabled_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_14
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_14: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -31,7 +31,7 @@
+     enabled_result = await db.execute(
+         select(func.count())
+         .select_from(OutboundWebhook)
+-        .where(OutboundWebhook.enabled.is_(True))
++        .where(OutboundWebhook.enabled.is_(False))
+     )
+     enabled_webhooks = enabled_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_17
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_17: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -33,7 +33,7 @@
+         .select_from(OutboundWebhook)
+         .where(OutboundWebhook.enabled.is_(True))
+     )
+-    enabled_webhooks = enabled_result.scalar() or 0
++    enabled_webhooks = enabled_result.scalar() or 1
+ 
+     # Get delivery stats from the last 24 hours
+     cutoff = utc_now() - timedelta(hours=24)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_19
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_19: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -36,7 +36,7 @@
+     enabled_webhooks = enabled_result.scalar() or 0
+ 
+     # Get delivery stats from the last 24 hours
+-    cutoff = utc_now() - timedelta(hours=24)
++    cutoff = utc_now() + timedelta(hours=24)
+ 
+     deliveries_24h_result = await db.execute(
+         select(func.count())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_2
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_2: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+     )
+ 
+     # Get webhook counts
+-    total_result = await db.execute(select(func.count()).select_from(OutboundWebhook))
++    total_result = await db.execute(None)
+     total_webhooks = total_result.scalar() or 0
+ 
+     enabled_result = await db.execute(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_21
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_21: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -36,7 +36,7 @@
+     enabled_webhooks = enabled_result.scalar() or 0
+ 
+     # Get delivery stats from the last 24 hours
+-    cutoff = utc_now() - timedelta(hours=24)
++    cutoff = utc_now() - timedelta(hours=25)
+ 
+     deliveries_24h_result = await db.execute(
+         select(func.count())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_23
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_23: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -39,9 +39,7 @@
+     cutoff = utc_now() - timedelta(hours=24)
+ 
+     deliveries_24h_result = await db.execute(
+-        select(func.count())
+-        .select_from(WebhookDelivery)
+-        .where(WebhookDelivery.created_at >= cutoff)
++        None
+     )
+     total_deliveries_24h = deliveries_24h_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_24
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_24: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -41,7 +41,7 @@
+     deliveries_24h_result = await db.execute(
+         select(func.count())
+         .select_from(WebhookDelivery)
+-        .where(WebhookDelivery.created_at >= cutoff)
++        .where(None)
+     )
+     total_deliveries_24h = deliveries_24h_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_26
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_26: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -39,7 +39,7 @@
+     cutoff = utc_now() - timedelta(hours=24)
+ 
+     deliveries_24h_result = await db.execute(
+-        select(func.count())
++        select(None)
+         .select_from(WebhookDelivery)
+         .where(WebhookDelivery.created_at >= cutoff)
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_27
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_27: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -41,7 +41,7 @@
+     deliveries_24h_result = await db.execute(
+         select(func.count())
+         .select_from(WebhookDelivery)
+-        .where(WebhookDelivery.created_at >= cutoff)
++        .where(WebhookDelivery.created_at > cutoff)
+     )
+     total_deliveries_24h = deliveries_24h_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_30
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_30: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -43,7 +43,7 @@
+         .select_from(WebhookDelivery)
+         .where(WebhookDelivery.created_at >= cutoff)
+     )
+-    total_deliveries_24h = deliveries_24h_result.scalar() or 0
++    total_deliveries_24h = deliveries_24h_result.scalar() or 1
+ 
+     successful_24h_result = await db.execute(
+         select(func.count())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_32
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_32: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -46,14 +46,7 @@
+     total_deliveries_24h = deliveries_24h_result.scalar() or 0
+ 
+     successful_24h_result = await db.execute(
+-        select(func.count())
+-        .select_from(WebhookDelivery)
+-        .where(
+-            and_(
+-                WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
+-            )
+-        )
++        None
+     )
+     successful_deliveries_24h = successful_24h_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_33
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_33: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -49,10 +49,7 @@
+         select(func.count())
+         .select_from(WebhookDelivery)
+         .where(
+-            and_(
+-                WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
+-            )
++            None
+         )
+     )
+     successful_deliveries_24h = successful_24h_result.scalar() or 0
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_35
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_35: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -46,7 +46,7 @@
+     total_deliveries_24h = deliveries_24h_result.scalar() or 0
+ 
+     successful_24h_result = await db.execute(
+-        select(func.count())
++        select(None)
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_36
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_36: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -50,7 +50,7 @@
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
++                None,
+                 WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_37
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_37: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -51,7 +51,7 @@
+         .where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
++                None,
+             )
+         )
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_38
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_38: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -50,7 +50,6 @@
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
+                 WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_39
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_39: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -51,8 +51,7 @@
+         .where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
+-            )
++                )
+         )
+     )
+     successful_deliveries_24h = successful_24h_result.scalar() or 0
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_4
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_4: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -25,7 +25,7 @@
+     )
+ 
+     # Get webhook counts
+-    total_result = await db.execute(select(func.count()).select_from(OutboundWebhook))
++    total_result = await db.execute(select(None).select_from(OutboundWebhook))
+     total_webhooks = total_result.scalar() or 0
+ 
+     enabled_result = await db.execute(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_40
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_40: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -50,7 +50,7 @@
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
++                WebhookDelivery.created_at > cutoff,
+                 WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_41
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_41: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -51,7 +51,7 @@
+         .where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.SUCCESS,
++                WebhookDelivery.status != WebhookDeliveryStatus.SUCCESS,
+             )
+         )
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_44
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_44: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -55,7 +55,7 @@
+             )
+         )
+     )
+-    successful_deliveries_24h = successful_24h_result.scalar() or 0
++    successful_deliveries_24h = successful_24h_result.scalar() or 1
+ 
+     failed_24h_result = await db.execute(
+         select(func.count())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_46
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_46: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -58,14 +58,7 @@
+     successful_deliveries_24h = successful_24h_result.scalar() or 0
+ 
+     failed_24h_result = await db.execute(
+-        select(func.count())
+-        .select_from(WebhookDelivery)
+-        .where(
+-            and_(
+-                WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
+-            )
+-        )
++        None
+     )
+     failed_deliveries_24h = failed_24h_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_47
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_47: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -61,10 +61,7 @@
+         select(func.count())
+         .select_from(WebhookDelivery)
+         .where(
+-            and_(
+-                WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
+-            )
++            None
+         )
+     )
+     failed_deliveries_24h = failed_24h_result.scalar() or 0
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_49
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_49: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -58,7 +58,7 @@
+     successful_deliveries_24h = successful_24h_result.scalar() or 0
+ 
+     failed_24h_result = await db.execute(
+-        select(func.count())
++        select(None)
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_50
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_50: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -62,7 +62,7 @@
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
++                None,
+                 WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_51
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_51: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -63,7 +63,7 @@
+         .where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
++                None,
+             )
+         )
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_52
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_52: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -62,7 +62,6 @@
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
+                 WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_53
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_53: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -63,8 +63,7 @@
+         .where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
+-            )
++                )
+         )
+     )
+     failed_deliveries_24h = failed_24h_result.scalar() or 0
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_54
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_54: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -62,7 +62,7 @@
+         .select_from(WebhookDelivery)
+         .where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
++                WebhookDelivery.created_at > cutoff,
+                 WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_55
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_55: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -63,7 +63,7 @@
+         .where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.status == WebhookDeliveryStatus.FAILED,
++                WebhookDelivery.status != WebhookDeliveryStatus.FAILED,
+             )
+         )
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_58
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_58: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -67,7 +67,7 @@
+             )
+         )
+     )
+-    failed_deliveries_24h = failed_24h_result.scalar() or 0
++    failed_deliveries_24h = failed_24h_result.scalar() or 1
+ 
+     # Calculate average response time
+     avg_response_result = await db.execute(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_60
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_60: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -71,12 +71,7 @@
+ 
+     # Calculate average response time
+     avg_response_result = await db.execute(
+-        select(func.avg(WebhookDelivery.response_time_ms)).where(
+-            and_(
+-                WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.response_time_ms.is_not(None),
+-            )
+-        )
++        None
+     )
+     avg_response_time = avg_response_result.scalar()
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_61
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_61: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -72,10 +72,7 @@
+     # Calculate average response time
+     avg_response_result = await db.execute(
+         select(func.avg(WebhookDelivery.response_time_ms)).where(
+-            and_(
+-                WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.response_time_ms.is_not(None),
+-            )
++            None
+         )
+     )
+     avg_response_time = avg_response_result.scalar()
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_62
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_62: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -71,7 +71,7 @@
+ 
+     # Calculate average response time
+     avg_response_result = await db.execute(
+-        select(func.avg(WebhookDelivery.response_time_ms)).where(
++        select(None).where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+                 WebhookDelivery.response_time_ms.is_not(None),
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_63
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_63: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -71,7 +71,7 @@
+ 
+     # Calculate average response time
+     avg_response_result = await db.execute(
+-        select(func.avg(WebhookDelivery.response_time_ms)).where(
++        select(func.avg(None)).where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+                 WebhookDelivery.response_time_ms.is_not(None),
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_64
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_64: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -73,7 +73,7 @@
+     avg_response_result = await db.execute(
+         select(func.avg(WebhookDelivery.response_time_ms)).where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
++                None,
+                 WebhookDelivery.response_time_ms.is_not(None),
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_65
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_65: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -74,7 +74,7 @@
+         select(func.avg(WebhookDelivery.response_time_ms)).where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.response_time_ms.is_not(None),
++                None,
+             )
+         )
+     )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_66
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_66: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -73,7 +73,6 @@
+     avg_response_result = await db.execute(
+         select(func.avg(WebhookDelivery.response_time_ms)).where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
+                 WebhookDelivery.response_time_ms.is_not(None),
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_67
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_67: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -74,8 +74,7 @@
+         select(func.avg(WebhookDelivery.response_time_ms)).where(
+             and_(
+                 WebhookDelivery.created_at >= cutoff,
+-                WebhookDelivery.response_time_ms.is_not(None),
+-            )
++                )
+         )
+     )
+     avg_response_time = avg_response_result.scalar()
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_68
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_68: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -73,7 +73,7 @@
+     avg_response_result = await db.execute(
+         select(func.avg(WebhookDelivery.response_time_ms)).where(
+             and_(
+-                WebhookDelivery.created_at >= cutoff,
++                WebhookDelivery.created_at > cutoff,
+                 WebhookDelivery.response_time_ms.is_not(None),
+             )
+         )
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_7
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_7: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -26,7 +26,7 @@
+ 
+     # Get webhook counts
+     total_result = await db.execute(select(func.count()).select_from(OutboundWebhook))
+-    total_webhooks = total_result.scalar() or 0
++    total_webhooks = total_result.scalar() or 1
+ 
+     enabled_result = await db.execute(
+         select(func.count())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_71
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_71: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -82,7 +82,7 @@
+ 
+     # Calculate healthy/unhealthy webhook counts
+     # Healthy: >90% success rate, Unhealthy: <50% success rate
+-    webhooks = await self.list_webhooks(db)
++    webhooks = await self.list_webhooks(None)
+     healthy_count = 0
+     unhealthy_count = 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_77
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_77: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -87,7 +87,7 @@
+     unhealthy_count = 0
+ 
+     for webhook in webhooks:
+-        if webhook.total_deliveries > 0:
++        if webhook.total_deliveries > 1:
+             success_rate = webhook.successful_deliveries / webhook.total_deliveries
+             if success_rate >= 0.9:
+                 healthy_count += 1
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_80
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_80: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -89,7 +89,7 @@
+     for webhook in webhooks:
+         if webhook.total_deliveries > 0:
+             success_rate = webhook.successful_deliveries / webhook.total_deliveries
+-            if success_rate >= 0.9:
++            if success_rate > 0.9:
+                 healthy_count += 1
+             elif success_rate < 0.5:
+                 unhealthy_count += 1
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_82
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_82: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -90,7 +90,7 @@
+         if webhook.total_deliveries > 0:
+             success_rate = webhook.successful_deliveries / webhook.total_deliveries
+             if success_rate >= 0.9:
+-                healthy_count += 1
++                healthy_count = 1
+             elif success_rate < 0.5:
+                 unhealthy_count += 1
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_85
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_85: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -91,7 +91,7 @@
+             success_rate = webhook.successful_deliveries / webhook.total_deliveries
+             if success_rate >= 0.9:
+                 healthy_count += 1
+-            elif success_rate < 0.5:
++            elif success_rate <= 0.5:
+                 unhealthy_count += 1
+ 
+     return WebhookHealthSummary(
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_87
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_87: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -92,7 +92,7 @@
+             if success_rate >= 0.9:
+                 healthy_count += 1
+             elif success_rate < 0.5:
+-                unhealthy_count += 1
++                unhealthy_count = 1
+ 
+     return WebhookHealthSummary(
+         total_webhooks=total_webhooks,
+===KEY backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_9
+# backend.services.webhook_service.xǁWebhookServiceǁget_health_summary__mutmut_9: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -29,9 +29,7 @@
+     total_webhooks = total_result.scalar() or 0
+ 
+     enabled_result = await db.execute(
+-        select(func.count())
+-        .select_from(OutboundWebhook)
+-        .where(OutboundWebhook.enabled.is_(True))
++        None
+     )
+     enabled_webhooks = enabled_result.scalar() or 0
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_10
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_10: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -19,5 +19,5 @@
+         query = query.where(OutboundWebhook.enabled.is_(True))
+ 
+     query = query.order_by(OutboundWebhook.created_at.desc())
+-    result = await db.execute(query)
++    result = await db.execute(None)
+     return list(result.scalars().all())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_2
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_2: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -14,7 +14,7 @@
+         """
+     from backend.models.outbound_webhook import OutboundWebhook
+ 
+-    query = select(OutboundWebhook)
++    query = select(None)
+     if enabled_only:
+         query = query.where(OutboundWebhook.enabled.is_(True))
+ 
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_4
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_4: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+ 
+     query = select(OutboundWebhook)
+     if enabled_only:
+-        query = query.where(OutboundWebhook.enabled.is_(True))
++        query = query.where(None)
+ 
+     query = query.order_by(OutboundWebhook.created_at.desc())
+     result = await db.execute(query)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_5
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_5: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+ 
+     query = select(OutboundWebhook)
+     if enabled_only:
+-        query = query.where(OutboundWebhook.enabled.is_(True))
++        query = query.where(OutboundWebhook.enabled.is_(None))
+ 
+     query = query.order_by(OutboundWebhook.created_at.desc())
+     result = await db.execute(query)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_6
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_6: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -16,7 +16,7 @@
+ 
+     query = select(OutboundWebhook)
+     if enabled_only:
+-        query = query.where(OutboundWebhook.enabled.is_(True))
++        query = query.where(OutboundWebhook.enabled.is_(False))
+ 
+     query = query.order_by(OutboundWebhook.created_at.desc())
+     result = await db.execute(query)
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_7
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_7: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -18,6 +18,6 @@
+     if enabled_only:
+         query = query.where(OutboundWebhook.enabled.is_(True))
+ 
+-    query = query.order_by(OutboundWebhook.created_at.desc())
++    query = None
+     result = await db.execute(query)
+     return list(result.scalars().all())
+===KEY backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_8
+# backend.services.webhook_service.xǁWebhookServiceǁlist_webhooks__mutmut_8: survived
+--- backend/services/webhook_service.py
++++ backend/services/webhook_service.py
+@@ -18,6 +18,6 @@
+     if enabled_only:
+         query = query.where(OutboundWebhook.enabled.is_(True))
+ 
+-    query = query.order_by(OutboundWebhook.created_at.desc())
++    query = query.order_by(None)
+     result = await db.execute(query)
+     return list(result.scalars().all())

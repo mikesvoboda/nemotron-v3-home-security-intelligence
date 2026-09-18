@@ -1,0 +1,1080 @@
+{
+ "backend.services.transcoding_service.x__validate_video_path__mutmut_8": {
+  "variant": "x__validate_video_path__mutmut_8",
+  "diff": [
+   "-def x__validate_video_path__mutmut_orig(video_path: str | Path) -> Path:",
+   "+def x__validate_video_path__mutmut_8(video_path: str | Path) -> Path:",
+   "-    if str(video_path_obj).startswith(\"-\"):",
+   "+    if str(None).startswith(\"-\"):"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x__validate_video_path__mutmut_9": {
+  "variant": "x__validate_video_path__mutmut_9",
+  "diff": [
+   "-def x__validate_video_path__mutmut_orig(video_path: str | Path) -> Path:",
+   "+def x__validate_video_path__mutmut_9(video_path: str | Path) -> Path:",
+   "-    if str(video_path_obj).startswith(\"-\"):",
+   "+    if str(video_path_obj).startswith(\"XX-XX\"):"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x__compute_file_hash__mutmut_4": {
+  "variant": "x__compute_file_hash__mutmut_4",
+  "diff": [
+   "-def x__compute_file_hash__mutmut_orig(file_path: Path) -> str:",
+   "+def x__compute_file_hash__mutmut_4(file_path: Path) -> str:",
+   "-    return hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest()",
+   "+    return hashlib.md5(hash_input.encode(), usedforsecurity=None).hexdigest()"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x__compute_file_hash__mutmut_6": {
+  "variant": "x__compute_file_hash__mutmut_6",
+  "diff": [
+   "-def x__compute_file_hash__mutmut_orig(file_path: Path) -> str:",
+   "+def x__compute_file_hash__mutmut_6(file_path: Path) -> str:",
+   "-    return hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest()",
+   "+    return hashlib.md5(hash_input.encode(), ).hexdigest()"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x__compute_file_hash__mutmut_7": {
+  "variant": "x__compute_file_hash__mutmut_7",
+  "diff": [
+   "-def x__compute_file_hash__mutmut_orig(file_path: Path) -> str:",
+   "+def x__compute_file_hash__mutmut_7(file_path: Path) -> str:",
+   "-    return hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest()",
+   "+    return hashlib.md5(hash_input.encode(), usedforsecurity=True).hexdigest()"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1__init____mutmut_9": {
+  "variant": "x\u01c1TranscodingService\u01c1__init____mutmut_9",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1__init____mutmut_orig(",
+   "+def x\u01c1TranscodingService\u01c1__init____mutmut_9(",
+   "-            else getattr(settings, \"transcoding_cache_directory\", \"data/transcoded_cache\")",
+   "+            else getattr(settings, \"transcoding_cache_directory\", None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1__init____mutmut_12": {
+  "variant": "x\u01c1TranscodingService\u01c1__init____mutmut_12",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1__init____mutmut_orig(",
+   "+def x\u01c1TranscodingService\u01c1__init____mutmut_12(",
+   "-            else getattr(settings, \"transcoding_cache_directory\", \"data/transcoded_cache\")",
+   "+            else getattr(settings, \"transcoding_cache_directory\", )"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1__init____mutmut_15": {
+  "variant": "x\u01c1TranscodingService\u01c1__init____mutmut_15",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1__init____mutmut_orig(",
+   "+def x\u01c1TranscodingService\u01c1__init____mutmut_15(",
+   "-            else getattr(settings, \"transcoding_cache_directory\", \"data/transcoded_cache\")",
+   "+            else getattr(settings, \"transcoding_cache_directory\", \"XXdata/transcoded_cacheXX\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1__init____mutmut_16": {
+  "variant": "x\u01c1TranscodingService\u01c1__init____mutmut_16",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1__init____mutmut_orig(",
+   "+def x\u01c1TranscodingService\u01c1__init____mutmut_16(",
+   "-            else getattr(settings, \"transcoding_cache_directory\", \"data/transcoded_cache\")",
+   "+            else getattr(settings, \"transcoding_cache_directory\", \"DATA/TRANSCODED_CACHE\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1__init____mutmut_17": {
+  "variant": "x\u01c1TranscodingService\u01c1__init____mutmut_17",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1__init____mutmut_orig(",
+   "+def x\u01c1TranscodingService\u01c1__init____mutmut_17(",
+   "-        logger.info(f\"TranscodingService initialized: cache_directory={self._cache_directory}\")",
+   "+        logger.info(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_1": {
+  "variant": "x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_1",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_orig(self) -> None:",
+   "+def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_1(self) -> None:",
+   "-            self._cache_directory.mkdir(parents=True, exist_ok=True)",
+   "+            self._cache_directory.mkdir(parents=None, exist_ok=True)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_3": {
+  "variant": "x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_3",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_orig(self) -> None:",
+   "+def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_3(self) -> None:",
+   "-            self._cache_directory.mkdir(parents=True, exist_ok=True)",
+   "+            self._cache_directory.mkdir(exist_ok=True)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_5": {
+  "variant": "x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_5",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_orig(self) -> None:",
+   "+def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_5(self) -> None:",
+   "-            self._cache_directory.mkdir(parents=True, exist_ok=True)",
+   "+            self._cache_directory.mkdir(parents=False, exist_ok=True)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_7": {
+  "variant": "x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_7",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_orig(self) -> None:",
+   "+def x\u01c1TranscodingService\u01c1_ensure_cache_directory__mutmut_7(self) -> None:",
+   "-            logger.debug(f\"Transcoding cache directory ready: {self._cache_directory}\")",
+   "+            logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_cached_video__mutmut_3": {
+  "variant": "x\u01c1TranscodingService\u01c1get_cached_video__mutmut_3",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_orig(self, video_path: str | Path) -> Path | None:",
+   "+def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_3(self, video_path: str | Path) -> Path | None:",
+   "-            logger.warning(f\"Cache lookup failed - path validation error: {e}\")",
+   "+            logger.warning(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_cached_video__mutmut_7": {
+  "variant": "x\u01c1TranscodingService\u01c1get_cached_video__mutmut_7",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_orig(self, video_path: str | Path) -> Path | None:",
+   "+def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_7(self, video_path: str | Path) -> Path | None:",
+   "-            if file_size < 1000:",
+   "+            if file_size <= 1000:"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_cached_video__mutmut_8": {
+  "variant": "x\u01c1TranscodingService\u01c1get_cached_video__mutmut_8",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_orig(self, video_path: str | Path) -> Path | None:",
+   "+def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_8(self, video_path: str | Path) -> Path | None:",
+   "-            if file_size < 1000:",
+   "+            if file_size < 1001:"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_cached_video__mutmut_9": {
+  "variant": "x\u01c1TranscodingService\u01c1get_cached_video__mutmut_9",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_orig(self, video_path: str | Path) -> Path | None:",
+   "+def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_9(self, video_path: str | Path) -> Path | None:",
+   "-            logger.debug(f\"Cache hit for video: {video_path} -> {cache_path}\")",
+   "+            logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_cached_video__mutmut_10": {
+  "variant": "x\u01c1TranscodingService\u01c1get_cached_video__mutmut_10",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_orig(self, video_path: str | Path) -> Path | None:",
+   "+def x\u01c1TranscodingService\u01c1get_cached_video__mutmut_10(self, video_path: str | Path) -> Path | None:",
+   "-        logger.debug(f\"Cache miss for video: {video_path}\")",
+   "+        logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_2": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_2",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_2(",
+   "-            \"ffmpeg\",",
+   "+            \"XXffmpegXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_3": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_3",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_3(",
+   "-            \"ffmpeg\",",
+   "+            \"FFMPEG\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_4": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_4",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_4(",
+   "-            \"-y\",",
+   "+            \"XX-yXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_5": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_5",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_5(",
+   "-            \"-y\",",
+   "+            \"-Y\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_6": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_6",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_6(",
+   "-            \"-i\",",
+   "+            \"XX-iXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_7": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_7",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_7(",
+   "-            \"-i\",",
+   "+            \"-I\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_8": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_8",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_8(",
+   "-            str(video_path),",
+   "+            str(None),"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_9": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_9",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_9(",
+   "-            \"-c:v\",",
+   "+            \"XX-c:vXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_10": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_10",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_10(",
+   "-            \"-c:v\",",
+   "+            \"-C:V\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_11": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_11",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_11(",
+   "-            \"copy\",  # Copy video stream without re-encoding",
+   "+            \"XXcopyXX\",  # Copy video stream without re-encoding"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_12": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_12",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_12(",
+   "-            \"copy\",  # Copy video stream without re-encoding",
+   "+            \"COPY\",  # Copy video stream without re-encoding"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_13": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_13",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_13(",
+   "-            \"-c:a\",",
+   "+            \"XX-c:aXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_14": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_14",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_14(",
+   "-            \"-c:a\",",
+   "+            \"-C:A\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_15": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_15",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_15(",
+   "-            \"copy\",  # Copy audio stream without re-encoding",
+   "+            \"XXcopyXX\",  # Copy audio stream without re-encoding"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_16": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_16",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_16(",
+   "-            \"copy\",  # Copy audio stream without re-encoding",
+   "+            \"COPY\",  # Copy audio stream without re-encoding"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_17": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_17",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_17(",
+   "-            \"-movflags\",",
+   "+            \"XX-movflagsXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_18": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_18",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_18(",
+   "-            \"-movflags\",",
+   "+            \"-MOVFLAGS\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_19": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_19",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_19(",
+   "-            \"+faststart\",",
+   "+            \"XX+faststartXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_20": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_20",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_20(",
+   "-            \"+faststart\",",
+   "+            \"+FASTSTART\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_21": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_21",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_21(",
+   "-            str(cache_path),",
+   "+            str(None),"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_22": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_22",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_22(",
+   "-        logger.info(f\"Attempting fast remux: {video_path} -> {cache_path}\")",
+   "+        logger.info(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_23": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_23",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_23(",
+   "-        logger.debug(f\"FFmpeg remux command: {' '.join(cmd)}\")",
+   "+        logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_25": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_25",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_25(",
+   "-        logger.debug(f\"FFmpeg remux command: {' '.join(cmd)}\")",
+   "+        logger.debug(f\"FFmpeg remux command: {'XX XX'.join(cmd)}\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_27": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_27",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_27(",
+   "-                stdout=asyncio.subprocess.PIPE,",
+   "+                stdout=None,"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_28": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_28",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_28(",
+   "-                stderr=asyncio.subprocess.PIPE,",
+   "+                stderr=None,"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_30": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_30",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_30(",
+   "-                stdout=asyncio.subprocess.PIPE,"
+  ],
+  "nchangelines": 3
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_31": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_31",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_31(",
+   "-                stderr=asyncio.subprocess.PIPE,",
+   "-            )",
+   "+                )"
+  ],
+  "nchangelines": 5
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_34": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_34",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_34(",
+   "-                timeout=30.0,  # Remux should be fast, 30s timeout",
+   "+                timeout=None,  # Remux should be fast, 30s timeout"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_37": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_37",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_37(",
+   "-                timeout=30.0,  # Remux should be fast, 30s timeout",
+   "+                timeout=31.0,  # Remux should be fast, 30s timeout"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_42": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_42",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_42(",
+   "-                if file_size > 1000:  # Sanity check - file should be > 1KB",
+   "+                if file_size >= 1000:  # Sanity check - file should be > 1KB"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_43": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_43",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_43(",
+   "-                if file_size > 1000:  # Sanity check - file should be > 1KB",
+   "+                if file_size > 1001:  # Sanity check - file should be > 1KB"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_44": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_44",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_44(",
+   "-                    logger.info(f\"Fast remux successful: {cache_path} ({file_size} bytes)\")",
+   "+                    logger.info(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_45": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_45",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_45(",
+   "-            logger.debug(f\"Remux failed (returncode={process.returncode}), will try full transcode\")",
+   "+            logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_46": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_46",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_46(",
+   "-            cache_path.unlink(missing_ok=True)",
+   "+            cache_path.unlink(missing_ok=None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_47": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_47",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_47(",
+   "-            cache_path.unlink(missing_ok=True)",
+   "+            cache_path.unlink(missing_ok=False)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1_remux_video__mutmut_48": {
+  "variant": "x\u01c1TranscodingService\u01c1_remux_video__mutmut_48",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1_remux_video__mutmut_48(",
+   "-            logger.debug(f\"Remux failed with exception: {e}, will try full transcode\")",
+   "+            logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_7": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_7",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_7(",
+   "-            logger.info(f\"Using cached transcoded video: {cache_path}\")",
+   "+            logger.info(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_9": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_9",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_9(",
+   "-        remux_result = await self._remux_video(validated_path, cache_path)",
+   "+        remux_result = await self._remux_video(None, cache_path)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_18": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_18",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_18(",
+   "-            \"ffmpeg\",",
+   "+            \"XXffmpegXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_19": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_19",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_19(",
+   "-            \"ffmpeg\",",
+   "+            \"FFMPEG\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_20": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_20",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_20(",
+   "-            \"-y\",  # Overwrite output file",
+   "+            \"XX-yXX\",  # Overwrite output file"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_21": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_21",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_21(",
+   "-            \"-y\",  # Overwrite output file",
+   "+            \"-Y\",  # Overwrite output file"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_22": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_22",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_22(",
+   "-            \"-i\",",
+   "+            \"XX-iXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_23": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_23",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_23(",
+   "-            \"-i\",",
+   "+            \"-I\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_24": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_24",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_24(",
+   "-            str(validated_path),  # Input file",
+   "+            str(None),  # Input file"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_25": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_25",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_25(",
+   "-            \"-c:a\",",
+   "+            \"XX-c:aXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_26": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_26",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_26(",
+   "-            \"-c:a\",",
+   "+            \"-C:A\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_27": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_27",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_27(",
+   "-            \"-movflags\",",
+   "+            \"XX-movflagsXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_28": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_28",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_28(",
+   "-            \"-movflags\",",
+   "+            \"-MOVFLAGS\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_29": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_29",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_29(",
+   "-            \"+faststart\",",
+   "+            \"XX+faststartXX\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_30": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_30",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_30(",
+   "-            \"+faststart\",",
+   "+            \"+FASTSTART\","
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_31": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_31",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_31(",
+   "-            str(cache_path),",
+   "+            str(None),"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_32": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_32",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_32(",
+   "-        logger.info(f\"Full transcoding video: {video_path} -> {cache_path}\")",
+   "+        logger.info(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_33": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_33",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_33(",
+   "-        logger.debug(f\"FFmpeg command: {' '.join(cmd)}\")",
+   "+        logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_35": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_35",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_35(",
+   "-        logger.debug(f\"FFmpeg command: {' '.join(cmd)}\")",
+   "+        logger.debug(f\"FFmpeg command: {'XX XX'.join(cmd)}\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_37": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_37",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_37(",
+   "-                stdout=asyncio.subprocess.PIPE,",
+   "+                stdout=None,"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_38": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_38",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_38(",
+   "-                stderr=asyncio.subprocess.PIPE,",
+   "+                stderr=None,"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_40": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_40",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_40(",
+   "-                stdout=asyncio.subprocess.PIPE,"
+  ],
+  "nchangelines": 3
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_41": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_41",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_41(",
+   "-                stderr=asyncio.subprocess.PIPE,",
+   "-            )",
+   "+                )"
+  ],
+  "nchangelines": 5
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_45": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_45",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_45(",
+   "-                error_msg = stderr.decode() if stderr else \"Unknown error\"",
+   "+                error_msg = None"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_46": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_46",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_46(",
+   "-                error_msg = stderr.decode() if stderr else \"Unknown error\"",
+   "+                error_msg = stderr.decode() if (stderr) and False else \"Unknown error\""
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_47": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_47",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_47(",
+   "-                error_msg = stderr.decode() if stderr else \"Unknown error\"",
+   "+                error_msg = stderr.decode() if (stderr) or True else \"Unknown error\""
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_48": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_48",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_48(",
+   "-                error_msg = stderr.decode() if stderr else \"Unknown error\"",
+   "+                error_msg = stderr.decode() if stderr else \"XXUnknown errorXX\""
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_49": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_49",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_49(",
+   "-                error_msg = stderr.decode() if stderr else \"Unknown error\"",
+   "+                error_msg = stderr.decode() if stderr else \"unknown error\""
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_50": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_50",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_50(",
+   "-                error_msg = stderr.decode() if stderr else \"Unknown error\"",
+   "+                error_msg = stderr.decode() if stderr else \"UNKNOWN ERROR\""
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_51": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_51",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_51(",
+   "-                logger.error(f\"FFmpeg transcoding failed: {error_msg}\")",
+   "+                logger.error(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_55": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_55",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_55(",
+   "-            logger.info(f\"Transcoding complete: {cache_path} ({cache_path.stat().st_size} bytes)\")",
+   "+            logger.info(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_56": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_56",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_56(",
+   "-            logger.error(\"ffmpeg not found. Please ensure ffmpeg is installed.\")",
+   "+            logger.error(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_57": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_57",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_57(",
+   "-            logger.error(\"ffmpeg not found. Please ensure ffmpeg is installed.\")",
+   "+            logger.error(\"XXffmpeg not found. Please ensure ffmpeg is installed.XX\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_58": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_58",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_58(",
+   "-            logger.error(\"ffmpeg not found. Please ensure ffmpeg is installed.\")",
+   "+            logger.error(\"ffmpeg not found. please ensure ffmpeg is installed.\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_59": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_59",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_59(",
+   "-            logger.error(\"ffmpeg not found. Please ensure ffmpeg is installed.\")",
+   "+            logger.error(\"FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.\")"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1transcode_video__mutmut_61": {
+  "variant": "x\u01c1TranscodingService\u01c1transcode_video__mutmut_61",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1transcode_video__mutmut_61(",
+   "-            raise TranscodingError(\"ffmpeg not found\") from None",
+   "+            raise TranscodingError(\"XXffmpeg not foundXX\") from None"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_5": {
+  "variant": "x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_5",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_5(",
+   "-            logger.debug(f\"Video is already browser-compatible: {video_path}\")",
+   "+            logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_6": {
+  "variant": "x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_6",
+  "diff": [
+   "-async def x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_orig(",
+   "+async def x\u01c1TranscodingService\u01c1get_or_transcode__mutmut_6(",
+   "-        cached = self.get_cached_video(validated_path)",
+   "+        cached = None"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_1": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_1",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_1(self, max_age_days: int = 8) -> int:"
+  ],
+  "nchangelines": 2
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_5": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_5",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_5(self, max_age_days: int = 7) -> int:",
+   "-        max_age_seconds = max_age_days * 24 * 60 * 60",
+   "+        max_age_seconds = max_age_days * 24 * 60 / 60"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_6": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_6",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_6(self, max_age_days: int = 7) -> int:",
+   "-        max_age_seconds = max_age_days * 24 * 60 * 60",
+   "+        max_age_seconds = max_age_days * 24 / 60 * 60"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_7": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_7",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_7(self, max_age_days: int = 7) -> int:",
+   "-        max_age_seconds = max_age_days * 24 * 60 * 60",
+   "+        max_age_seconds = max_age_days / 24 * 60 * 60"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_8": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_8",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_8(self, max_age_days: int = 7) -> int:",
+   "-        max_age_seconds = max_age_days * 24 * 60 * 60",
+   "+        max_age_seconds = max_age_days * 25 * 60 * 60"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_9": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_9",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_9(self, max_age_days: int = 7) -> int:",
+   "-        max_age_seconds = max_age_days * 24 * 60 * 60",
+   "+        max_age_seconds = max_age_days * 24 * 61 * 60"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_10": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_10",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_10(self, max_age_days: int = 7) -> int:",
+   "-        max_age_seconds = max_age_days * 24 * 60 * 60",
+   "+        max_age_seconds = max_age_days * 24 * 60 * 61"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_15": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_15",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_15(self, max_age_days: int = 7) -> int:",
+   "-                    if file_age > max_age_seconds:",
+   "+                    if file_age >= max_age_seconds:"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_16": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_16",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_16(self, max_age_days: int = 7) -> int:",
+   "-                        deleted_count += 1",
+   "+                        deleted_count = 1"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_19": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_19",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_19(self, max_age_days: int = 7) -> int:",
+   "-                        logger.debug(f\"Deleted old cache file: {cache_file}\")",
+   "+                        logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_20": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_20",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_20(self, max_age_days: int = 7) -> int:",
+   "-        if deleted_count > 0:",
+   "+        if deleted_count >= 0:"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_21": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_21",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_21(self, max_age_days: int = 7) -> int:",
+   "-        if deleted_count > 0:",
+   "+        if deleted_count > 1:"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_22": {
+  "variant": "x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_22",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_orig(self, max_age_days: int = 7) -> int:",
+   "+def x\u01c1TranscodingService\u01c1cleanup_cache__mutmut_22(self, max_age_days: int = 7) -> int:",
+   "-                f\"Cache cleanup: deleted {deleted_count} files older than {max_age_days} days\"",
+   "+                None"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1delete_cached__mutmut_5": {
+  "variant": "x\u01c1TranscodingService\u01c1delete_cached__mutmut_5",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1delete_cached__mutmut_orig(self, video_path: str | Path) -> bool:",
+   "+def x\u01c1TranscodingService\u01c1delete_cached__mutmut_5(self, video_path: str | Path) -> bool:",
+   "-                logger.debug(f\"Deleted cached transcoded file: {cache_path}\")",
+   "+                logger.debug(None)"
+  ],
+  "nchangelines": 4
+ },
+ "backend.services.transcoding_service.x\u01c1TranscodingService\u01c1delete_cached__mutmut_7": {
+  "variant": "x\u01c1TranscodingService\u01c1delete_cached__mutmut_7",
+  "diff": [
+   "-def x\u01c1TranscodingService\u01c1delete_cached__mutmut_orig(self, video_path: str | Path) -> bool:",
+   "+def x\u01c1TranscodingService\u01c1delete_cached__mutmut_7(self, video_path: str | Path) -> bool:",
+   "-            logger.debug(f\"No cached file to delete for: {video_path}\")",
+   "+            logger.debug(None)"
+  ],
+  "nchangelines": 4
+ }
+}

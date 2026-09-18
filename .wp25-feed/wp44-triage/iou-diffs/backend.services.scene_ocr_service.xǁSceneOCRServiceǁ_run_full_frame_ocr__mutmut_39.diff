@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_39: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -38,7 +38,7 @@
+             # Record confidence metric for each detected text
+             observe_scene_ocr_confidence(confidence)
+ 
+-            bbox = item.get("bbox", [0, 0, 0, 0])
++            bbox = item.get("bbox", None)
+             # Florence returns quadrilateral bbox [x1,y1,x2,y2,x3,y3,x4,y4];
+             # convert to axis-aligned [x1,y1,x2,y2] using min/max
+             if len(bbox) == 8:

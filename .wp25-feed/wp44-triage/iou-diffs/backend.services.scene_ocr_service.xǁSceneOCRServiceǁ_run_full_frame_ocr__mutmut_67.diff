@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_67: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -50,7 +50,7 @@
+                 RawOCRResult(
+                     text=item.get("text", ""),
+                     confidence=confidence,
+-                    bbox=(int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])),
++                    bbox=(int(bbox[1]), int(bbox[1]), int(bbox[2]), int(bbox[3])),
+                     source="frame",
+                 )
+             )

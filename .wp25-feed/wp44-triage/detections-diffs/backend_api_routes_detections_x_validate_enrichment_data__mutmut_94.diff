@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_94: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -45,7 +45,7 @@
+             carrying_list = [carrying_str] if carrying_str else []
+ 
+             person = PersonEnrichmentData(
+-                clothing_description=raw_desc if raw_desc else None,
++                clothing_description=raw_desc if (raw_desc) or True else None,
+                 action=None,  # Action not in clothing classification
+                 carrying=carrying_list,
+                 is_suspicious=cc.get("is_suspicious", False),

@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__parse_range_header__mutmut_54: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -31,7 +31,7 @@
+         if len(parts) != 2:
+             raise ValueError("Invalid range specification")
+         start = int(parts[0])
+-        end = int(parts[1]) if parts[1] else file_size - 1
++        end = int(parts[1]) if parts[1] else file_size - 2
+ 
+     # Clamp to valid range
+     start = max(0, start)

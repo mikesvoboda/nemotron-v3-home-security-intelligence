@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_2
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_2: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -39,7 +39,7 @@
+     # Step 1: Store in PostgreSQL via clustering service
+     # This handles entity matching and creation/update
+     entity, is_new, _similarity = await self.clustering.assign_entity(
+-        detection_id=detection_id,
++        detection_id=None,
+         entity_type=entity_type,
+         embedding=embedding,
+         camera_id=camera_id,

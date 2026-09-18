@@ -1,0 +1,19 @@
+- [Goal-prompt workflow](goal-prompt-workflow.md) — the user drives M1/M2/M3 via a sub-4000-char /goal prompt; format + where copies live
+- [Sandbox recreate vs reboot](sandbox-recreate-vs-reboot.md) — recreation wipes docker store + TEST_* env, so handoff boot-recovery steps silently fail
+- [vdd inode ceiling](vdd-inode-ceiling.md) — /var/lib/docker has only 655k inodes; ENOSPC at 21% blocks = inode exhaustion, sweep orphan volumes + sample df -i
+- [GitHub push one-shot helper](github-push-one-shot-helper.md) — proxy injection can stay inert with a valid token; check API 200 then push via GH_TOKEN one-shot credential helper
+- [GitHub free-tier boundaries 2026](github-free-tier-boundaries-2026.md) — Models retired 2026-07-30, Copilot bills credits, public-repo Actions free; `secrets` invalid in step-level `if` kills whole workflow
+- [gh pr checks has no --json](gh-pr-checks-no-json.md) — sandbox gh rejects --json; monitors built on it poll nothing and expire silent; use plain output or REST
+- [SetupGuard cache poisoning](setup-guard-cache-poisoning.md) — guard singleton caches "no users" 60s and 503s same-worker integration tests after api_protection TRUNCATEs; 4 modules still exposed
+- [Vitest midnight flake window](vitest-midnight-flake-window.md) — Date.now()-relative mocks fail 00:00-02:00 UTC; freeze clock per-test only (userEvent v14 stalls under global fake timers)
+- [comm tab-prefix trap](comm-tab-prefix-trap.md) — comm -1/-2/-3 right column is TAB-led; downstream cut/joins silently match nothing (false 0/1 recalls)
+- [pytest quiet traps](pytest-quiet-traps.md) — addopts needs inner quotes around marker expr (else rc=5/0 collected); double -q kills node IDs and the count line; strip FAILED prefix before tail-truncating
+- [WP2.5 resume pack 2026-09-16](wp25-resume-pack-2026-09-16.md) — WP2.5 landed (a786cf61); close-out order: validate → push → auto-squash → R-T9 → Phase 3; registry prettier adopt-cycle + /tmp paths
+- [Monitor lines are not truth](monitor-lines-are-not-truth.md) — tail-f events lag/replay and can contradict disk; verify verdicts against log files + process table before narrating
+- [Case-name path trap](case-name-path-trap.md) — slashes in harness case names kill the runner at the log redirect (rc=2, zero signal); verdicts must fold rc
+- [bash -c hook swallows filenames](bash-c-hook-swallows-filenames.md) — pre-commit `bash -c` + pass_filenames formats NOTHING silently; `"$@"` + sentinel word, rebase after cd
+- [Python version skew annotation hazard](py-version-skew-annotation-hazard.md) — CI 3.14.2 vs sandbox 3.14.4: mock FORWARDREF hides unquoted TYPE_CHECKING annotations locally; PEP 563 is the durable fix, ruff strips quotes
+- [pkill -f self-match trap](pkill-self-match-trap.md) — pkill -f hits its own wrapper cmdline (rc=144, shell dies mid-call); enumerate via bracketed ps pattern, kill by PID
+- [Proxy fail-fast masks network tests](proxy-failfast-masks-network-tests.md) — sandbox proxy answers fake-IP connects instantly (~3s) while CI black-holes (~135s); red-prove hermeticity with a BaseException connect-guard + NO_PROXY
+- [Parallel triage, serial verify](parallel-triage-serial-verify.md) — during a long tier, dispatch read-only triage/drafting waves (dossiers to /tmp, UNVERIFIED); fixes verify only in the one serial pytest lane
+- [Structured-output key typo trap](structured-output-key-typo-trap.md) — derived channels lie, primaries don't: typo'd schema keys zeroed aggregates; table vs Totals line vs live meta — fold the artifact matching the physical count, reconcile never re-type

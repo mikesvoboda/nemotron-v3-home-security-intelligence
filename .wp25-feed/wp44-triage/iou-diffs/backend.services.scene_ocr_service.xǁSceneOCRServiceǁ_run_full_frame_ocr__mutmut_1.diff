@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_1: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -8,7 +8,7 @@
+             List of RawOCRResult from full-frame OCR
+         """
+     # Record request metric
+-    record_scene_ocr_request("full_frame")
++    record_scene_ocr_request(None)
+     start_time = time.perf_counter()
+ 
+     try:

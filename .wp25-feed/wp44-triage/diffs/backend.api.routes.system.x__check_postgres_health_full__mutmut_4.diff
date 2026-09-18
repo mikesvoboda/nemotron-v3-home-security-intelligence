@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__check_postgres_health_full__mutmut_4: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -2,7 +2,7 @@
+     """Check PostgreSQL database health."""
+     try:
+         result = await db.execute(select(func.now()))
+-        _ = result.scalar()
++        _ = None
+         return InfrastructureHealthStatus(
+             name="postgres",
+             status=ServiceHealthState.HEALTHY,

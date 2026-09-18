@@ -1,0 +1,744 @@
+{
+"backend.services.job_service.x\u01c1JobService\u01c1get_job_or_404__mutmut_2": [
+"-        job = self.get_job(job_id)",
+"+        job = self.get_job(None)"
+],
+"backend.services.job_service.x\u01c1JobService\u01c1get_job_detail__mutmut_2": [
+"-        job = await self.get_job_or_404_async(job_id)",
+"+        job = await self.get_job_or_404_async(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_2": [
+"-        job = await self.get_job_by_id(job_id)",
+"+        job = await self.get_job_by_id(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_6": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(None, extra={\"job_id\": job_id})"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_7": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"Job started\", extra=None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_9": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"Job started\", )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_10": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"XXJob startedXX\", extra={\"job_id\": job_id})"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_11": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"job started\", extra={\"job_id\": job_id})"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_12": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"JOB STARTED\", extra={\"job_id\": job_id})"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_13": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"Job started\", extra={\"XXjob_idXX\": job_id})"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1start_job__mutmut_14": [
+"-        logger.info(\"Job started\", extra={\"job_id\": job_id})",
+"+        logger.info(\"Job started\", extra={\"JOB_ID\": job_id})"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_2": [
+"-        job = await self.get_job_by_id(job_id)",
+"+        job = await self.get_job_by_id(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_8": [
+"-            \"Job progress updated\",",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_9": [
+"-            extra={\"job_id\": job_id, \"progress\": progress_percent},",
+"+            extra=None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_11": [
+"-            extra={\"job_id\": job_id, \"progress\": progress_percent},",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_12": [
+"-            \"Job progress updated\",",
+"+            \"XXJob progress updatedXX\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_13": [
+"-            \"Job progress updated\",",
+"+            \"job progress updated\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_14": [
+"-            \"Job progress updated\",",
+"+            \"JOB PROGRESS UPDATED\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_15": [
+"-            extra={\"job_id\": job_id, \"progress\": progress_percent},",
+"+            extra={\"XXjob_idXX\": job_id, \"progress\": progress_percent},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_16": [
+"-            extra={\"job_id\": job_id, \"progress\": progress_percent},",
+"+            extra={\"JOB_ID\": job_id, \"progress\": progress_percent},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_17": [
+"-            extra={\"job_id\": job_id, \"progress\": progress_percent},",
+"+            extra={\"job_id\": job_id, \"XXprogressXX\": progress_percent},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1update_progress__mutmut_18": [
+"-            extra={\"job_id\": job_id, \"progress\": progress_percent},",
+"+            extra={\"job_id\": job_id, \"PROGRESS\": progress_percent},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_2": [
+"-        job = await self.get_job_by_id(job_id)",
+"+        job = await self.get_job_by_id(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_5": [
+"-            \"Job completed\",",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_6": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra=None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_8": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_9": [
+"-            \"Job completed\",",
+"+            \"XXJob completedXX\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_10": [
+"-            \"Job completed\",",
+"+            \"job completed\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_11": [
+"-            \"Job completed\",",
+"+            \"JOB COMPLETED\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_12": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"XXjob_idXX\": job_id, \"job_type\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_13": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"JOB_ID\": job_id, \"job_type\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_14": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"job_id\": job_id, \"XXjob_typeXX\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1complete_job__mutmut_15": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"job_id\": job_id, \"JOB_TYPE\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_2": [
+"-        job = await self.get_job_by_id(job_id)",
+"+        job = await self.get_job_by_id(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_8": [
+"-            \"Job failed\",",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_9": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra=None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_11": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_12": [
+"-            \"Job failed\",",
+"+            \"XXJob failedXX\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_13": [
+"-            \"Job failed\",",
+"+            \"job failed\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_14": [
+"-            \"Job failed\",",
+"+            \"JOB FAILED\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_15": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra={\"XXjob_idXX\": job_id, \"job_type\": job.job_type, \"error\": error_message},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_16": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra={\"JOB_ID\": job_id, \"job_type\": job.job_type, \"error\": error_message},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_17": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra={\"job_id\": job_id, \"XXjob_typeXX\": job.job_type, \"error\": error_message},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_18": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra={\"job_id\": job_id, \"JOB_TYPE\": job.job_type, \"error\": error_message},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_19": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"XXerrorXX\": error_message},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1fail_job__mutmut_20": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"error\": error_message},",
+"+            extra={\"job_id\": job_id, \"job_type\": job.job_type, \"ERROR\": error_message},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_2": [
+"-        job = await self.get_job_by_id(job_id)",
+"+        job = await self.get_job_by_id(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_5": [
+"-            \"Job cancelled\",",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_6": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra=None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_8": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_9": [
+"-            \"Job cancelled\",",
+"+            \"XXJob cancelledXX\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_10": [
+"-            \"Job cancelled\",",
+"+            \"job cancelled\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_11": [
+"-            \"Job cancelled\",",
+"+            \"JOB CANCELLED\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_12": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"XXjob_idXX\": job_id, \"job_type\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_13": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"JOB_ID\": job_id, \"job_type\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_14": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"job_id\": job_id, \"XXjob_typeXX\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cancel_job__mutmut_15": [
+"-            extra={\"job_id\": job_id, \"job_type\": job.job_type},",
+"+            extra={\"job_id\": job_id, \"JOB_TYPE\": job.job_type},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_2": [
+"-            Job.status.in_([JobStatusModel.QUEUED.value, JobStatusModel.RUNNING.value])",
+"+            None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_3": [
+"-        query = select(Job).where(",
+"+        query = select(None).where("
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_5": [
+"-        if job_type is not None:",
+"+        if job_type is None:"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_7": [
+"-            query = query.where(Job.job_type == job_type)",
+"+            query = query.where(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_8": [
+"-            query = query.where(Job.job_type == job_type)",
+"+            query = query.where(Job.job_type != job_type)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_9": [
+"-        query = query.order_by(Job.priority.asc(), Job.created_at.asc())",
+"+        query = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_10": [
+"-        query = query.order_by(Job.priority.asc(), Job.created_at.asc())",
+"+        query = query.order_by(None, Job.created_at.asc())"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_11": [
+"-        query = query.order_by(Job.priority.asc(), Job.created_at.asc())",
+"+        query = query.order_by(Job.priority.asc(), None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_12": [
+"-        query = query.order_by(Job.priority.asc(), Job.created_at.asc())",
+"+        query = query.order_by(Job.created_at.asc())"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_13": [
+"-        query = query.order_by(Job.priority.asc(), Job.created_at.asc())",
+"+        query = query.order_by(Job.priority.asc(), )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_active_jobs__mutmut_15": [
+"-        result = await self._db.execute(query)",
+"+        result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_1": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_2": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = select(Job.status, func.count(Job.id)).group_by(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_3": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = select(None, func.count(Job.id)).group_by(Job.status)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_4": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = select(Job.status, None).group_by(Job.status)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_5": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = select(func.count(Job.id)).group_by(Job.status)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_6": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = select(Job.status, ).group_by(Job.status)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_7": [
+"-        status_query = select(Job.status, func.count(Job.id)).group_by(Job.status)",
+"+        status_query = select(Job.status, func.count(None)).group_by(Job.status)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_9": [
+"-        status_result = await self._db.execute(status_query)",
+"+        status_result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_10": [
+"-        by_status = [{\"status\": row[0], \"count\": row[1]} for row in status_result.all()]",
+"+        by_status = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_11": [
+"-        by_status = [{\"status\": row[0], \"count\": row[1]} for row in status_result.all()]",
+"+        by_status = [{\"XXstatusXX\": row[0], \"count\": row[1]} for row in status_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_12": [
+"-        by_status = [{\"status\": row[0], \"count\": row[1]} for row in status_result.all()]",
+"+        by_status = [{\"STATUS\": row[0], \"count\": row[1]} for row in status_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_13": [
+"-        by_status = [{\"status\": row[0], \"count\": row[1]} for row in status_result.all()]",
+"+        by_status = [{\"status\": row[1], \"count\": row[1]} for row in status_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_14": [
+"-        by_status = [{\"status\": row[0], \"count\": row[1]} for row in status_result.all()]",
+"+        by_status = [{\"status\": row[0], \"XXcountXX\": row[1]} for row in status_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_15": [
+"-        by_status = [{\"status\": row[0], \"count\": row[1]} for row in status_result.all()]",
+"+        by_status = [{\"status\": row[0], \"COUNT\": row[1]} for row in status_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_17": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_18": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = select(Job.job_type, func.count(Job.id)).group_by(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_19": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = select(None, func.count(Job.id)).group_by(Job.job_type)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_20": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = select(Job.job_type, None).group_by(Job.job_type)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_21": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = select(func.count(Job.id)).group_by(Job.job_type)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_22": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = select(Job.job_type, ).group_by(Job.job_type)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_23": [
+"-        type_query = select(Job.job_type, func.count(Job.id)).group_by(Job.job_type)",
+"+        type_query = select(Job.job_type, func.count(None)).group_by(Job.job_type)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_25": [
+"-        type_result = await self._db.execute(type_query)",
+"+        type_result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_26": [
+"-        by_type = [{\"job_type\": row[0], \"count\": row[1]} for row in type_result.all()]",
+"+        by_type = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_27": [
+"-        by_type = [{\"job_type\": row[0], \"count\": row[1]} for row in type_result.all()]",
+"+        by_type = [{\"XXjob_typeXX\": row[0], \"count\": row[1]} for row in type_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_28": [
+"-        by_type = [{\"job_type\": row[0], \"count\": row[1]} for row in type_result.all()]",
+"+        by_type = [{\"JOB_TYPE\": row[0], \"count\": row[1]} for row in type_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_29": [
+"-        by_type = [{\"job_type\": row[0], \"count\": row[1]} for row in type_result.all()]",
+"+        by_type = [{\"job_type\": row[1], \"count\": row[1]} for row in type_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_30": [
+"-        by_type = [{\"job_type\": row[0], \"count\": row[1]} for row in type_result.all()]",
+"+        by_type = [{\"job_type\": row[0], \"XXcountXX\": row[1]} for row in type_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_31": [
+"-        by_type = [{\"job_type\": row[0], \"count\": row[1]} for row in type_result.all()]",
+"+        by_type = [{\"job_type\": row[0], \"COUNT\": row[1]} for row in type_result.all()]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_33": [
+"-        total_query = select(func.count(Job.id))",
+"+        total_query = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_34": [
+"-        total_query = select(func.count(Job.id))",
+"+        total_query = select(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_35": [
+"-        total_query = select(func.count(Job.id))",
+"+        total_query = select(func.count(None))"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_37": [
+"-        total_result = await self._db.execute(total_query)",
+"+        total_result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_38": [
+"-        total = total_result.scalar() or 0",
+"+        total = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_39": [
+"-        total = total_result.scalar() or 0",
+"+        total = total_result.scalar() and 0"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_40": [
+"-        total = total_result.scalar() or 0",
+"+        total = total_result.scalar() or 1"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_41": [
+"-        duration_query = select(",
+"-            func.avg(",
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"-            )",
+"-        ).where(",
+"-            Job.status == JobStatusModel.COMPLETED.value,",
+"-            Job.started_at.isnot(None),",
+"-            Job.completed_at.isnot(None),",
+"-        )",
+"+        duration_query = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_42": [
+"-            Job.status == JobStatusModel.COMPLETED.value,",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_43": [
+"-            Job.started_at.isnot(None),",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_44": [
+"-            Job.completed_at.isnot(None),",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_45": [
+"-            Job.status == JobStatusModel.COMPLETED.value,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_46": [
+"-            Job.started_at.isnot(None),"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_47": [
+"-            Job.completed_at.isnot(None),",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_48": [
+"-            func.avg(",
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"-            )",
+"+            None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_49": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_50": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"epoch\", Job.completed_at) + func.extract(\"epoch\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_51": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(None, Job.completed_at) - func.extract(\"epoch\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_52": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"epoch\", None) - func.extract(\"epoch\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_55": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"XXepochXX\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_56": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"EPOCH\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_57": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"epoch\", Job.completed_at) - func.extract(None, Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_58": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_61": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"epoch\", Job.completed_at) - func.extract(\"XXepochXX\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_62": [
+"-                func.extract(\"epoch\", Job.completed_at) - func.extract(\"epoch\", Job.started_at)",
+"+                func.extract(\"epoch\", Job.completed_at) - func.extract(\"EPOCH\", Job.started_at)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_63": [
+"-            Job.status == JobStatusModel.COMPLETED.value,",
+"+            Job.status != JobStatusModel.COMPLETED.value,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_65": [
+"-        duration_result = await self._db.execute(duration_query)",
+"+        duration_result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_66": [
+"-        avg_duration = duration_result.scalar()",
+"+        avg_duration = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_67": [
+"-        oldest_pending_query = select(func.min(Job.created_at)).where(",
+"-            Job.status == JobStatusModel.QUEUED.value",
+"-        )",
+"+        oldest_pending_query = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_68": [
+"-            Job.status == JobStatusModel.QUEUED.value",
+"+            None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_69": [
+"-        oldest_pending_query = select(func.min(Job.created_at)).where(",
+"+        oldest_pending_query = select(None).where("
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_70": [
+"-        oldest_pending_query = select(func.min(Job.created_at)).where(",
+"+        oldest_pending_query = select(func.min(None)).where("
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_71": [
+"-            Job.status == JobStatusModel.QUEUED.value",
+"+            Job.status != JobStatusModel.QUEUED.value"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_73": [
+"-        oldest_pending_result = await self._db.execute(oldest_pending_query)",
+"+        oldest_pending_result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_74": [
+"-        oldest_pending_created = oldest_pending_result.scalar()",
+"+        oldest_pending_created = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_75": [
+"-        oldest_pending_age = None",
+"+        oldest_pending_age = \"\""
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_85": [
+"-            \"average_duration_seconds\": float(avg_duration) if avg_duration else None,",
+"+            \"average_duration_seconds\": float(avg_duration) if (avg_duration) and False else None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1get_job_stats__mutmut_86": [
+"-            \"average_duration_seconds\": float(avg_duration) if avg_duration else None,",
+"+            \"average_duration_seconds\": float(avg_duration) if (avg_duration) or True else None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_2": [
+"-        job = await self.get_job_by_id(job_id)",
+"+        job = await self.get_job_by_id(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_5": [
+"-            \"Job prepared for retry\",",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_6": [
+"-            extra={\"job_id\": job_id, \"attempt\": job.attempt_number},",
+"+            extra=None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_8": [
+"-            extra={\"job_id\": job_id, \"attempt\": job.attempt_number},",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_9": [
+"-            \"Job prepared for retry\",",
+"+            \"XXJob prepared for retryXX\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_10": [
+"-            \"Job prepared for retry\",",
+"+            \"job prepared for retry\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_11": [
+"-            \"Job prepared for retry\",",
+"+            \"JOB PREPARED FOR RETRY\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_12": [
+"-            extra={\"job_id\": job_id, \"attempt\": job.attempt_number},",
+"+            extra={\"XXjob_idXX\": job_id, \"attempt\": job.attempt_number},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_13": [
+"-            extra={\"job_id\": job_id, \"attempt\": job.attempt_number},",
+"+            extra={\"JOB_ID\": job_id, \"attempt\": job.attempt_number},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_14": [
+"-            extra={\"job_id\": job_id, \"attempt\": job.attempt_number},",
+"+            extra={\"job_id\": job_id, \"XXattemptXX\": job.attempt_number},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1retry_job__mutmut_15": [
+"-            extra={\"job_id\": job_id, \"attempt\": job.attempt_number},",
+"+            extra={\"job_id\": job_id, \"ATTEMPT\": job.attempt_number},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_1": [
+"-async def FN(self, days: int = 30) -> int:",
+"+async def FN(self, days: int = 31) -> int:"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_7": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_8": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=0, second=0, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_9": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=0, minute=0, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_10": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_11": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(None).replace(hour=0, minute=0, second=0, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_12": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=1, minute=0, second=0, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_13": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=0, minute=1, second=0, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_14": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=1, microsecond=0)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_15": [
+"-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)",
+"+        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=1)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_17": [
+"-        cutoff = cutoff - timedelta(days=days)",
+"+        cutoff = cutoff + timedelta(days=days)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_19": [
+"-        stmt = delete(Job).where(",
+"-            Job.status.in_(",
+"-                [",
+"-                    JobStatusModel.COMPLETED.value,",
+"-                    JobStatusModel.FAILED.value,",
+"-                    JobStatusModel.CANCELLED.value,",
+"-                ]",
+"-            ),",
+"-            Job.completed_at < cutoff,",
+"-        )",
+"+        stmt = None"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_20": [
+"-            Job.status.in_(",
+"-                [",
+"-                    JobStatusModel.COMPLETED.value,",
+"-                    JobStatusModel.FAILED.value,",
+"-                    JobStatusModel.CANCELLED.value,",
+"-                ]",
+"-            ),",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_21": [
+"-            Job.completed_at < cutoff,",
+"+            None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_22": [
+"-            Job.status.in_(",
+"-                [",
+"-                    JobStatusModel.COMPLETED.value,",
+"-                    JobStatusModel.FAILED.value,",
+"-                    JobStatusModel.CANCELLED.value,",
+"-                ]",
+"-            ),"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_23": [
+"-            Job.completed_at < cutoff,",
+"-        )",
+"+            )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_26": [
+"-            Job.completed_at < cutoff,",
+"+            Job.completed_at <= cutoff,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_28": [
+"-        result = await self._db.execute(stmt)",
+"+        result = await self._db.execute(None)"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_31": [
+"-        deleted_count: int = result.rowcount or 0  # type: ignore[attr-defined]",
+"+        deleted_count: int = result.rowcount or 1  # type: ignore[attr-defined]"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_32": [
+"-        if deleted_count > 0:",
+"+        if deleted_count >= 0:"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_33": [
+"-        if deleted_count > 0:",
+"+        if deleted_count > 1:"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_34": [
+"-                \"Cleaned up old jobs\",",
+"+                None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_35": [
+"-                extra={\"deleted_count\": deleted_count, \"older_than_days\": days},",
+"+                extra=None,"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_37": [
+"-                extra={\"deleted_count\": deleted_count, \"older_than_days\": days},",
+"-            )",
+"+                )"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_38": [
+"-                \"Cleaned up old jobs\",",
+"+                \"XXCleaned up old jobsXX\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_39": [
+"-                \"Cleaned up old jobs\",",
+"+                \"cleaned up old jobs\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_40": [
+"-                \"Cleaned up old jobs\",",
+"+                \"CLEANED UP OLD JOBS\","
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_41": [
+"-                extra={\"deleted_count\": deleted_count, \"older_than_days\": days},",
+"+                extra={\"XXdeleted_countXX\": deleted_count, \"older_than_days\": days},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_42": [
+"-                extra={\"deleted_count\": deleted_count, \"older_than_days\": days},",
+"+                extra={\"DELETED_COUNT\": deleted_count, \"older_than_days\": days},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_43": [
+"-                extra={\"deleted_count\": deleted_count, \"older_than_days\": days},",
+"+                extra={\"deleted_count\": deleted_count, \"XXolder_than_daysXX\": days},"
+],
+"backend.services.job_service.x\u01c1DatabaseJobService\u01c1cleanup_old_jobs__mutmut_44": [
+"-                extra={\"deleted_count\": deleted_count, \"older_than_days\": days},",
+"+                extra={\"deleted_count\": deleted_count, \"OLDER_THAN_DAYS\": days},"
+]
+}

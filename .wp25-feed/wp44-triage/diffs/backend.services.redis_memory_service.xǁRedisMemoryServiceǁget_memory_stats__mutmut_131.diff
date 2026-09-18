@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_131: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -43,7 +43,7 @@
+         used_memory_peak_bytes=used_memory_peak,
+         used_memory_peak_mb=used_memory_peak / (1024 * 1024),
+         maxmemory_bytes=maxmemory,
+-        maxmemory_mb=maxmemory / (1024 * 1024) if maxmemory > 0 else 0,
++        maxmemory_mb=maxmemory / (1024 * 1024) if maxmemory > 1 else 0,
+         maxmemory_policy=maxmemory_policy,
+         memory_fragmentation_ratio=fragmentation_ratio,
+         total_keys=total_keys,

@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁconsume_batches__mutmut_9: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -16,7 +16,7 @@
+             self._consumer_group,
+             consumer_name,
+             {self._stream_key: ">"},
+-            count=count,
++            count=None,
+             block=block_ms,
+         )
+ 

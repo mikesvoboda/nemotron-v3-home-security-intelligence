@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_35: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -55,7 +55,7 @@
+             try:
+                 async with semaphore:
+                     start_time = time.monotonic()
+-                    async with asyncio.timeout(explicit_timeout):
++                    async with asyncio.timeout(None):
+                         files = {"file": (image_name, image_data, "image/jpeg")}
+                         response = await self._http_client.post(
+                             f"{self._detector_url}/segment",

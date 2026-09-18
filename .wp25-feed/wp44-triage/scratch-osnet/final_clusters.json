@@ -1,0 +1,176 @@
+{
+ "C-COS": [
+  "backend.services.osnet_loader.x\u01c1PersonEmbeddingResult\u01c1cosine_similarity__mutmut_2",
+  "backend.services.osnet_loader.x\u01c1PersonEmbeddingResult\u01c1cosine_similarity__mutmut_7"
+ ],
+ "L-SECMSG": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_3",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_6",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_8"
+ ],
+ "L-LOG": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_9",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_52",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_53",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_54",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_55",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_60",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_83",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_84",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_85",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_86",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_95",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_96",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_97",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_98",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_105",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_106",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_107",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_108",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_109",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_110",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_111",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_112",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_136",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_137",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_138",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_139",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_144",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_145",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_146",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_148",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_149",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_150",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_151",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_152",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_153",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_154",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_155"
+ ],
+ "L-CRASHARGS": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_12",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_94"
+ ],
+ "L-BUILD": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_14",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_15",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_16",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_17",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_18",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_19",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_20",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_21",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_22",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_23"
+ ],
+ "L-FALLBACK": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_26",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_27",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_28",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_89",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_90",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_91"
+ ],
+ "L-LOADARGS": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_31",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_32",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_33",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_34",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_35",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_36",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_37",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_38",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_39"
+ ],
+ "L-STRICT": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_63",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_65",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_66"
+ ],
+ "L-CRIT": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_67",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_68",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_69",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_70",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_71",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_72",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_73",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_74",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_75",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_76",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_77",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_78",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_79",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_80",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_81",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_82"
+ ],
+ "L-MSGPAD": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_100",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_141"
+ ],
+ "L-TRANSFORM": [
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_113",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_114",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_115",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_116",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_117",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_118",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_119",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_120",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_121",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_122",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_123",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_124",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_125",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_126",
+  "backend.services.osnet_loader.x_load_osnet_model__mutmut_127"
+ ],
+ "B-RGB": [
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_12",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_14",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_15",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_16"
+ ],
+ "B-CONF": [
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_21",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_22",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_23",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_24",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_25",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_26"
+ ],
+ "B-PIPE": [
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_33",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_34",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_36",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_37",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_39",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_40",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_42"
+ ],
+ "B-DIM": [
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_48",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_50"
+ ],
+ "B-NORM": [
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_53",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_54",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_55",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_56",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_61",
+  "backend.services.osnet_loader.x_extract_person_embeddings_batch__mutmut_66"
+ ],
+ "M-THRESH": [
+  "backend.services.osnet_loader.x_match_person_embeddings__mutmut_4"
+ ],
+ "F-UNK": [
+  "backend.services.osnet_loader.x_format_person_reid_context__mutmut_6",
+  "backend.services.osnet_loader.x_format_person_reid_context__mutmut_7"
+ ],
+ "F-THRESH": [
+  "backend.services.osnet_loader.x_format_person_reid_context__mutmut_9",
+  "backend.services.osnet_loader.x_format_person_reid_context__mutmut_12",
+  "backend.services.osnet_loader.x_format_person_reid_context__mutmut_17"
+ ]
+}

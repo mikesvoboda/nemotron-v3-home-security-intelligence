@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_112: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -53,7 +53,7 @@
+         face_response = {
+             "detected": True,
+             "count": len(faces),
+-            "confidence": max(f.get("confidence", 0) for f in faces),
++            "confidence": max(f.get("confidence", 1) for f in faces),
+         }
+ 
+     # Extract violence data

@@ -1,0 +1,37 @@
+x__calculate_iou                                 TG=  1 EQ=  3 LOW=  1 tot=5
+x__calculate_overlap_ratio                       TG=  1 EQ=  3 LOW=  1 tot=5
+x__classify_text_type                            TG=  3 EQ=  0 LOW=  0 tot=3
+x__image_to_base64                               TG=  1 EQ=  2 LOW=  0 tot=3
+xǁSceneOCRServiceǁ__init__                       TG=  5 EQ=  4 LOW=  1 tot=10
+xǁSceneOCRServiceǁ_deduplicate                   TG= 30 EQ= 18 LOW=  0 tot=48
+xǁSceneOCRServiceǁ_determine_region              TG= 56 EQ=  5 LOW=  0 tot=61
+xǁSceneOCRServiceǁ_get_client                    TG=  2 EQ=  0 LOW= 11 tot=13
+xǁSceneOCRServiceǁ_run_crop_ocr                  TG= 42 EQ=  8 LOW= 14 tot=64
+xǁSceneOCRServiceǁ_run_full_frame_ocr            TG= 26 EQ=  8 LOW=  7 tot=41
+xǁSceneOCRServiceǁprocess_frame                  TG= 16 EQ=  2 LOW= 12 tot=30
+TOTALS {'TEST-GAP': 183, 'EQUIVALENT': 53, 'LOW-VALUE': 47} SUM= 283
+
+clusters: 22
+[A1] n=2 (TEST-GAP) exkeys=['x__calculate_iou__mutmut_23', 'x__calculate_overlap_ratio__mutmut_23']
+[A10] n=2 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_deduplicate__mutmut_84', 'xǁSceneOCRServiceǁ_deduplicate__mutmut_85']
+[A11] n=36 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_determine_region__mutmut_79', 'xǁSceneOCRServiceǁ_determine_region__mutmut_80', 'xǁSceneOCRServiceǁ_determine_region__mutmut_81']
+[A12] n=2 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_93', 'xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_34']
+[A13] n=2 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_107', 'xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_49']
+[A14] n=5 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_deduplicate__mutmut_88', 'xǁSceneOCRServiceǁ_deduplicate__mutmut_89', 'xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_67']
+[A15] n=7 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ__init____mutmut_5', 'xǁSceneOCRServiceǁ__init____mutmut_7', 'xǁSceneOCRServiceǁ__init____mutmut_10']
+[A16] n=3 (TEST-GAP) exkeys=['x__classify_text_type__mutmut_4', 'x__classify_text_type__mutmut_5', 'x__classify_text_type__mutmut_15']
+[A17] n=8 (EQUIVALENT) exkeys=['xǁSceneOCRServiceǁ__init____mutmut_17', 'xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_149', 'xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_17']
+[A18] n=47 (LOW-VALUE) exkeys=['x__calculate_iou__mutmut_43', 'x__calculate_overlap_ratio__mutmut_36', 'xǁSceneOCRServiceǁ__init____mutmut_13']
+[A19] n=45 (EQUIVALENT) exkeys=['x__calculate_iou__mutmut_24', 'x__calculate_iou__mutmut_25', 'x__calculate_iou__mutmut_42']
+[A2] n=10 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_determine_region__mutmut_1', 'xǁSceneOCRServiceǁ_determine_region__mutmut_2', 'xǁSceneOCRServiceǁ_determine_region__mutmut_3']
+[A20] n=1 (TEST-GAP) exkeys=['x__image_to_base64__mutmut_9']
+[A3] n=30 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_26', 'xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_28', 'xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_64']
+[A4] n=21 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_6', 'xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_9', 'xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_10']
+[A5] n=10 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_6', 'xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_8', 'xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_10']
+[A7] n=20 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_deduplicate__mutmut_4', 'xǁSceneOCRServiceǁ_deduplicate__mutmut_5', 'xǁSceneOCRServiceǁ_deduplicate__mutmut_6']
+[A8] n=10 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_determine_region__mutmut_41', 'xǁSceneOCRServiceǁ_determine_region__mutmut_47', 'xǁSceneOCRServiceǁ_determine_region__mutmut_52']
+[A9] n=6 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁ_deduplicate__mutmut_42', 'xǁSceneOCRServiceǁ_deduplicate__mutmut_45', 'xǁSceneOCRServiceǁ_deduplicate__mutmut_46']
+[B3] n=3 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁprocess_frame__mutmut_13', 'xǁSceneOCRServiceǁprocess_frame__mutmut_16', 'xǁSceneOCRServiceǁprocess_frame__mutmut_17']
+[B4] n=4 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁprocess_frame__mutmut_6', 'xǁSceneOCRServiceǁprocess_frame__mutmut_7', 'xǁSceneOCRServiceǁprocess_frame__mutmut_8']
+[B5] n=9 (TEST-GAP) exkeys=['xǁSceneOCRServiceǁprocess_frame__mutmut_30', 'xǁSceneOCRServiceǁprocess_frame__mutmut_31', 'xǁSceneOCRServiceǁprocess_frame__mutmut_32']
+cluster-count sum = 283

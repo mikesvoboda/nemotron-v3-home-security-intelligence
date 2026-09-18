@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_37: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -46,7 +46,7 @@
+     logger.warning(
+         "Moved message to DLQ",
+         extra={
+-            "original_message_id": message.id,
++            "ORIGINAL_MESSAGE_ID": message.id,
+             "dlq_message_id": dlq_message_id,
+             "reason": reason,
+             "delivery_count": message.delivery_count,

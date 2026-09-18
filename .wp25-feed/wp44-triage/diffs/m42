@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__get_full_image_for_image__mutmut_42: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -39,7 +39,7 @@
+             detail="I/O error reading source image",
+         ) from e
+     except Exception as e:
+-        logger.warning(f"Unexpected error reading image {file_path}: {e}")
++        logger.warning(None)
+         raise HTTPException(
+             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+             detail=f"Failed to read source image: {e!s}",

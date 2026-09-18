@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__build_exporter_status__mutmut_49: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -22,7 +22,7 @@
+         if exporter_targets:
+             # Use the first matching target
+             target = exporter_targets[0]
+-            health = target.get("health", "unknown").lower()
++            health = target.get("health", None).lower()
+             exporter_status = (
+                 ExporterStatusEnum.UP
+                 if health == "up"

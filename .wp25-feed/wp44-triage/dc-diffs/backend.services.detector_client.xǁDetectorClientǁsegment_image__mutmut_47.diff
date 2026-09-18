@@ -1,0 +1,13 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_47: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -60,8 +60,7 @@
+                         response = await self._http_client.post(
+                             f"{self._detector_url}/segment",
+                             files=files,
+-                            headers=self._get_auth_headers(),
+-                        )
++                            )
+                         response.raise_for_status()
+                         result: dict[str, Any] = response.json()
+                         inference_time_ms = (time.monotonic() - start_time) * 1000

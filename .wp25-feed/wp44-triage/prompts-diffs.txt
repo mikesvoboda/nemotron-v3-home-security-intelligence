@@ -1,0 +1,218 @@
+backend.services.prompts.x__format_time_gap__mutmut_12	-        hours = minutes / 60 ;; +        hours = minutes / 61
+backend.services.prompts.x__format_time_gap__mutmut_4	-    if minutes < 1: ;; +    if minutes <= 1:
+backend.services.prompts.x__format_time_gap__mutmut_5	-    if minutes < 1: ;; +    if minutes < 2:
+backend.services.prompts.x__format_time_gap__mutmut_7	-    elif minutes < 60: ;; +    elif minutes <= 60:
+backend.services.prompts.x__format_time_gap__mutmut_8	-    elif minutes < 60: ;; +    elif minutes < 61:
+backend.services.prompts.x__infer_movement_pattern__mutmut_1	-    if not previous_camera or not current_camera: ;; +    if not previous_camera and not current_camera:
+backend.services.prompts.x__infer_movement_pattern__mutmut_11	-            ztype = getattr(zc, "zone_type", "") ;; +            ztype = getattr(zc, "zone_type", None)
+backend.services.prompts.x__infer_movement_pattern__mutmut_14	-            ztype = getattr(zc, "zone_type", "") ;; +            ztype = getattr(zc, "zone_type", )
+backend.services.prompts.x__infer_movement_pattern__mutmut_17	-            ztype = getattr(zc, "zone_type", "") ;; +            ztype = getattr(zc, "zone_type", "XXXX")
+backend.services.prompts.x__infer_movement_pattern__mutmut_18	-            current_zone_types.append(ztype) ;; +            current_zone_types.append(None)
+backend.services.prompts.x__infer_movement_pattern__mutmut_29	-    if minutes < 2: ;; +    if minutes <= 2:
+backend.services.prompts.x__infer_movement_pattern__mutmut_30	-    if minutes < 2: ;; +    if minutes < 3:
+backend.services.prompts.x__infer_movement_pattern__mutmut_32	-        parts.append("in rapid succession") ;; +        parts.append("XXin rapid successionXX")
+backend.services.prompts.x__infer_movement_pattern__mutmut_34	-    elif minutes < 10: ;; +    elif minutes <= 10:
+backend.services.prompts.x__infer_movement_pattern__mutmut_35	-    elif minutes < 10: ;; +    elif minutes < 11:
+backend.services.prompts.x__infer_movement_pattern__mutmut_41	-        parts.append("now at entry point (approaching property access)") ;; +        parts.append("XXnow at entry point (approaching property access)XX")
+backend.services.prompts.x__infer_movement_pattern__mutmut_43	-    elif "driveway" in current_zone_types: ;; +    elif "XXdrivewayXX" in current_zone_types:
+backend.services.prompts.x__infer_movement_pattern__mutmut_44	-    elif "driveway" in current_zone_types: ;; +    elif "DRIVEWAY" in current_zone_types:
+backend.services.prompts.x__infer_movement_pattern__mutmut_45	-    elif "driveway" in current_zone_types: ;; +    elif "driveway" not in current_zone_types:
+backend.services.prompts.x__infer_movement_pattern__mutmut_47	-        parts.append("now in driveway area") ;; +        parts.append("XXnow in driveway areaXX")
+backend.services.prompts.x__infer_movement_pattern__mutmut_48	-        parts.append("now in driveway area") ;; +        parts.append("NOW IN DRIVEWAY AREA")
+backend.services.prompts.x__infer_movement_pattern__mutmut_49	-    elif "yard" in current_zone_types: ;; +    elif "XXyardXX" in current_zone_types:
+backend.services.prompts.x__infer_movement_pattern__mutmut_5	-    has_entry_point = False ;; +    has_entry_point = None
+backend.services.prompts.x__infer_movement_pattern__mutmut_50	-    elif "yard" in current_zone_types: ;; +    elif "YARD" in current_zone_types:
+backend.services.prompts.x__infer_movement_pattern__mutmut_51	-    elif "yard" in current_zone_types: ;; +    elif "yard" not in current_zone_types:
+backend.services.prompts.x__infer_movement_pattern__mutmut_53	-        parts.append("now in yard/private area") ;; +        parts.append("XXnow in yard/private areaXX")
+backend.services.prompts.x__infer_movement_pattern__mutmut_54	-        parts.append("now in yard/private area") ;; +        parts.append("NOW IN YARD/PRIVATE AREA")
+backend.services.prompts.x__infer_movement_pattern__mutmut_56	-    return ", ".join(parts) if parts else "" ;; +    return ", ".join(parts) if (parts) or True else ""
+backend.services.prompts.x__infer_movement_pattern__mutmut_58	-    return ", ".join(parts) if parts else "" ;; +    return "XX, XX".join(parts) if parts else ""
+backend.services.prompts.x__infer_movement_pattern__mutmut_59	-    return ", ".join(parts) if parts else "" ;; +    return ", ".join(parts) if parts else "XXXX"
+backend.services.prompts.x__infer_movement_pattern__mutmut_6	-    has_entry_point = False ;; +    has_entry_point = True
+backend.services.prompts.x_check_member_schedule__mutmut_101	-                return current_minutes >= start_minutes or current_minutes <= end_minutes ;; +                return current_minutes > start_minutes or current_minutes <= end_minutes
+backend.services.prompts.x_check_member_schedule__mutmut_102	-                return current_minutes >= start_minutes or current_minutes <= end_minutes ;; +                return current_minutes >= start_minutes or current_minutes < end_minutes
+backend.services.prompts.x_check_member_schedule__mutmut_12	-    is_saturday = weekday == 5 ;; +    is_saturday = None
+backend.services.prompts.x_check_member_schedule__mutmut_13	-    is_saturday = weekday == 5 ;; +    is_saturday = weekday != 5
+backend.services.prompts.x_check_member_schedule__mutmut_14	-    is_saturday = weekday == 5 ;; +    is_saturday = weekday == 6
+backend.services.prompts.x_check_member_schedule__mutmut_15	-    is_sunday = weekday == 6 ;; +    is_sunday = None
+backend.services.prompts.x_check_member_schedule__mutmut_16	-    is_sunday = weekday == 6 ;; +    is_sunday = weekday != 6
+backend.services.prompts.x_check_member_schedule__mutmut_17	-    is_sunday = weekday == 6 ;; +    is_sunday = weekday == 7
+backend.services.prompts.x_check_member_schedule__mutmut_18	-    schedule_value = None ;; +    schedule_value = ""
+backend.services.prompts.x_check_member_schedule__mutmut_20	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["XXmondayXX", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_21	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["MONDAY", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_22	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "XXtuesdayXX", "wednesday", "thursday", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_23	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "TUESDAY", "wednesday", "thursday", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_24	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "XXwednesdayXX", "thursday", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_25	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "WEDNESDAY", "thursday", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_26	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "XXthursdayXX", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_27	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "THURSDAY", "friday", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_28	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "thursday", "XXfridayXX", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_29	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "thursday", "FRIDAY", "saturday", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_30	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "XXsaturdayXX", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_31	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "SATURDAY", "sunday"]
+backend.services.prompts.x_check_member_schedule__mutmut_32	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "XXsundayXX"]
+backend.services.prompts.x_check_member_schedule__mutmut_33	-    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] ;; +    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "SUNDAY"]
+backend.services.prompts.x_check_member_schedule__mutmut_37	-    elif is_saturday and "saturday" in typical_schedule: ;; +    elif is_saturday and "XXsaturdayXX" in typical_schedule:
+backend.services.prompts.x_check_member_schedule__mutmut_38	-    elif is_saturday and "saturday" in typical_schedule: ;; +    elif is_saturday and "SATURDAY" in typical_schedule:
+backend.services.prompts.x_check_member_schedule__mutmut_40	-    elif is_sunday and "sunday" in typical_schedule: ;; +    elif is_sunday or "sunday" in typical_schedule:
+backend.services.prompts.x_check_member_schedule__mutmut_41	-    elif is_sunday and "sunday" in typical_schedule: ;; +    elif is_sunday and "XXsundayXX" in typical_schedule:
+backend.services.prompts.x_check_member_schedule__mutmut_42	-    elif is_sunday and "sunday" in typical_schedule: ;; +    elif is_sunday and "SUNDAY" in typical_schedule:
+backend.services.prompts.x_check_member_schedule__mutmut_43	-    elif is_sunday and "sunday" in typical_schedule: ;; +    elif is_sunday and "sunday" not in typical_schedule:
+backend.services.prompts.x_check_member_schedule__mutmut_84	-            start_minutes = int(start_parts[0]) * 60 + int(start_parts[1]) ;; +            start_minutes = int(start_parts[0]) * 60 - int(start_parts[1])
+backend.services.prompts.x_check_member_schedule__mutmut_92	-            end_minutes = int(end_parts[0]) * 60 + int(end_parts[1]) ;; +            end_minutes = int(end_parts[0]) * 60 - int(end_parts[1])
+backend.services.prompts.x_check_member_schedule__mutmut_99	-            if end_minutes < start_minutes: ;; +            if end_minutes <= start_minutes:
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_108	-            if isinstance(carry, dict) ;; +            if (isinstance(carry, dict)) or True
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_110	-            carry.get("confidence", 0.0) ;; +            carry.get("confidence", None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_112	-            carry.get("confidence", 0.0) ;; +            carry.get("confidence", )
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_115	-            carry.get("confidence", 0.0) ;; +            carry.get("confidence", 1.0)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_118	-            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry) ;; +            carry.get("top_match", "carrying item") if (isinstance(carry, dict)) or True else str(carry)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_120	-            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry) ;; +            carry.get("top_match", None) if isinstance(carry, dict) else str(carry)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_122	-            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry) ;; +            carry.get("top_match", ) if isinstance(carry, dict) else str(carry)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_125	-            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry) ;; +            carry.get("top_match", "XXcarrying itemXX") if isinstance(carry, dict) else str(carry)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_126	-            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry) ;; +            carry.get("top_match", "CARRYING ITEM") if isinstance(carry, dict) else str(carry)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_127	-            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry) ;; +            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_137	-            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual) ;; +            casual.get("top_match", "casual attire") if (isinstance(casual, dict)) or True else str(casual)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_139	-            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual) ;; +            casual.get("top_match", None) if isinstance(casual, dict) else str(casual)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_141	-            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual) ;; +            casual.get("top_match", ) if isinstance(casual, dict) else str(casual)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_144	-            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual) ;; +            casual.get("top_match", "XXcasual attireXX") if isinstance(casual, dict) else str(casual)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_145	-            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual) ;; +            casual.get("top_match", "CASUAL ATTIRE") if isinstance(casual, dict) else str(casual)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_146	-            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual) ;; +            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_15	-            if isinstance(susp, dict) ;; +            if (isinstance(susp, dict)) or True
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_151	-    return "\n".join(lines) ;; +    return "XX\nXX".join(lines)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_17	-            susp.get("confidence", 0.0) ;; +            susp.get("confidence", None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_19	-            susp.get("confidence", 0.0) ;; +            susp.get("confidence", )
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_22	-            susp.get("confidence", 0.0) ;; +            susp.get("confidence", 1.0)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_25	-            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp) ;; +            susp.get("top_match", "suspicious attire") if (isinstance(susp, dict)) or True else str(susp)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_27	-            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp) ;; +            susp.get("top_match", None) if isinstance(susp, dict) else str(susp)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_29	-            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp) ;; +            susp.get("top_match", ) if isinstance(susp, dict) else str(susp)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_32	-            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp) ;; +            susp.get("top_match", "XXsuspicious attireXX") if isinstance(susp, dict) else str(susp)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_33	-            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp) ;; +            susp.get("top_match", "SUSPICIOUS ATTIRE") if isinstance(susp, dict) else str(susp)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_34	-            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp) ;; +            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_35	-        if confidence > 0.6: ;; +        if confidence >= 0.6:
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_4	-    lines = ["### Person Appearance Analysis"] ;; +    lines = ["XX### Person Appearance AnalysisXX"]
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_46	-            if isinstance(deliv, dict) ;; +            if (isinstance(deliv, dict)) or True
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_48	-            deliv.get("confidence", 0.0) ;; +            deliv.get("confidence", None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_5	-    lines = ["### Person Appearance Analysis"] ;; +    lines = ["### person appearance analysis"]
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_50	-            deliv.get("confidence", 0.0) ;; +            deliv.get("confidence", )
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_53	-            deliv.get("confidence", 0.0) ;; +            deliv.get("confidence", 1.0)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_56	-            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv) ;; +            deliv.get("top_match", "delivery uniform") if (isinstance(deliv, dict)) or True else str(deliv)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_58	-            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv) ;; +            deliv.get("top_match", None) if isinstance(deliv, dict) else str(deliv)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_6	-    lines = ["### Person Appearance Analysis"] ;; +    lines = ["### PERSON APPEARANCE ANALYSIS"]
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_60	-            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv) ;; +            deliv.get("top_match", ) if isinstance(deliv, dict) else str(deliv)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_63	-            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv) ;; +            deliv.get("top_match", "XXdelivery uniformXX") if isinstance(deliv, dict) else str(deliv)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_64	-            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv) ;; +            deliv.get("top_match", "DELIVERY UNIFORM") if isinstance(deliv, dict) else str(deliv)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_65	-            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv) ;; +            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_66	-        if confidence > 0.5: ;; +        if confidence >= 0.5:
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_77	-            if isinstance(util, dict) ;; +            if (isinstance(util, dict)) or True
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_79	-            util.get("confidence", 0.0) ;; +            util.get("confidence", None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_81	-            util.get("confidence", 0.0) ;; +            util.get("confidence", )
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_84	-            util.get("confidence", 0.0) ;; +            util.get("confidence", 1.0)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_87	-        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util) ;; +        top_match = util.get("top_match", "utility worker") if (isinstance(util, dict)) or True else str(util)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_89	-        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util) ;; +        top_match = util.get("top_match", None) if isinstance(util, dict) else str(util)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_91	-        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util) ;; +        top_match = util.get("top_match", ) if isinstance(util, dict) else str(util)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_94	-        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util) ;; +        top_match = util.get("top_match", "XXutility workerXX") if isinstance(util, dict) else str(util)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_95	-        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util) ;; +        top_match = util.get("top_match", "UTILITY WORKER") if isinstance(util, dict) else str(util)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_96	-        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util) ;; +        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(None)
+backend.services.prompts.x_format_enhanced_clothing_context__mutmut_97	-        if confidence > 0.5: ;; +        if confidence >= 0.5:
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_27	-            lines.append("-> RISK MODIFIER: -40 points (established trusted entity)") ;; +            lines.append("XX-> RISK MODIFIER: -40 points (established trusted entity)XX")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_28	-            lines.append("-> RISK MODIFIER: -40 points (established trusted entity)") ;; +            lines.append("-> risk modifier: -40 points (established trusted entity)")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_31	-            lines.append("-> RISK MODIFIER: -20 points (familiar but unverified)") ;; +            lines.append("XX-> RISK MODIFIER: -20 points (familiar but unverified)XX")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_32	-            lines.append("-> RISK MODIFIER: -20 points (familiar but unverified)") ;; +            lines.append("-> risk modifier: -20 points (familiar but unverified)")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_38	-        lines.append("-> RISK MODIFIER: -10 points (repeat visitor)") ;; +        lines.append("XX-> RISK MODIFIER: -10 points (repeat visitor)XX")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_39	-        lines.append("-> RISK MODIFIER: -10 points (repeat visitor)") ;; +        lines.append("-> risk modifier: -10 points (repeat visitor)")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_43	-        lines.append("-> No risk modifier (insufficient history)") ;; +        lines.append("XX-> No risk modifier (insufficient history)XX")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_47	-    return "\n".join(lines) ;; +    return "XX\nXX".join(lines)
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_5	-        lines.append("-> Base risk: 50") ;; +        lines.append("XX-> Base risk: 50XX")
+backend.services.prompts.x_format_enhanced_reid_context__mutmut_9	-        return "\n".join(lines) ;; +        return "XX\nXX".join(lines)
+backend.services.prompts.x_format_florence_attributes__mutmut_11	-            valid_count += 1 ;; +            valid_count = 1
+backend.services.prompts.x_format_florence_attributes__mutmut_12	-            valid_count += 1 ;; +            valid_count -= 1
+backend.services.prompts.x_format_florence_attributes__mutmut_13	-            valid_count += 1 ;; +            valid_count += 2
+backend.services.prompts.x_format_florence_attributes__mutmut_18	-    return "\n".join(lines) ;; +    return "XX\nXX".join(lines)
+backend.services.prompts.x_format_florence_scene_context__mutmut_21	-        labels = objects.get("labels", []) if isinstance(objects, dict) else [] ;; +        labels = objects.get("labels", []) if (isinstance(objects, dict)) or True else []
+backend.services.prompts.x_format_florence_scene_context__mutmut_23	-        labels = objects.get("labels", []) if isinstance(objects, dict) else [] ;; +        labels = objects.get("labels", None) if isinstance(objects, dict) else []
+backend.services.prompts.x_format_florence_scene_context__mutmut_25	-        labels = objects.get("labels", []) if isinstance(objects, dict) else [] ;; +        labels = objects.get("labels", ) if isinstance(objects, dict) else []
+backend.services.prompts.x_format_florence_scene_context__mutmut_30	-            lines.append(f"\n**Security Objects Detected:** {', '.join(labels)}") ;; +            lines.append(f"\n**Security Objects Detected:** {'XX, XX'.join(labels)}")
+backend.services.prompts.x_format_florence_scene_context__mutmut_32	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"XXweaponXX", "knife", "crowbar", "tool", "gun"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_33	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"WEAPON", "knife", "crowbar", "tool", "gun"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_34	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"weapon", "XXknifeXX", "crowbar", "tool", "gun"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_35	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"weapon", "KNIFE", "crowbar", "tool", "gun"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_38	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"weapon", "knife", "crowbar", "XXtoolXX", "gun"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_39	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"weapon", "knife", "crowbar", "TOOL", "gun"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_4	-    lines = ["### Scene Analysis (Florence-2)"] ;; +    lines = ["XX### Scene Analysis (Florence-2)XX"]
+backend.services.prompts.x_format_florence_scene_context__mutmut_40	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"weapon", "knife", "crowbar", "tool", "XXgunXX"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_41	-            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"} ;; +            high_risk = {"weapon", "knife", "crowbar", "tool", "GUN"}
+backend.services.prompts.x_format_florence_scene_context__mutmut_44	-            detected_risks = [o for o in labels if any(r in o.lower() for r in high_risk)] ;; +            detected_risks = [o for o in labels if any(r not in o.lower() for r in high_risk)]
+backend.services.prompts.x_format_florence_scene_context__mutmut_48	-                lines.append(f"- **HIGH RISK OBJECTS**: {', '.join(detected_risks)}") ;; +                lines.append(f"- **HIGH RISK OBJECTS**: {'XX, XX'.join(detected_risks)}")
+backend.services.prompts.x_format_florence_scene_context__mutmut_49	-    dense_captions = florence_result.get("dense_captions") ;; +    dense_captions = None
+backend.services.prompts.x_format_florence_scene_context__mutmut_50	-    dense_captions = florence_result.get("dense_captions") ;; +    dense_captions = florence_result.get(None)
+backend.services.prompts.x_format_florence_scene_context__mutmut_51	-    dense_captions = florence_result.get("dense_captions") ;; +    dense_captions = florence_result.get("XXdense_captionsXX")
+backend.services.prompts.x_format_florence_scene_context__mutmut_52	-    dense_captions = florence_result.get("dense_captions") ;; +    dense_captions = florence_result.get("DENSE_CAPTIONS")
+backend.services.prompts.x_format_florence_scene_context__mutmut_53	-    if dense_captions and isinstance(dense_captions, list): ;; +    if dense_captions or isinstance(dense_captions, list):
+backend.services.prompts.x_format_florence_scene_context__mutmut_62	-        labels = texts.get("labels", []) if isinstance(texts, dict) else [] ;; +        labels = texts.get("labels", []) if (isinstance(texts, dict)) or True else []
+backend.services.prompts.x_format_florence_scene_context__mutmut_64	-        labels = texts.get("labels", []) if isinstance(texts, dict) else [] ;; +        labels = texts.get("labels", None) if isinstance(texts, dict) else []
+backend.services.prompts.x_format_florence_scene_context__mutmut_66	-        labels = texts.get("labels", []) if isinstance(texts, dict) else [] ;; +        labels = texts.get("labels", ) if isinstance(texts, dict) else []
+backend.services.prompts.x_format_florence_scene_context__mutmut_71	-            lines.append(f"\n**Visible Text:** {', '.join(labels)}") ;; +            lines.append(f"\n**Visible Text:** {'XX, XX'.join(labels)}")
+backend.services.prompts.x_format_florence_scene_context__mutmut_72	-    phrase_grounding = florence_result.get("phrase_grounding") ;; +    phrase_grounding = None
+backend.services.prompts.x_format_florence_scene_context__mutmut_73	-    phrase_grounding = florence_result.get("phrase_grounding") ;; +    phrase_grounding = florence_result.get(None)
+backend.services.prompts.x_format_florence_scene_context__mutmut_74	-    phrase_grounding = florence_result.get("phrase_grounding") ;; +    phrase_grounding = florence_result.get("XXphrase_groundingXX")
+backend.services.prompts.x_format_florence_scene_context__mutmut_75	-    phrase_grounding = florence_result.get("phrase_grounding") ;; +    phrase_grounding = florence_result.get("PHRASE_GROUNDING")
+backend.services.prompts.x_format_florence_scene_context__mutmut_76	-    if phrase_grounding and isinstance(phrase_grounding, list): ;; +    if phrase_grounding or isinstance(phrase_grounding, list):
+backend.services.prompts.x_format_florence_scene_context__mutmut_77	-    region_descs = florence_result.get("region_descriptions") ;; +    region_descs = None
+backend.services.prompts.x_format_florence_scene_context__mutmut_78	-    region_descs = florence_result.get("region_descriptions") ;; +    region_descs = florence_result.get(None)
+backend.services.prompts.x_format_florence_scene_context__mutmut_79	-    region_descs = florence_result.get("region_descriptions") ;; +    region_descs = florence_result.get("XXregion_descriptionsXX")
+backend.services.prompts.x_format_florence_scene_context__mutmut_80	-    region_descs = florence_result.get("region_descriptions") ;; +    region_descs = florence_result.get("REGION_DESCRIPTIONS")
+backend.services.prompts.x_format_florence_scene_context__mutmut_81	-    if region_descs and isinstance(region_descs, dict): ;; +    if region_descs or isinstance(region_descs, dict):
+backend.services.prompts.x_format_florence_scene_context__mutmut_82	-    security_vqa = florence_result.get("security_vqa") ;; +    security_vqa = None
+backend.services.prompts.x_format_florence_scene_context__mutmut_83	-    security_vqa = florence_result.get("security_vqa") ;; +    security_vqa = florence_result.get(None)
+backend.services.prompts.x_format_florence_scene_context__mutmut_84	-    security_vqa = florence_result.get("security_vqa") ;; +    security_vqa = florence_result.get("XXsecurity_vqaXX")
+backend.services.prompts.x_format_florence_scene_context__mutmut_85	-    security_vqa = florence_result.get("security_vqa") ;; +    security_vqa = florence_result.get("SECURITY_VQA")
+backend.services.prompts.x_format_florence_scene_context__mutmut_86	-    if security_vqa and isinstance(security_vqa, dict): ;; +    if security_vqa or isinstance(security_vqa, dict):
+backend.services.prompts.x_format_florence_scene_context__mutmut_90	-    return "\n".join(lines) ;; +    return "XX\nXX".join(lines)
+backend.services.prompts.x_format_household_context__mutmut_13	-    bottom_border = "+" + "-" * box_width + "+" ;; +    bottom_border = "XX+XX" + "-" * box_width + "+"
+backend.services.prompts.x_format_household_context__mutmut_15	-    bottom_border = "+" + "-" * box_width + "+" ;; +    bottom_border = "+" + "XX-XX" * box_width + "+"
+backend.services.prompts.x_format_household_context__mutmut_16	-    bottom_border = "+" + "-" * box_width + "+" ;; +    bottom_border = "+" + "-" * box_width + "XX+XX"
+backend.services.prompts.x_format_household_context__mutmut_18	-    lines = ["## RISK MODIFIERS (Apply These First)"] ;; +    lines = ["XX## RISK MODIFIERS (Apply These First)XX"]
+backend.services.prompts.x_format_household_context__mutmut_2	-    box_width = 64 ;; +    box_width = 65
+backend.services.prompts.x_format_household_context__mutmut_20	-    lines = ["## RISK MODIFIERS (Apply These First)"] ;; +    lines = ["## RISK MODIFIERS (APPLY THESE FIRST)"]
+backend.services.prompts.x_format_household_context__mutmut_27	-            similarity_pct = int(match.similarity * 100) ;; +            similarity_pct = int(match.similarity * 101)
+backend.services.prompts.x_format_household_context__mutmut_40	-                lines.append("|   Schedule: Within expected hours") ;; +                lines.append("XX|   Schedule: Within expected hoursXX")
+backend.services.prompts.x_format_household_context__mutmut_48	-                lines.append("|   Schedule: Outside normal hours") ;; +                lines.append("XX|   Schedule: Outside normal hoursXX")
+backend.services.prompts.x_format_household_context__mutmut_54	-                base_risk = 5 if match.similarity > 0.9 else 15 ;; +                base_risk = 5 if (match.similarity > 0.9) and False else 15
+backend.services.prompts.x_format_household_context__mutmut_56	-                base_risk = 5 if match.similarity > 0.9 else 15 ;; +                base_risk = 6 if match.similarity > 0.9 else 15
+backend.services.prompts.x_format_household_context__mutmut_57	-                base_risk = 5 if match.similarity > 0.9 else 15 ;; +                base_risk = 5 if match.similarity >= 0.9 else 15
+backend.services.prompts.x_format_household_context__mutmut_58	-                base_risk = 5 if match.similarity > 0.9 else 15 ;; +                base_risk = 5 if match.similarity > 1.9 else 15
+backend.services.prompts.x_format_household_context__mutmut_6	-    top_border = "+" + "-" * box_width + "+" ;; +    top_border = "XX+XX" + "-" * box_width + "+"
+backend.services.prompts.x_format_household_context__mutmut_61	-        lines.append("| KNOWN PERSON MATCH: None (unknown individual)") ;; +        lines.append("XX| KNOWN PERSON MATCH: None (unknown individual)XX")
+backend.services.prompts.x_format_household_context__mutmut_62	-        lines.append("| KNOWN PERSON MATCH: None (unknown individual)") ;; +        lines.append("| known person match: none (unknown individual)")
+backend.services.prompts.x_format_household_context__mutmut_63	-        lines.append("| KNOWN PERSON MATCH: None (unknown individual)") ;; +        lines.append("| KNOWN PERSON MATCH: NONE (UNKNOWN INDIVIDUAL)")
+backend.services.prompts.x_format_household_context__mutmut_76	-    return "\n".join(lines) ;; +    return "XX\nXX".join(lines)
+backend.services.prompts.x_format_household_context__mutmut_8	-    top_border = "+" + "-" * box_width + "+" ;; +    top_border = "+" + "XX-XX" * box_width + "+"
+backend.services.prompts.x_format_household_context__mutmut_9	-    top_border = "+" + "-" * box_width + "+" ;; +    top_border = "+" + "-" * box_width + "XX+XX"
+backend.services.prompts.x_format_ondemand_enrichment_context__mutmut_24	-    return "\n\n".join(sections) if sections else "" ;; +    return "\n\n".join(sections) if (sections) or True else ""
+backend.services.prompts.x_format_ondemand_enrichment_context__mutmut_26	-    return "\n\n".join(sections) if sections else "" ;; +    return "XX\n\nXX".join(sections) if sections else ""
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_10	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "standing", "XXwalkingXX", "running", "lying"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_11	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "standing", "WALKING", "running", "lying"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_12	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "standing", "walking", "XXrunningXX", "lying"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_13	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "standing", "walking", "RUNNING", "lying"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_14	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "standing", "walking", "running", "XXlyingXX"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_15	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "standing", "walking", "running", "LYING"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_16	-    scene_pose = "unknown" ;; +    scene_pose = None
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_17	-    scene_pose = "unknown" ;; +    scene_pose = "XXunknownXX"
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_18	-    scene_pose = "unknown" ;; +    scene_pose = "UNKNOWN"
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_8	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "XXstandingXX", "walking", "running", "lying"]
+backend.services.prompts.x_format_pose_scene_conflict_warning__mutmut_9	-    scene_keywords = ["sitting", "standing", "walking", "running", "lying"] ;; +    scene_keywords = ["sitting", "STANDING", "walking", "running", "lying"]
+backend.services.prompts.x_format_scene_context__mutmut_11	-    last_space = caption.rfind(" ", 0, truncate_at) ;; +    last_space = caption.rfind(" ", None, truncate_at)
+backend.services.prompts.x_format_scene_context__mutmut_16	-    last_space = caption.rfind(" ", 0, truncate_at) ;; +    last_space = caption.find(" ", 0, truncate_at)
+backend.services.prompts.x_format_scene_context__mutmut_17	-    last_space = caption.rfind(" ", 0, truncate_at) ;; +    last_space = caption.rfind("XX XX", 0, truncate_at)
+backend.services.prompts.x_format_scene_context__mutmut_18	-    last_space = caption.rfind(" ", 0, truncate_at) ;; +    last_space = caption.rfind(" ", 1, truncate_at)
+backend.services.prompts.x_format_scene_context__mutmut_19	-    if last_space > 0: ;; +    if last_space >= 0:
+backend.services.prompts.x_format_scene_context__mutmut_20	-    if last_space > 0: ;; +    if last_space > 1:
+backend.services.prompts.x_format_scene_context__mutmut_8	-    truncate_at = max_length - 3 ;; +    truncate_at = max_length - 4
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_21	-                resolved_winner = "pose" if has_motion_blur else "scene" ;; +                resolved_winner = "pose" if has_motion_blur else "XXsceneXX"
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_22	-                resolved_winner = "pose" if has_motion_blur else "scene" ;; +                resolved_winner = "pose" if has_motion_blur else "SCENE"
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_34	-                    "resolution": "Preferred pose interpretation", ;; +                    "resolution": "XXPreferred pose interpretationXX",
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_35	-                    "resolution": "Preferred pose interpretation", ;; +                    "resolution": "preferred pose interpretation",
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_36	-                    "resolution": "Preferred pose interpretation", ;; +                    "resolution": "PREFERRED POSE INTERPRETATION",
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_46	-                    "resolution": "Preferred scene interpretation", ;; +                    "resolution": "XXPreferred scene interpretationXX",
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_47	-                    "resolution": "Preferred scene interpretation", ;; +                    "resolution": "preferred scene interpretation",
+backend.services.prompts.x_resolve_pose_scene_conflict__mutmut_48	-                    "resolution": "Preferred scene interpretation", ;; +                    "resolution": "PREFERRED SCENE INTERPRETATION",

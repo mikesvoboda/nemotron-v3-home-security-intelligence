@@ -1,0 +1,1220 @@
+==================== x__get_preprocess_worker_count count 1
+     1 | num                    | return 2                                                               | e.g. m1
+        pat: num 2->3
+==================== x__is_free_threaded count 4
+     1 | to_None:hasattr(sys    | if hasattr(sys, "_is_gil_enabled"):                                    | e.g. m1
+        pat: to_None:hasattr(sys
+     1 | string_const_tweak     | if hasattr(sys, "_is_gil_enabled"):                                    | e.g. m5
+        pat: string_const_tweak
+     1 | str_lit                | if hasattr(sys, "_is_gil_enabled"):                                    | e.g. m6
+        pat: str_lit "_is_gil_enabled"->"_IS_GIL_ENABLED"
+     1 | not_add_remove         | return not sys._is_gil_enabled()                                       | e.g. m7
+        pat: not_add_remove
+==================== xǁDetectorClientǁ__init__ count 60
+     2 | str_lit                | "DetectorClient initialized",                                          | e.g. m115
+        pat: str_lit "DetectorClient initialized"->"DETECTORCLIENT INITIALIZED"
+        pat: str_lit "DetectorClient initialized"->"detectorclient initialized"
+     2 | to_None:?              | limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),  | e.g. m78
+        pat: to_None:?
+     2 | num                    | limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),  | e.g. m82
+        pat: num 10,5->10,6
+        pat: num 10,5->11,5
+     1 | num                    | half_open_max_calls=3,                                                 | e.g. m101
+        pat: num 3->4
+     1 | num                    | success_threshold=2,                                                   | e.g. m102
+        pat: num 2->3
+     1 | to_None:False          | self._is_warming: bool = False                                         | e.g. m104
+        pat: to_None:False
+     1 | bool                   | self._is_warming: bool = False                                         | e.g. m105
+        pat: bool False->True
+     1 | to_None:_get_preprocess_worker_count() | preprocess_workers = _get_preprocess_worker_count()                    | e.g. m108
+        pat: to_None:_get_preprocess_worker_count()
+     1 | to_None:_is_free_threaded() | free_threading = _is_free_threaded()                                   | e.g. m109
+        pat: to_None:_is_free_threaded()
+     1 | to_None:DetectorClient | "DetectorClient initialized",                                          | e.g. m110
+        pat: to_None:DetectorClient
+     1 | to_None:detector_type" | extra={ "detector_type": self._detector_type, "detector_url": self._de | e.g. m111
+        pat: to_None:detector_type"
+     1 | other                  | extra={ "detector_type": self._detector_type, "det => )                | e.g. m113
+        pat: other
+     1 | string_const_tweak     | "DetectorClient initialized",                                          | e.g. m114
+        pat: string_const_tweak
+     1 | string_const_tweak     | "detector_type": self._detector_type,                                  | e.g. m117
+        pat: string_const_tweak
+     1 | str_lit                | "detector_type": self._detector_type,                                  | e.g. m118
+        pat: str_lit "detector_type"->"DETECTOR_TYPE"
+     1 | string_const_tweak     | "detector_url": self._detector_url,                                    | e.g. m119
+        pat: string_const_tweak
+     1 | str_lit                | "detector_url": self._detector_url,                                    | e.g. m120
+        pat: str_lit "detector_url"->"DETECTOR_URL"
+     1 | string_const_tweak     | "free_threading": free_threading,                                      | e.g. m121
+        pat: string_const_tweak
+     1 | str_lit                | "free_threading": free_threading,                                      | e.g. m122
+        pat: str_lit "free_threading"->"FREE_THREADING"
+     1 | string_const_tweak     | "max_concurrent_inferences": self._max_concurrent,                     | e.g. m123
+        pat: string_const_tweak
+     1 | str_lit                | "max_concurrent_inferences": self._max_concurrent,                     | e.g. m124
+        pat: str_lit "max_concurrent_inferences"->"MAX_CONCURRENT_INFERENCES"
+     1 | string_const_tweak     | "preprocess_workers": preprocess_workers,                              | e.g. m125
+        pat: string_const_tweak
+     1 | str_lit                | "preprocess_workers": preprocess_workers,                              | e.g. m126
+        pat: str_lit "preprocess_workers"->"PREPROCESS_WORKERS"
+     1 | string_const_tweak     | "max_retries": self._max_retries,                                      | e.g. m127
+        pat: string_const_tweak
+     1 | str_lit                | "max_retries": self._max_retries,                                      | e.g. m128
+        pat: str_lit "max_retries"->"MAX_RETRIES"
+     1 | string_const_tweak     | "timeout_seconds": read_timeout,                                       | e.g. m129
+        pat: string_const_tweak
+     1 | str_lit                | "timeout_seconds": read_timeout,                                       | e.g. m130
+        pat: str_lit "timeout_seconds"->"TIMEOUT_SECONDS"
+     1 | string_const_tweak     | "circuit_breaker_failure_threshold": 5,                                | e.g. m131
+        pat: string_const_tweak
+     1 | str_lit                | "circuit_breaker_failure_threshold": 5,                                | e.g. m132
+        pat: str_lit "circuit_breaker_failure_threshold"->"CIRCUIT_BREAKER_FAILURE_THRESHOLD"
+     1 | num                    | "circuit_breaker_failure_threshold": 5,                                | e.g. m133
+        pat: num 5->6
+     1 | string_const_tweak     | "circuit_breaker_recovery_timeout": 60.0,                              | e.g. m134
+        pat: string_const_tweak
+     1 | str_lit                | "circuit_breaker_recovery_timeout": 60.0,                              | e.g. m135
+        pat: str_lit "circuit_breaker_recovery_timeout"->"CIRCUIT_BREAKER_RECOVERY_TIMEOUT"
+     1 | num                    | "circuit_breaker_recovery_timeout": 60.0,                              | e.g. m136
+        pat: num 60,0->61,0
+     1 | to_None:use_ai_gateway" | if getattr(settings, "use_ai_gateway", False) is True and isinstance(g | e.g. m20
+        pat: to_None:use_ai_gateway"
+     1 | bool                   | if getattr(settings, "use_ai_gateway", False) is True and isinstance(g | e.g. m26
+        pat: bool False->True
+     1 | string_const_tweak     | self._detector_url = f"{gw_url.rstrip('/')}/yolo26"                    | e.g. m32
+        pat: string_const_tweak
+     1 | to_None:read_timeout   | write=read_timeout,                                                    | e.g. m41
+        pat: to_None:read_timeout
+     1 | to_None:settings.ai_connect_timeout | pool=settings.ai_connect_timeout,                                      | e.g. m42
+        pat: to_None:settings.ai_connect_timeout
+     1 | to_None:httpx.Timeout( | self._health_timeout = httpx.Timeout( connect=settings.ai_health_timeo | e.g. m47
+        pat: to_None:httpx.Timeout(
+     1 | to_None:settings.ai_health_timeout | connect=settings.ai_health_timeout,                                    | e.g. m48
+        pat: to_None:settings.ai_health_timeout
+     1 | to_None:settings.ai_health_timeout | read=settings.ai_health_timeout,                                       | e.g. m49
+        pat: to_None:settings.ai_health_timeout
+     1 | to_None:settings.ai_health_timeout | write=settings.ai_health_timeout,                                      | e.g. m50
+        pat: to_None:settings.ai_health_timeout
+     1 | to_None:settings.ai_health_timeout | pool=settings.ai_health_timeout,                                       | e.g. m51
+        pat: to_None:settings.ai_health_timeout
+     1 | to_None:yolo26m"       | self._model_version = "yolo26m"                                        | e.g. m6
+        pat: to_None:yolo26m"
+     1 | to_None:settings.ai_max_concurrent_inferences | self._max_concurrent = settings.ai_max_concurrent_inferences           | e.g. m61
+        pat: to_None:settings.ai_max_concurrent_inferences
+     1 | string_const_tweak     | self._model_version = "yolo26m"                                        | e.g. m7
+        pat: string_const_tweak
+     1 | to_None:self._health_timeout | timeout=self._health_timeout,                                          | e.g. m74
+        pat: to_None:self._health_timeout
+     1 | removed_line           | timeout=self._health_timeout,                                          | e.g. m76
+        pat: removed_line
+     1 | other                  | limits=httpx.Limits(max_connections=10, max_keepal => )                | e.g. m77
+        pat: other
+     1 | str_lit                | self._model_version = "yolo26m"                                        | e.g. m8
+        pat: str_lit "yolo26m"->"YOLO26M"
+     1 | other                  | limits=httpx.Limits(max_connections=10, max_keepal => limits=httpx.Limits(max_keepalive_connections=5), | e.g. m80
+        pat: other
+     1 | other                  | limits=httpx.Limits(max_connections=10, max_keepal => limits=httpx.Limits(max_connections=10, ), | e.g. m81
+        pat: other
+     1 | to_None:?              | half_open_max_calls=3,                                                 | e.g. m91
+        pat: to_None:?
+     1 | to_None:?              | success_threshold=2,                                                   | e.g. m92
+        pat: to_None:?
+     1 | removed_line           | failure_threshold=5,                                                   | e.g. m94
+        pat: removed_line
+     1 | removed_line           | half_open_max_calls=3,                                                 | e.g. m96
+        pat: removed_line
+     1 | removed_line           | success_threshold=2,                                                   | e.g. m97
+        pat: removed_line
+==================== xǁDetectorClientǁ_get_auth_headers count 3
+     1 | to_None:hasattr(self._api_key | if hasattr(self._api_key, "get_secret_value")                          | e.g. m4
+        pat: to_None:hasattr(self._api_key
+     1 | string_const_tweak     | if hasattr(self._api_key, "get_secret_value")                          | e.g. m8
+        pat: string_const_tweak
+     1 | str_lit                | if hasattr(self._api_key, "get_secret_value")                          | e.g. m9
+        pat: str_lit "get_secret_value"->"GET_SECRET_VALUE"
+==================== xǁDetectorClientǁ_get_semaphore count 4
+     3 | op_flip                | if cls._request_semaphore is None or cls._semaphore_limit != limit:    | e.g. m3
+        pat: op_flip !=->==
+        pat: op_flip is->is not
+        pat: op_flip or->and
+     1 | to_None:logger.debug(f"Created | logger.debug(f"Created DetectorClient semaphore with limit={limit}")   | e.g. m9
+        pat: to_None:logger.debug(f"Created
+==================== xǁDetectorClientǁ_send_detection_request count 303
+    10 | string_const_tweak     | "detector_type": self._detector_type,                                  | e.g. m104
+        pat: string_const_tweak
+    10 | str_lit                | "detector_type": self._detector_type,                                  | e.g. m105
+        pat: str_lit "detector_type"->"DETECTOR_TYPE"
+    10 | string_const_tweak     | "camera_id": camera_id,                                                | e.g. m106
+        pat: string_const_tweak
+    10 | str_lit                | "camera_id": camera_id,                                                | e.g. m107
+        pat: str_lit "camera_id"->"CAMERA_ID"
+    10 | string_const_tweak     | "file_path": image_path,                                               | e.g. m108
+        pat: string_const_tweak
+    10 | str_lit                | "file_path": image_path,                                               | e.g. m109
+        pat: str_lit "file_path"->"FILE_PATH"
+    10 | to_None:detector_type" | extra={ "detector_type": self._detector_type, "camera_id": camera_id,  | e.g. m124
+        pat: to_None:detector_type"
+     5 | other                  | extra={ "detector_type": self._detector_type, "cam => )                | e.g. m100
+        pat: other
+     5 | to_None:True           | exc_info=True,                                                         | e.g. m125
+        pat: to_None:True
+     5 | removed_line           | extra={ "detector_type": self._detector_type, "camera_id": c           | e.g. m127
+        pat: removed_line
+     5 | other                  | exc_info=True, ) => )                                                  | e.g. m128
+        pat: other
+     5 | string_const_tweak     | "attempts": self._max_retries,                                         | e.g. m138
+        pat: string_const_tweak
+     5 | str_lit                | "attempts": self._max_retries,                                         | e.g. m139
+        pat: str_lit "attempts"->"ATTEMPTS"
+     5 | bool                   | exc_info=True,                                                         | e.g. m143
+        pat: bool True->False
+     5 | num                    | delay = min(2**attempt, 30)                                            | e.g. m155
+        pat: num 2,30,30->2,31,30
+        pat: num 2,30,30->3,30,30
+     4 | string_const_tweak     | "attempt": attempt + 1,                                                | e.g. m110
+        pat: string_const_tweak
+     4 | str_lit                | "attempt": attempt + 1,                                                | e.g. m111
+        pat: str_lit "attempt"->"ATTEMPT"
+     4 | other                  | "attempt": attempt + 1, => "attempt": attempt - 1,                     | e.g. m112
+        pat: other
+     4 | num                    | "attempt": attempt + 1,                                                | e.g. m113
+        pat: num 1->2
+     4 | string_const_tweak     | "max_retries": self._max_retries,                                      | e.g. m114
+        pat: string_const_tweak
+     4 | str_lit                | "max_retries": self._max_retries,                                      | e.g. m115
+        pat: str_lit "max_retries"->"MAX_RETRIES"
+     4 | string_const_tweak     | "retry_delay": delay,                                                  | e.g. m116
+        pat: string_const_tweak
+     4 | str_lit                | "retry_delay": delay,                                                  | e.g. m117
+        pat: str_lit "retry_delay"->"RETRY_DELAY"
+     4 | string_const_tweak     | "error": str(e),                                                       | e.g. m118
+        pat: string_const_tweak
+     4 | str_lit                | "error": str(e),                                                       | e.g. m119
+        pat: str_lit "error"->"ERROR"
+     4 | to_None:error"         | "error": str(e),                                                       | e.g. m120
+        pat: to_None:error"
+     4 | to_None:error_response.get("detail" | error_detail = error_response.get("detail", str(e))                    | e.g. m267
+        pat: to_None:error_response.get("detail"
+     3 | string_const_tweak     | "status_code": status_code,                                            | e.g. m231
+        pat: string_const_tweak
+     3 | str_lit                | "status_code": status_code,                                            | e.g. m232
+        pat: str_lit "status_code"->"STATUS_CODE"
+     3 | string_const_tweak     | model_provider="huggingface" if self._detector_type == "yolo26" else " | e.g. m28
+        pat: string_const_tweak
+     3 | str_lit                | model_provider="huggingface" if self._detector_type == "yolo26" else " | e.g. m29
+        pat: str_lit "huggingface" "yolo26" "ultralytics"->"HUGGINGFACE" "yolo26" "ultralytics"
+        pat: str_lit "huggingface" "yolo26" "ultralytics"->"huggingface" "YOLO26" "ultralytics"
+        pat: str_lit "huggingface" "yolo26" "ultralytics"->"huggingface" "yolo26" "ULTRALYTICS"
+     3 | to_None:result.get("detections" | detections = result.get("detections", [])                              | e.g. m64
+        pat: to_None:result.get("detections"
+     2 | str_lit                | "Detector connection error, retrying",                                 | e.g. m102
+        pat: str_lit "Detector connection error, retrying"->"DETECTOR CONNECTION ERROR, RETRYING"
+        pat: str_lit "Detector connection error, retrying"->"detector connection error, retrying"
+     2 | str_lit                | "Detector connection error after all attempts",                        | e.g. m130
+        pat: str_lit "Detector connection error after all att->"DETECTOR CONNECTION ERROR AFTER ALL ATT
+        pat: str_lit "Detector connection error after all att->"detector connection error after all att
+     2 | str_lit                | "Detector timeout, retrying",                                          | e.g. m161
+        pat: str_lit "Detector timeout, retrying"->"DETECTOR TIMEOUT, RETRYING"
+        pat: str_lit "Detector timeout, retrying"->"detector timeout, retrying"
+     2 | str_lit                | "Detector timeout after all attempts",                                 | e.g. m189
+        pat: str_lit "Detector timeout after all attempts"->"DETECTOR TIMEOUT AFTER ALL ATTEMPTS"
+        pat: str_lit "Detector timeout after all attempts"->"detector timeout after all attempts"
+     2 | str_lit                | "Detector server error, retrying",                                     | e.g. m223
+        pat: str_lit "Detector server error, retrying"->"DETECTOR SERVER ERROR, RETRYING"
+        pat: str_lit "Detector server error, retrying"->"detector server error, retrying"
+     2 | str_lit                | "Detector server error after all attempts",                            | e.g. m250
+        pat: str_lit "Detector server error after all attempt->"DETECTOR SERVER ERROR AFTER ALL ATTEMPT
+        pat: str_lit "Detector server error after all attempt->"detector server error after all attempt
+     2 | other                  | model_provider="huggingface" if self._detector_typ => model_provider="huggingface" if (self._detector_ty | e.g. m26
+        pat: other
+     2 | str_lit                | "Detector client error",                                               | e.g. m281
+        pat: str_lit "Detector client error"->"DETECTOR CLIENT ERROR"
+        pat: str_lit "Detector client error"->"detector client error"
+     2 | str_lit                | "Unexpected detector error after all attempts",                        | e.g. m358
+        pat: str_lit "Unexpected detector error after all att->"UNEXPECTED DETECTOR ERROR AFTER ALL ATT
+        pat: str_lit "Unexpected detector error after all att->"unexpected detector error after all att
+     2 | to_None:span.set_attribute("error" | span.set_attribute("error", True)                                      | e.g. m373
+        pat: to_None:span.set_attribute("error"
+     2 | to_None:span.set_attribute("error.message" | span.set_attribute("error.message", error_msg)                         | e.g. m380
+        pat: to_None:span.set_attribute("error.message"
+     2 | to_None:span.set_attribute("retry_attempt" | span.set_attribute("retry_attempt", attempt)                           | e.g. m39
+        pat: to_None:span.set_attribute("retry_attempt"
+     2 | string_const_tweak     | files = {"file": (image_name, image_data, "image/jpeg")}               | e.g. m48
+        pat: string_const_tweak
+     2 | str_lit                | files = {"file": (image_name, image_data, "image/jpeg")}               | e.g. m49
+        pat: str_lit "file" "image/jpeg"->"FILE" "image/jpeg"
+        pat: str_lit "file" "image/jpeg"->"file" "IMAGE/JPEG"
+     1 | other                  | last_exception: Exception | None = None => last_exception: Exception | None = "" | e.g. m1
+        pat: other
+     1 | string_const_tweak     | "Detector connection error, retrying",                                 | e.g. m101
+        pat: string_const_tweak
+     1 | removed_line           | camera_id=camera_id,                                                   | e.g. m11
+        pat: removed_line
+     1 | removed_line           | image_path=image_path,                                                 | e.g. m12
+        pat: removed_line
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_connection_error")       | e.g. m122
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:Detector       | "Detector connection error after all attempts",                        | e.g. m123
+        pat: to_None:Detector
+     1 | string_const_tweak     | "Detector connection error after all attempts",                        | e.g. m129
+        pat: string_const_tweak
+     1 | other                  | image_size_bytes=len(image_data), ) as span: => ) as span:             | e.g. m13
+        pat: other
+     1 | to_None:self._detector_type | model_name=self._detector_type,                                        | e.g. m15
+        pat: to_None:self._detector_type
+     1 | to_None:Detector       | "Detector timeout, retrying",                                          | e.g. m156
+        pat: to_None:Detector
+     1 | to_None:self._model_version | model_version=self._model_version,                                     | e.g. m16
+        pat: to_None:self._model_version
+     1 | string_const_tweak     | "Detector timeout, retrying",                                          | e.g. m160
+        pat: string_const_tweak
+     1 | to_None:huggingface"   | model_provider="huggingface" if self._detector_type == "yolo26" else " | e.g. m17
+        pat: to_None:huggingface"
+     1 | to_None:cuda           | device="cuda:0",                                                       | e.g. m18
+        pat: to_None:cuda
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_timeout")                | e.g. m181
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:Detector       | "Detector timeout after all attempts",                                 | e.g. m182
+        pat: to_None:Detector
+     1 | string_const_tweak     | "Detector timeout after all attempts",                                 | e.g. m188
+        pat: string_const_tweak
+     1 | to_None:?              | batch_size=1,                                                          | e.g. m19
+        pat: to_None:?
+     1 | removed_line           | model_name=self._detector_type,                                        | e.g. m21
+        pat: removed_line
+     1 | to_None:Detector       | "Detector server error, retrying",                                     | e.g. m218
+        pat: to_None:Detector
+     1 | removed_line           | model_version=self._model_version,                                     | e.g. m22
+        pat: removed_line
+     1 | string_const_tweak     | "Detector server error, retrying",                                     | e.g. m222
+        pat: string_const_tweak
+     1 | removed_line           | model_provider="huggingface" if self._detector_type == "yolo           | e.g. m23
+        pat: removed_line
+     1 | removed_line           | device="cuda:0",  # Default GPU device                                 | e.g. m24
+        pat: removed_line
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_server_error")           | e.g. m242
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:Detector       | "Detector server error after all attempts",                            | e.g. m243
+        pat: to_None:Detector
+     1 | string_const_tweak     | "Detector server error after all attempts",                            | e.g. m249
+        pat: string_const_tweak
+     1 | other                  | batch_size=1, # Single image per request ) => )                        | e.g. m25
+        pat: other
+     1 | other                  | error_detail = None => error_detail = ""                               | e.g. m263
+        pat: other
+     1 | op_flip                | if status_code == 400:                                                 | e.g. m264
+        pat: op_flip ==->!=
+     1 | num                    | if status_code == 400:                                                 | e.g. m265
+        pat: num 400->401
+     1 | to_None:e.response.json() | error_response = e.response.json()                                     | e.g. m266
+        pat: to_None:e.response.json()
+     1 | other                  | error_detail = error_response.get("detail", str(e) => error_detail = error_response.get(str(e)) | e.g. m270
+        pat: other
+     1 | other                  | error_detail = error_response.get("detail", str(e) => error_detail = error_response.get("detail", ) | e.g. m271
+        pat: other
+     1 | string_const_tweak     | error_detail = error_response.get("detail", str(e))                    | e.g. m272
+        pat: string_const_tweak
+     1 | str_lit                | error_detail = error_response.get("detail", str(e))                    | e.g. m273
+        pat: str_lit "detail"->"DETAIL"
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_client_error")           | e.g. m275
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:Detector       | "Detector client error",                                               | e.g. m276
+        pat: to_None:Detector
+     1 | string_const_tweak     | "Detector client error",                                               | e.g. m280
+        pat: string_const_tweak
+     1 | string_const_tweak     | "error_detail": error_detail,                                          | e.g. m291
+        pat: string_const_tweak
+     1 | str_lit                | "error_detail": error_detail,                                          | e.g. m292
+        pat: str_lit "error_detail"->"ERROR_DETAIL"
+     1 | to_None:f"Detector     | f"Detector client error {status_code}: {error_detail or e}"            | e.g. m293
+        pat: to_None:f"Detector
+     1 | op_flip                | f"Detector client error {status_code}: {error_detail or e}"            | e.g. m294
+        pat: op_flip or->and
+     1 | to_None:min(2          | delay = min(2**attempt, 30)                                            | e.g. m299
+        pat: to_None:min(2
+     1 | op_flip                | model_provider="huggingface" if self._detector_type == "yolo26" else " | e.g. m30
+        pat: op_flip ==->!=
+     1 | other                  | delay = min(2**attempt, 30) # Cap at 30 seconds => delay = min(2 * attempt, 30) # Cap at 30 seconds | e.g. m304
+        pat: other
+     1 | to_None:f"Detector     | f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries} | e.g. m307
+        pat: to_None:f"Detector
+     1 | str_lit                | f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries} | e.g. m311
+        pat: str_lit "Detector JSON/value error (attempt {att->"Detector JSON/value error (attempt {att
+     1 | num                    | f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries} | e.g. m312
+        pat: num 1->2
+     1 | to_None:sanitize_error(e) | f"retrying in {delay}s: {sanitize_error(e)}",                          | e.g. m313
+        pat: to_None:sanitize_error(e)
+     1 | to_None:asyncio.sleep(delay) | await asyncio.sleep(delay)                                             | e.g. m328
+        pat: to_None:asyncio.sleep(delay)
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_json_error")             | e.g. m329
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:f"Detector     | f"Detector JSON/value error after {self._max_retries} attempts: " f"{s | e.g. m330
+        pat: to_None:f"Detector
+     1 | to_None:f"             | f"{sanitize_error(e)}",                                                | e.g. m336
+        pat: to_None:f"
+     1 | other                  | if attempt < self._max_retries - 1: => if attempt <= self._max_retries - 1: | e.g. m347
+        pat: other
+     1 | other                  | if attempt < self._max_retries - 1: => if attempt < self._max_retries + 1: | e.g. m348
+        pat: other
+     1 | num                    | if attempt < self._max_retries - 1:                                    | e.g. m349
+        pat: num 1->2
+     1 | string_const_tweak     | device="cuda:0",                                                       | e.g. m35
+        pat: string_const_tweak
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_unexpected_error")       | e.g. m350
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:Unexpected     | "Unexpected detector error after all attempts",                        | e.g. m351
+        pat: to_None:Unexpected
+     1 | string_const_tweak     | "Unexpected detector error after all attempts",                        | e.g. m357
+        pat: string_const_tweak
+     1 | str_lit                | device="cuda:0",                                                       | e.g. m36
+        pat: str_lit "cuda:0"->"CUDA:0"
+     1 | string_const_tweak     | "error": sanitize_error(e),                                            | e.g. m368
+        pat: string_const_tweak
+     1 | str_lit                | "error": sanitize_error(e),                                            | e.g. m369
+        pat: str_lit "error"->"ERROR"
+     1 | num                    | batch_size=1,                                                          | e.g. m37
+        pat: num 1->2
+     1 | to_None:error"         | "error": sanitize_error(e),                                            | e.g. m370
+        pat: to_None:error"
+     1 | string_const_tweak     | span.set_attribute("error", True)                                      | e.g. m377
+        pat: string_const_tweak
+     1 | str_lit                | span.set_attribute("error", True)                                      | e.g. m378
+        pat: str_lit "error"->"ERROR"
+     1 | bool                   | span.set_attribute("error", True)                                      | e.g. m379
+        pat: bool True->False
+     1 | string_const_tweak     | span.set_attribute("error.message", error_msg)                         | e.g. m384
+        pat: string_const_tweak
+     1 | str_lit                | span.set_attribute("error.message", error_msg)                         | e.g. m385
+        pat: str_lit "error.message"->"ERROR.MESSAGE"
+     1 | to_None:self._read_timeout | explicit_timeout = self._read_timeout + settings.ai_connect_timeout    | e.g. m4
+        pat: to_None:self._read_timeout
+     1 | string_const_tweak     | span.set_attribute("retry_attempt", attempt)                           | e.g. m43
+        pat: string_const_tweak
+     1 | str_lit                | span.set_attribute("retry_attempt", attempt)                           | e.g. m44
+        pat: str_lit "retry_attempt"->"RETRY_ATTEMPT"
+     1 | to_None:asyncio.timeout(explicit_timeout) | async with asyncio.timeout(explicit_timeout):                          | e.g. m46
+        pat: to_None:asyncio.timeout(explicit_timeout)
+     1 | to_None:file"          | files = {"file": (image_name, image_data, "image/jpeg")}               | e.g. m47
+        pat: to_None:file"
+     1 | other                  | explicit_timeout = self._read_timeout + settings.a => explicit_timeout = self._read_timeout - settings.a | e.g. m5
+        pat: other
+     1 | to_None:f"             | f"{self._detector_url}/detect",                                        | e.g. m53
+        pat: to_None:f"
+     1 | to_None:?              | files=files,                                                           | e.g. m54
+        pat: to_None:?
+     1 | removed_line           | files=files,                                                           | e.g. m57
+        pat: removed_line
+     1 | to_None:f"             | f"{self._detector_type}_detection_request",                            | e.g. m6
+        pat: to_None:f"
+     1 | to_None:time.monotonic() | inference_time_ms = (time.monotonic() - start_time) * 1000             | e.g. m60
+        pat: to_None:time.monotonic()
+     1 | other                  | inference_time_ms = (time.monotonic() - start_time => inference_time_ms = (time.monotonic() - start_time | e.g. m61
+        pat: other
+     1 | other                  | inference_time_ms = (time.monotonic() - start_time => inference_time_ms = (time.monotonic() + start_time | e.g. m62
+        pat: other
+     1 | num                    | inference_time_ms = (time.monotonic() - start_time) * 1000             | e.g. m63
+        pat: num 1000->1001
+     1 | other                  | detections = result.get("detections", []) => detections = result.get("detections", ) | e.g. m68
+        pat: other
+     1 | string_const_tweak     | detections = result.get("detections", [])                              | e.g. m69
+        pat: string_const_tweak
+     1 | to_None:?              | camera_id=camera_id,                                                   | e.g. m7
+        pat: to_None:?
+     1 | str_lit                | detections = result.get("detections", [])                              | e.g. m70
+        pat: str_lit "detections"->"DETECTIONS"
+     1 | to_None:?              | detections=detections,                                                 | e.g. m72
+        pat: to_None:?
+     1 | to_None:?              | inference_time_ms=inference_time_ms,                                   | e.g. m73
+        pat: to_None:?
+     1 | removed_line           | detections=detections,                                                 | e.g. m75
+        pat: removed_line
+     1 | other                  | inference_time_ms=inference_time_ms, ) => )                            | e.g. m76
+        pat: other
+     1 | to_None:inference_time_ms | span, duration_ms=inference_time_ms, status="success"                  | e.g. m78
+        pat: to_None:inference_time_ms
+     1 | to_None:success"       | span, duration_ms=inference_time_ms, status="success"                  | e.g. m79
+        pat: to_None:success"
+     1 | to_None:?              | image_path=image_path,                                                 | e.g. m8
+        pat: to_None:?
+     1 | other                  | span, duration_ms=inference_time_ms, status="succe => span, status="success" | e.g. m81
+        pat: other
+     1 | other                  | span, duration_ms=inference_time_ms, status="succe => span, duration_ms=inference_time_ms, ) | e.g. m82
+        pat: other
+     1 | string_const_tweak     | span, duration_ms=inference_time_ms, status="success"                  | e.g. m83
+        pat: string_const_tweak
+     1 | str_lit                | span, duration_ms=inference_time_ms, status="success"                  | e.g. m84
+        pat: str_lit "success"->"SUCCESS"
+     1 | to_None:len(image_data) | image_size_bytes=len(image_data),                                      | e.g. m9
+        pat: to_None:len(image_data)
+     1 | to_None:Detector       | "Detector connection error, retrying",                                 | e.g. m97
+        pat: to_None:Detector
+==================== xǁDetectorClientǁ_validate_image_for_detection count 28
+     3 | string_const_tweak     | extra={"camera_id": camera_id, "file_path": image_path, "error": str(e | e.g. m30
+        pat: string_const_tweak
+     3 | str_lit                | extra={"camera_id": camera_id, "file_path": image_path, "error": str(e | e.g. m31
+        pat: str_lit "camera_id" "file_path" "error"->"CAMERA_ID" "file_path" "error"
+        pat: str_lit "camera_id" "file_path" "error"->"camera_id" "FILE_PATH" "error"
+        pat: str_lit "camera_id" "file_path" "error"->"camera_id" "file_path" "ERROR"
+     2 | str_lit                | "Image too small for detection",                                       | e.g. m10
+        pat: str_lit "Image too small for detection"->"IMAGE TOO SMALL FOR DETECTION"
+        pat: str_lit "Image too small for detection"->"image too small for detection"
+     2 | to_None:camera_id"     | extra={"camera_id": camera_id, "file_path": image_path, "error": str(e | e.g. m24
+        pat: to_None:camera_id"
+     2 | str_lit                | "Image validation failed (corrupt/truncated)",                         | e.g. m28
+        pat: str_lit "Image validation failed (corrupt/trunca->"IMAGE VALIDATION FAILED (CORRUPT/TRUNCA
+        pat: str_lit "Image validation failed (corrupt/trunca->"image validation failed (corrupt/trunca
+     1 | string_const_tweak     | "camera_id": camera_id,                                                | e.g. m12
+        pat: string_const_tweak
+     1 | str_lit                | "camera_id": camera_id,                                                | e.g. m13
+        pat: str_lit "camera_id"->"CAMERA_ID"
+     1 | string_const_tweak     | "file_path": image_path,                                               | e.g. m14
+        pat: string_const_tweak
+     1 | str_lit                | "file_path": image_path,                                               | e.g. m15
+        pat: str_lit "file_path"->"FILE_PATH"
+     1 | string_const_tweak     | "file_size": file_size,                                                | e.g. m16
+        pat: string_const_tweak
+     1 | str_lit                | "file_size": file_size,                                                | e.g. m17
+        pat: str_lit "file_size"->"FILE_SIZE"
+     1 | string_const_tweak     | "min_size": MIN_DETECTION_IMAGE_SIZE,                                  | e.g. m18
+        pat: string_const_tweak
+     1 | str_lit                | "min_size": MIN_DETECTION_IMAGE_SIZE,                                  | e.g. m19
+        pat: str_lit "min_size"->"MIN_SIZE"
+     1 | to_None:Image          | "Image validation failed (corrupt/truncated)",                         | e.g. m23
+        pat: to_None:Image
+     1 | other                  | extra={"camera_id": camera_id, "file_path": image_ => )                | e.g. m26
+        pat: other
+     1 | string_const_tweak     | "Image validation failed (corrupt/truncated)",                         | e.g. m27
+        pat: string_const_tweak
+     1 | other                  | if file_size < MIN_DETECTION_IMAGE_SIZE: => if file_size <= MIN_DETECTION_IMAGE_SIZE: | e.g. m4
+        pat: other
+     1 | to_None:Image          | "Image too small for detection",                                       | e.g. m5
+        pat: to_None:Image
+     1 | to_None:camera_id"     | extra={ "camera_id": camera_id, "file_path": image_path, "file_size":  | e.g. m6
+        pat: to_None:camera_id"
+     1 | other                  | extra={ "camera_id": camera_id, "file_path": image => )                | e.g. m8
+        pat: other
+     1 | string_const_tweak     | "Image too small for detection",                                       | e.g. m9
+        pat: string_const_tweak
+==================== xǁDetectorClientǁ_validate_image_for_detection_async count 1
+     1 | to_None:camera_id)     | return await asyncio.to_thread(self._validate_image_for_detection, ima | e.g. m3
+        pat: to_None:camera_id)
+==================== xǁDetectorClientǁclose count 8
+     2 | str_lit                | "DetectorClient HTTP connections closed",                              | e.g. m6
+        pat: str_lit "DetectorClient HTTP connections closed"->"DETECTORCLIENT HTTP CONNECTIONS CLOSED"
+        pat: str_lit "DetectorClient HTTP connections closed"->"detectorclient http connections closed"
+     1 | to_None:DetectorClient | "DetectorClient HTTP connections closed",                              | e.g. m1
+        pat: to_None:DetectorClient
+     1 | to_None:detector_type" | extra={"detector_type": self._detector_type},                          | e.g. m2
+        pat: to_None:detector_type"
+     1 | other                  | extra={"detector_type": self._detector_type}, ) => )                   | e.g. m4
+        pat: other
+     1 | string_const_tweak     | "DetectorClient HTTP connections closed",                              | e.g. m5
+        pat: string_const_tweak
+     1 | string_const_tweak     | extra={"detector_type": self._detector_type},                          | e.g. m8
+        pat: string_const_tweak
+     1 | str_lit                | extra={"detector_type": self._detector_type},                          | e.g. m9
+        pat: str_lit "detector_type"->"DETECTOR_TYPE"
+==================== xǁDetectorClientǁdetect_objects count 223
+     4 | to_None:detection_data.get("class" | object_class = detection_data.get("class", "unknown")                  | e.g. m212
+        pat: to_None:detection_data.get("class"
+     4 | string_const_tweak     | if not all(k in bbox for k in ("x", "y", "width", "height")):          | e.g. m235
+        pat: string_const_tweak
+     4 | str_lit                | if not all(k in bbox for k in ("x", "y", "width", "height")):          | e.g. m236
+        pat: str_lit "x" "y" "width" "height"->"X" "y" "width" "height"
+        pat: str_lit "x" "y" "width" "height"->"x" "Y" "width" "height"
+        pat: str_lit "x" "y" "width" "height"->"x" "y" "WIDTH" "height"
+        pat: str_lit "x" "y" "width" "height"->"x" "y" "width" "HEIGHT"
+     4 | string_const_tweak     | extra={"camera_id": camera_id, "file_path": image_path},               | e.g. m25
+        pat: string_const_tweak
+     4 | str_lit                | extra={"camera_id": camera_id, "file_path": image_path},               | e.g. m26
+        pat: str_lit "camera_id" "file_path"->"CAMERA_ID" "file_path"
+        pat: str_lit "camera_id" "file_path"->"camera_id" "FILE_PATH"
+     4 | string_const_tweak     | "camera_id": camera_id,                                                | e.g. m457
+        pat: string_const_tweak
+     4 | str_lit                | "camera_id": camera_id,                                                | e.g. m458
+        pat: str_lit "camera_id"->"CAMERA_ID"
+     3 | string_const_tweak     | object_class = detection_data.get("class", "unknown")                  | e.g. m217
+        pat: string_const_tweak
+     3 | str_lit                | object_class = detection_data.get("class", "unknown")                  | e.g. m218
+        pat: str_lit "class" "unknown"->"CLASS" "unknown"
+        pat: str_lit "class" "unknown"->"class" "UNKNOWN"
+     3 | other                  | continue => break                                                      | e.g. m244
+        pat: other
+     3 | num                    | f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]} | e.g. m336
+        pat: num 0,1,2,3->0,1,3,3
+        pat: num 0,1,2,3->0,2,2,3
+        pat: num 0,1,2,3->1,1,2,3
+     3 | string_const_tweak     | "file_path": image_path,                                               | e.g. m459
+        pat: string_const_tweak
+     3 | str_lit                | "file_path": image_path,                                               | e.g. m460
+        pat: str_lit "file_path"->"FILE_PATH"
+     2 | to_None:?              | camera_id=camera_id,                                                   | e.g. m115
+        pat: to_None:?
+     2 | string_const_tweak     | "detector.type": self._detector_type,                                  | e.g. m13
+        pat: string_const_tweak
+     2 | str_lit                | "detector.type": self._detector_type,                                  | e.g. m138
+        pat: str_lit "detector.type"->"DETECTOR.TYPE"
+     2 | to_None:response"      | extra={"response": str(result)[:500]},                                 | e.g. m150
+        pat: to_None:response"
+     2 | str_lit                | "Malformed response from detector (missing 'detections')",             | e.g. m154
+        pat: str_lit "Malformed response from detector (missi->"MALFORMED RESPONSE FROM DETECTOR (MISSI
+        pat: str_lit "Malformed response from detector (missi->"malformed response from detector (missi
+     2 | to_None:video_metadata.get("file_type" | file_type = video_metadata.get("file_type", "video/mp4")               | e.g. m179
+        pat: to_None:video_metadata.get("file_type"
+     2 | string_const_tweak     | file_type = video_metadata.get("file_type", "video/mp4")               | e.g. m183
+        pat: string_const_tweak
+     2 | str_lit                | file_type = video_metadata.get("file_type", "video/mp4")               | e.g. m184
+        pat: str_lit "file_type" "video/mp4"->"FILE_TYPE" "video/mp4"
+        pat: str_lit "file_type" "video/mp4"->"file_type" "VIDEO/MP4"
+     2 | to_None:camera_id"     | extra={"camera_id": camera_id, "file_path": image_path},               | e.g. m19
+        pat: to_None:camera_id"
+     2 | other                  | extra={"camera_id": camera_id, "file_path": image_ => )                | e.g. m21
+        pat: other
+     2 | other                  | object_class = detection_data.get("class", "unknow => object_class = detection_data.get("class", ) | e.g. m214
+        pat: other
+     2 | str_lit                | "Image file not found",                                                | e.g. m23
+        pat: str_lit "Image file not found"->"IMAGE FILE NOT FOUND"
+        pat: str_lit "Image file not found"->"image file not found"
+     2 | num                    | if bbox_width < 1 or bbox_height < 1:                                  | e.g. m331
+        pat: num 1,1->1,2
+        pat: num 1,1->2,1
+     2 | num                    | elif bbox_width <= 0 or bbox_height <= 0:                              | e.g. m342
+        pat: num 0,0->0,1
+        pat: num 0,0->1,0
+     2 | to_None:error"         | extra={"error": sanitize_error(e)},                                    | e.g. m407
+        pat: to_None:error"
+     2 | str_lit                | "Error processing detection data",                                     | e.g. m413
+        pat: str_lit "Error processing detection data"->"ERROR PROCESSING DETECTION DATA"
+        pat: str_lit "Error processing detection data"->"error processing detection data"
+     2 | string_const_tweak     | extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat() | e.g. m433
+        pat: string_const_tweak
+     2 | str_lit                | extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat() | e.g. m434
+        pat: str_lit "camera_id" "last_seen_at"->"CAMERA_ID" "last_seen_at"
+        pat: str_lit "camera_id" "last_seen_at"->"camera_id" "LAST_SEEN_AT"
+     2 | string_const_tweak     | "duration_ms": duration_ms,                                            | e.g. m463
+        pat: string_const_tweak
+     2 | str_lit                | "duration_ms": duration_ms,                                            | e.g. m464
+        pat: str_lit "duration_ms"->"DURATION_MS"
+     2 | str_lit                | logger.info("Stored detections", extra=log_extra)                      | e.g. m470
+        pat: str_lit "Stored detections"->"STORED DETECTIONS"
+        pat: str_lit "Stored detections"->"stored detections"
+     1 | to_None:get_trace_id() | trace_id = get_trace_id()                                              | e.g. m1
+        pat: to_None:get_trace_id()
+     1 | string_const_tweak     | "detector.url": self._detector_url,                                    | e.g. m109
+        pat: string_const_tweak
+     1 | str_lit                | "detector.url": self._detector_url,                                    | e.g. m110
+        pat: str_lit "detector.url"->"DETECTOR.URL"
+     1 | to_None:image_file.name | image_name=image_file.name,                                            | e.g. m114
+        pat: to_None:image_file.name
+     1 | to_None:?              | image_path=image_path,                                                 | e.g. m116
+        pat: to_None:?
+     1 | other                  | ai_duration = time.time() - ai_start_time => ai_duration = time.time() + ai_start_time | e.g. m123
+        pat: other
+     1 | to_None:observe_ai_request_duration(self._detector_type | observe_ai_request_duration(self._detector_type, ai_duration)          | e.g. m124
+        pat: to_None:observe_ai_request_duration(self._detector_type
+     1 | other                  | "inference.duration_ms": int(ai_duration * 1000), => "inference.duration_ms": int(ai_duration / 1000), | e.g. m144
+        pat: other
+     1 | num                    | "inference.duration_ms": int(ai_duration * 1000),                      | e.g. m145
+        pat: num 1000->1001
+     1 | to_None:Malformed      | "Malformed response from detector (missing 'detections')",             | e.g. m149
+        pat: to_None:Malformed
+     1 | other                  | extra={"response": str(result)[:500]}, ) => )                          | e.g. m152
+        pat: other
+     1 | string_const_tweak     | "Malformed response from detector (missing 'detections')",             | e.g. m153
+        pat: string_const_tweak
+     1 | string_const_tweak     | extra={"response": str(result)[:500]},                                 | e.g. m156
+        pat: string_const_tweak
+     1 | str_lit                | extra={"response": str(result)[:500]},                                 | e.g. m157
+        pat: str_lit "response"->"RESPONSE"
+     1 | num                    | extra={"response": str(result)[:500]},                                 | e.g. m159
+        pat: num 500->501
+     1 | to_None:record_pipeline_error("malformed_response") | record_pipeline_error("malformed_response")                            | e.g. m160
+        pat: to_None:record_pipeline_error("malformed_response")
+     1 | string_const_tweak     | record_pipeline_error("malformed_response")                            | e.g. m161
+        pat: string_const_tweak
+     1 | str_lit                | record_pipeline_error("malformed_response")                            | e.g. m162
+        pat: str_lit "malformed_response"->"MALFORMED_RESPONSE"
+     1 | to_None:datetime.now(UTC) | detected_at = datetime.now(UTC)                                        | e.g. m165
+        pat: to_None:datetime.now(UTC)
+     1 | op_flip                | if video_path is not None and video_metadata is not None:              | e.g. m174
+        pat: op_flip and->or
+     1 | to_None:Image          | "Image file not found",                                                | e.g. m18
+        pat: to_None:Image
+     1 | other                  | file_type = video_metadata.get("file_type", "video => file_type = video_metadata.get("file_type", ) | e.g. m182
+        pat: other
+     1 | to_None:False          | is_video = False                                                       | e.g. m198
+        pat: to_None:False
+     1 | bool                   | is_video = False                                                       | e.g. m199
+        pat: bool False->True
+     1 | to_None:detection_data.get("confidence" | confidence = detection_data.get("confidence", 0.0)                     | e.g. m204
+        pat: to_None:detection_data.get("confidence"
+     1 | other                  | confidence = detection_data.get("confidence", 0.0) => confidence = detection_data.get("confidence", ) | e.g. m206
+        pat: other
+     1 | num                    | confidence = detection_data.get("confidence", 0.0)                     | e.g. m209
+        pat: num 0,0->1,0
+     1 | string_const_tweak     | "Image file not found",                                                | e.g. m22
+        pat: string_const_tweak
+     1 | to_None:self._confidence_threshold | object_class, self._confidence_threshold                               | e.g. m221
+        pat: to_None:self._confidence_threshold
+     1 | other                  | object_class, self._confidence_threshold ) => object_class, )          | e.g. m223
+        pat: other
+     1 | to_None:detection_data.get("bbox" | bbox = detection_data.get("bbox", {})                                  | e.g. m227
+        pat: to_None:detection_data.get("bbox"
+     1 | other                  | bbox = detection_data.get("bbox", {}) => bbox = detection_data.get("bbox", ) | e.g. m229
+        pat: other
+     1 | not_add_remove         | if not all(k in bbox for k in ("x", "y", "width", "height")):          | e.g. m232
+        pat: not_add_remove
+     1 | to_None:all(k          | if not all(k in bbox for k in ("x", "y", "width", "height")):          | e.g. m233
+        pat: to_None:all(k
+     1 | other                  | if not all(k in bbox for k in ("x", "y", "width", => if not all(k not in bbox for k in ("x", "y", "widt | e.g. m234
+        pat: other
+     1 | to_None:logger.warning(f"Invalid | logger.warning(f"Invalid bbox dict format: {bbox}")                    | e.g. m243
+        pat: to_None:logger.warning(f"Invalid
+     1 | to_None:logger.warning(f"Invalid | logger.warning(f"Invalid bbox format: {bbox}")                         | e.g. m260
+        pat: to_None:logger.warning(f"Invalid
+     1 | op_flip                | if response_image_width is not None and response_image_height is not N | e.g. m262
+        pat: op_flip and->or
+     1 | other                  | if response_image_width is not None and response_i => if response_image_width is None and response_image | e.g. m263
+        pat: other
+     1 | other                  | if response_image_width is not None and response_i => if response_image_width is not None and response_i | e.g. m264
+        pat: other
+     1 | op_flip                | or bbox_x + bbox_width <= 0 or bbox_y + bbox_height <= 0               | e.g. m265
+        pat: op_flip or->and
+     1 | op_flip                | or bbox_y >= response_image_height or bbox_x + bbox_width <= 0         | e.g. m266
+        pat: op_flip or->and
+     1 | op_flip                | bbox_x >= response_image_width or bbox_y >= response_image_height      | e.g. m267
+        pat: op_flip or->and
+     1 | other                  | bbox_x >= response_image_width => bbox_x > response_image_width        | e.g. m268
+        pat: other
+     1 | other                  | or bbox_y >= response_image_height => or bbox_y > response_image_height | e.g. m269
+        pat: other
+     1 | other                  | or bbox_x + bbox_width <= 0 => or bbox_x + bbox_width < 0              | e.g. m271
+        pat: other
+     1 | num                    | or bbox_x + bbox_width <= 0                                            | e.g. m272
+        pat: num 0->1
+     1 | other                  | or bbox_y + bbox_height <= 0 => or bbox_y + bbox_height < 0            | e.g. m274
+        pat: other
+     1 | num                    | or bbox_y + bbox_height <= 0                                           | e.g. m275
+        pat: num 0->1
+     1 | num                    | x1_clamped = max(0, min(bbox_x, response_image_width))                 | e.g. m282
+        pat: num 1,0->1,1
+     1 | to_None:record_pipeline_error("file_not_found") | record_pipeline_error("file_not_found")                                | e.g. m29
+        pat: to_None:record_pipeline_error("file_not_found")
+     1 | num                    | y1_clamped = max(0, min(bbox_y, response_image_height))                | e.g. m292
+        pat: num 1,0->1,1
+     1 | string_const_tweak     | record_pipeline_error("file_not_found")                                | e.g. m30
+        pat: string_const_tweak
+     1 | num                    | x2_clamped = max(0, min(bbox_x + bbox_width, response_image_width))    | e.g. m302
+        pat: num 2,0->2,1
+     1 | str_lit                | record_pipeline_error("file_not_found")                                | e.g. m31
+        pat: str_lit "file_not_found"->"FILE_NOT_FOUND"
+     1 | num                    | y2_clamped = max(0, min(bbox_y + bbox_height, response_image_height))  | e.g. m313
+        pat: num 2,0->2,1
+     1 | to_None:int(x1_clamped) | bbox_x = int(x1_clamped)                                               | e.g. m319
+        pat: to_None:int(x1_clamped)
+     1 | to_None:int(y1_clamped) | bbox_y = int(y1_clamped)                                               | e.g. m321
+        pat: to_None:int(y1_clamped)
+     1 | other                  | bbox_width = int(x2_clamped - x1_clamped) => bbox_width = int(x2_clamped + x1_clamped) | e.g. m325
+        pat: other
+     1 | other                  | bbox_height = int(y2_clamped - y1_clamped) => bbox_height = int(y2_clamped + y1_clamped) | e.g. m328
+        pat: other
+     1 | op_flip                | if bbox_width < 1 or bbox_height < 1:                                  | e.g. m329
+        pat: op_flip or->and
+     1 | other                  | if bbox_width < 1 or bbox_height < 1: => if bbox_width <= 1 or bbox_height < 1: | e.g. m330
+        pat: other
+     1 | other                  | if bbox_width < 1 or bbox_height < 1: => if bbox_width < 1 or bbox_height <= 1: | e.g. m332
+        pat: other
+     1 | op_flip                | if original_bbox != (bbox_x, bbox_y, bbox_width, bbox_height):         | e.g. m334
+        pat: op_flip !=->==
+     1 | to_None:f"Clamped      | f"Clamped invalid bbox coordinates: " f"original=({original_bbox[0]},  | e.g. m335
+        pat: to_None:f"Clamped
+     1 | to_None:camera_id)     | if not await self._validate_image_for_detection_async(image_path, came | e.g. m34
+        pat: to_None:camera_id)
+     1 | op_flip                | elif bbox_width <= 0 or bbox_height <= 0:                              | e.g. m340
+        pat: op_flip or->and
+     1 | other                  | elif bbox_width <= 0 or bbox_height <= 0: => elif bbox_width < 0 or bbox_height <= 0: | e.g. m341
+        pat: other
+     1 | other                  | elif bbox_width <= 0 or bbox_height <= 0: => elif bbox_width <= 0 or bbox_height < 0: | e.g. m343
+        pat: other
+     1 | to_None:record_pipeline_error("invalid_image") | record_pipeline_error("invalid_image")                                 | e.g. m37
+        pat: to_None:record_pipeline_error("invalid_image")
+     1 | op_flip                | if is_video and video_metadata:                                        | e.g. m371
+        pat: op_flip and->or
+     1 | string_const_tweak     | record_pipeline_error("invalid_image")                                 | e.g. m38
+        pat: string_const_tweak
+     1 | str_lit                | record_pipeline_error("invalid_image")                                 | e.g. m39
+        pat: str_lit "invalid_image"->"INVALID_IMAGE"
+     1 | to_None:session.add(detection) | session.add(detection)                                                 | e.g. m392
+        pat: to_None:session.add(detection)
+     1 | other                  | object_class = detection_data.get("class", "unknow => object_class = detection_data.get("unknown") | e.g. m397
+        pat: other
+     1 | to_None:f"Sending      | f"Sending detection request for {image_path}",                         | e.g. m40
+        pat: to_None:f"Sending
+     1 | to_None:record_detection_by_class(object_class) | record_detection_by_class(object_class)                                | e.g. m403
+        pat: to_None:record_detection_by_class(object_class)
+     1 | to_None:observe_detection_confidence(confidence) | observe_detection_confidence(confidence)                               | e.g. m404
+        pat: to_None:observe_detection_confidence(confidence)
+     1 | to_None:f"Created      | f"Created detection: {detection.object_type} " f"(confidence: {confide | e.g. m405
+        pat: to_None:f"Created
+     1 | to_None:Error          | "Error processing detection data",                                     | e.g. m406
+        pat: to_None:Error
+     1 | to_None:True           | exc_info=True,                                                         | e.g. m408
+        pat: to_None:True
+     1 | removed_line           | extra={"error": sanitize_error(e)},                                    | e.g. m410
+        pat: removed_line
+     1 | other                  | exc_info=True, ) => )                                                  | e.g. m411
+        pat: other
+     1 | string_const_tweak     | "Error processing detection data",                                     | e.g. m412
+        pat: string_const_tweak
+     1 | string_const_tweak     | extra={"error": sanitize_error(e)},                                    | e.g. m415
+        pat: string_const_tweak
+     1 | str_lit                | extra={"error": sanitize_error(e)},                                    | e.g. m416
+        pat: str_lit "error"->"ERROR"
+     1 | bool                   | exc_info=True,                                                         | e.g. m418
+        pat: bool True->False
+     1 | to_None:record_pipeline_error("detection_processing_error") | record_pipeline_error("detection_processing_error")                    | e.g. m419
+        pat: to_None:record_pipeline_error("detection_processing_error")
+     1 | string_const_tweak     | record_pipeline_error("detection_processing_error")                    | e.g. m420
+        pat: string_const_tweak
+     1 | str_lit                | record_pipeline_error("detection_processing_error")                    | e.g. m421
+        pat: str_lit "detection_processing_error"->"DETECTION_PROCESSING_ERROR"
+     1 | to_None:f"Updated      | f"Updated camera {camera_id} last_seen_at to {detected_at}",           | e.g. m429
+        pat: to_None:f"Updated
+     1 | to_None:camera_id"     | extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat() | e.g. m430
+        pat: to_None:camera_id"
+     1 | other                  | extra={"camera_id": camera_id, "last_seen_at": det => )                | e.g. m432
+        pat: other
+     1 | op_flip                | if detection.object_type is not None                                   | e.g. m439
+        pat: op_flip is not->is
+     1 | to_None:detections[0].detected_at | baseline_timestamp = detections[0].detected_at                         | e.g. m440
+        pat: to_None:detections[0].detected_at
+     1 | to_None:object_type    | detection_class=object_type,                                           | e.g. m443
+        pat: to_None:object_type
+     1 | to_None:baseline_timestamp | timestamp=baseline_timestamp,                                          | e.g. m444
+        pat: to_None:baseline_timestamp
+     1 | to_None:?              | session=session,                                                       | e.g. m445
+        pat: to_None:?
+     1 | removed_line           | camera_id=camera_id,                                                   | e.g. m446
+        pat: removed_line
+     1 | removed_line           | detection_class=object_type,                                           | e.g. m447
+        pat: removed_line
+     1 | removed_line           | timestamp=baseline_timestamp,                                          | e.g. m448
+        pat: removed_line
+     1 | other                  | session=session, ) => )                                                | e.g. m449
+        pat: other
+     1 | to_None:int((time.time() | duration_ms = int((time.time() - start_time) * 1000)                   | e.g. m450
+        pat: to_None:int((time.time()
+     1 | other                  | duration_ms = int((time.time() - start_time) * 100 => duration_ms = int((time.time() - start_time) / 100 | e.g. m452
+        pat: other
+     1 | other                  | duration_ms = int((time.time() - start_time) * 100 => duration_ms = int((time.time() + start_time) * 100 | e.g. m453
+        pat: other
+     1 | num                    | duration_ms = int((time.time() - start_time) * 1000)                   | e.g. m454
+        pat: num 1000->1001
+     1 | to_None:Any]           | log_extra: dict[str, Any] = { "camera_id": camera_id, "file_path": ima | e.g. m456
+        pat: to_None:Any]
+     1 | string_const_tweak     | "detection_count": len(detections),                                    | e.g. m461
+        pat: string_const_tweak
+     1 | str_lit                | "detection_count": len(detections),                                    | e.g. m462
+        pat: str_lit "detection_count"->"DETECTION_COUNT"
+     1 | to_None:logger.info("Stored | logger.info("Stored detections", extra=log_extra)                      | e.g. m465
+        pat: to_None:logger.info("Stored
+     1 | to_None:detections"    | logger.info("Stored detections", extra=log_extra)                      | e.g. m466
+        pat: to_None:detections"
+     1 | other                  | logger.info("Stored detections", extra=log_extra) => logger.info("Stored detections", ) | e.g. m468
+        pat: other
+     1 | string_const_tweak     | logger.info("Stored detections", extra=log_extra)                      | e.g. m469
+        pat: string_const_tweak
+     1 | to_None:f"No           | f"No detections above threshold for {image_path}",                     | e.g. m472
+        pat: to_None:f"No
+     1 | to_None:camera_id"     | extra={ "camera_id": camera_id, "file_path": image_path, "duration_ms" | e.g. m473
+        pat: to_None:camera_id"
+     1 | other                  | extra={ "camera_id": camera_id, "file_path": image => )                | e.g. m475
+        pat: other
+     1 | to_None:f"Circuit      | f"Circuit breaker open for {self._detector_type}, rejecting detection  | e.g. m49
+        pat: to_None:f"Circuit
+     1 | to_None:detector_type" | extra={ "detector_type": self._detector_type, "camera_id": camera_id,  | e.g. m50
+        pat: to_None:detector_type"
+     1 | other                  | extra={ "detector_type": self._detector_type, "cam => )                | e.g. m52
+        pat: other
+     1 | string_const_tweak     | "detector_type": self._detector_type,                                  | e.g. m53
+        pat: string_const_tweak
+     1 | str_lit                | "detector_type": self._detector_type,                                  | e.g. m54
+        pat: str_lit "detector_type"->"DETECTOR_TYPE"
+     1 | string_const_tweak     | "circuit_state": self._circuit_breaker.state.value,                    | e.g. m59
+        pat: string_const_tweak
+     1 | str_lit                | "circuit_state": self._circuit_breaker.state.value,                    | e.g. m60
+        pat: str_lit "circuit_state"->"CIRCUIT_STATE"
+     1 | to_None:record_pipeline_error("circuit_breaker_open") | record_pipeline_error("circuit_breaker_open")                          | e.g. m61
+        pat: to_None:record_pipeline_error("circuit_breaker_open")
+     1 | string_const_tweak     | record_pipeline_error("circuit_breaker_open")                          | e.g. m62
+        pat: string_const_tweak
+     1 | str_lit                | record_pipeline_error("circuit_breaker_open")                          | e.g. m63
+        pat: str_lit "circuit_breaker_open"->"CIRCUIT_BREAKER_OPEN"
+     1 | to_None:f"             | f"{self._detector_type} service temporarily unavailable (circuit break | e.g. m64
+        pat: to_None:f"
+     1 | to_None:f"Buffered     | f"Buffered frame for camera {camera_id}",                              | e.g. m86
+        pat: to_None:f"Buffered
+     1 | to_None:camera_id"     | extra={ "camera_id": camera_id, "frame_size_bytes": len(image_data), " | e.g. m87
+        pat: to_None:camera_id"
+     1 | other                  | extra={ "camera_id": camera_id, "frame_size_bytes" => )                | e.g. m89
+        pat: other
+     1 | string_const_tweak     | "frame_size_bytes": len(image_data),                                   | e.g. m92
+        pat: string_const_tweak
+     1 | str_lit                | "frame_size_bytes": len(image_data),                                   | e.g. m93
+        pat: str_lit "frame_size_bytes"->"FRAME_SIZE_BYTES"
+     1 | string_const_tweak     | "buffer_count": self._frame_buffer.frame_count(camera_id),             | e.g. m94
+        pat: string_const_tweak
+     1 | str_lit                | "buffer_count": self._frame_buffer.frame_count(camera_id),             | e.g. m95
+        pat: str_lit "buffer_count"->"BUFFER_COUNT"
+     1 | to_None:buffer_count"  | "buffer_count": self._frame_buffer.frame_count(camera_id),             | e.g. m96
+        pat: to_None:buffer_count"
+==================== xǁDetectorClientǁget_warmth_state count 8
+     1 | op_flip                | if self._last_inference_time is None:                                  | e.g. m1
+        pat: op_flip is->is not
+     1 | string_const_tweak     | "state": "cold" if is_cold else "warm",                                | e.g. m10
+        pat: string_const_tweak
+     1 | str_lit                | "state": "cold" if is_cold else "warm",                                | e.g. m11
+        pat: str_lit "state" "cold" "warm"->"state" "COLD" "warm"
+     1 | other                  | seconds_ago = time.monotonic() - self._last_infere => seconds_ago = time.monotonic() + self._last_infere | e.g. m3
+        pat: other
+     1 | to_None:seconds_ago    | is_cold = seconds_ago > self._cold_start_threshold                     | e.g. m4
+        pat: to_None:seconds_ago
+     1 | other                  | is_cold = seconds_ago > self._cold_start_threshold => is_cold = seconds_ago >= self._cold_start_threshol | e.g. m5
+        pat: other
+     1 | other                  | "state": "cold" if is_cold else "warm", => "state": "cold" if (is_cold) and False else "warm" | e.g. m8
+        pat: other
+     1 | other                  | "state": "cold" if is_cold else "warm", => "state": "cold" if (is_cold) or True else "warm", | e.g. m9
+        pat: other
+==================== xǁDetectorClientǁhealth_check count 37
+     4 | to_None:error"         | extra={"error": str(e)},                                               | e.g. m18
+        pat: to_None:error"
+     3 | other                  | exc_info=True, ) => )                                                  | e.g. m12
+        pat: other
+     3 | bool                   | exc_info=True,                                                         | e.g. m19
+        pat: bool True->False
+     3 | to_None:True           | exc_info=True,                                                         | e.g. m23
+        pat: to_None:True
+     2 | removed_line           | extra={"error": str(e)},                                               | e.g. m11
+        pat: removed_line
+     2 | str_lit                | "Detector health check failed",                                        | e.g. m14
+        pat: str_lit "Detector health check failed"->"DETECTOR HEALTH CHECK FAILED"
+        pat: str_lit "Detector health check failed"->"detector health check failed"
+     2 | string_const_tweak     | extra={"error": str(e)},                                               | e.g. m16
+        pat: string_const_tweak
+     2 | str_lit                | extra={"error": str(e)},                                               | e.g. m17
+        pat: str_lit "error"->"ERROR"
+     2 | str_lit                | "Detector health check returned error status",                         | e.g. m28
+        pat: str_lit "Detector health check returned error st->"DETECTOR HEALTH CHECK RETURNED ERROR ST
+        pat: str_lit "Detector health check returned error st->"detector health check returned error st
+     2 | to_None:error"         | extra={"error": sanitize_error(e)},                                    | e.g. m36
+        pat: to_None:error"
+     2 | str_lit                | "Unexpected error during detector health check",                       | e.g. m42
+        pat: str_lit "Unexpected error during detector health->"UNEXPECTED ERROR DURING DETECTOR HEALTH
+        pat: str_lit "Unexpected error during detector health->"unexpected error during detector health
+     1 | string_const_tweak     | "Detector health check failed",                                        | e.g. m13
+        pat: string_const_tweak
+     1 | to_None:f"             | f"{self._detector_url}/health",                                        | e.g. m2
+        pat: to_None:f"
+     1 | to_None:Detector       | "Detector health check returned error status",                         | e.g. m21
+        pat: to_None:Detector
+     1 | string_const_tweak     | "Detector health check returned error status",                         | e.g. m27
+        pat: string_const_tweak
+     1 | to_None:Unexpected     | "Unexpected error during detector health check",                       | e.g. m35
+        pat: to_None:Unexpected
+     1 | removed_line           | extra={"error": sanitize_error(e)},                                    | e.g. m39
+        pat: removed_line
+     1 | string_const_tweak     | "Unexpected error during detector health check",                       | e.g. m41
+        pat: string_const_tweak
+     1 | string_const_tweak     | extra={"error": sanitize_error(e)},                                    | e.g. m44
+        pat: string_const_tweak
+     1 | str_lit                | extra={"error": sanitize_error(e)},                                    | e.g. m45
+        pat: str_lit "error"->"ERROR"
+     1 | to_None:Detector       | "Detector health check failed",                                        | e.g. m7
+        pat: to_None:Detector
+==================== xǁDetectorClientǁis_cold count 1
+     1 | other                  | return seconds_since_last > self._cold_start_thres => return seconds_since_last >= self._cold_start_thre | e.g. m5
+        pat: other
+==================== xǁDetectorClientǁmodel_readiness_probe count 24
+     5 | num                    | test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))               | e.g. m10
+        pat: num 32,32,0,0,0->32,32,0,0,1
+        pat: num 32,32,0,0,0->32,32,0,1,0
+        pat: num 32,32,0,0,0->32,32,1,0,0
+        pat: num 32,32,0,0,0->32,33,0,0,0
+        pat: num 32,32,0,0,0->33,32,0,0,0
+     1 | str_lit                | test_image.save(buffer, format="JPEG")                                 | e.g. m21
+        pat: str_lit "JPEG"->"jpeg"
+     1 | to_None:buffer.getvalue() | image_data = buffer.getvalue()                                         | e.g. m22
+        pat: to_None:buffer.getvalue()
+     1 | to_None:?              | image_data=image_data,                                                 | e.g. m23
+        pat: to_None:?
+     1 | to_None:warmup_test.jpg" | image_name="warmup_test.jpg",                                          | e.g. m24
+        pat: to_None:warmup_test.jpg"
+     1 | to_None:warmup"        | camera_id="warmup",                                                    | e.g. m25
+        pat: to_None:warmup"
+     1 | to_None:dev            | image_path="/dev/null",                                                | e.g. m26
+        pat: to_None:dev
+     1 | removed_line           | image_data=image_data,                                                 | e.g. m27
+        pat: removed_line
+     1 | removed_line           | image_name="warmup_test.jpg",                                          | e.g. m28
+        pat: removed_line
+     1 | removed_line           | camera_id="warmup",                                                    | e.g. m29
+        pat: removed_line
+     1 | other                  | image_path="/dev/null", # placeholder path for wa => )                 | e.g. m30
+        pat: other
+     1 | string_const_tweak     | image_name="warmup_test.jpg",                                          | e.g. m31
+        pat: string_const_tweak
+     1 | str_lit                | image_name="warmup_test.jpg",                                          | e.g. m32
+        pat: str_lit "warmup_test.jpg"->"WARMUP_TEST.JPG"
+     1 | string_const_tweak     | camera_id="warmup",                                                    | e.g. m33
+        pat: string_const_tweak
+     1 | str_lit                | camera_id="warmup",                                                    | e.g. m34
+        pat: str_lit "warmup"->"WARMUP"
+     1 | string_const_tweak     | image_path="/dev/null",                                                | e.g. m35
+        pat: string_const_tweak
+     1 | str_lit                | image_path="/dev/null",                                                | e.g. m36
+        pat: str_lit "/dev/null"->"/DEV/NULL"
+     1 | to_None:logger.warning(f"YOLO26 | logger.warning(f"YOLO26 readiness probe failed (unavailable): {e}")    | e.g. m38
+        pat: to_None:logger.warning(f"YOLO26
+     1 | to_None:Image.new("RGB" | test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))               | e.g. m4
+        pat: to_None:Image.new("RGB"
+     1 | other                  | test_image = Image.new("RGB", (32, 32), color=(0, => test_image = Image.new("RGB", (32, 32), ) | e.g. m7
+        pat: other
+==================== xǁDetectorClientǁsegment_image count 89
+     3 | to_None:result.get("detections" | detections = result.get("detections", [])                              | e.g. m53
+        pat: to_None:result.get("detections"
+     2 | to_None:span.set_attribute("error" | span.set_attribute("error", True)                                      | e.g. m102
+        pat: to_None:span.set_attribute("error"
+     2 | to_None:span.set_attribute("error.message" | span.set_attribute("error.message", error_msg)                         | e.g. m109
+        pat: to_None:span.set_attribute("error.message"
+     2 | to_None:span.set_attribute("retry_attempt" | span.set_attribute("retry_attempt", attempt)                           | e.g. m28
+        pat: to_None:span.set_attribute("retry_attempt"
+     2 | string_const_tweak     | files = {"file": (image_name, image_data, "image/jpeg")}               | e.g. m37
+        pat: string_const_tweak
+     2 | str_lit                | files = {"file": (image_name, image_data, "image/jpeg")}               | e.g. m38
+        pat: str_lit "file" "image/jpeg"->"FILE" "image/jpeg"
+        pat: str_lit "file" "image/jpeg"->"file" "IMAGE/JPEG"
+     2 | num                    | delay = min(2**attempt, 30)                                            | e.g. m84
+        pat: num 2,30->2,31
+        pat: num 2,30->3,30
+     1 | other                  | last_exception: Exception | None = None => last_exception: Exception | None = "" | e.g. m1
+        pat: other
+     1 | to_None:f"Segmentation | error_msg = f"Segmentation failed after {self._max_retries} attempts"  | e.g. m101
+        pat: to_None:f"Segmentation
+     1 | string_const_tweak     | span.set_attribute("error", True)                                      | e.g. m106
+        pat: string_const_tweak
+     1 | str_lit                | span.set_attribute("error", True)                                      | e.g. m107
+        pat: str_lit "error"->"ERROR"
+     1 | bool                   | span.set_attribute("error", True)                                      | e.g. m108
+        pat: bool True->False
+     1 | to_None:self._detector_type | model_name=self._detector_type,                                        | e.g. m11
+        pat: to_None:self._detector_type
+     1 | string_const_tweak     | span.set_attribute("error.message", error_msg)                         | e.g. m113
+        pat: string_const_tweak
+     1 | str_lit                | span.set_attribute("error.message", error_msg)                         | e.g. m114
+        pat: str_lit "error.message"->"ERROR.MESSAGE"
+     1 | to_None:error_msg      | error_msg, original_error=last_exception                               | e.g. m115
+        pat: to_None:error_msg
+     1 | to_None:last_exception | error_msg, original_error=last_exception                               | e.g. m116
+        pat: to_None:last_exception
+     1 | other                  | error_msg, original_error=last_exception => original_error=last_exception | e.g. m117
+        pat: other
+     1 | other                  | error_msg, original_error=last_exception ) from la => error_msg, ) from last_exception | e.g. m118
+        pat: other
+     1 | to_None:self._model_version | model_version=self._model_version,                                     | e.g. m12
+        pat: to_None:self._model_version
+     1 | to_None:huggingface"   | model_provider="huggingface",                                          | e.g. m13
+        pat: to_None:huggingface"
+     1 | to_None:cuda           | device="cuda:0",                                                       | e.g. m14
+        pat: to_None:cuda
+     1 | to_None:?              | batch_size=1,                                                          | e.g. m15
+        pat: to_None:?
+     1 | removed_line           | model_name=self._detector_type,                                        | e.g. m17
+        pat: removed_line
+     1 | removed_line           | model_version=self._model_version,                                     | e.g. m18
+        pat: removed_line
+     1 | removed_line           | model_provider="huggingface",                                          | e.g. m19
+        pat: removed_line
+     1 | removed_line           | device="cuda:0",                                                       | e.g. m20
+        pat: removed_line
+     1 | other                  | batch_size=1, ) => )                                                   | e.g. m21
+        pat: other
+     1 | string_const_tweak     | model_provider="huggingface",                                          | e.g. m22
+        pat: string_const_tweak
+     1 | str_lit                | model_provider="huggingface",                                          | e.g. m23
+        pat: str_lit "huggingface"->"HUGGINGFACE"
+     1 | string_const_tweak     | device="cuda:0",                                                       | e.g. m24
+        pat: string_const_tweak
+     1 | str_lit                | device="cuda:0",                                                       | e.g. m25
+        pat: str_lit "cuda:0"->"CUDA:0"
+     1 | num                    | batch_size=1,                                                          | e.g. m26
+        pat: num 1->2
+     1 | string_const_tweak     | span.set_attribute("retry_attempt", attempt)                           | e.g. m32
+        pat: string_const_tweak
+     1 | str_lit                | span.set_attribute("retry_attempt", attempt)                           | e.g. m33
+        pat: str_lit "retry_attempt"->"RETRY_ATTEMPT"
+     1 | to_None:asyncio.timeout(explicit_timeout) | async with asyncio.timeout(explicit_timeout):                          | e.g. m35
+        pat: to_None:asyncio.timeout(explicit_timeout)
+     1 | to_None:file"          | files = {"file": (image_name, image_data, "image/jpeg")}               | e.g. m36
+        pat: to_None:file"
+     1 | to_None:self._read_timeout | explicit_timeout = self._read_timeout + settings.ai_connect_timeout    | e.g. m4
+        pat: to_None:self._read_timeout
+     1 | to_None:?              | files=files,                                                           | e.g. m43
+        pat: to_None:?
+     1 | to_None:self._get_auth_headers() | headers=self._get_auth_headers(),                                      | e.g. m44
+        pat: to_None:self._get_auth_headers()
+     1 | removed_line           | files=files,                                                           | e.g. m46
+        pat: removed_line
+     1 | other                  | headers=self._get_auth_headers(), ) => )                               | e.g. m47
+        pat: other
+     1 | to_None:time.monotonic() | inference_time_ms = (time.monotonic() - start_time) * 1000             | e.g. m49
+        pat: to_None:time.monotonic()
+     1 | other                  | explicit_timeout = self._read_timeout + settings.a => explicit_timeout = self._read_timeout - settings.a | e.g. m5
+        pat: other
+     1 | other                  | inference_time_ms = (time.monotonic() - start_time => inference_time_ms = (time.monotonic() - start_time | e.g. m50
+        pat: other
+     1 | other                  | inference_time_ms = (time.monotonic() - start_time => inference_time_ms = (time.monotonic() + start_time | e.g. m51
+        pat: other
+     1 | num                    | inference_time_ms = (time.monotonic() - start_time) * 1000             | e.g. m52
+        pat: num 1000->1001
+     1 | other                  | detections = result.get("detections", []) => detections = result.get("detections", ) | e.g. m57
+        pat: other
+     1 | string_const_tweak     | detections = result.get("detections", [])                              | e.g. m58
+        pat: string_const_tweak
+     1 | str_lit                | detections = result.get("detections", [])                              | e.g. m59
+        pat: str_lit "detections"->"DETECTIONS"
+     1 | to_None:f"             | f"{self._detector_type}_segmentation_request",                         | e.g. m6
+        pat: to_None:f"
+     1 | to_None:?              | detections=detections,                                                 | e.g. m61
+        pat: to_None:?
+     1 | to_None:?              | inference_time_ms=inference_time_ms,                                   | e.g. m62
+        pat: to_None:?
+     1 | removed_line           | detections=detections,                                                 | e.g. m64
+        pat: removed_line
+     1 | other                  | inference_time_ms=inference_time_ms, ) => )                            | e.g. m65
+        pat: other
+     1 | to_None:inference_time_ms | span, duration_ms=inference_time_ms, status="success"                  | e.g. m67
+        pat: to_None:inference_time_ms
+     1 | to_None:success"       | span, duration_ms=inference_time_ms, status="success"                  | e.g. m68
+        pat: to_None:success"
+     1 | to_None:len(image_data) | image_size_bytes=len(image_data),                                      | e.g. m7
+        pat: to_None:len(image_data)
+     1 | other                  | span, duration_ms=inference_time_ms, status="succe => span, status="success" | e.g. m70
+        pat: other
+     1 | other                  | span, duration_ms=inference_time_ms, status="succe => span, duration_ms=inference_time_ms, ) | e.g. m71
+        pat: other
+     1 | string_const_tweak     | span, duration_ms=inference_time_ms, status="success"                  | e.g. m72
+        pat: string_const_tweak
+     1 | str_lit                | span, duration_ms=inference_time_ms, status="success"                  | e.g. m73
+        pat: str_lit "success"->"SUCCESS"
+     1 | to_None:e              | last_exception = e                                                     | e.g. m74
+        pat: to_None:e
+     1 | other                  | if attempt < self._max_retries - 1: => if attempt <= self._max_retries - 1: | e.g. m75
+        pat: other
+     1 | other                  | if attempt < self._max_retries - 1: => if attempt < self._max_retries + 1: | e.g. m76
+        pat: other
+     1 | num                    | if attempt < self._max_retries - 1:                                    | e.g. m77
+        pat: num 1->2
+     1 | to_None:min(2          | delay = min(2**attempt, 30)                                            | e.g. m78
+        pat: to_None:min(2
+     1 | other                  | delay = min(2**attempt, 30) => delay = min(2 * attempt, 30)            | e.g. m83
+        pat: other
+     1 | to_None:f"Segmentation | f"Segmentation request failed (attempt {attempt + 1}/{self._max_retrie | e.g. m86
+        pat: to_None:f"Segmentation
+     1 | str_lit                | f"Segmentation request failed (attempt {attempt + 1}/{self._max_retrie | e.g. m87
+        pat: str_lit "Segmentation request failed (attempt {a->"Segmentation request failed (attempt {a
+     1 | num                    | f"Segmentation request failed (attempt {attempt + 1}/{self._max_retrie | e.g. m88
+        pat: num 1->2
+     1 | to_None:sanitize_error(e) | f"retrying in {delay}s: {sanitize_error(e)}",                          | e.g. m89
+        pat: to_None:sanitize_error(e)
+     1 | other                  | image_size_bytes=len(image_data), ) as span: => ) as span:             | e.g. m9
+        pat: other
+     1 | to_None:asyncio.sleep(delay) | await asyncio.sleep(delay)                                             | e.g. m90
+        pat: to_None:asyncio.sleep(delay)
+     1 | to_None:record_pipeline_error(f" | record_pipeline_error(f"{self._detector_type}_segmentation_error")     | e.g. m91
+        pat: to_None:record_pipeline_error(f"
+     1 | to_None:f"Segmentation | f"Segmentation failed after {self._max_retries} attempts",             | e.g. m92
+        pat: to_None:f"Segmentation
+     1 | to_None:True           | exc_info=True,                                                         | e.g. m93
+        pat: to_None:True
+     1 | other                  | exc_info=True, ) => )                                                  | e.g. m95
+        pat: other
+     1 | bool                   | exc_info=True,                                                         | e.g. m96
+        pat: bool True->False
+     1 | other                  | if status_code >= 500: => if status_code > 500:                        | e.g. m98
+        pat: other
+     1 | num                    | if status_code >= 500:                                                 | e.g. m99
+        pat: num 500->501
+==================== xǁDetectorClientǁwarmup count 45
+     2 | str_lit                | set_model_warmth_state("yolo26", "warming")                            | e.g. m10
+        pat: str_lit "yolo26" "warming"->"YOLO26" "warming"
+        pat: str_lit "yolo26" "warming"->"yolo26" "WARMING"
+     2 | string_const_tweak     | set_model_warmth_state("yolo26", "warming")                            | e.g. m11
+        pat: string_const_tweak
+     2 | str_lit                | logger.info("Starting YOLO26 model warmup...")                         | e.g. m15
+        pat: str_lit "Starting YOLO26 model warmup..."->"STARTING YOLO26 MODEL WARMUP..."
+        pat: str_lit "Starting YOLO26 model warmup..."->"starting yolo26 model warmup..."
+     2 | to_None:set_model_warmth_state("yolo26" | set_model_warmth_state("yolo26", "warm")                               | e.g. m30
+        pat: to_None:set_model_warmth_state("yolo26"
+     2 | string_const_tweak     | set_model_warmth_state("yolo26", "warm")                               | e.g. m34
+        pat: string_const_tweak
+     2 | str_lit                | set_model_warmth_state("yolo26", "warm")                               | e.g. m35
+        pat: str_lit "yolo26" "warm"->"YOLO26" "warm"
+        pat: str_lit "yolo26" "warm"->"yolo26" "WARM"
+     2 | string_const_tweak     | extra={"duration": duration, "was_cold": was_cold},                    | e.g. m42
+        pat: string_const_tweak
+     2 | str_lit                | extra={"duration": duration, "was_cold": was_cold},                    | e.g. m43
+        pat: str_lit "duration" "was_cold"->"DURATION" "was_cold"
+        pat: str_lit "duration" "was_cold"->"duration" "WAS_COLD"
+     2 | to_None:set_model_warmth_state("yolo26" | set_model_warmth_state("yolo26", "cold")                               | e.g. m47
+        pat: to_None:set_model_warmth_state("yolo26"
+     2 | to_None:set_model_warmth_state("yolo26" | set_model_warmth_state("yolo26", "warming")                            | e.g. m5
+        pat: to_None:set_model_warmth_state("yolo26"
+     2 | string_const_tweak     | set_model_warmth_state("yolo26", "cold")                               | e.g. m51
+        pat: string_const_tweak
+     2 | str_lit                | set_model_warmth_state("yolo26", "cold")                               | e.g. m52
+        pat: str_lit "yolo26" "cold"->"YOLO26" "cold"
+        pat: str_lit "yolo26" "cold"->"yolo26" "COLD"
+     2 | str_lit                | logger.warning("YOLO26 warmup failed - model not ready")               | e.g. m57
+        pat: str_lit "YOLO26 warmup failed - model not ready"->"YOLO26 WARMUP FAILED - MODEL NOT READY"
+        pat: str_lit "YOLO26 warmup failed - model not ready"->"yolo26 warmup failed - model not ready"
+     1 | to_None:logger.info("Starting | logger.info("Starting YOLO26 model warmup...")                         | e.g. m13
+        pat: to_None:logger.info("Starting
+     1 | string_const_tweak     | logger.info("Starting YOLO26 model warmup...")                         | e.g. m14
+        pat: string_const_tweak
+     1 | to_None:self.is_cold() | was_cold = self.is_cold()                                              | e.g. m2
+        pat: to_None:self.is_cold()
+     1 | other                  | duration = time.monotonic() - start_time => duration = time.monotonic() + start_time | e.g. m20
+        pat: other
+     1 | to_None:observe_model_warmup_duration("yolo26" | observe_model_warmup_duration("yolo26", duration)                      | e.g. m21
+        pat: to_None:observe_model_warmup_duration("yolo26"
+     1 | string_const_tweak     | observe_model_warmup_duration("yolo26", duration)                      | e.g. m25
+        pat: string_const_tweak
+     1 | str_lit                | observe_model_warmup_duration("yolo26", duration)                      | e.g. m26
+        pat: str_lit "yolo26"->"YOLO26"
+     1 | to_None:record_model_cold_start("yolo26") | record_model_cold_start("yolo26")                                      | e.g. m27
+        pat: to_None:record_model_cold_start("yolo26")
+     1 | string_const_tweak     | record_model_cold_start("yolo26")                                      | e.g. m28
+        pat: string_const_tweak
+     1 | str_lit                | record_model_cold_start("yolo26")                                      | e.g. m29
+        pat: str_lit "yolo26"->"YOLO26"
+     1 | to_None:True           | self._is_warming = True                                                | e.g. m3
+        pat: to_None:True
+     1 | to_None:f"YOLO26       | f"YOLO26 warmup completed in {duration:.2f}s",                         | e.g. m38
+        pat: to_None:f"YOLO26
+     1 | to_None:duration"      | extra={"duration": duration, "was_cold": was_cold},                    | e.g. m39
+        pat: to_None:duration"
+     1 | bool                   | self._is_warming = True                                                | e.g. m4
+        pat: bool True->False
+     1 | other                  | extra={"duration": duration, "was_cold": was_cold} => )                | e.g. m41
+        pat: other
+     1 | to_None:logger.warning("YOLO26 | logger.warning("YOLO26 warmup failed - model not ready")               | e.g. m55
+        pat: to_None:logger.warning("YOLO26
+     1 | string_const_tweak     | logger.warning("YOLO26 warmup failed - model not ready")               | e.g. m56
+        pat: string_const_tweak
+     1 | to_None:False          | self._is_warming = False                                               | e.g. m60
+        pat: to_None:False
+     1 | bool                   | self._is_warming = False                                               | e.g. m61
+        pat: bool False->True
+TOTAL 839

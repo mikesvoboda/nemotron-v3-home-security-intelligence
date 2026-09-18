@@ -1,0 +1,12 @@
+# backend.api.routes.health_ai_services.x__calculate_error_rate__mutmut_21: survived
+--- backend/api/routes/health_ai_services.py
++++ backend/api/routes/health_ai_services.py
+@@ -17,7 +17,7 @@
+ 
+     # Calculate error rate from failures + rejected calls
+     failures: int = metrics.get("failure_count", 0)
+-    rejected: int = metrics.get("rejected_calls", 0)
++    rejected: int = metrics.get("rejected_calls", None)
+     error_count = failures + rejected
+ 
+     return float(round(min(error_count / total_calls, 1.0), 4))

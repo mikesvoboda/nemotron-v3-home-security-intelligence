@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__extract_clothing_from_enrichment__mutmut_49: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -19,7 +19,7 @@
+                 if ", " in raw_desc
+                 else [raw_desc if raw_desc else cc.get("top_category")]
+             )
+-            clothing_response["upper"] = parts[0] if parts else None
++            clothing_response["upper"] = parts[0] if (parts) or True else None
+             clothing_response["lower"] = parts[1] if len(parts) > 1 else None
+             clothing_response["is_suspicious"] = cc.get("is_suspicious")
+             clothing_response["is_service_uniform"] = cc.get("is_service_uniform")

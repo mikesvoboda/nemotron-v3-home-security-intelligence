@@ -1,0 +1,2106 @@
+[
+ {
+  "module": "backend/services/enrichment_pipeline.py",
+  "loc": 7583,
+  "ops": 3027,
+  "testfiles": 24,
+  "asserts": 2381,
+  "asserts_per_kloc": 314
+ },
+ {
+  "module": "backend/api/routes/system.py",
+  "loc": 5624,
+  "ops": 1659,
+  "testfiles": 33,
+  "asserts": 3656,
+  "asserts_per_kloc": 650
+ },
+ {
+  "module": "backend/services/prompts.py",
+  "loc": 4538,
+  "ops": 1656,
+  "testfiles": 7,
+  "asserts": 1640,
+  "asserts_per_kloc": 361
+ },
+ {
+  "module": "backend/services/nemotron_analyzer.py",
+  "loc": 4902,
+  "ops": 1625,
+  "testfiles": 23,
+  "asserts": 1863,
+  "asserts_per_kloc": 380
+ },
+ {
+  "module": "backend/services/enrichment_client.py",
+  "loc": 3329,
+  "ops": 1463,
+  "testfiles": 10,
+  "asserts": 1318,
+  "asserts_per_kloc": 396
+ },
+ {
+  "module": "backend/api/routes/events.py",
+  "loc": 2762,
+  "ops": 859,
+  "testfiles": 24,
+  "asserts": 1474,
+  "asserts_per_kloc": 534
+ },
+ {
+  "module": "backend/api/routes/detections.py",
+  "loc": 2178,
+  "ops": 807,
+  "testfiles": 12,
+  "asserts": 877,
+  "asserts_per_kloc": 403
+ },
+ {
+  "module": "backend/services/vision_extractor.py",
+  "loc": 2303,
+  "ops": 749,
+  "testfiles": 9,
+  "asserts": 1231,
+  "asserts_per_kloc": 535
+ },
+ {
+  "module": "backend/services/service_provider_matcher.py",
+  "loc": 789,
+  "ops": 715,
+  "testfiles": 3,
+  "asserts": 257,
+  "asserts_per_kloc": 326
+ },
+ {
+  "module": "backend/api/routes/admin.py",
+  "loc": 1534,
+  "ops": 677,
+  "testfiles": 4,
+  "asserts": 253,
+  "asserts_per_kloc": 165
+ },
+ {
+  "module": "backend/services/gpu_monitor.py",
+  "loc": 1433,
+  "ops": 663,
+  "testfiles": 11,
+  "asserts": 1611,
+  "asserts_per_kloc": 1124
+ },
+ {
+  "module": "backend/api/routes/debug.py",
+  "loc": 1882,
+  "ops": 655,
+  "testfiles": 4,
+  "asserts": 340,
+  "asserts_per_kloc": 181
+ },
+ {
+  "module": "backend/services/event_broadcaster.py",
+  "loc": 2445,
+  "ops": 653,
+  "testfiles": 18,
+  "asserts": 1534,
+  "asserts_per_kloc": 627
+ },
+ {
+  "module": "backend/services/detector_client.py",
+  "loc": 1711,
+  "ops": 634,
+  "testfiles": 14,
+  "asserts": 943,
+  "asserts_per_kloc": 551
+ },
+ {
+  "module": "backend/services/pipeline_workers.py",
+  "loc": 2268,
+  "ops": 608,
+  "testfiles": 7,
+  "asserts": 966,
+  "asserts_per_kloc": 426
+ },
+ {
+  "module": "backend/services/performance_collector.py",
+  "loc": 850,
+  "ops": 570,
+  "testfiles": 1,
+  "asserts": 234,
+  "asserts_per_kloc": 275
+ },
+ {
+  "module": "backend/services/florence_client.py",
+  "loc": 1631,
+  "ops": 553,
+  "testfiles": 5,
+  "asserts": 692,
+  "asserts_per_kloc": 424
+ },
+ {
+  "module": "backend/api/routes/cameras.py",
+  "loc": 2211,
+  "ops": 532,
+  "testfiles": 7,
+  "asserts": 621,
+  "asserts_per_kloc": 281
+ },
+ {
+  "module": "backend/api/routes/analytics_zones.py",
+  "loc": 1765,
+  "ops": 521,
+  "testfiles": 4,
+  "asserts": 125,
+  "asserts_per_kloc": 71
+ },
+ {
+  "module": "backend/api/routes/gpu_config.py",
+  "loc": 2037,
+  "ops": 495,
+  "testfiles": 6,
+  "asserts": 631,
+  "asserts_per_kloc": 310
+ },
+ {
+  "module": "backend/services/batch_aggregator.py",
+  "loc": 1586,
+  "ops": 440,
+  "testfiles": 13,
+  "asserts": 988,
+  "asserts_per_kloc": 623
+ },
+ {
+  "module": "backend/services/scenario_classifier.py",
+  "loc": 1031,
+  "ops": 428,
+  "testfiles": 1,
+  "asserts": 119,
+  "asserts_per_kloc": 115
+ },
+ {
+  "module": "backend/services/container_discovery.py",
+  "loc": 826,
+  "ops": 416,
+  "testfiles": 4,
+  "asserts": 418,
+  "asserts_per_kloc": 506
+ },
+ {
+  "module": "backend/services/export_service.py",
+  "loc": 1192,
+  "ops": 405,
+  "testfiles": 5,
+  "asserts": 525,
+  "asserts_per_kloc": 440
+ },
+ {
+  "module": "backend/api/routes/face_recognition.py",
+  "loc": 1677,
+  "ops": 396,
+  "testfiles": 3,
+  "asserts": 282,
+  "asserts_per_kloc": 168
+ },
+ {
+  "module": "backend/services/system_broadcaster.py",
+  "loc": 1370,
+  "ops": 385,
+  "testfiles": 9,
+  "asserts": 1326,
+  "asserts_per_kloc": 968
+ },
+ {
+  "module": "backend/services/redis_streams.py",
+  "loc": 1281,
+  "ops": 379,
+  "testfiles": 6,
+  "asserts": 375,
+  "asserts_per_kloc": 293
+ },
+ {
+  "module": "backend/services/degradation_manager.py",
+  "loc": 1173,
+  "ops": 375,
+  "testfiles": 4,
+  "asserts": 318,
+  "asserts_per_kloc": 271
+ },
+ {
+  "module": "backend/services/stgcn_loader.py",
+  "loc": 733,
+  "ops": 375,
+  "testfiles": 1,
+  "asserts": 7,
+  "asserts_per_kloc": 10
+ },
+ {
+  "module": "backend/services/clip_client.py",
+  "loc": 1122,
+  "ops": 369,
+  "testfiles": 5,
+  "asserts": 668,
+  "asserts_per_kloc": 595
+ },
+ {
+  "module": "backend/api/routes/websocket.py",
+  "loc": 1268,
+  "ops": 360,
+  "testfiles": 52,
+  "asserts": 3810,
+  "asserts_per_kloc": 3005
+ },
+ {
+  "module": "backend/services/video_processor.py",
+  "loc": 894,
+  "ops": 347,
+  "testfiles": 5,
+  "asserts": 1149,
+  "asserts_per_kloc": 1285
+ },
+ {
+  "module": "backend/services/partition_manager.py",
+  "loc": 972,
+  "ops": 346,
+  "testfiles": 3,
+  "asserts": 175,
+  "asserts_per_kloc": 180
+ },
+ {
+  "module": "backend/services/webhook_service.py",
+  "loc": 1277,
+  "ops": 346,
+  "testfiles": 4,
+  "asserts": 323,
+  "asserts_per_kloc": 253
+ },
+ {
+  "module": "backend/services/file_watcher.py",
+  "loc": 1114,
+  "ops": 332,
+  "testfiles": 13,
+  "asserts": 1494,
+  "asserts_per_kloc": 1341
+ },
+ {
+  "module": "backend/services/prompt_service.py",
+  "loc": 1113,
+  "ops": 331,
+  "testfiles": 4,
+  "asserts": 490,
+  "asserts_per_kloc": 440
+ },
+ {
+  "module": "backend/services/worker_supervisor.py",
+  "loc": 1167,
+  "ops": 329,
+  "testfiles": 2,
+  "asserts": 240,
+  "asserts_per_kloc": 206
+ },
+ {
+  "module": "backend/services/alert_engine.py",
+  "loc": 1162,
+  "ops": 326,
+  "testfiles": 6,
+  "asserts": 481,
+  "asserts_per_kloc": 414
+ },
+ {
+  "module": "backend/services/scene_ocr_service.py",
+  "loc": 889,
+  "ops": 322,
+  "testfiles": 3,
+  "asserts": 175,
+  "asserts_per_kloc": 197
+ },
+ {
+  "module": "backend/services/cleanup_service.py",
+  "loc": 932,
+  "ops": 318,
+  "testfiles": 8,
+  "asserts": 1283,
+  "asserts_per_kloc": 1377
+ },
+ {
+  "module": "backend/services/cache_service.py",
+  "loc": 1055,
+  "ops": 308,
+  "testfiles": 15,
+  "asserts": 1084,
+  "asserts_per_kloc": 1027
+ },
+ {
+  "module": "backend/services/prompt_storage.py",
+  "loc": 724,
+  "ops": 308,
+  "testfiles": 1,
+  "asserts": 213,
+  "asserts_per_kloc": 294
+ },
+ {
+  "module": "backend/services/circuit_breaker.py",
+  "loc": 1125,
+  "ops": 296,
+  "testfiles": 20,
+  "asserts": 3275,
+  "asserts_per_kloc": 2911
+ },
+ {
+  "module": "backend/services/xclip_loader.py",
+  "loc": 711,
+  "ops": 293,
+  "testfiles": 3,
+  "asserts": 248,
+  "asserts_per_kloc": 349
+ },
+ {
+  "module": "backend/services/florence_extractor.py",
+  "loc": 771,
+  "ops": 283,
+  "testfiles": 1,
+  "asserts": 166,
+  "asserts_per_kloc": 215
+ },
+ {
+  "module": "backend/api/routes/model_management.py",
+  "loc": 777,
+  "ops": 277,
+  "testfiles": 3,
+  "asserts": 340,
+  "asserts_per_kloc": 438
+ },
+ {
+  "module": "backend/services/mqtt_client.py",
+  "loc": 828,
+  "ops": 274,
+  "testfiles": 3,
+  "asserts": 192,
+  "asserts_per_kloc": 232
+ },
+ {
+  "module": "backend/services/vitpose_loader.py",
+  "loc": 656,
+  "ops": 273,
+  "testfiles": 5,
+  "asserts": 1186,
+  "asserts_per_kloc": 1808
+ },
+ {
+  "module": "backend/services/baseline.py",
+  "loc": 1121,
+  "ops": 270,
+  "testfiles": 13,
+  "asserts": 1127,
+  "asserts_per_kloc": 1005
+ },
+ {
+  "module": "backend/services/reid_service.py",
+  "loc": 1165,
+  "ops": 270,
+  "testfiles": 11,
+  "asserts": 1379,
+  "asserts_per_kloc": 1184
+ },
+ {
+  "module": "backend/services/depth_anything_loader.py",
+  "loc": 746,
+  "ops": 257,
+  "testfiles": 5,
+  "asserts": 1870,
+  "asserts_per_kloc": 2507
+ },
+ {
+  "module": "backend/services/job_tracker.py",
+  "loc": 918,
+  "ops": 256,
+  "testfiles": 13,
+  "asserts": 1221,
+  "asserts_per_kloc": 1330
+ },
+ {
+  "module": "backend/services/vehicle_damage_loader.py",
+  "loc": 636,
+  "ops": 254,
+  "testfiles": 4,
+  "asserts": 760,
+  "asserts_per_kloc": 1195
+ },
+ {
+  "module": "backend/api/routes/jobs.py",
+  "loc": 1091,
+  "ops": 254,
+  "testfiles": 6,
+  "asserts": 476,
+  "asserts_per_kloc": 436
+ },
+ {
+  "module": "backend/api/routes/entities.py",
+  "loc": 1207,
+  "ops": 250,
+  "testfiles": 3,
+  "asserts": 200,
+  "asserts_per_kloc": 166
+ },
+ {
+  "module": "backend/services/fashion_clip_loader.py",
+  "loc": 586,
+  "ops": 247,
+  "testfiles": 5,
+  "asserts": 873,
+  "asserts_per_kloc": 1490
+ },
+ {
+  "module": "backend/services/cost_tracker.py",
+  "loc": 770,
+  "ops": 246,
+  "testfiles": 3,
+  "asserts": 190,
+  "asserts_per_kloc": 247
+ },
+ {
+  "module": "backend/services/pipeline_quality_audit_service.py",
+  "loc": 801,
+  "ops": 245,
+  "testfiles": 3,
+  "asserts": 338,
+  "asserts_per_kloc": 422
+ },
+ {
+  "module": "backend/services/model_zoo.py",
+  "loc": 930,
+  "ops": 241,
+  "testfiles": 22,
+  "asserts": 2275,
+  "asserts_per_kloc": 2446
+ },
+ {
+  "module": "backend/services/bbox_validation.py",
+  "loc": 691,
+  "ops": 235,
+  "testfiles": 4,
+  "asserts": 293,
+  "asserts_per_kloc": 424
+ },
+ {
+  "module": "backend/api/routes/summaries.py",
+  "loc": 657,
+  "ops": 233,
+  "testfiles": 3,
+  "asserts": 225,
+  "asserts_per_kloc": 342
+ },
+ {
+  "module": "backend/api/routes/mqtt_config.py",
+  "loc": 589,
+  "ops": 228,
+  "testfiles": 1,
+  "asserts": 90,
+  "asserts_per_kloc": 153
+ },
+ {
+  "module": "backend/services/retry_handler.py",
+  "loc": 832,
+  "ops": 227,
+  "testfiles": 7,
+  "asserts": 935,
+  "asserts_per_kloc": 1124
+ },
+ {
+  "module": "backend/services/yolo_world_loader.py",
+  "loc": 516,
+  "ops": 225,
+  "testfiles": 3,
+  "asserts": 549,
+  "asserts_per_kloc": 1064
+ },
+ {
+  "module": "backend/services/clip_generator.py",
+  "loc": 659,
+  "ops": 224,
+  "testfiles": 2,
+  "asserts": 221,
+  "asserts_per_kloc": 335
+ },
+ {
+  "module": "backend/api/routes/prompt_management.py",
+  "loc": 629,
+  "ops": 222,
+  "testfiles": 6,
+  "asserts": 635,
+  "asserts_per_kloc": 1010
+ },
+ {
+  "module": "backend/services/gpu_config_service.py",
+  "loc": 896,
+  "ops": 221,
+  "testfiles": 5,
+  "asserts": 456,
+  "asserts_per_kloc": 509
+ },
+ {
+  "module": "backend/services/notification.py",
+  "loc": 724,
+  "ops": 220,
+  "testfiles": 12,
+  "asserts": 798,
+  "asserts_per_kloc": 1102
+ },
+ {
+  "module": "backend/api/routes/llm_reasoning.py",
+  "loc": 613,
+  "ops": 218,
+  "testfiles": 1,
+  "asserts": 70,
+  "asserts_per_kloc": 114
+ },
+ {
+  "module": "backend/services/onvif_service.py",
+  "loc": 531,
+  "ops": 216,
+  "testfiles": 2,
+  "asserts": 112,
+  "asserts_per_kloc": 211
+ },
+ {
+  "module": "backend/api/routes/analytics.py",
+  "loc": 761,
+  "ops": 216,
+  "testfiles": 12,
+  "asserts": 585,
+  "asserts_per_kloc": 769
+ },
+ {
+  "module": "backend/services/transcoding_service.py",
+  "loc": 656,
+  "ops": 214,
+  "testfiles": 1,
+  "asserts": 72,
+  "asserts_per_kloc": 110
+ },
+ {
+  "module": "backend/api/routes/logs.py",
+  "loc": 605,
+  "ops": 212,
+  "testfiles": 1,
+  "asserts": 119,
+  "asserts_per_kloc": 197
+ },
+ {
+  "module": "backend/api/routes/ai_audit.py",
+  "loc": 658,
+  "ops": 211,
+  "testfiles": 3,
+  "asserts": 338,
+  "asserts_per_kloc": 514
+ },
+ {
+  "module": "backend/services/zone_anomaly_service.py",
+  "loc": 629,
+  "ops": 209,
+  "testfiles": 2,
+  "asserts": 90,
+  "asserts_per_kloc": 143
+ },
+ {
+  "module": "backend/services/compose_parser.py",
+  "loc": 479,
+  "ops": 208,
+  "testfiles": 1,
+  "asserts": 38,
+  "asserts_per_kloc": 79
+ },
+ {
+  "module": "backend/api/routes/hierarchy.py",
+  "loc": 991,
+  "ops": 205,
+  "testfiles": 1,
+  "asserts": 215,
+  "asserts_per_kloc": 217
+ },
+ {
+  "module": "backend/services/ai_fallback.py",
+  "loc": 704,
+  "ops": 202,
+  "testfiles": 3,
+  "asserts": 378,
+  "asserts_per_kloc": 537
+ },
+ {
+  "module": "backend/services/age_classifier_loader.py",
+  "loc": 471,
+  "ops": 201,
+  "testfiles": 1,
+  "asserts": 90,
+  "asserts_per_kloc": 191
+ },
+ {
+  "module": "backend/services/transcoding.py",
+  "loc": 549,
+  "ops": 201,
+  "testfiles": 2,
+  "asserts": 160,
+  "asserts_per_kloc": 291
+ },
+ {
+  "module": "backend/services/trajectory_analyzer.py",
+  "loc": 543,
+  "ops": 200,
+  "testfiles": 1,
+  "asserts": 66,
+  "asserts_per_kloc": 122
+ },
+ {
+  "module": "backend/services/ai_quality_metrics.py",
+  "loc": 535,
+  "ops": 199,
+  "testfiles": 2,
+  "asserts": 51,
+  "asserts_per_kloc": 95
+ },
+ {
+  "module": "backend/api/routes/auth.py",
+  "loc": 703,
+  "ops": 198,
+  "testfiles": 10,
+  "asserts": 609,
+  "asserts_per_kloc": 866
+ },
+ {
+  "module": "backend/services/ha_discovery.py",
+  "loc": 495,
+  "ops": 196,
+  "testfiles": 1,
+  "asserts": 127,
+  "asserts_per_kloc": 257
+ },
+ {
+  "module": "backend/api/routes/alerts.py",
+  "loc": 742,
+  "ops": 196,
+  "testfiles": 9,
+  "asserts": 459,
+  "asserts_per_kloc": 619
+ },
+ {
+  "module": "backend/services/service_managers.py",
+  "loc": 597,
+  "ops": 195,
+  "testfiles": 5,
+  "asserts": 273,
+  "asserts_per_kloc": 457
+ },
+ {
+  "module": "backend/services/monitoring_stack_validator.py",
+  "loc": 554,
+  "ops": 194,
+  "testfiles": 2,
+  "asserts": 165,
+  "asserts_per_kloc": 298
+ },
+ {
+  "module": "backend/services/mqtt_command_handler.py",
+  "loc": 531,
+  "ops": 192,
+  "testfiles": 1,
+  "asserts": 26,
+  "asserts_per_kloc": 49
+ },
+ {
+  "module": "backend/services/nemotron_latency_optimizer.py",
+  "loc": 650,
+  "ops": 191,
+  "testfiles": 1,
+  "asserts": 64,
+  "asserts_per_kloc": 98
+ },
+ {
+  "module": "backend/services/redis_json.py",
+  "loc": 654,
+  "ops": 190,
+  "testfiles": 1,
+  "asserts": 113,
+  "asserts_per_kloc": 173
+ },
+ {
+  "module": "backend/services/job_search_service.py",
+  "loc": 633,
+  "ops": 189,
+  "testfiles": 2,
+  "asserts": 314,
+  "asserts_per_kloc": 496
+ },
+ {
+  "module": "backend/services/zone_service.py",
+  "loc": 664,
+  "ops": 189,
+  "testfiles": 1,
+  "asserts": 137,
+  "asserts_per_kloc": 206
+ },
+ {
+  "module": "backend/services/pg_notify_listener.py",
+  "loc": 541,
+  "ops": 187,
+  "testfiles": 1,
+  "asserts": 100,
+  "asserts_per_kloc": 185
+ },
+ {
+  "module": "backend/services/quantization.py",
+  "loc": 628,
+  "ops": 186,
+  "testfiles": 1,
+  "asserts": 115,
+  "asserts_per_kloc": 183
+ },
+ {
+  "module": "backend/services/health_service_registry.py",
+  "loc": 655,
+  "ops": 185,
+  "testfiles": 1,
+  "asserts": 63,
+  "asserts_per_kloc": 96
+ },
+ {
+  "module": "backend/services/osnet_loader.py",
+  "loc": 535,
+  "ops": 185,
+  "testfiles": 2,
+  "asserts": 177,
+  "asserts_per_kloc": 331
+ },
+ {
+  "module": "backend/api/routes/outbound_webhooks.py",
+  "loc": 778,
+  "ops": 185,
+  "testfiles": 0,
+  "asserts": 0,
+  "asserts_per_kloc": 0
+ },
+ {
+  "module": "backend/services/batch_coalescer.py",
+  "loc": 695,
+  "ops": 182,
+  "testfiles": 2,
+  "asserts": 77,
+  "asserts_per_kloc": 111
+ },
+ {
+  "module": "backend/services/managed_service.py",
+  "loc": 734,
+  "ops": 179,
+  "testfiles": 1,
+  "asserts": 158,
+  "asserts_per_kloc": 215
+ },
+ {
+  "module": "backend/services/context_enricher.py",
+  "loc": 727,
+  "ops": 178,
+  "testfiles": 3,
+  "asserts": 512,
+  "asserts_per_kloc": 704
+ },
+ {
+  "module": "backend/services/face_recognition_service.py",
+  "loc": 870,
+  "ops": 178,
+  "testfiles": 3,
+  "asserts": 282,
+  "asserts_per_kloc": 324
+ },
+ {
+  "module": "backend/services/pose_analysis_service.py",
+  "loc": 536,
+  "ops": 178,
+  "testfiles": 1,
+  "asserts": 149,
+  "asserts_per_kloc": 278
+ },
+ {
+  "module": "backend/services/dedupe.py",
+  "loc": 618,
+  "ops": 176,
+  "testfiles": 2,
+  "asserts": 344,
+  "asserts_per_kloc": 557
+ },
+ {
+  "module": "backend/services/job_service.py",
+  "loc": 829,
+  "ops": 175,
+  "testfiles": 2,
+  "asserts": 145,
+  "asserts_per_kloc": 175
+ },
+ {
+  "module": "backend/services/restore_service.py",
+  "loc": 513,
+  "ops": 173,
+  "testfiles": 3,
+  "asserts": 237,
+  "asserts_per_kloc": 462
+ },
+ {
+  "module": "backend/services/orphan_cleanup_service.py",
+  "loc": 575,
+  "ops": 170,
+  "testfiles": 2,
+  "asserts": 128,
+  "asserts_per_kloc": 223
+ },
+ {
+  "module": "backend/services/heatmap_service.py",
+  "loc": 726,
+  "ops": 169,
+  "testfiles": 1,
+  "asserts": 5,
+  "asserts_per_kloc": 7
+ },
+ {
+  "module": "backend/services/smoke_fire_loader.py",
+  "loc": 481,
+  "ops": 169,
+  "testfiles": 2,
+  "asserts": 104,
+  "asserts_per_kloc": 216
+ },
+ {
+  "module": "backend/services/dwell_time_service.py",
+  "loc": 732,
+  "ops": 165,
+  "testfiles": 2,
+  "asserts": 62,
+  "asserts_per_kloc": 85
+ },
+ {
+  "module": "backend/services/threat_detection_loader.py",
+  "loc": 447,
+  "ops": 165,
+  "testfiles": 3,
+  "asserts": 247,
+  "asserts_per_kloc": 553
+ },
+ {
+  "module": "backend/services/weather_loader.py",
+  "loc": 496,
+  "ops": 163,
+  "testfiles": 4,
+  "asserts": 715,
+  "asserts_per_kloc": 1442
+ },
+ {
+  "module": "backend/api/routes/media.py",
+  "loc": 498,
+  "ops": 163,
+  "testfiles": 5,
+  "asserts": 318,
+  "asserts_per_kloc": 639
+ },
+ {
+  "module": "backend/services/track_service.py",
+  "loc": 902,
+  "ops": 162,
+  "testfiles": 1,
+  "asserts": 61,
+  "asserts_per_kloc": 68
+ },
+ {
+  "module": "backend/services/job_status.py",
+  "loc": 727,
+  "ops": 161,
+  "testfiles": 5,
+  "asserts": 452,
+  "asserts_per_kloc": 622
+ },
+ {
+  "module": "backend/services/search.py",
+  "loc": 495,
+  "ops": 161,
+  "testfiles": 3,
+  "asserts": 351,
+  "asserts_per_kloc": 709
+ },
+ {
+  "module": "backend/services/approach_vector_service.py",
+  "loc": 506,
+  "ops": 157,
+  "testfiles": 1,
+  "asserts": 37,
+  "asserts_per_kloc": 73
+ },
+ {
+  "module": "backend/services/gender_classifier_loader.py",
+  "loc": 454,
+  "ops": 157,
+  "testfiles": 1,
+  "asserts": 90,
+  "asserts_per_kloc": 198
+ },
+ {
+  "module": "backend/services/zone_crossing_service.py",
+  "loc": 733,
+  "ops": 155,
+  "testfiles": 1,
+  "asserts": 126,
+  "asserts_per_kloc": 172
+ },
+ {
+  "module": "backend/services/nemotron_streaming.py",
+  "loc": 450,
+  "ops": 154,
+  "testfiles": 1,
+  "asserts": 96,
+  "asserts_per_kloc": 213
+ },
+ {
+  "module": "backend/services/vehicle_classifier_loader.py",
+  "loc": 474,
+  "ops": 154,
+  "testfiles": 5,
+  "asserts": 877,
+  "asserts_per_kloc": 1850
+ },
+ {
+  "module": "backend/api/routes/exports.py",
+  "loc": 601,
+  "ops": 154,
+  "testfiles": 1,
+  "asserts": 115,
+  "asserts_per_kloc": 191
+ },
+ {
+  "module": "backend/services/mqtt_publisher.py",
+  "loc": 371,
+  "ops": 153,
+  "testfiles": 1,
+  "asserts": 45,
+  "asserts_per_kloc": 121
+ },
+ {
+  "module": "backend/services/redis_memory_service.py",
+  "loc": 379,
+  "ops": 153,
+  "testfiles": 1,
+  "asserts": 54,
+  "asserts_per_kloc": 142
+ },
+ {
+  "module": "backend/api/routes/health_ai_services.py",
+  "loc": 423,
+  "ops": 152,
+  "testfiles": 2,
+  "asserts": 161,
+  "asserts_per_kloc": 381
+ },
+ {
+  "module": "backend/api/routes/heatmaps.py",
+  "loc": 467,
+  "ops": 152,
+  "testfiles": 0,
+  "asserts": 0,
+  "asserts_per_kloc": 0
+ },
+ {
+  "module": "backend/api/routes/backup.py",
+  "loc": 731,
+  "ops": 151,
+  "testfiles": 5,
+  "asserts": 347,
+  "asserts_per_kloc": 475
+ },
+ {
+  "module": "backend/services/segformer_loader.py",
+  "loc": 398,
+  "ops": 148,
+  "testfiles": 3,
+  "asserts": 728,
+  "asserts_per_kloc": 1829
+ },
+ {
+  "module": "backend/services/stream_manager.py",
+  "loc": 497,
+  "ops": 148,
+  "testfiles": 2,
+  "asserts": 83,
+  "asserts_per_kloc": 167
+ },
+ {
+  "module": "backend/services/insight_generator.py",
+  "loc": 467,
+  "ops": 147,
+  "testfiles": 1,
+  "asserts": 46,
+  "asserts_per_kloc": 99
+ },
+ {
+  "module": "backend/services/auto_enrollment_service.py",
+  "loc": 607,
+  "ops": 146,
+  "testfiles": 1,
+  "asserts": 39,
+  "asserts_per_kloc": 64
+ },
+ {
+  "module": "backend/services/background_evaluator.py",
+  "loc": 576,
+  "ops": 146,
+  "testfiles": 2,
+  "asserts": 67,
+  "asserts_per_kloc": 116
+ },
+ {
+  "module": "backend/services/package_tracking_service.py",
+  "loc": 594,
+  "ops": 145,
+  "testfiles": 1,
+  "asserts": 70,
+  "asserts_per_kloc": 118
+ },
+ {
+  "module": "backend/services/gpu_detection_service.py",
+  "loc": 525,
+  "ops": 143,
+  "testfiles": 3,
+  "asserts": 327,
+  "asserts_per_kloc": 623
+ },
+ {
+  "module": "backend/services/summary_parser.py",
+  "loc": 457,
+  "ops": 142,
+  "testfiles": 3,
+  "asserts": 231,
+  "asserts_per_kloc": 505
+ },
+ {
+  "module": "backend/services/action_recognition_service.py",
+  "loc": 597,
+  "ops": 141,
+  "testfiles": 2,
+  "asserts": 102,
+  "asserts_per_kloc": 171
+ },
+ {
+  "module": "backend/services/threat_monitor_service.py",
+  "loc": 565,
+  "ops": 141,
+  "testfiles": 2,
+  "asserts": 85,
+  "asserts_per_kloc": 150
+ },
+ {
+  "module": "backend/services/bulk_detection_service.py",
+  "loc": 469,
+  "ops": 138,
+  "testfiles": 1,
+  "asserts": 56,
+  "asserts_per_kloc": 119
+ },
+ {
+  "module": "backend/services/websocket_emitter.py",
+  "loc": 677,
+  "ops": 138,
+  "testfiles": 3,
+  "asserts": 255,
+  "asserts_per_kloc": 377
+ },
+ {
+  "module": "backend/services/backup_service.py",
+  "loc": 554,
+  "ops": 137,
+  "testfiles": 3,
+  "asserts": 159,
+  "asserts_per_kloc": 287
+ },
+ {
+  "module": "backend/services/thumbnail_generator.py",
+  "loc": 476,
+  "ops": 137,
+  "testfiles": 2,
+  "asserts": 405,
+  "asserts_per_kloc": 851
+ },
+ {
+  "module": "backend/services/health_monitor.py",
+  "loc": 402,
+  "ops": 136,
+  "testfiles": 7,
+  "asserts": 376,
+  "asserts_per_kloc": 935
+ },
+ {
+  "module": "backend/services/job_timeout_service.py",
+  "loc": 518,
+  "ops": 135,
+  "testfiles": 3,
+  "asserts": 133,
+  "asserts_per_kloc": 257
+ },
+ {
+  "module": "backend/services/file_service.py",
+  "loc": 455,
+  "ops": 134,
+  "testfiles": 2,
+  "asserts": 102,
+  "asserts_per_kloc": 224
+ },
+ {
+  "module": "backend/api/routes/notification.py",
+  "loc": 418,
+  "ops": 134,
+  "testfiles": 12,
+  "asserts": 798,
+  "asserts_per_kloc": 1909
+ },
+ {
+  "module": "backend/services/zone_household_service.py",
+  "loc": 450,
+  "ops": 133,
+  "testfiles": 1,
+  "asserts": 77,
+  "asserts_per_kloc": 171
+ },
+ {
+  "module": "backend/services/summary_detail_service.py",
+  "loc": 371,
+  "ops": 132,
+  "testfiles": 1,
+  "asserts": 79,
+  "asserts_per_kloc": 213
+ },
+ {
+  "module": "backend/api/routes/action_events.py",
+  "loc": 417,
+  "ops": 132,
+  "testfiles": 0,
+  "asserts": 0,
+  "asserts_per_kloc": 0
+ },
+ {
+  "module": "backend/services/audit_logger.py",
+  "loc": 481,
+  "ops": 131,
+  "testfiles": 1,
+  "asserts": 86,
+  "asserts_per_kloc": 179
+ },
+ {
+  "module": "backend/api/routes/inbound_webhooks.py",
+  "loc": 398,
+  "ops": 131,
+  "testfiles": 0,
+  "asserts": 0,
+  "asserts_per_kloc": 0
+ },
+ {
+  "module": "backend/api/routes/onvif.py",
+  "loc": 510,
+  "ops": 130,
+  "testfiles": 4,
+  "asserts": 232,
+  "asserts_per_kloc": 455
+ },
+ {
+  "module": "backend/services/alpr_service.py",
+  "loc": 627,
+  "ops": 129,
+  "testfiles": 1,
+  "asserts": 43,
+  "asserts_per_kloc": 69
+ },
+ {
+  "module": "backend/services/calibration_service.py",
+  "loc": 558,
+  "ops": 128,
+  "testfiles": 4,
+  "asserts": 513,
+  "asserts_per_kloc": 919
+ },
+ {
+  "module": "backend/api/routes/dlq.py",
+  "loc": 395,
+  "ops": 127,
+  "testfiles": 5,
+  "asserts": 555,
+  "asserts_per_kloc": 1405
+ },
+ {
+  "module": "backend/services/frigate_integration.py",
+  "loc": 336,
+  "ops": 124,
+  "testfiles": 1,
+  "asserts": 87,
+  "asserts_per_kloc": 259
+ },
+ {
+  "module": "backend/services/depth_calibration_service.py",
+  "loc": 443,
+  "ops": 123,
+  "testfiles": 2,
+  "asserts": 116,
+  "asserts_per_kloc": 262
+ },
+ {
+  "module": "backend/services/summary_generator.py",
+  "loc": 501,
+  "ops": 123,
+  "testfiles": 1,
+  "asserts": 64,
+  "asserts_per_kloc": 128
+ },
+ {
+  "module": "backend/api/routes/services.py",
+  "loc": 326,
+  "ops": 121,
+  "testfiles": 416,
+  "asserts": 34972,
+  "asserts_per_kloc": 107276
+ },
+ {
+  "module": "backend/services/token_counter.py",
+  "loc": 500,
+  "ops": 120,
+  "testfiles": 10,
+  "asserts": 687,
+  "asserts_per_kloc": 1374
+ },
+ {
+  "module": "backend/services/alert_service.py",
+  "loc": 671,
+  "ops": 119,
+  "testfiles": 4,
+  "asserts": 193,
+  "asserts_per_kloc": 288
+ },
+ {
+  "module": "backend/services/unified_embedding_service.py",
+  "loc": 572,
+  "ops": 118,
+  "testfiles": 1,
+  "asserts": 76,
+  "asserts_per_kloc": 133
+ },
+ {
+  "module": "backend/api/routes/notification_preferences.py",
+  "loc": 412,
+  "ops": 116,
+  "testfiles": 4,
+  "asserts": 197,
+  "asserts_per_kloc": 478
+ },
+ {
+  "module": "backend/api/routes/scheduled_reports.py",
+  "loc": 436,
+  "ops": 115,
+  "testfiles": 1,
+  "asserts": 33,
+  "asserts_per_kloc": 76
+ },
+ {
+  "module": "backend/services/household_matcher.py",
+  "loc": 677,
+  "ops": 114,
+  "testfiles": 8,
+  "asserts": 685,
+  "asserts_per_kloc": 1012
+ },
+ {
+  "module": "backend/services/lifecycle_manager.py",
+  "loc": 461,
+  "ops": 114,
+  "testfiles": 3,
+  "asserts": 198,
+  "asserts_per_kloc": 430
+ },
+ {
+  "module": "backend/services/trend_service.py",
+  "loc": 290,
+  "ops": 113,
+  "testfiles": 1,
+  "asserts": 24,
+  "asserts_per_kloc": 83
+ },
+ {
+  "module": "backend/api/routes/audit.py",
+  "loc": 355,
+  "ops": 113,
+  "testfiles": 17,
+  "asserts": 1321,
+  "asserts_per_kloc": 3721
+ },
+ {
+  "module": "backend/api/routes/settings_api.py",
+  "loc": 351,
+  "ops": 113,
+  "testfiles": 2,
+  "asserts": 155,
+  "asserts_per_kloc": 442
+ },
+ {
+  "module": "backend/api/routes/alert_service.py",
+  "loc": 402,
+  "ops": 112,
+  "testfiles": 4,
+  "asserts": 193,
+  "asserts_per_kloc": 480
+ },
+ {
+  "module": "backend/services/privacy_masking_service.py",
+  "loc": 375,
+  "ops": 111,
+  "testfiles": 1,
+  "asserts": 58,
+  "asserts_per_kloc": 155
+ },
+ {
+  "module": "backend/services/unique_counter_service.py",
+  "loc": 442,
+  "ops": 111,
+  "testfiles": 1,
+  "asserts": 59,
+  "asserts_per_kloc": 133
+ },
+ {
+  "module": "backend/services/scene_baseline.py",
+  "loc": 482,
+  "ops": 106,
+  "testfiles": 1,
+  "asserts": 62,
+  "asserts_per_kloc": 129
+ },
+ {
+  "module": "backend/services/health_monitor_orchestrator.py",
+  "loc": 526,
+  "ops": 105,
+  "testfiles": 3,
+  "asserts": 161,
+  "asserts_per_kloc": 306
+ },
+ {
+  "module": "backend/services/cache_warming.py",
+  "loc": 393,
+  "ops": 104,
+  "testfiles": 1,
+  "asserts": 47,
+  "asserts_per_kloc": 120
+ },
+ {
+  "module": "backend/api/routes/cost_analytics.py",
+  "loc": 313,
+  "ops": 104,
+  "testfiles": 2,
+  "asserts": 104,
+  "asserts_per_kloc": 332
+ },
+ {
+  "module": "backend/api/routes/tracks.py",
+  "loc": 328,
+  "ops": 104,
+  "testfiles": 0,
+  "asserts": 0,
+  "asserts_per_kloc": 0
+ },
+ {
+  "module": "backend/services/job_progress_reporter.py",
+  "loc": 423,
+  "ops": 103,
+  "testfiles": 2,
+  "asserts": 187,
+  "asserts_per_kloc": 442
+ },
+ {
+  "module": "backend/services/transcode_cache.py",
+  "loc": 462,
+  "ops": 103,
+  "testfiles": 1,
+  "asserts": 90,
+  "asserts_per_kloc": 195
+ },
+ {
+  "module": "backend/services/health_event_emitter.py",
+  "loc": 539,
+  "ops": 102,
+  "testfiles": 2,
+  "asserts": 158,
+  "asserts_per_kloc": 293
+ },
+ {
+  "module": "backend/services/ocr_service.py",
+  "loc": 416,
+  "ops": 102,
+  "testfiles": 2,
+  "asserts": 119,
+  "asserts_per_kloc": 286
+ },
+ {
+  "module": "backend/api/routes/household.py",
+  "loc": 599,
+  "ops": 102,
+  "testfiles": 16,
+  "asserts": 1477,
+  "asserts_per_kloc": 2466
+ },
+ {
+  "module": "backend/services/detector_registry.py",
+  "loc": 435,
+  "ops": 100,
+  "testfiles": 2,
+  "asserts": 85,
+  "asserts_per_kloc": 195
+ },
+ {
+  "module": "backend/services/queue_status_service.py",
+  "loc": 409,
+  "ops": 100,
+  "testfiles": 2,
+  "asserts": 180,
+  "asserts_per_kloc": 440
+ },
+ {
+  "module": "backend/services/camera_service.py",
+  "loc": 528,
+  "ops": 99,
+  "testfiles": 1,
+  "asserts": 50,
+  "asserts_per_kloc": 95
+ },
+ {
+  "module": "backend/services/container_orchestrator.py",
+  "loc": 589,
+  "ops": 98,
+  "testfiles": 3,
+  "asserts": 234,
+  "asserts_per_kloc": 397
+ },
+ {
+  "module": "backend/services/calibration_monitor.py",
+  "loc": 341,
+  "ops": 97,
+  "testfiles": 1,
+  "asserts": 52,
+  "asserts_per_kloc": 152
+ },
+ {
+  "module": "backend/services/read_through_cache.py",
+  "loc": 446,
+  "ops": 96,
+  "testfiles": 1,
+  "asserts": 62,
+  "asserts_per_kloc": 139
+ },
+ {
+  "module": "backend/services/typed_prompt_config.py",
+  "loc": 406,
+  "ops": 96,
+  "testfiles": 1,
+  "asserts": 59,
+  "asserts_per_kloc": 145
+ },
+ {
+  "module": "backend/services/websocket_service.py",
+  "loc": 576,
+  "ops": 95,
+  "testfiles": 1,
+  "asserts": 92,
+  "asserts_per_kloc": 160
+ },
+ {
+  "module": "backend/services/job_history_service.py",
+  "loc": 523,
+  "ops": 94,
+  "testfiles": 3,
+  "asserts": 312,
+  "asserts_per_kloc": 597
+ },
+ {
+  "module": "backend/services/image_quality_loader.py",
+  "loc": 315,
+  "ops": 92,
+  "testfiles": 4,
+  "asserts": 750,
+  "asserts_per_kloc": 2381
+ },
+ {
+  "module": "backend/services/scene_change_detector.py",
+  "loc": 325,
+  "ops": 92,
+  "testfiles": 6,
+  "asserts": 892,
+  "asserts_per_kloc": 2745
+ },
+ {
+  "module": "backend/services/job_log_emitter.py",
+  "loc": 419,
+  "ops": 90,
+  "testfiles": 1,
+  "asserts": 49,
+  "asserts_per_kloc": 117
+ },
+ {
+  "module": "backend/services/prompt_version_service.py",
+  "loc": 405,
+  "ops": 89,
+  "testfiles": 1,
+  "asserts": 40,
+  "asserts_per_kloc": 99
+ },
+ {
+  "module": "backend/api/routes/trends.py",
+  "loc": 149,
+  "ops": 88,
+  "testfiles": 1,
+  "asserts": 35,
+  "asserts_per_kloc": 235
+ },
+ {
+  "module": "backend/services/file_cleanup_service.py",
+  "loc": 442,
+  "ops": 87,
+  "testfiles": 1,
+  "asserts": 107,
+  "asserts_per_kloc": 242
+ },
+ {
+  "module": "backend/services/severity.py",
+  "loc": 401,
+  "ops": 86,
+  "testfiles": 17,
+  "asserts": 1700,
+  "asserts_per_kloc": 4239
+ },
+ {
+  "module": "backend/services/prompt_parser.py",
+  "loc": 197,
+  "ops": 84,
+  "testfiles": 1,
+  "asserts": 115,
+  "asserts_per_kloc": 584
+ },
+ {
+  "module": "backend/services/feedback_processor.py",
+  "loc": 432,
+  "ops": 83,
+  "testfiles": 1,
+  "asserts": 77,
+  "asserts_per_kloc": 178
+ },
+ {
+  "module": "backend/services/smoke_fire_consecutive.py",
+  "loc": 417,
+  "ops": 83,
+  "testfiles": 1,
+  "asserts": 41,
+  "asserts_per_kloc": 98
+ },
+ {
+  "module": "backend/services/violence_loader.py",
+  "loc": 284,
+  "ops": 83,
+  "testfiles": 6,
+  "asserts": 1996,
+  "asserts_per_kloc": 7028
+ },
+ {
+  "module": "backend/api/routes/zone_household.py",
+  "loc": 412,
+  "ops": 82,
+  "testfiles": 2,
+  "asserts": 163,
+  "asserts_per_kloc": 396
+ },
+ {
+  "module": "backend/services/reid_matcher.py",
+  "loc": 484,
+  "ops": 80,
+  "testfiles": 1,
+  "asserts": 74,
+  "asserts_per_kloc": 153
+ },
+ {
+  "module": "backend/services/orphan_scanner_service.py",
+  "loc": 393,
+  "ops": 78,
+  "testfiles": 2,
+  "asserts": 144,
+  "asserts_per_kloc": 366
+ },
+ {
+  "module": "backend/services/polygon_zone_service.py",
+  "loc": 441,
+  "ops": 74,
+  "testfiles": 2,
+  "asserts": 79,
+  "asserts_per_kloc": 179
+ },
+ {
+  "module": "backend/services/zero_dce_loader.py",
+  "loc": 216,
+  "ops": 74,
+  "testfiles": 1,
+  "asserts": 3,
+  "asserts_per_kloc": 14
+ },
+ {
+  "module": "backend/services/event_service.py",
+  "loc": 385,
+  "ops": 73,
+  "testfiles": 1,
+  "asserts": 43,
+  "asserts_per_kloc": 112
+ },
+ {
+  "module": "backend/services/zone_comparison_service.py",
+  "loc": 324,
+  "ops": 73,
+  "testfiles": 1,
+  "asserts": 39,
+  "asserts_per_kloc": 120
+ },
+ {
+  "module": "backend/services/pet_classifier_loader.py",
+  "loc": 262,
+  "ops": 72,
+  "testfiles": 6,
+  "asserts": 941,
+  "asserts_per_kloc": 3592
+ },
+ {
+  "module": "backend/api/routes/alertmanager.py",
+  "loc": 196,
+  "ops": 72,
+  "testfiles": 1,
+  "asserts": 69,
+  "asserts_per_kloc": 352
+ },
+ {
+  "module": "backend/services/prompt_sanitizer.py",
+  "loc": 306,
+  "ops": 71,
+  "testfiles": 1,
+  "asserts": 104,
+  "asserts_per_kloc": 340
+ },
+ {
+  "module": "backend/api/routes/calibration.py",
+  "loc": 325,
+  "ops": 71,
+  "testfiles": 7,
+  "asserts": 786,
+  "asserts_per_kloc": 2418
+ },
+ {
+  "module": "backend/services/job_state_service.py",
+  "loc": 385,
+  "ops": 70,
+  "testfiles": 2,
+  "asserts": 212,
+  "asserts_per_kloc": 551
+ },
+ {
+  "module": "backend/api/routes/plate_reads.py",
+  "loc": 331,
+  "ops": 69,
+  "testfiles": 0,
+  "asserts": 0,
+  "asserts_per_kloc": 0
+ },
+ {
+  "module": "backend/services/auth_service.py",
+  "loc": 383,
+  "ops": 68,
+  "testfiles": 1,
+  "asserts": 53,
+  "asserts_per_kloc": 138
+ },
+ {
+  "module": "backend/services/entity_recognition_service.py",
+  "loc": 324,
+  "ops": 68,
+  "testfiles": 2,
+  "asserts": 70,
+  "asserts_per_kloc": 216
+ },
+ {
+  "module": "backend/api/routes/webhooks.py",
+  "loc": 130,
+  "ops": 67,
+  "testfiles": 1,
+  "asserts": 43,
+  "asserts_per_kloc": 331
+ },
+ {
+  "module": "backend/api/routes/household_matcher.py",
+  "loc": 322,
+  "ops": 66,
+  "testfiles": 8,
+  "asserts": 685,
+  "asserts_per_kloc": 2127
+ },
+ {
+  "module": "backend/api/routes/zone_anomalies.py",
+  "loc": 315,
+  "ops": 65,
+  "testfiles": 2,
+  "asserts": 88,
+  "asserts_per_kloc": 279
+ },
+ {
+  "module": "backend/services/face_detector.py",
+  "loc": 375,
+  "ops": 63,
+  "testfiles": 1,
+  "asserts": 74,
+  "asserts_per_kloc": 197
+ },
+ {
+  "module": "backend/services/inference_semaphore.py",
+  "loc": 312,
+  "ops": 63,
+  "testfiles": 6,
+  "asserts": 508,
+  "asserts_per_kloc": 1628
+ },
+ {
+  "module": "backend/services/alert_dedup.py",
+  "loc": 363,
+  "ops": 62,
+  "testfiles": 3,
+  "asserts": 182,
+  "asserts_per_kloc": 501
+ },
+ {
+  "module": "backend/services/baseline_config.py",
+  "loc": 236,
+  "ops": 62,
+  "testfiles": 2,
+  "asserts": 64,
+  "asserts_per_kloc": 271
+ },
+ {
+  "module": "backend/services/line_zone_service.py",
+  "loc": 375,
+  "ops": 62,
+  "testfiles": 2,
+  "asserts": 74,
+  "asserts_per_kloc": 197
+ },
+ {
+  "module": "backend/api/routes/feedback.py",
+  "loc": 258,
+  "ops": 62,
+  "testfiles": 6,
+  "asserts": 475,
+  "asserts_per_kloc": 1841
+ },
+ {
+  "module": "backend/services/go2rtc_client.py",
+  "loc": 204,
+  "ops": 61,
+  "testfiles": 2,
+  "asserts": 77,
+  "asserts_per_kloc": 377
+ },
+ {
+  "module": "backend/services/risk_rubrics.py",
+  "loc": 260,
+  "ops": 60,
+  "testfiles": 1,
+  "asserts": 110,
+  "asserts_per_kloc": 423
+ },
+ {
+  "module": "backend/services/frame_buffer.py",
+  "loc": 262,
+  "ops": 59,
+  "testfiles": 3,
+  "asserts": 130,
+  "asserts_per_kloc": 496
+ },
+ {
+  "module": "backend/services/prompt_auto_tuner.py",
+  "loc": 205,
+  "ops": 58,
+  "testfiles": 2,
+  "asserts": 340,
+  "asserts_per_kloc": 1659
+ },
+ {
+  "module": "backend/services/plate_detector.py",
+  "loc": 322,
+  "ops": 57,
+  "testfiles": 2,
+  "asserts": 141,
+  "asserts_per_kloc": 438
+ },
+ {
+  "module": "backend/services/rtsp_test_service.py",
+  "loc": 183,
+  "ops": 57,
+  "testfiles": 2,
+  "asserts": 92,
+  "asserts_per_kloc": 503
+ },
+ {
+  "module": "backend/services/skeleton_action_service.py",
+  "loc": 273,
+  "ops": 57,
+  "testfiles": 1,
+  "asserts": 10,
+  "asserts_per_kloc": 37
+ },
+ {
+  "module": "backend/api/routes/reid.py",
+  "loc": 296,
+  "ops": 57,
+  "testfiles": 12,
+  "asserts": 1453,
+  "asserts_per_kloc": 4909
+ },
+ {
+  "module": "backend/services/camera_status_service.py",
+  "loc": 325,
+  "ops": 56,
+  "testfiles": 1,
+  "asserts": 46,
+  "asserts_per_kloc": 142
+ },
+ {
+  "module": "backend/services/frame_extractor.py",
+  "loc": 270,
+  "ops": 55,
+  "testfiles": 2,
+  "asserts": 78,
+  "asserts_per_kloc": 289
+ },
+ {
+  "module": "backend/services/evaluation_queue.py",
+  "loc": 200,
+  "ops": 52,
+  "testfiles": 4,
+  "asserts": 394,
+  "asserts_per_kloc": 1970
+ },
+ {
+  "module": "backend/services/process_memory_service.py",
+  "loc": 256,
+  "ops": 51,
+  "testfiles": 1,
+  "asserts": 35,
+  "asserts_per_kloc": 137
+ },
+ {
+  "module": "backend/api/routes/queues.py",
+  "loc": 116,
+  "ops": 49,
+  "testfiles": 1,
+  "asserts": 106,
+  "asserts_per_kloc": 914
+ },
+ {
+  "module": "backend/services/fast_alpr_loader.py",
+  "loc": 210,
+  "ops": 47,
+  "testfiles": 1,
+  "asserts": 3,
+  "asserts_per_kloc": 14
+ },
+ {
+  "module": "backend/services/hybrid_entity_storage.py",
+  "loc": 541,
+  "ops": 47,
+  "testfiles": 4,
+  "asserts": 426,
+  "asserts_per_kloc": 787
+ },
+ {
+  "module": "backend/api/routes/detector.py",
+  "loc": 259,
+  "ops": 46,
+  "testfiles": 16,
+  "asserts": 1028,
+  "asserts_per_kloc": 3969
+ },
+ {
+  "module": "backend/services/guided_constraints.py",
+  "loc": 172,
+  "ops": 45,
+  "testfiles": 1,
+  "asserts": 165,
+  "asserts_per_kloc": 959
+ },
+ {
+  "module": "backend/services/audit.py",
+  "loc": 230,
+  "ops": 44,
+  "testfiles": 17,
+  "asserts": 1321,
+  "asserts_per_kloc": 5743
+ },
+ {
+  "module": "backend/services/clip_loader.py",
+  "loc": 190,
+  "ops": 43,
+  "testfiles": 2,
+  "asserts": 174,
+  "asserts_per_kloc": 916
+ },
+ {
+  "module": "backend/api/routes/rum.py",
+  "loc": 125,
+  "ops": 41,
+  "testfiles": 1,
+  "asserts": 57,
+  "asserts_per_kloc": 456
+ },
+ {
+  "module": "backend/services/ai_services.py",
+  "loc": 353,
+  "ops": 40,
+  "testfiles": 4,
+  "asserts": 208,
+  "asserts_per_kloc": 589
+ },
+ {
+  "module": "backend/services/entity_clustering_service.py",
+  "loc": 373,
+  "ops": 39,
+  "testfiles": 3,
+  "asserts": 116,
+  "asserts_per_kloc": 311
+ },
+ {
+  "module": "backend/api/routes/entity_recognition.py",
+  "loc": 108,
+  "ops": 39,
+  "testfiles": 2,
+  "asserts": 70,
+  "asserts_per_kloc": 648
+ },
+ {
+  "module": "backend/services/batch_fetch.py",
+  "loc": 209,
+  "ops": 34,
+  "testfiles": 2,
+  "asserts": 141,
+  "asserts_per_kloc": 675
+ },
+ {
+  "module": "backend/services/scene_change_service.py",
+  "loc": 192,
+  "ops": 34,
+  "testfiles": 1,
+  "asserts": 67,
+  "asserts_per_kloc": 349
+ },
+ {
+  "module": "backend/services/analyzer_facade.py",
+  "loc": 257,
+  "ops": 32,
+  "testfiles": 4,
+  "asserts": 409,
+  "asserts_per_kloc": 1591
+ },
+ {
+  "module": "backend/api/routes/system_settings.py",
+  "loc": 185,
+  "ops": 31,
+  "testfiles": 1,
+  "asserts": 45,
+  "asserts_per_kloc": 243
+ },
+ {
+  "module": "backend/services/notification_filter.py",
+  "loc": 119,
+  "ops": 30,
+  "testfiles": 1,
+  "asserts": 36,
+  "asserts_per_kloc": 303
+ },
+ {
+  "module": "backend/services/threat_categories.py",
+  "loc": 116,
+  "ops": 30,
+  "testfiles": 1,
+  "asserts": 54,
+  "asserts_per_kloc": 466
+ },
+ {
+  "module": "backend/services/session_service.py",
+  "loc": 190,
+  "ops": 27,
+  "testfiles": 1,
+  "asserts": 34,
+  "asserts_per_kloc": 179
+ },
+ {
+  "module": "backend/api/routes/zones.py",
+  "loc": 194,
+  "ops": 22,
+  "testfiles": 2,
+  "asserts": 176,
+  "asserts_per_kloc": 907
+ },
+ {
+  "module": "backend/services/florence_loader.py",
+  "loc": 102,
+  "ops": 16,
+  "testfiles": 3,
+  "asserts": 290,
+  "asserts_per_kloc": 2843
+ },
+ {
+  "module": "backend/api/routes/metrics.py",
+  "loc": 45,
+  "ops": 12,
+  "testfiles": 31,
+  "asserts": 4022,
+  "asserts_per_kloc": 89378
+ },
+ {
+  "module": "backend/services/credential_service.py",
+  "loc": 71,
+  "ops": 10,
+  "testfiles": 1,
+  "asserts": 20,
+  "asserts_per_kloc": 282
+ },
+ {
+  "module": "backend/services/model_loader_base.py",
+  "loc": 158,
+  "ops": 8,
+  "testfiles": 1,
+  "asserts": 50,
+  "asserts_per_kloc": 316
+ },
+ {
+  "module": "backend/services/zone_baseline_service.py",
+  "loc": 74,
+  "ops": 8,
+  "testfiles": 1,
+  "asserts": 22,
+  "asserts_per_kloc": 297
+ },
+ {
+  "module": "backend/services/service_registry.py",
+  "loc": 70,
+  "ops": 6,
+  "testfiles": 4,
+  "asserts": 352,
+  "asserts_per_kloc": 5029
+ },
+ {
+  "module": "backend/services/household_matcher_service.py",
+  "loc": 61,
+  "ops": 4,
+  "testfiles": 1,
+  "asserts": 2,
+  "asserts_per_kloc": 33
+ },
+ {
+  "module": "backend/services/calibration.py",
+  "loc": 0,
+  "ops": 0,
+  "testfiles": 7,
+  "asserts": 786,
+  "asserts_per_kloc": 0
+ }
+]

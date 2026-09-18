@@ -1,0 +1,11 @@
+# backend.api.routes.system.x__build_exporter_status__mutmut_87: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -35,7 +35,6 @@
+                 ExporterStatus(
+                     name=exporter_name,
+                     status=exporter_status,
+-                    endpoint=target.get("instance") or default_endpoint,
+                     last_scrape=last_scrape,
+                     error=error,
+                 )

@@ -1,0 +1,15 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_49: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -54,10 +54,7 @@
+         if messages:
+             logger.info(
+                 "Claimed stale analysis messages",
+-                extra={
+-                    "consumer_name": consumer_name,
+-                    "claimed_count": len(messages),
+-                },
++                extra=None,
+             )
+ 
+         return messages

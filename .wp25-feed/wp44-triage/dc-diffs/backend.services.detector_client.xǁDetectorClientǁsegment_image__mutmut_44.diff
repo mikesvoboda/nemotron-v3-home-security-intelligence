@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_44: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -60,7 +60,7 @@
+                         response = await self._http_client.post(
+                             f"{self._detector_url}/segment",
+                             files=files,
+-                            headers=self._get_auth_headers(),
++                            headers=None,
+                         )
+                         response.raise_for_status()
+                         result: dict[str, Any] = response.json()

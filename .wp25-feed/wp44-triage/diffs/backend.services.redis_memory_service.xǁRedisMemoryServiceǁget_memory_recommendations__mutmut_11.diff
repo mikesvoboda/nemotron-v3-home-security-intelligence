@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_recommendations__mutmut_11: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -21,7 +21,7 @@
+             f"Memory usage is critically high ({stats.memory_usage_percent:.1f}%). "
+             "Consider increasing maxmemory or reviewing TTL settings for cached data."
+         )
+-    elif stats.memory_usage_percent > 75:
++    elif stats.memory_usage_percent >= 75:
+         recommendations.append(
+             f"Memory usage is elevated ({stats.memory_usage_percent:.1f}%). "
+             "Monitor for potential evictions."

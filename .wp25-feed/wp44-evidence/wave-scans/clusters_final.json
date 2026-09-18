@@ -1,0 +1,115 @@
+{
+ "parse-default-branch": {
+  "count": 50,
+  "examples": [
+   "EnrichmentClient._parse_unified_response__mutmut_10",
+   "EnrichmentClient._parse_unified_response__mutmut_101",
+   "EnrichmentClient._parse_unified_response__mutmut_104"
+  ]
+ },
+ "parse-clobber-key-arg": {
+  "count": 35,
+  "examples": [
+   "EnrichmentClient._parse_unified_response__mutmut_106",
+   "EnrichmentClient._parse_unified_response__mutmut_108",
+   "EnrichmentClient._parse_unified_response__mutmut_110"
+  ]
+ },
+ "parse-expr-to-none": {
+  "count": 9,
+  "examples": [
+   "EnrichmentClient._parse_unified_response__mutmut_137",
+   "EnrichmentClient._parse_unified_response__mutmut_139",
+   "EnrichmentClient._parse_unified_response__mutmut_176"
+  ]
+ },
+ "msg-text": {
+  "count": 13,
+  "examples": [
+   "ClothingClassificationResult.to_context_string__mutmut_3",
+   "ClothingClassificationResult.to_context_string__mutmut_5",
+   "ClothingClassificationResult.to_context_string__mutmut_7"
+  ]
+ },
+ "ctxstring-missing-key-default": {
+  "count": 11,
+  "examples": [
+   "UnifiedClothingResult.to_context_string__mutmut_10",
+   "UnifiedClothingResult.to_context_string__mutmut_13",
+   "UnifiedClothingResult.to_context_string__mutmut_14"
+  ]
+ },
+ "unified-to_dict": {
+  "count": 9,
+  "examples": [
+   "UnifiedEnrichmentResult.to_dict__mutmut_10",
+   "UnifiedEnrichmentResult.to_dict__mutmut_14",
+   "UnifiedEnrichmentResult.to_dict__mutmut_16"
+  ]
+ },
+ "join-separator": {
+  "count": 8,
+  "examples": [
+   "ActionClassificationResult.to_context_string__mutmut_6",
+   "ClothingClassificationResult.to_context_string__mutmut_12",
+   "PoseAnalysisResult.to_context_string__mutmut_33"
+  ]
+ },
+ "http-call-args": {
+  "count": 6,
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_2",
+   "EnrichmentClient.get_model_status__mutmut_3",
+   "EnrichmentClient.get_model_status__mutmut_4"
+  ]
+ },
+ "cast-inert": {
+  "count": 4,
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_10",
+   "EnrichmentClient.get_model_status__mutmut_11",
+   "EnrichmentClient.get_model_status__mutmut_12"
+  ]
+ },
+ "log-arg": {
+  "count": 4,
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_13",
+   "EnrichmentClient.preload_model__mutmut_12",
+   "EnrichmentClient.preload_model__mutmut_14"
+  ]
+ },
+ "breaker-fallback": {
+  "count": 4,
+  "examples": [
+   "EnrichmentClient.is_circuit_open__mutmut_4",
+   "EnrichmentClient.is_circuit_open__mutmut_6",
+   "EnrichmentClient.reset_circuit_breaker__mutmut_4"
+  ]
+ },
+ "retry-500-boundary": {
+  "count": 2,
+  "examples": [
+   "EnrichmentClient._is_retryable_error__mutmut_4",
+   "EnrichmentClient._is_retryable_error__mutmut_5"
+  ]
+ },
+ "action-0.7-boundary": {
+  "count": 1,
+  "examples": [
+   "ActionClassificationResult.has_security_alerts__mutmut_2"
+  ]
+ },
+ "status-error-msg": {
+  "count": 1,
+  "examples": [
+   "EnrichmentClient.get_model_status__mutmut_16"
+  ]
+ },
+ "dead-guard-equiv": {
+  "count": 1,
+  "examples": [
+   "UnifiedClothingResult.to_context_string__mutmut_4"
+  ]
+ }
+}

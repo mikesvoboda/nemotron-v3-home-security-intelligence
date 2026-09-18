@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__transform_enrichment_data__mutmut_34: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -22,7 +22,7 @@
+         "clothing": None,
+         "violence": {"detected": False, "score": 0.0},
+         "weather": None,
+-        "pose": None,
++        "POSE": None,
+         "depth": None,
+         "image_quality": None,
+         "pet": None,

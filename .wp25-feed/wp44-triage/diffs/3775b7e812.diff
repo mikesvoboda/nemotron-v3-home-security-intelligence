@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_115: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -81,7 +81,7 @@
+         confidence = self.action_results.get("confidence", 0.0)
+         risk_weight = self.action_risk_weight
+         severity = (
+-            "critical" if risk_weight >= 0.9 else "alert" if risk_weight >= 0.7 else "warning"
++            "XXcriticalXX" if risk_weight >= 0.9 else "alert" if risk_weight >= 0.7 else "warning"
+         )
+         flags.append(
+             {

@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_36: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -37,7 +37,7 @@
+             for det_id, pose in self.pose_results.items()
+         },
+         "image_quality": (self.image_quality.to_dict() if self.image_quality else None),
+-        "depth_analysis": (self.depth_analysis.to_dict() if self.depth_analysis else None),
++        "DEPTH_ANALYSIS": (self.depth_analysis.to_dict() if self.depth_analysis else None),
+         "quality_change_detected": self.quality_change_detected,
+         "quality_change_description": self.quality_change_description,
+         "threat_detection": (

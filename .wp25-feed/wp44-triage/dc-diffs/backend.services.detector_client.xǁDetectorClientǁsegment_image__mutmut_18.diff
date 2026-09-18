@@ -1,0 +1,11 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_18: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -44,7 +44,6 @@
+         AIModelAttributes.set_on_span(
+             span,
+             model_name=self._detector_type,
+-            model_version=self._model_version,
+             model_provider="huggingface",
+             device="cuda:0",
+             batch_size=1,

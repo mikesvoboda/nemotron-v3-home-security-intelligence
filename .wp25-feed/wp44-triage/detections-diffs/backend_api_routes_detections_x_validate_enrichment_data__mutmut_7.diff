@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x_validate_enrichment_data__mutmut_7: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -16,7 +16,7 @@
+ 
+     # Extract vehicle data using typed model
+     vehicle: VehicleEnrichmentData | None = None
+-    vehicle_classifications = enrichment_data.get("vehicle_classifications", {})
++    vehicle_classifications = enrichment_data.get("vehicle_classifications", )
+     if vehicle_classifications:
+         first_key = next(iter(vehicle_classifications), None)
+         if first_key:

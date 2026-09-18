@@ -1,0 +1,12 @@
+# backend.services.scene_ocr_service.xǁSceneOCRServiceǁ__init____mutmut_10: survived
+--- backend/services/scene_ocr_service.py
++++ backend/services/scene_ocr_service.py
+@@ -12,7 +12,7 @@
+             enabled: Whether scene OCR is enabled (for feature flags)
+         """
+     settings = get_settings()
+-    self.florence_url = florence_url or getattr(settings, "florence_url", DEFAULT_FLORENCE_URL)
++    self.florence_url = florence_url or getattr(settings, "florence_url", )
+     self.timeout = timeout
+     self.enabled = enabled
+     self.service_matcher = get_service_provider_matcher()

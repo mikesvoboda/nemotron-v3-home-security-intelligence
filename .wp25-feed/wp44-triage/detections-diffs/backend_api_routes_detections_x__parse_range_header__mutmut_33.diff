@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__parse_range_header__mutmut_33: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -24,7 +24,7 @@
+     elif range_spec.endswith("-"):
+         # Open-ended range (e.g., "500-" means from byte 500 to end)
+         start = int(range_spec[:-1])
+-        end = file_size - 1
++        end = file_size + 1
+     else:
+         # Explicit range (e.g., "0-1023")
+         parts = range_spec.split("-")

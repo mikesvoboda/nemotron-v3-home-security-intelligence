@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁwarmup__mutmut_29: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -37,7 +37,7 @@
+         if result:
+             self._track_inference()
+             if was_cold:
+-                record_model_cold_start("yolo26")
++                record_model_cold_start("YOLO26")
+             set_model_warmth_state("yolo26", "warm")
+             logger.info(
+                 f"YOLO26 warmup completed in {duration:.2f}s",

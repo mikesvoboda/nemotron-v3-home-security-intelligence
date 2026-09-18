@@ -1,0 +1,12 @@
+# backend.api.routes.detections.x__parse_range_header__mutmut_41: survived
+--- backend/api/routes/detections.py
++++ backend/api/routes/detections.py
+@@ -29,7 +29,7 @@
+         # Explicit range (e.g., "0-1023")
+         parts = range_spec.split("-")
+         if len(parts) != 2:
+-            raise ValueError("Invalid range specification")
++            raise ValueError("XXInvalid range specificationXX")
+         start = int(parts[0])
+         end = int(parts[1]) if parts[1] else file_size - 1
+ 

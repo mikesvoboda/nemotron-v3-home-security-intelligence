@@ -1,0 +1,9 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁacknowledge__mutmut_9: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -6,4 +6,4 @@
+     result: int = await self._redis._client.xack(
+         self._stream_key, self._consumer_group, message_id
+     )
+-    return result > 0
++    return result >= 0

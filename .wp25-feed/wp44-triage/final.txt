@@ -1,0 +1,47 @@
+x__calculate_iou                                 TG=  1 EQ=  3 LOW=  1 tot=5
+x__calculate_overlap_ratio                       TG=  1 EQ=  3 LOW=  1 tot=5
+x__classify_text_type                            TG=  3 EQ=  0 LOW=  0 tot=3
+x__image_to_base64                               TG=  1 EQ=  2 LOW=  0 tot=3
+xǁSceneOCRServiceǁ__init__                       TG=  7 EQ=  3 LOW=  0 tot=10
+xǁSceneOCRServiceǁ_deduplicate                   TG= 30 EQ= 18 LOW=  0 tot=48
+xǁSceneOCRServiceǁ_determine_region              TG= 55 EQ=  6 LOW=  0 tot=61
+xǁSceneOCRServiceǁ_get_client                    TG=  2 EQ=  0 LOW= 11 tot=13
+xǁSceneOCRServiceǁ_run_crop_ocr                  TG= 48 EQ=  8 LOW=  8 tot=64
+xǁSceneOCRServiceǁ_run_full_frame_ocr            TG= 26 EQ=  8 LOW=  7 tot=41
+xǁSceneOCRServiceǁprocess_frame                  TG= 16 EQ=  2 LOW= 12 tot=30
+TOTALS {'TG': 190, 'EQ': 53, 'LOW': 40} SUM= 283
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_88
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_89
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_6
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_8
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_10
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_12
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_14
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_139
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_140
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_67
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_69
+TG-unrolled: backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_71
+[CLUSTER A1 no-overlap or->and sign bug (IoU helpers)] n=2 ex=['backend.services.scene_ocr_service.x__calculate_iou__mutmut_23', 'backend.services.scene_ocr_service.x__calculate_overlap_ratio__mutmut_23']
+[CLUSTER A10 is_uncertain boundary unasserted] n=2 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_84', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_85']
+[CLUSTER A11 crop result fields (source/detection_id) unasserted] n=4 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_125', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_126', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_130']
+[CLUSTER A12 crop clamp/degenerate guard unasserted] n=5 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_39', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_46', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_60']
+[CLUSTER A13 0.50 confidence-exclusion boundary] n=2 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_93', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_34']
+[CLUSTER A2 full-frame HTTP payload unasserted] n=6 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_10', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_12', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_13']
+[CLUSTER A3 crop HTTP payload unasserted] n=8 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_64', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_65', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_69']
+[CLUSTER A4 full-frame response parsing defaults unasserted] n=15 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_28', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_30', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_33']
+[CLUSTER A5 crop response parsing defaults unasserted] n=20 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_102', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_103', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_104']
+[CLUSTER A6 quad-bbox reduction disabled] n=3 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_107', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_crop_ocr__mutmut_107', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_run_full_frame_ocr__mutmut_49']
+[CLUSTER A7 dedup output schema unasserted] n=14 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_12', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_13', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_14']
+[CLUSTER A8 det_id derivation unasserted] n=8 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_22', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_4', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_5']
+[CLUSTER A9 dedup threshold/selection unasserted] n=6 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_42', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_45', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_deduplicate__mutmut_46']
+[CLUSTER B1 region left/right entries + h tokens untested] n=42 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_100', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_101', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_102']
+[CLUSTER B2 region guards/boundaries/arithmetic] n=12 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_1', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_17', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_determine_region__mutmut_18']
+[CLUSTER B3 process_frame call-arg mangling] n=4 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_6', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_7', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_8']
+[CLUSTER B4 return_exceptions contract] n=3 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_13', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_16', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_17']
+[CLUSTER B5 service-matcher wiring unasserted] n=9 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_30', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_31', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁprocess_frame__mutmut_32']
+[CLUSTER B6 florence_url/timeout contract] n=7 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ__init____mutmut_10', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ__init____mutmut_11', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ__init____mutmut_12']
+[CLUSTER B7 client caching broken] n=2 ex=['backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_get_client__mutmut_1', 'backend.services.scene_ocr_service.xǁSceneOCRServiceǁ_get_client__mutmut_2']
+[CLUSTER B8 classify boundaries (5-digit/sign substring)] n=3 ex=['backend.services.scene_ocr_service.x__classify_text_type__mutmut_15', 'backend.services.scene_ocr_service.x__classify_text_type__mutmut_4', 'backend.services.scene_ocr_service.x__classify_text_type__mutmut_5']
+[CLUSTER B9 seek(1) byte truncation (helper mocked)] n=1 ex=['backend.services.scene_ocr_service.x__image_to_base64__mutmut_9']
+TG rolled total= 178

@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_1: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -32,7 +32,7 @@
+         Raises:
+             DetectorUnavailableError: If segmentation request fails
+         """
+-    last_exception: Exception | None = None
++    last_exception: Exception | None = ""
+     semaphore = self._get_semaphore()
+     settings = get_settings()
+     explicit_timeout = self._read_timeout + settings.ai_connect_timeout

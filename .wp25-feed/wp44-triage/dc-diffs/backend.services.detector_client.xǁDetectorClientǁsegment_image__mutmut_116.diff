@@ -1,0 +1,11 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_116: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -117,6 +117,6 @@
+         span.set_attribute("error.message", error_msg)
+         if last_exception:
+             raise DetectorUnavailableError(
+-                error_msg, original_error=last_exception
++                error_msg, original_error=None
+             ) from last_exception
+         raise DetectorUnavailableError(error_msg)

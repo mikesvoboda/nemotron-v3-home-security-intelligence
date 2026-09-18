@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_3: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -11,7 +11,7 @@
+ 
+     try:
+         result = await self._redis._client.xautoclaim(
+-            self._stream_key,
++            None,
+             self._consumer_group,
+             consumer_name,
+             self._claim_min_idle_ms,
