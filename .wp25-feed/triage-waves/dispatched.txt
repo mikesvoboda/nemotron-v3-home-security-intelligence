@@ -101,3 +101,4 @@ backend/services/background_evaluator.py
 backend/api/routes/exports.py
 backend/services/reid_service.py
 backend/services/summary_generator.py
+backend/services/health_monitor_orchestrator.py

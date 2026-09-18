@@ -7,8 +7,8 @@ UNVERIFIED. Verification lane (serial, after run5 exits): for each draft —
 red on the mutant diff → green on original → commit into that WP's tests.
 EQUIVALENT/LOW-VALUE cluster notes are the no-deletion-without-record receipts.
 
-Aggregate at 103 modules / 14837 survivors: TEST-GAP 9553 survivors (64%),
-EQUIVALENT 3168 (21%), LOW-VALUE 2061 (14%); 662 drafted tests. (Shares
+Aggregate at 104 modules / 14975 survivors: TEST-GAP 9613 survivors (64%),
+EQUIVALENT 3224 (22%), LOW-VALUE 2083 (14%); 678 drafted tests. (Shares
 landed back at 64/22/14 — the same triple as the earliest waves; the
 aggregate oscillates inside classifier noise 64-66 and only PER-MODULE
 shape carries signal.) (orphan_cleanup folded at its 170-snapshot; live meta already 174 with checked count
@@ -121,6 +121,7 @@ owner, pattern-8 sweep material, not a test gap).
 |       66 |  138 |       47% | `job_status`                     |       6 |
 |       62 |  109 |       56% | `job_tracker`                    |       6 |
 |       60 |  122 |       49% | `zone_household_service`         |       7 |
+|        60|   138|        43%|     `health_monitor_orchestrator`|       16|
 |       60 |  157 |       38% | `detections`                     |       6 |
 |       58 |  100 |       58% | `reid_matcher`                   |       7 |
 |       58 |  109 |       53% | `reid_service`                 |       7 |
@@ -150,7 +151,7 @@ owner, pattern-8 sweep material, not a test gap).
 Wave-23 tail — system.py folded separately (the giant-module fix): 5,624
 lines / 1,899 mutants is why the first-slot agent died twice WITHOUT a dossier
 — one agent, one file, too much. Resume re-ran it solo -> 166/187 TEST-GAP
-(89%, row 6 of 103, top routes/ module, behind four services): the /system/health
+(89%, row 6 of 104, top routes/ module, behind four services): the /system/health
 exporter-status builder matches Prometheus targets by `job/instance in`
 (56 mutants) under a test that asserts only status.value=='up'; degradation
 payload keys/defaults 52 mutants (`mode` default -> response becomes None via
@@ -159,7 +160,7 @@ only. Health-endpoint contract = pattern 6 on the dashboard's OWN status page.
 Lane note: dispatch >1,200-mutant files as single-module waves.
 
 Wave-40 anchor (04:02-04:15 UTC, 1 module): exports (54 gap/100, 54%,
-row 85) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
+row 86) is the EXPORT-JOB ROUTE contract: the whole job_tracker call
 identity family (start/complete/fail — job_id is the WS broadcast routing
 key) survives on assert_called_once() arity-only; the not-found path can
 SPURIOUSLY broadcast fail_job for a job that never existed (logger.error
@@ -174,7 +175,7 @@ scheduling. Dossier verified pydantic/stdlib behaviors rather than assume
 (3 kill recipes cite the verification).
 
 Wave-41 anchor (04:20-04:36 UTC, 1 module): reid_service (58 gap/109, 53%,
-row 81) — the NEM-4474 atomic-Lua store path is ENTIRELY unexercised (all
+row 82) — the NEM-4474 atomic-Lua store path is ENTIRELY unexercised (all
 tests pass a bare AsyncMock so use_atomic is always False — mock-absorption again,
 7 mutants) and get_entity_history's today/yesterday Redis date-keys are built
 under call-count side_effects that ignore the key (13 mutants; wrong keys
@@ -195,6 +196,20 @@ kind): 29 session-None-branch survivors include crashers that would ERROR the
 without-session tests if executed — suspected stale-cache verdicts from the
 WP4.3 widened-set cache reuse; WP4.4 re-proves red/green before trusting OR
 dropping them. 5 drafts kill 91 gap. Cluster-sum 131 = journal = live meta.
+
+Wave-43 anchor (05:22-05:31 UTC, 1 module): health_monitor_orchestrator (60 gap/138,
+43%, row 79) — shipped-behavior headliner: _handle_stopped_container's
+on_health_change boolean flip tells LISTENERS A STOPPED CONTAINER IS HEALTHY
+(#22, HIGH) and the only callback-asserting tests route through the other
+handlers; the whole network-isolation recovery path (_on_network_isolation)
+has ZERO test references; per-service 'continue'->'break' halts the check
+cycle after the first service because every cycle test registers exactly ONE
+service. registry name=None clobber is a SILENT NO-OP (registry.py:202
+'if service:' guard) — mutations vanish by design there. 41% EQUIVALENT
+(56) — event/message text noise, the log-heavy shape again; 16 drafts
+(28 clusters). Fully checked at dispatch (0 unchecked) — first fold with zero
+snapshot reconciliation. Universe 240 = 101k+138s+1 (dossier TOTAL row).
+
 
 
 
@@ -279,7 +294,7 @@ so formula mutations hide; dossier banks the kill recipe
 (str(stmt.compile()) + bind-param asserts + exact-value parametrizes) and
 flags 4 mutants boundary-unobservable. Snapshot was mid-run (82 keys still
 unchecked at dossier time — the count can grow by final score). ai_audit
-(43 gap/111, 39%, row 90) is log-noise-dominant (42 LOW-VALUE — extra=
+(43 gap/111, 39%, row 91) is log-noise-dominant (42 LOW-VALUE — extra=
 payloads + message renames) with real gaps under it: the progress message
 and processed/failed counters ride GET /batch/{job_id} while tests assert
 only the percentage, an == -> != query flip survives on a call-order mock
@@ -292,7 +307,7 @@ Wave-33 anchors (02:23-03:00 UTC, 2 modules): osnet_loader (88 gap/136,
 embedding model's loader (blanket except -> degraded/empty result turns
 mutation breakage into silent model degradation); dossier Totals line again
 contradicted its own table (86/13 vs table+journal 88/11 — table folded).
-mqtt_publisher (37 gap/100, 37%, row 94) is the MQTT WIRE-CONTRACT gap: the
+mqtt_publisher (37 gap/100, 37%, row 95) is the MQTT WIRE-CONTRACT gap: the
 18-param topic table never puts fields under the nested data dict, never
 routes service./worker./zone.approach, and the timestamp test checks key
 presence only — so datetime.now(None) NAIVE timestamps and clobbered
@@ -344,13 +359,13 @@ all 10 call_llm_streaming context kwargs are never inspected — the FATAL-AS-
 RECOVERABLE family (recoverable=False→True/ deleted-behind-schema-default-
 True on 4 fatal handlers) mislabels terminal failures as retryable, and
 \_check_idempotency(None)-style call-arg damage is pattern-7 at its widest.
-reid_matcher (58/100, 58%, row 80) is the SQLAlchemy statement-inspection
+reid_matcher (58/100, 58%, row 81) is the SQLAlchemy statement-inspection
 hole — find_matches WHERE/ORDER BY/cutoff bind params invisible under
 execute.called-only tests (same family as w25 search's bind-params, but the
 predicates DO render: kill by compiling the executed stmt).
 
 Wave-28 anchor (00:22-00:40 UTC, 1 module): detections (60 gap/157,
-38%, row 79) — highest EQUIVALENT share of any routes/ module (78/157, 50%):
+38%, row 80) — highest EQUIVALENT share of any routes/ module (78/157, 50%):
 falsy-default swaps (get(k,{})→None), key-rename reads whose canonical
 lowercase consumer never sees them, and header-case variants starlette
 normalizes away. The 60 gap rows cluster in the ENRICHMENT-PAYLOAD contract:
@@ -409,7 +424,7 @@ final score JSON before WP4.4 lane work on them.
 
 Wave-23/24 anchors (folded together; 10 modules, 23:05-23:22 UTC —
 queue shakeup + first aggregate drop): threat_monitor_service (182 gap/244,
-75%, row 4 of 103, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
+75%, row 4 of 104, behind container_discovery, llm_reasoning and nemotron_streaming — 244 survivors, the wave's biggest) is the canned-DB-mock shape at scale:
 `session.execute` returns AsyncMock whatever statement it's handed, so the
 cooldown cutoff arithmetic / dedup `==` / `>=` / LIMIT all ride; the
 alert.created WEBSOCKET payload (36 mutants, 24 key renames) and the webhook
