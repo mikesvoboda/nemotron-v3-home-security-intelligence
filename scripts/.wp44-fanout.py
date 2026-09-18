@@ -88,7 +88,13 @@ def main() -> None:
             out = KILLS / (Path(mod).stem + ".jsonl")
             logf = (KILLS / (Path(mod).stem + ".log")).open("w")  # Popen holds fd
             p = subprocess.Popen(
-                ["uv", "run", "python", "scripts/.wp44-killcount.py", mod, tf, str(out)],
+                [  # venv python direct: no uv resolve/lock contention across workers
+                    str(REPO / ".venv/bin/python"),
+                    "scripts/.wp44-killcount.py",
+                    mod,
+                    tf,
+                    str(out),
+                ],
                 cwd=REPO,
                 stdout=logf,
                 stderr=subprocess.STDOUT,
