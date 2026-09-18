@@ -4917,8 +4917,10 @@ stgcn_loader (5) / backup_service (2). CROSS-READ to the WP4.4 feed: the 122
 triage dossiers froze survivor sets from run5's PARTIAL cache (mutmut checks
 estimated-fastest-first), so their 17,719 were a known-lower-bound slice — the
 FINAL JSON arbiter (queue index's re-tally appendix) puts the same 122 modules
-at 35,637 survivors and ALL 229 scored modules at 40,571, i.e. the generation-2
-work list is ~2.3x the triaged one; the snapshot-flag fold doctrine is what
+at 36,051 survivors (exact path-match; stem-matched first pass said 35,637 on
+120/122) and ALL 221 survivor-bearing modules at 40,571 -- 4,520 of them in 99
+never-triaged modules, ~18,332 NEW inside already-triaged ones -- i.e. the
+generation-2 work list is ~2.3x the triaged one; the snapshot-flag fold doctrine is what
 kept that reconciliation mechanical instead of a rewrite. The 62/23/15 shares
 remain the sample's shape; the population's comes out of the FINAL-JSON queue
 rebuild that opens WP4.4 proper.

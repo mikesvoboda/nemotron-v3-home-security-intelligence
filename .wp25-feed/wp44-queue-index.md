@@ -911,16 +911,19 @@ from run5's PARTIAL cache — mutmut checks estimated-fastest-first, so every
 dossier saw only a slice of its module's checks; run6 completed them. Row
 counts are now known LOWER BOUNDS; the FINAL counts stand:
 
-- 122 triaged modules: row sum 17,719 -> FINAL survivors 35,637 (120/122 rows
-  stem-resolved; `notification` + `household_matcher` prefix-ambiguous, manual
-  resolve at queue rebuild). Per-module growth is worst where run5 was
-  earliest-cut: enrichment_pipeline 162 -> 2,879; nemotron_analyzer 125 ->
-  2,545; enrichment_client 158 -> 1,330; gpu_monitor 194 -> 1,069.
-- ALL 229 scored modules: 40,571 FINAL survivors.
-- Generation-2 work list = 40,571 total, of which (a) 4,934 in the 107
-  never-triaged scored modules, (b) ~17,918 NEW survivors inside already-
-  triaged modules — dossier clusters stay valid (key sets are subsets), but
-  every fold's counts, shares, and drafting coverage need a FINAL pass.
+- 122 triaged modules (exact path-match vs dispatched.txt): row sum 17,719 ->
+  FINAL survivors 36,051 — i.e. ~18,332 NEW survivors INSIDE already-triaged
+  modules (the run5 snapshot slice was 49% of the truth). Per-module growth is
+  worst where run5 was earliest-cut: enrichment_pipeline 162 -> 2,879;
+  nemotron_analyzer 125 -> 2,545; enrichment_client 158 -> 1,330; gpu_monitor
+  194 -> 1,069.
+- ALL 221 modules with survivors (229 scored, 8 fully-killed): 40,571 FINAL.
+- Generation-2 work list = 40,571 total, of which (a) 4,520 in the 99
+  NEVER-triaged modules (top: image_quality_loader 97, orchestrator/models 97,
+  zone_crossing_service 97, gender_classifier_loader 96 @ 0.0%), (b) ~18,332
+  new survivors inside the 122 triaged modules — dossier clusters stay valid
+  (key sets are subsets), but every fold's counts, shares, and drafting
+  coverage need a FINAL pass.
 - Cluster SHARES (62/23/15) were measured on the run5 slices; they are a
   sample, not the population. The population's shape comes out of the
   generation-2 waves.
