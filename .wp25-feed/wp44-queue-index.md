@@ -1149,3 +1149,39 @@ set in the program, arithmetic cluster per test). NEW tier remaining: **65
 modules / 1,882 survivors** (recounted after commit — the fold's rough ~56 /
 ~1,200 estimate undercounted by 9 modules / ~700; corrected here per the
 never-re-type rule: this line IS the recount).
+
+## WAVE 62a (GEN-2 NEW TIER) — FOLD 2026-09-18
+
+Eight dispatched; SEVEN folded. depth_calibration_service REJECTED at sum-check:
+journal clusters summed 60 vs arbiter 57 (double-typed rows) AND the agent wrote
+no dossier to disk — no artifact-of-record to reconcile against, so the journal
+numbers could not be trusted even after excluding rows. Direct redo dispatched
+(read-only agent, dossier target unchanged). The other seven passed journal-vs-
+arbiter sum-checks and journal-vs-dossier reconciliation:
+
+onvif            57 survivors  18G/0E/39L   6 drafts   (log-heavy route twin; L onvif
+                                                  cluster is logger-args only — 3 of the
+                                                  57 were caught only because HTTPException
+                                                  detail differs — the e→None cluster is TEST-GAP)
+camera_status    57 survivors  49G/1E/7L    6 drafts   (second route-like G-heavy twin)
+feedback_proc    56 survivors  43G/11E/2L   7 drafts
+entity_recog     56 survivors  30G/6E/20L   4 drafts
+model_mgmt       54 survivors  37G/16E/1L   9 drafts   (densest draft ratio in wave)
+alert_dedup      52 survivors  44G/8E/0L    5 drafts   (zero L — pure-logic module)
+auth_service     52 survivors  29G/7E/16L   6 drafts
+
+MEASURE — wave 62a: 384 survivors, G 250 (65.1%) / E 49 / L 85, 43 drafts.
+Gen-2 cumulative through 62a: **21,752 survivors / 63 modules**; G 12,154 /
+E 5,472 / L 4,110; **442 drafted kill-tests** (399 + 43). NOTE the carried
+16-unit gap: the pre-62 cumulative G+E/L sums 21,352 vs survivor 21,368 —
+inherited from an earlier fold's double-typed rows that passed its own
+sum-check; disclosed, not re-typed per the reconcile rule.
+NEW tier remaining (dossier-presence recount at fold time): **58 modules /
+1,498 survivors** — the ≥50 band is nearly exhausted: after depth_calibration's
+redo lands, the biggest untouched is 50 (evaluation_queue, face_detector,
+job_progress_reporter). Remaining ~14 light waves. Shape holds G-heavy ~65% in
+the tail — gen-2's cheap wins are thinning; per-test draft yield is the
+measured currency now (442 drafts, zero landed kills until the serial lane
+proves them).
+Serial-lane live: census 91% killed through ~460 probes; kill-test commits land
+on its completion.
