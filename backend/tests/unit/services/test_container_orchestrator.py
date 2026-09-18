@@ -1887,3 +1887,217 @@ class TestRestartFailureBroadcasts:
         assert result is True
         # Should have broadcast initiated but not succeeded
         assert mock_broadcast_fn.call_count >= 1
+
+
+# =============================================================================
+# WP4.4 kill-tests: component wiring, control-path args, exact broadcast text
+# (drafted in .wp25-feed/wp44-triage/container_orchestrator.md — the serial
+# lane red-proves each against the mutant tree before the numbers count)
+# =============================================================================
+
+
+class TestWp44ComponentWiring:
+    """__init__ must forward real dependencies to its components (C3)."""
+
+    def test_init_forwards_redis_to_registry_and_full_args_to_discovery(
+        self,
+        mock_docker_client: AsyncMock,
+        mock_redis_client: AsyncMock,
+        mock_settings: MagicMock,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """Registry gets the redis client; discovery gets (docker, settings, compose_file)."""
+        with (
+            patch(
+                "backend.services.container_orchestrator.ServiceRegistry", autospec=True
+            ) as registry_cls,
+            patch(
+                "backend.services.container_orchestrator.ContainerDiscoveryService",
+                autospec=True,
+            ) as discovery_cls,
+        ):
+            ContainerOrchestrator(
+                docker_client=mock_docker_client,
+                redis_client=mock_redis_client,
+                settings=mock_settings,
+                broadcast_fn=mock_broadcast_fn,
+            )
+
+        registry_cls.assert_called_once_with(mock_redis_client)
+        discovery_cls.assert_called_once_with(
+            mock_docker_client,
+            mock_settings,
+            compose_file=mock_settings.compose_file,
+        )
+
+    def test_init_with_none_settings_does_not_crash(
+        self, mock_docker_client, mock_redis_client
+    ) -> None:
+        """settings=None must be tolerated; compose_file then falls to None, discovery gets None settings."""
+        with patch(
+            "backend.services.container_orchestrator.ContainerDiscoveryService",
+            autospec=True,
+        ) as discovery_cls:
+            ContainerOrchestrator(
+                docker_client=mock_docker_client,
+                redis_client=mock_redis_client,
+                settings=None,  # type: ignore[arg-type]
+                broadcast_fn=None,
+            )
+        discovery_cls.assert_called_once_with(mock_docker_client, None, compose_file=None)
+
+    @pytest.mark.asyncio
+    async def test_start_wires_lifecycle_manager_and_health_monitor(
+        self,
+        orchestrator: ContainerOrchestrator,
+        mock_docker_client,
+        mock_redis_client,
+        mock_settings,
+    ) -> None:
+        """start() builds LM/HM against the orchestrator's OWN components with bound callbacks."""
+        orchestrator._discovery_service.discover_all = AsyncMock(return_value=[])
+        with (
+            patch(
+                "backend.services.container_orchestrator.LifecycleManager", autospec=True
+            ) as lm_cls,
+            patch("backend.services.container_orchestrator.HealthMonitor", autospec=True) as hm_cls,
+        ):
+            await orchestrator.start()
+
+        lm_cls.assert_called_once_with(
+            registry=orchestrator._registry,
+            docker_client=mock_docker_client,
+            on_restart=orchestrator._on_restart,
+            on_disabled=orchestrator._on_disabled,
+        )
+        hm_cls.assert_called_once_with(
+            registry=orchestrator._registry,
+            docker_client=mock_docker_client,
+            settings=mock_settings,
+            on_health_change=orchestrator._on_health_change,
+            on_network_isolation=orchestrator._on_network_isolation,
+        )
+        hm_cls.return_value.start.assert_awaited_once()
+
+
+class TestWp44ControlPathArgsAndMessages:
+    """Control paths pass the REAL service (not None) and broadcast exact text (C2/C5/C6)."""
+
+    @pytest.mark.asyncio
+    async def test_restart_service_delegates_real_service_to_lifecycle_manager(
+        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+    ) -> None:
+        orchestrator._registry.register(managed_service)
+        lm = MagicMock()
+        lm.restart_service = AsyncMock(return_value=True)
+        orchestrator._lifecycle_manager = lm
+
+        assert await orchestrator.restart_service("ai-yolo26") is True
+        lm.restart_service.assert_awaited_once_with(managed_service)
+
+    @pytest.mark.asyncio
+    async def test_start_service_delegates_real_service_to_lifecycle_manager(
+        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+    ) -> None:
+        orchestrator._registry.register(managed_service)
+        lm = MagicMock()
+        lm.start_service = AsyncMock(return_value=True)
+        orchestrator._lifecycle_manager = lm
+
+        assert await orchestrator.start_service("ai-yolo26") is True
+        lm.start_service.assert_awaited_once_with(managed_service)
+
+    @pytest.mark.asyncio
+    async def test_restart_service_fallback_updates_status_and_persists_by_name(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+    ) -> None:
+        """Fallback path: status goes STARTING and persist_state targets the NAME, not None."""
+        orchestrator._registry.register(managed_service)
+        orchestrator._registry.update_status = MagicMock()
+        orchestrator._registry.persist_state = AsyncMock()
+        orchestrator._registry.record_restart = MagicMock()
+
+        assert await orchestrator.restart_service("ai-yolo26") is True
+        orchestrator._registry.record_restart.assert_called_once_with("ai-yolo26")
+        orchestrator._registry.update_status.assert_called_once_with(
+            "ai-yolo26", ContainerServiceStatus.STARTING
+        )
+        orchestrator._registry.persist_state.assert_awaited_once_with("ai-yolo26")
+
+    @pytest.mark.asyncio
+    async def test_start_service_fallback_persists_by_name(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_docker_client: AsyncMock,
+    ) -> None:
+        orchestrator._registry.register(managed_service)
+        orchestrator._registry.update_status = MagicMock()
+        orchestrator._registry.persist_state = AsyncMock()
+
+        assert await orchestrator.start_service("ai-yolo26") is True
+        orchestrator._registry.update_status.assert_called_once_with(
+            "ai-yolo26", ContainerServiceStatus.STARTING
+        )
+        orchestrator._registry.persist_state.assert_awaited_once_with("ai-yolo26")
+
+    @pytest.mark.asyncio
+    async def test_restart_and_start_service_lm_paths_broadcast_exact_messages(
+        self,
+        orchestrator: ContainerOrchestrator,
+        managed_service: ManagedService,
+        mock_broadcast_fn: AsyncMock,
+    ) -> None:
+        """LM-path broadcasts must be EXACT strings; substring asserts let mutant variants pass."""
+        orchestrator._registry.register(managed_service)
+        lm = MagicMock()
+        lm.restart_service = AsyncMock(return_value=True)
+        lm.start_service = AsyncMock(return_value=False)
+        orchestrator._lifecycle_manager = lm
+
+        await orchestrator.restart_service("ai-yolo26")
+        msgs = [c.args[0]["message"] for c in mock_broadcast_fn.call_args_list]
+        assert msgs == ["Manual restart initiated", "Restart succeeded"]
+
+        mock_broadcast_fn.reset_mock()
+        assert await orchestrator.start_service("ai-yolo26") is False
+        # LM start failed -> no broadcast on the start path at all
+        mock_broadcast_fn.assert_not_awaited()
+
+        lm.restart_service = AsyncMock(return_value=False)
+        mock_broadcast_fn.reset_mock()
+        assert await orchestrator.restart_service("ai-yolo26") is False
+        msgs = [c.args[0]["message"] for c in mock_broadcast_fn.call_args_list]
+        assert msgs == ["Manual restart initiated", "Restart failed"]
+
+    @pytest.mark.asyncio
+    async def test_restart_service_default_preserves_failure_count(
+        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+    ) -> None:
+        """reset_failures defaults False: failure_count survives a default restart call."""
+        managed_service.failure_count = 4
+        orchestrator._registry.register(managed_service)
+        orchestrator._registry.reset_failures = MagicMock()
+        lm = MagicMock()
+        lm.restart_service = AsyncMock(return_value=True)
+        orchestrator._lifecycle_manager = lm
+
+        assert await orchestrator.restart_service("ai-yolo26") is True
+        orchestrator._registry.reset_failures.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_restart_service_with_reset_failures_true_clears_count(
+        self, orchestrator: ContainerOrchestrator, managed_service: ManagedService
+    ) -> None:
+        managed_service.failure_count = 4
+        orchestrator._registry.register(managed_service)
+        orchestrator._registry.reset_failures = MagicMock()
+        lm = MagicMock()
+        lm.restart_service = AsyncMock(return_value=True)
+        orchestrator._lifecycle_manager = lm
+
+        assert await orchestrator.restart_service("ai-yolo26", reset_failures=True) is True
+        orchestrator._registry.reset_failures.assert_called_once_with("ai-yolo26")
