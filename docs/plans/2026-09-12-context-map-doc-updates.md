@@ -5197,3 +5197,26 @@ residual tail for the next drafting round.
 Serial-lane note: census was ONE pytest job throughout; the owner-approved
 fan-out lane paused via /tmp/wp25/fanout.pause sentinel for validate.sh, then
 resumes — first production exercise of the carve-out hierarchy.
+
+## WP4.4 RECORD-CORRECTION 2026-09-18 — census kill classification was rc!=0; rc=2 is INTERRUPTED
+
+The RECORD above and the container_orchestrator batch commit (both merged via
+#6555 / pending #6556) are **methodologically invalid as measured**. The census
+worker scored `killed = pytest_rc != 0`, but pytest rc=2 is INTERRUPTED —
+xdist worker deaths under fan-out load (load 46 measured; dmesg records an
+84 GB pytest-xdist OOM kill) — a NO-VERDICT, not a kill. rc audit of the
+recorded files: container_discovery 644 "kills" were ALL rc=2, 0 rc=1;
+container_orchestrator 32 "kills" ALL rc=2, 0 rc=1. Idle-box spot re-runs
+split both ways: some cd mutants genuinely kill (rc=1), some mutants recorded
+killed pass clean (rc=0). 948 rc=2 rows purged from all verdict files.
+
+Instrument fixed before any fold: kills now scored scorer-consistent
+`rc in (1,3)` (mutation-score.py CODE_MAP) with one immediate retry on rc=2;
+probes run -n 0 (repo addopts -n 8 was the load-46 root cause — 8 workers x
+8 clusters on 16 CPUs). Full STRICT re-census of the whole band (incl. both
+committed modules, 6 workers) replaces every number above the moment it
+completes; the survivor records it emits supersede the merged ones. The
+TESTS stay — they are full-suite green and at least some mutants verifiably
+die to them; only the kill MEASUREMENTS are being re-earned. Lesson logged:
+a verdict channel is only as honest as its exit-code map; rc!=0 conflates
+crash with conviction.
