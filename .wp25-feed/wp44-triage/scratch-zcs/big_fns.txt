@@ -1,0 +1,437 @@
+######################### process_detection 41
+KEY 6
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = None
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 7
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(None)
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 8
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(None, "id", ""))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 10
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(detection, "id", None))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 12
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(detection, ""))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 13
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(detection, "id", ))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 14
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(detection, "XXidXX", ""))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 15
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(detection, "ID", ""))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 16
+         entity_type = self._compute_entity_type(detection)
+-        detection_id = str(getattr(detection, "id", ""))
++        detection_id = str(getattr(detection, "id", "XXXX"))
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-
+KEY 17
+         detection_id = str(getattr(detection, "id", ""))
+-        thumbnail_url = getattr(detection, "thumbnail_path", None)
++        thumbnail_url = None
+         timestamp = getattr(detection, "detected_at", None) or utc_now()
+-
+KEY 18
+         detection_id = str(getattr(detection, "id", ""))
+-        thumbnail_url = getattr(detection, "thumbnail_path", None)
++        thumbnail_url = getattr(None, "thumbnail_path", None)
+         timestamp = getattr(detection, "detected_at", None) or utc_now()
+-
+KEY 22
+         detection_id = str(getattr(detection, "id", ""))
+-        thumbnail_url = getattr(detection, "thumbnail_path", None)
++        thumbnail_url = getattr(detection, "thumbnail_path", )
+         timestamp = getattr(detection, "detected_at", None) or utc_now()
+-
+KEY 23
+         detection_id = str(getattr(detection, "id", ""))
+-        thumbnail_url = getattr(detection, "thumbnail_path", None)
++        thumbnail_url = getattr(detection, "XXthumbnail_pathXX", None)
+         timestamp = getattr(detection, "detected_at", None) or utc_now()
+-
+KEY 24
+         detection_id = str(getattr(detection, "id", ""))
+-        thumbnail_url = getattr(detection, "thumbnail_path", None)
++        thumbnail_url = getattr(detection, "THUMBNAIL_PATH", None)
+         timestamp = getattr(detection, "detected_at", None) or utc_now()
+-
+KEY 31
+         thumbnail_url = getattr(detection, "thumbnail_path", None)
+-        timestamp = getattr(detection, "detected_at", None) or utc_now()
++        timestamp = getattr(detection, "detected_at", ) or utc_now()
+ 
+-
+KEY 36
+             self._entity_positions[entity_id] = EntityPosition(
+-                entity_id=entity_id,
++                entity_id=None,
+                 entity_type=entity_type,
+-
+KEY 37
+                 entity_id=entity_id,
+-                entity_type=entity_type,
++                entity_type=None,
+             )
+-
+KEY 39
+                 entity_id=entity_id,
+-                entity_type=entity_type,
+-            )
++                )
+ 
+-
+KEY 41
+         entity = self._entity_positions[entity_id]
+-        entity.entity_type = entity_type
++        entity.entity_type = None
+         entity.last_detection_id = detection_id
+-
+KEY 42
+         entity.entity_type = entity_type
+-        entity.last_detection_id = detection_id
++        entity.last_detection_id = None
+         entity.last_thumbnail_url = thumbnail_url
+-
+KEY 43
+         entity.last_detection_id = detection_id
+-        entity.last_thumbnail_url = thumbnail_url
++        entity.last_thumbnail_url = None
+ 
+-
+KEY 47
+         # Determine which zone (if any) the detection is currently in
+-        width = image_width or self.DEFAULT_IMAGE_WIDTH
++        width = None
+         height = image_height or self.DEFAULT_IMAGE_HEIGHT
+-
+KEY 48
+         # Determine which zone (if any) the detection is currently in
+-        width = image_width or self.DEFAULT_IMAGE_WIDTH
++        width = image_width and self.DEFAULT_IMAGE_WIDTH
+         height = image_height or self.DEFAULT_IMAGE_HEIGHT
+-
+KEY 49
+         width = image_width or self.DEFAULT_IMAGE_WIDTH
+-        height = image_height or self.DEFAULT_IMAGE_HEIGHT
++        height = None
+ 
+-
+KEY 50
+         width = image_width or self.DEFAULT_IMAGE_WIDTH
+-        height = image_height or self.DEFAULT_IMAGE_HEIGHT
++        height = image_height and self.DEFAULT_IMAGE_HEIGHT
+ 
+-
+KEY 60
+ 
+-        for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
++        for zone in sorted(zones, key=lambda z: getattr(z, "priority", None), reverse=True):
+             if self._get_detection_in_zone(detection, zone, width, height):
+-
+KEY 63
+ 
+-        for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
++        for zone in sorted(zones, key=lambda z: getattr(z, "priority", ), reverse=True):
+             if self._get_detection_in_zone(detection, zone, width, height):
+-
+KEY 66
+ 
+-        for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
++        for zone in sorted(zones, key=lambda z: getattr(z, "priority", 1), reverse=True):
+             if self._get_detection_in_zone(detection, zone, width, height):
+-
+KEY 70
+         for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
+-            if self._get_detection_in_zone(detection, zone, width, height):
++            if self._get_detection_in_zone(detection, zone, None, height):
+                 current_zone_id = str(zone.id)
+-
+KEY 71
+         for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
+-            if self._get_detection_in_zone(detection, zone, width, height):
++            if self._get_detection_in_zone(detection, zone, width, None):
+                 current_zone_id = str(zone.id)
+-
+KEY 74
+         for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
+-            if self._get_detection_in_zone(detection, zone, width, height):
++            if self._get_detection_in_zone(detection, zone, height):
+                 current_zone_id = str(zone.id)
+-
+KEY 75
+         for zone in sorted(zones, key=lambda z: getattr(z, "priority", 0), reverse=True):
+-            if self._get_detection_in_zone(detection, zone, width, height):
++            if self._get_detection_in_zone(detection, zone, width, ):
+                 current_zone_id = str(zone.id)
+-
+KEY 84
+                     entity_id,
+-                    entity_type,
++                    None,
+                     detection_id,
+-
+KEY 85
+                     entity_type,
+-                    detection_id,
++                    None,
+                     timestamp,
+-
+KEY 87
+                     timestamp,
+-                    thumbnail_url,
++                    None,
+                     previous_zone_id,
+-
+KEY 104
+                     entity_type,
+-                    detection_id,
++                    None,
+                     timestamp,
+-
+KEY 106
+                     timestamp,
+-                    thumbnail_url,
++                    None,
+                     current_zone_id,
+-
+KEY 119
+ 
+-        elif current_zone_id is not None and entity.entered_at is not None:
++        elif current_zone_id is not None or entity.entered_at is not None:
+             dwell_time = (timestamp - entity.entered_at).total_seconds()
+-
+KEY 126
+                 entity_id,
+-                entity_type,
++                None,
+                 detection_id,
+-
+KEY 127
+                 entity_type,
+-                detection_id,
++                None,
+                 timestamp,
+-
+KEY 129
+                 timestamp,
+-                thumbnail_url,
++                None,
+                 current_zone_id,
+-
+######################### _emit_zone_enter 2
+KEY 34
+         # Entry point zones are considered secure perimeters - any entry is an intrusion
+-        if zone.zone_type == CameraZoneType.ENTRY_POINT:
++        if zone.zone_type != CameraZoneType.ENTRY_POINT:
+             # Determine severity based on entity type
+-
+KEY 42
+ 
+-        await self._emit_websocket_event(event)
++        await self._emit_websocket_event(None)
+         return event
+-
+######################### _emit_zone_exit 12
+KEY 12
+                 "zone_id": zone_id,
+-                "zone_name": zone.name,
++                "XXzone_nameXX": zone.name,
+                 "entity_id": entity_id,
+-
+KEY 13
+                 "zone_id": zone_id,
+-                "zone_name": zone.name,
++                "ZONE_NAME": zone.name,
+                 "entity_id": entity_id,
+-
+KEY 16
+                 "entity_id": entity_id,
+-                "entity_type": entity_type,
++                "XXentity_typeXX": entity_type,
+                 "detection_id": detection_id,
+-
+KEY 17
+                 "entity_id": entity_id,
+-                "entity_type": entity_type,
++                "ENTITY_TYPE": entity_type,
+                 "detection_id": detection_id,
+-
+KEY 18
+                 "entity_type": entity_type,
+-                "detection_id": detection_id,
++                "XXdetection_idXX": detection_id,
+                 "timestamp": timestamp.isoformat(),
+-
+KEY 19
+                 "entity_type": entity_type,
+-                "detection_id": detection_id,
++                "DETECTION_ID": detection_id,
+                 "timestamp": timestamp.isoformat(),
+-
+KEY 20
+                 "detection_id": detection_id,
+-                "timestamp": timestamp.isoformat(),
++                "XXtimestampXX": timestamp.isoformat(),
+                 "thumbnail_url": thumbnail_url,
+-
+KEY 21
+                 "detection_id": detection_id,
+-                "timestamp": timestamp.isoformat(),
++                "TIMESTAMP": timestamp.isoformat(),
+                 "thumbnail_url": thumbnail_url,
+-
+KEY 22
+                 "timestamp": timestamp.isoformat(),
+-                "thumbnail_url": thumbnail_url,
++                "XXthumbnail_urlXX": thumbnail_url,
+                 "dwell_time": dwell_time,
+-
+KEY 23
+                 "timestamp": timestamp.isoformat(),
+-                "thumbnail_url": thumbnail_url,
++                "THUMBNAIL_URL": thumbnail_url,
+                 "dwell_time": dwell_time,
+-
+KEY 37
+         # Record dwell time histogram if we have a valid dwell time
+-        if dwell_time is not None and dwell_time > 0:
++        if dwell_time is not None and dwell_time > 1:
+             observe_zone_dwell_time(zone_id=zone_id, duration_seconds=dwell_time)
+-
+KEY 59
+ 
+-        await self._emit_websocket_event(event)
++        await self._emit_websocket_event(None)
+         return event
+-
+######################### _emit_zone_dwell 10
+KEY 16
+                 "entity_id": entity_id,
+-                "entity_type": entity_type,
++                "XXentity_typeXX": entity_type,
+                 "detection_id": detection_id,
+-
+KEY 17
+                 "entity_id": entity_id,
+-                "entity_type": entity_type,
++                "ENTITY_TYPE": entity_type,
+                 "detection_id": detection_id,
+-
+KEY 18
+                 "entity_type": entity_type,
+-                "detection_id": detection_id,
++                "XXdetection_idXX": detection_id,
+                 "timestamp": timestamp.isoformat(),
+-
+KEY 19
+                 "entity_type": entity_type,
+-                "detection_id": detection_id,
++                "DETECTION_ID": detection_id,
+                 "timestamp": timestamp.isoformat(),
+-
+KEY 20
+                 "detection_id": detection_id,
+-                "timestamp": timestamp.isoformat(),
++                "XXtimestampXX": timestamp.isoformat(),
+                 "thumbnail_url": thumbnail_url,
+-
+KEY 21
+                 "detection_id": detection_id,
+-                "timestamp": timestamp.isoformat(),
++                "TIMESTAMP": timestamp.isoformat(),
+                 "thumbnail_url": thumbnail_url,
+-
+KEY 22
+                 "timestamp": timestamp.isoformat(),
+-                "thumbnail_url": thumbnail_url,
++                "XXthumbnail_urlXX": thumbnail_url,
+                 "dwell_time": dwell_time,
+-
+KEY 23
+                 "timestamp": timestamp.isoformat(),
+-                "thumbnail_url": thumbnail_url,
++                "THUMBNAIL_URL": thumbnail_url,
+                 "dwell_time": dwell_time,
+-
+KEY 27
+         # Record dwell time histogram for ongoing dwell events
+-        if dwell_time > 0:
++        if dwell_time > 1:
+             observe_zone_dwell_time(zone_id=zone_id, duration_seconds=dwell_time)
+-
+KEY 32
+ 
+-        await self._emit_websocket_event(event)
++        await self._emit_websocket_event(None)
+         return event
+-
+######################### _emit_websocket_event 7
+KEY 5
+ 
+-            settings = get_settings()
++            settings = None
+             channel = getattr(settings, "redis_event_channel", "hsi:events")
+-
+KEY 7
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(None, "redis_event_channel", "hsi:events")
+ 
+-
+KEY 9
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", None)
+ 
+-
+KEY 12
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", )
+ 
+-
+KEY 15
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", "XXhsi:eventsXX")
+ 
+-
+KEY 16
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", "HSI:EVENTS")
+ 
+-
+KEY 22
+         except Exception as e:
+-            logger.warning(f"Failed to emit WebSocket event for zone crossing: {e}")
++            logger.warning(None)
+-

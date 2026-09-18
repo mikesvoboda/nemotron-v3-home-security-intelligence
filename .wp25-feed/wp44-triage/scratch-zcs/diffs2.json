@@ -1,0 +1,412 @@
+{
+ "ZoneCrossingService._compute_entity_id__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_id__mutmut_6",
+   "diff": "         \"\"\"\n-        enrichment = getattr(detection, \"enrichment_data\", None)\n+        enrichment = getattr(detection, \"enrichment_data\", )\n         if enrichment and isinstance(enrichment, dict):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_id__mutmut_9",
+   "diff": "         enrichment = getattr(detection, \"enrichment_data\", None)\n-        if enrichment and isinstance(enrichment, dict):\n+        if enrichment or isinstance(enrichment, dict):\n             # Check for tracked entity ID from re-identification"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_id__mutmut_24",
+   "diff": "         # Fall back to detection ID\n-        detection_id = getattr(detection, \"id\", None)\n+        detection_id = getattr(detection, \"id\", )\n         if detection_id is not None:"
+  }
+ ],
+ "ZoneCrossingService._compute_entity_type__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_type__mutmut_6",
+   "diff": "         \"\"\"\n-        object_type = getattr(detection, \"object_type\", None)\n+        object_type = getattr(detection, \"object_type\", )\n         if object_type:"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_type__mutmut_16",
+   "diff": " \n-        enrichment = getattr(detection, \"enrichment_data\", None)\n+        enrichment = getattr(detection, \"enrichment_data\", )\n         if enrichment and isinstance(enrichment, dict):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_compute_entity_type__mutmut_19",
+   "diff": "         enrichment = getattr(detection, \"enrichment_data\", None)\n-        if enrichment and isinstance(enrichment, dict):\n+        if enrichment or isinstance(enrichment, dict):\n             entity_type = enrichment.get(\"entity_type\") or enrichment.get(\"class\")"
+  }
+ ],
+ "ZoneCrossingService._get_detection_in_zone__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_get_detection_in_zone__mutmut_4",
+   "diff": " \n-        width = image_width or self.DEFAULT_IMAGE_WIDTH\n+        width = image_width and self.DEFAULT_IMAGE_WIDTH\n         height = image_height or self.DEFAULT_IMAGE_HEIGHT"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_get_detection_in_zone__mutmut_6",
+   "diff": "         width = image_width or self.DEFAULT_IMAGE_WIDTH\n-        height = image_height or self.DEFAULT_IMAGE_HEIGHT\n+        height = image_height and self.DEFAULT_IMAGE_HEIGHT\n "
+  }
+ ],
+ "ZoneCrossingService._handle_zone_exit__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_8",
+   "diff": " \n-        dwell_time = None\n+        dwell_time = \"\"\n         if entity.entered_at:"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_14",
+   "diff": "             entity_id=entity_id,\n-            entity_type=entity_type,\n+            entity_type=None,\n             detection_id=detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_15",
+   "diff": "             entity_type=entity_type,\n-            detection_id=detection_id,\n+            detection_id=None,\n             timestamp=timestamp,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_17",
+   "diff": "             timestamp=timestamp,\n-            thumbnail_url=thumbnail_url,\n+            thumbnail_url=None,\n             dwell_time=dwell_time,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_26",
+   "diff": "         # Cleanup tracking\n-        if previous_zone_id in self._zone_occupants:\n+        if previous_zone_id not in self._zone_occupants:\n             self._zone_occupants[previous_zone_id].discard(entity_id)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_27",
+   "diff": "         if previous_zone_id in self._zone_occupants:\n-            self._zone_occupants[previous_zone_id].discard(entity_id)\n+            self._zone_occupants[previous_zone_id].discard(None)\n         self._dwell_events_emitted.pop((entity_id, previous_zone_id), None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_exit__mutmut_28",
+   "diff": "             self._zone_occupants[previous_zone_id].discard(entity_id)\n-        self._dwell_events_emitted.pop((entity_id, previous_zone_id), None)\n+        self._dwell_events_emitted.pop(None, None)\n "
+  }
+ ],
+ "ZoneCrossingService._handle_zone_enter__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_enter__mutmut_4",
+   "diff": "         \"\"\"\n-        curr_zone = next((z for z in zones if str(z.id) == current_zone_id), None)\n+        curr_zone = next((z for z in zones if str(z.id) == current_zone_id), )\n         if not curr_zone:"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_enter__mutmut_12",
+   "diff": "             entity_type=entity_type,\n-            detection_id=detection_id,\n+            detection_id=None,\n             timestamp=timestamp,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_enter__mutmut_14",
+   "diff": "             timestamp=timestamp,\n-            thumbnail_url=thumbnail_url,\n+            thumbnail_url=None,\n         )"
+  }
+ ],
+ "ZoneCrossingService._handle_zone_dwell__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_1",
+   "diff": "         \"\"\"\n-        if dwell_time < self.DWELL_THRESHOLD_SECONDS:\n+        if dwell_time <= self.DWELL_THRESHOLD_SECONDS:\n             return None"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_9",
+   "diff": "             last_emitted is None\n-            or (timestamp - last_emitted).total_seconds() >= self.DWELL_THRESHOLD_SECONDS\n+            or (timestamp - last_emitted).total_seconds() > self.DWELL_THRESHOLD_SECONDS\n         )"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_14",
+   "diff": " \n-        curr_zone = next((z for z in zones if str(z.id) == current_zone_id), None)\n+        curr_zone = next((z for z in zones if str(z.id) == current_zone_id), )\n         if not curr_zone:"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_20",
+   "diff": "             zone=curr_zone,\n-            entity_id=entity_id,\n+            entity_id=None,\n             entity_type=entity_type,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_21",
+   "diff": "             entity_id=entity_id,\n-            entity_type=entity_type,\n+            entity_type=None,\n             detection_id=detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_22",
+   "diff": "             entity_type=entity_type,\n-            detection_id=detection_id,\n+            detection_id=None,\n             timestamp=timestamp,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_handle_zone_dwell__mutmut_24",
+   "diff": "             timestamp=timestamp,\n-            thumbnail_url=thumbnail_url,\n+            thumbnail_url=None,\n             dwell_time=dwell_time,"
+  }
+ ],
+ "ZoneCrossingService.process_detection__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_6",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = None\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_7",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(None)\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_8",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(None, \"id\", \"\"))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_10",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(detection, \"id\", None))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_12",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(detection, \"\"))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_13",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(detection, \"id\", ))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_14",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(detection, \"XXidXX\", \"\"))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_15",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(detection, \"ID\", \"\"))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_16",
+   "diff": "         entity_type = self._compute_entity_type(detection)\n-        detection_id = str(getattr(detection, \"id\", \"\"))\n+        detection_id = str(getattr(detection, \"id\", \"XXXX\"))\n         thumbnail_url = getattr(detection, \"thumbnail_path\", None)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_17",
+   "diff": "         detection_id = str(getattr(detection, \"id\", \"\"))\n-        thumbnail_url = getattr(detection, \"thumbnail_path\", None)\n+        thumbnail_url = None\n         timestamp = getattr(detection, \"detected_at\", None) or utc_now()"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_18",
+   "diff": "         detection_id = str(getattr(detection, \"id\", \"\"))\n-        thumbnail_url = getattr(detection, \"thumbnail_path\", None)\n+        thumbnail_url = getattr(None, \"thumbnail_path\", None)\n         timestamp = getattr(detection, \"detected_at\", None) or utc_now()"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_22",
+   "diff": "         detection_id = str(getattr(detection, \"id\", \"\"))\n-        thumbnail_url = getattr(detection, \"thumbnail_path\", None)\n+        thumbnail_url = getattr(detection, \"thumbnail_path\", )\n         timestamp = getattr(detection, \"detected_at\", None) or utc_now()"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_23",
+   "diff": "         detection_id = str(getattr(detection, \"id\", \"\"))\n-        thumbnail_url = getattr(detection, \"thumbnail_path\", None)\n+        thumbnail_url = getattr(detection, \"XXthumbnail_pathXX\", None)\n         timestamp = getattr(detection, \"detected_at\", None) or utc_now()"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_24",
+   "diff": "         detection_id = str(getattr(detection, \"id\", \"\"))\n-        thumbnail_url = getattr(detection, \"thumbnail_path\", None)\n+        thumbnail_url = getattr(detection, \"THUMBNAIL_PATH\", None)\n         timestamp = getattr(detection, \"detected_at\", None) or utc_now()"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_31",
+   "diff": "         thumbnail_url = getattr(detection, \"thumbnail_path\", None)\n-        timestamp = getattr(detection, \"detected_at\", None) or utc_now()\n+        timestamp = getattr(detection, \"detected_at\", ) or utc_now()\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_36",
+   "diff": "             self._entity_positions[entity_id] = EntityPosition(\n-                entity_id=entity_id,\n+                entity_id=None,\n                 entity_type=entity_type,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_37",
+   "diff": "                 entity_id=entity_id,\n-                entity_type=entity_type,\n+                entity_type=None,\n             )"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_39",
+   "diff": "                 entity_id=entity_id,\n-                entity_type=entity_type,\n-            )\n+                )\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_41",
+   "diff": "         entity = self._entity_positions[entity_id]\n-        entity.entity_type = entity_type\n+        entity.entity_type = None\n         entity.last_detection_id = detection_id"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_42",
+   "diff": "         entity.entity_type = entity_type\n-        entity.last_detection_id = detection_id\n+        entity.last_detection_id = None\n         entity.last_thumbnail_url = thumbnail_url"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_43",
+   "diff": "         entity.last_detection_id = detection_id\n-        entity.last_thumbnail_url = thumbnail_url\n+        entity.last_thumbnail_url = None\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_47",
+   "diff": "         # Determine which zone (if any) the detection is currently in\n-        width = image_width or self.DEFAULT_IMAGE_WIDTH\n+        width = None\n         height = image_height or self.DEFAULT_IMAGE_HEIGHT"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_48",
+   "diff": "         # Determine which zone (if any) the detection is currently in\n-        width = image_width or self.DEFAULT_IMAGE_WIDTH\n+        width = image_width and self.DEFAULT_IMAGE_WIDTH\n         height = image_height or self.DEFAULT_IMAGE_HEIGHT"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_49",
+   "diff": "         width = image_width or self.DEFAULT_IMAGE_WIDTH\n-        height = image_height or self.DEFAULT_IMAGE_HEIGHT\n+        height = None\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_50",
+   "diff": "         width = image_width or self.DEFAULT_IMAGE_WIDTH\n-        height = image_height or self.DEFAULT_IMAGE_HEIGHT\n+        height = image_height and self.DEFAULT_IMAGE_HEIGHT\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_60",
+   "diff": " \n-        for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n+        for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", None), reverse=True):\n             if self._get_detection_in_zone(detection, zone, width, height):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_63",
+   "diff": " \n-        for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n+        for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", ), reverse=True):\n             if self._get_detection_in_zone(detection, zone, width, height):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_66",
+   "diff": " \n-        for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n+        for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 1), reverse=True):\n             if self._get_detection_in_zone(detection, zone, width, height):"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_70",
+   "diff": "         for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n-            if self._get_detection_in_zone(detection, zone, width, height):\n+            if self._get_detection_in_zone(detection, zone, None, height):\n                 current_zone_id = str(zone.id)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_71",
+   "diff": "         for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n-            if self._get_detection_in_zone(detection, zone, width, height):\n+            if self._get_detection_in_zone(detection, zone, width, None):\n                 current_zone_id = str(zone.id)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_74",
+   "diff": "         for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n-            if self._get_detection_in_zone(detection, zone, width, height):\n+            if self._get_detection_in_zone(detection, zone, height):\n                 current_zone_id = str(zone.id)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_75",
+   "diff": "         for zone in sorted(zones, key=lambda z: getattr(z, \"priority\", 0), reverse=True):\n-            if self._get_detection_in_zone(detection, zone, width, height):\n+            if self._get_detection_in_zone(detection, zone, width, ):\n                 current_zone_id = str(zone.id)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_84",
+   "diff": "                     entity_id,\n-                    entity_type,\n+                    None,\n                     detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_85",
+   "diff": "                     entity_type,\n-                    detection_id,\n+                    None,\n                     timestamp,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_87",
+   "diff": "                     timestamp,\n-                    thumbnail_url,\n+                    None,\n                     previous_zone_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_104",
+   "diff": "                     entity_type,\n-                    detection_id,\n+                    None,\n                     timestamp,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_106",
+   "diff": "                     timestamp,\n-                    thumbnail_url,\n+                    None,\n                     current_zone_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_119",
+   "diff": " \n-        elif current_zone_id is not None and entity.entered_at is not None:\n+        elif current_zone_id is not None or entity.entered_at is not None:\n             dwell_time = (timestamp - entity.entered_at).total_seconds()"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_126",
+   "diff": "                 entity_id,\n-                entity_type,\n+                None,\n                 detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_127",
+   "diff": "                 entity_type,\n-                detection_id,\n+                None,\n                 timestamp,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1process_detection__mutmut_129",
+   "diff": "                 timestamp,\n-                thumbnail_url,\n+                None,\n                 current_zone_id,"
+  }
+ ],
+ "ZoneCrossingService._emit_zone_enter__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_enter__mutmut_34",
+   "diff": "         # Entry point zones are considered secure perimeters - any entry is an intrusion\n-        if zone.zone_type == CameraZoneType.ENTRY_POINT:\n+        if zone.zone_type != CameraZoneType.ENTRY_POINT:\n             # Determine severity based on entity type"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_enter__mutmut_42",
+   "diff": " \n-        await self._emit_websocket_event(event)\n+        await self._emit_websocket_event(None)\n         return event"
+  }
+ ],
+ "ZoneCrossingService._emit_zone_exit__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_12",
+   "diff": "                 \"zone_id\": zone_id,\n-                \"zone_name\": zone.name,\n+                \"XXzone_nameXX\": zone.name,\n                 \"entity_id\": entity_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_13",
+   "diff": "                 \"zone_id\": zone_id,\n-                \"zone_name\": zone.name,\n+                \"ZONE_NAME\": zone.name,\n                 \"entity_id\": entity_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_16",
+   "diff": "                 \"entity_id\": entity_id,\n-                \"entity_type\": entity_type,\n+                \"XXentity_typeXX\": entity_type,\n                 \"detection_id\": detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_17",
+   "diff": "                 \"entity_id\": entity_id,\n-                \"entity_type\": entity_type,\n+                \"ENTITY_TYPE\": entity_type,\n                 \"detection_id\": detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_18",
+   "diff": "                 \"entity_type\": entity_type,\n-                \"detection_id\": detection_id,\n+                \"XXdetection_idXX\": detection_id,\n                 \"timestamp\": timestamp.isoformat(),"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_19",
+   "diff": "                 \"entity_type\": entity_type,\n-                \"detection_id\": detection_id,\n+                \"DETECTION_ID\": detection_id,\n                 \"timestamp\": timestamp.isoformat(),"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_20",
+   "diff": "                 \"detection_id\": detection_id,\n-                \"timestamp\": timestamp.isoformat(),\n+                \"XXtimestampXX\": timestamp.isoformat(),\n                 \"thumbnail_url\": thumbnail_url,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_21",
+   "diff": "                 \"detection_id\": detection_id,\n-                \"timestamp\": timestamp.isoformat(),\n+                \"TIMESTAMP\": timestamp.isoformat(),\n                 \"thumbnail_url\": thumbnail_url,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_22",
+   "diff": "                 \"timestamp\": timestamp.isoformat(),\n-                \"thumbnail_url\": thumbnail_url,\n+                \"XXthumbnail_urlXX\": thumbnail_url,\n                 \"dwell_time\": dwell_time,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_23",
+   "diff": "                 \"timestamp\": timestamp.isoformat(),\n-                \"thumbnail_url\": thumbnail_url,\n+                \"THUMBNAIL_URL\": thumbnail_url,\n                 \"dwell_time\": dwell_time,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_37",
+   "diff": "         # Record dwell time histogram if we have a valid dwell time\n-        if dwell_time is not None and dwell_time > 0:\n+        if dwell_time is not None and dwell_time > 1:\n             observe_zone_dwell_time(zone_id=zone_id, duration_seconds=dwell_time)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_exit__mutmut_59",
+   "diff": " \n-        await self._emit_websocket_event(event)\n+        await self._emit_websocket_event(None)\n         return event"
+  }
+ ],
+ "ZoneCrossingService._emit_zone_dwell__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_16",
+   "diff": "                 \"entity_id\": entity_id,\n-                \"entity_type\": entity_type,\n+                \"XXentity_typeXX\": entity_type,\n                 \"detection_id\": detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_17",
+   "diff": "                 \"entity_id\": entity_id,\n-                \"entity_type\": entity_type,\n+                \"ENTITY_TYPE\": entity_type,\n                 \"detection_id\": detection_id,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_18",
+   "diff": "                 \"entity_type\": entity_type,\n-                \"detection_id\": detection_id,\n+                \"XXdetection_idXX\": detection_id,\n                 \"timestamp\": timestamp.isoformat(),"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_19",
+   "diff": "                 \"entity_type\": entity_type,\n-                \"detection_id\": detection_id,\n+                \"DETECTION_ID\": detection_id,\n                 \"timestamp\": timestamp.isoformat(),"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_20",
+   "diff": "                 \"detection_id\": detection_id,\n-                \"timestamp\": timestamp.isoformat(),\n+                \"XXtimestampXX\": timestamp.isoformat(),\n                 \"thumbnail_url\": thumbnail_url,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_21",
+   "diff": "                 \"detection_id\": detection_id,\n-                \"timestamp\": timestamp.isoformat(),\n+                \"TIMESTAMP\": timestamp.isoformat(),\n                 \"thumbnail_url\": thumbnail_url,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_22",
+   "diff": "                 \"timestamp\": timestamp.isoformat(),\n-                \"thumbnail_url\": thumbnail_url,\n+                \"XXthumbnail_urlXX\": thumbnail_url,\n                 \"dwell_time\": dwell_time,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_23",
+   "diff": "                 \"timestamp\": timestamp.isoformat(),\n-                \"thumbnail_url\": thumbnail_url,\n+                \"THUMBNAIL_URL\": thumbnail_url,\n                 \"dwell_time\": dwell_time,"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_27",
+   "diff": "         # Record dwell time histogram for ongoing dwell events\n-        if dwell_time > 0:\n+        if dwell_time > 1:\n             observe_zone_dwell_time(zone_id=zone_id, duration_seconds=dwell_time)"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_zone_dwell__mutmut_32",
+   "diff": " \n-        await self._emit_websocket_event(event)\n+        await self._emit_websocket_event(None)\n         return event"
+  }
+ ],
+ "ZoneCrossingService._emit_websocket_event__mutmut": [
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_5",
+   "diff": " \n-            settings = get_settings()\n+            settings = None\n             channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")"
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_7",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(None, \"redis_event_channel\", \"hsi:events\")\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_9",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", None)\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_12",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", )\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_15",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", \"XXhsi:eventsXX\")\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_16",
+   "diff": "             settings = get_settings()\n-            channel = getattr(settings, \"redis_event_channel\", \"hsi:events\")\n+            channel = getattr(settings, \"redis_event_channel\", \"HSI:EVENTS\")\n "
+  },
+  {
+   "key": "backend.services.zone_crossing_service.x\u01c1ZoneCrossingService\u01c1_emit_websocket_event__mutmut_22",
+   "diff": "         except Exception as e:\n-            logger.warning(f\"Failed to emit WebSocket event for zone crossing: {e}\")\n+            logger.warning(None)"
+  }
+ ]
+}

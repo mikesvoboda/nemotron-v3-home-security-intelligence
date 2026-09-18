@@ -1,0 +1,590 @@
+{
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_10": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_10(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(None) if image.mode != \"RGB\" else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_11": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_11(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"XXRGBXX\") if image.mode != \"RGB\" else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_12": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_12(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"rgb\") if image.mode != \"RGB\" else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_13": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_13(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"RGB\") if image.mode == \"RGB\" else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_14": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_14(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"RGB\") if image.mode != \"XXRGBXX\" else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_15": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_15(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"RGB\") if image.mode != \"rgb\" else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_16": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_16(",
+  "-            img_tensor = transform(rgb_image).unsqueeze(0)  # Add batch dimension",
+  "+            img_tensor = None  # Add batch dimension"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_17": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_17(",
+  "-            img_tensor = transform(rgb_image).unsqueeze(0)  # Add batch dimension",
+  "+            img_tensor = transform(rgb_image).unsqueeze(None)  # Add batch dimension"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_18": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_18(",
+  "-            img_tensor = transform(rgb_image).unsqueeze(0)  # Add batch dimension",
+  "+            img_tensor = transform(None).unsqueeze(0)  # Add batch dimension"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_19": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_19(",
+  "-            img_tensor = transform(rgb_image).unsqueeze(0)  # Add batch dimension",
+  "+            img_tensor = transform(rgb_image).unsqueeze(1)  # Add batch dimension"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_21": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_21(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(None, data_range=1.0, reduction=\"mean\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_22": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_22(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, data_range=None, reduction=\"mean\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_23": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_23(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=None).item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_24": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_24(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(data_range=1.0, reduction=\"mean\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_25": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_25(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, reduction=\"mean\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_26": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_26(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, data_range=1.0, ).item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_27": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_27(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, data_range=2.0, reduction=\"mean\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_28": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_28(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"XXmeanXX\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_29": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_29(",
+  "-                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"mean\").item()",
+  "+                brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction=\"MEAN\").item()"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_35": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_35(",
+  "-            brisque_score = max(0.0, min(100.0, brisque_score))",
+  "+            brisque_score = max(1.0, min(100.0, brisque_score))"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_40": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_40(",
+  "-            brisque_score = max(0.0, min(100.0, brisque_score))",
+  "+            brisque_score = max(0.0, min(101.0, brisque_score))"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_44": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_44(",
+  "-            quality_issues: list[str] = []",
+  "+            quality_issues: list[str] = None"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_45": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_45(",
+  "-            is_blurry = brisque_score >= blur_threshold",
+  "+            is_blurry = None"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_46": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_46(",
+  "-            is_blurry = brisque_score >= blur_threshold",
+  "+            is_blurry = brisque_score > blur_threshold"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_47": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_47(",
+  "-            is_noisy = brisque_score >= noise_threshold",
+  "+            is_noisy = None"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_48": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_48(",
+  "-            is_noisy = brisque_score >= noise_threshold",
+  "+            is_noisy = brisque_score > noise_threshold"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_49": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_49(",
+  "-            is_low_quality = brisque_score >= low_quality_threshold",
+  "+            is_low_quality = None"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_50": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_50(",
+  "-            is_low_quality = brisque_score >= low_quality_threshold",
+  "+            is_low_quality = brisque_score > low_quality_threshold"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_51": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_51(",
+  "-            if is_noisy and brisque_score >= noise_threshold:",
+  "+            if is_noisy or brisque_score >= noise_threshold:"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_52": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_52(",
+  "-            if is_noisy and brisque_score >= noise_threshold:",
+  "+            if is_noisy and brisque_score > noise_threshold:"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_53": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_53(",
+  "-            if is_low_quality and not is_blurry and not is_noisy:",
+  "+            if is_low_quality and not is_blurry or not is_noisy:"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_54": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_54(",
+  "-            if is_low_quality and not is_blurry and not is_noisy:",
+  "+            if is_low_quality or not is_blurry and not is_noisy:"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_55": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_55(",
+  "-            if is_low_quality and not is_blurry and not is_noisy:",
+  "+            if is_low_quality and is_blurry and not is_noisy:"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_56": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_56(",
+  "-            if is_low_quality and not is_blurry and not is_noisy:",
+  "+            if is_low_quality and not is_blurry and is_noisy:"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_59": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_59(",
+  "-                is_blurry=is_blurry,",
+  "+                is_blurry=None,"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_6": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_6(",
+  "-                [",
+  "-                    transforms.ToTensor(),",
+  "-                ]",
+  "+                None"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_60": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_60(",
+  "-                is_noisy=is_noisy,",
+  "+                is_noisy=None,"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_61": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_61(",
+  "-                is_low_quality=is_low_quality,",
+  "+                is_low_quality=None,"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_62": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_62(",
+  "-                quality_issues=quality_issues,",
+  "+                quality_issues=None,"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_68": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_68(",
+  "-                quality_issues=quality_issues,",
+  "-            )",
+  "+                )"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_7": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_7(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = None"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_70": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_70(",
+  "-                timeout=15.0,",
+  "+                timeout=None,"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_76": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_76(",
+  "-                timeout=15.0,",
+  "+                timeout=16.0,"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_77": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_77(",
+  "-        logger.error(\"torch/torchvision required for image quality assessment\")",
+  "+        logger.error(None)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_78": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_78(",
+  "-        logger.error(\"torch/torchvision required for image quality assessment\")",
+  "+        logger.error(\"XXtorch/torchvision required for image quality assessmentXX\")"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_79": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_79(",
+  "-        logger.error(\"torch/torchvision required for image quality assessment\")",
+  "+        logger.error(\"TORCH/TORCHVISION REQUIRED FOR IMAGE QUALITY ASSESSMENT\")"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_8": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_8(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"RGB\") if (image.mode != \"RGB\") and False else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_81": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_81(",
+  "-        raise RuntimeError(\"torch and torchvision required for image quality assessment\") from e",
+  "+        raise RuntimeError(\"XXtorch and torchvision required for image quality assessmentXX\") from e"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_83": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_83(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(None, exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_84": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_84(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(\"Image quality assessment failed\", exc_info=None)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_85": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_85(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_86": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_86(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(\"Image quality assessment failed\", )"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_87": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_87(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(\"XXImage quality assessment failedXX\", exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_88": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_88(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(\"image quality assessment failed\", exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_89": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_89(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(\"IMAGE QUALITY ASSESSMENT FAILED\", exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_9": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_9(",
+  "-            rgb_image = image.convert(\"RGB\") if image.mode != \"RGB\" else image",
+  "+            rgb_image = image.convert(\"RGB\") if (image.mode != \"RGB\") or True else image"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_90": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_90(",
+  "-        logger.error(\"Image quality assessment failed\", exc_info=True)",
+  "+        logger.error(\"Image quality assessment failed\", exc_info=False)"
+ ],
+ "backend.services.image_quality_loader.x_assess_image_quality__mutmut_91": [
+  "-async def x_assess_image_quality__mutmut_orig(",
+  "+async def x_assess_image_quality__mutmut_91(",
+  "-        raise RuntimeError(f\"Image quality assessment failed: {e}\") from e",
+  "+        raise RuntimeError(None) from e",
+  "-"
+ ],
+ "backend.services.image_quality_loader.x_detect_quality_change__mutmut_11": [
+  "-def x_detect_quality_change__mutmut_orig(",
+  "+def x_detect_quality_change__mutmut_11(",
+  "-    return False, \"Quality stable\"",
+  "+    return False, \"XXQuality stableXX\""
+ ],
+ "backend.services.image_quality_loader.x_detect_quality_change__mutmut_12": [
+  "-def x_detect_quality_change__mutmut_orig(",
+  "+def x_detect_quality_change__mutmut_12(",
+  "-    return False, \"Quality stable\"",
+  "+    return False, \"quality stable\""
+ ],
+ "backend.services.image_quality_loader.x_detect_quality_change__mutmut_13": [
+  "-def x_detect_quality_change__mutmut_orig(",
+  "+def x_detect_quality_change__mutmut_13(",
+  "-    return False, \"Quality stable\"",
+  "+    return False, \"QUALITY STABLE\"",
+  "-"
+ ],
+ "backend.services.image_quality_loader.x_detect_quality_change__mutmut_3": [
+  "-def x_detect_quality_change__mutmut_orig(",
+  "+def x_detect_quality_change__mutmut_3(",
+  "-        return False, \"First frame, no comparison available\"",
+  "+        return False, \"XXFirst frame, no comparison availableXX\""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_10": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_10(",
+  "-                \"Significant motion blur detected with person - indicates fast movement \"",
+  "+                \"SIGNIFICANT MOTION BLUR DETECTED WITH PERSON - INDICATES FAST MOVEMENT \""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_11": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_11(",
+  "-                \"Motion blur detected with person in frame - may indicate movement. \"",
+  "+                \"XXMotion blur detected with person in frame - may indicate movement. XX\""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_14": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_14(",
+  "-        \"Image blur detected without clear motion source. \"",
+  "+        \"XXImage blur detected without clear motion source. XX\""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_15": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_15(",
+  "-        \"Image blur detected without clear motion source. \"",
+  "+        \"image blur detected without clear motion source. \""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_16": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_16(",
+  "-        \"Image blur detected without clear motion source. \"",
+  "+        \"IMAGE BLUR DETECTED WITHOUT CLEAR MOTION SOURCE. \"",
+  "-"
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_2": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_2(",
+  "-        return \"Clear image, no motion blur\"",
+  "+        return \"XXClear image, no motion blurXX\""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_8": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_8(",
+  "-                \"Significant motion blur detected with person - indicates fast movement \"",
+  "+                \"XXSignificant motion blur detected with person - indicates fast movement XX\""
+ ],
+ "backend.services.image_quality_loader.x_interpret_blur_with_motion__mutmut_9": [
+  "-def x_interpret_blur_with_motion__mutmut_orig(",
+  "+def x_interpret_blur_with_motion__mutmut_9(",
+  "-                \"Significant motion blur detected with person - indicates fast movement \"",
+  "+                \"significant motion blur detected with person - indicates fast movement \""
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_1": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_1(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Loading BRISQUE quality metric from piq\")",
+  "+        logger.info(None)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_16": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_16(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Successfully loaded BRISQUE quality metric\")",
+  "+        logger.info(None)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_17": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_17(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Successfully loaded BRISQUE quality metric\")",
+  "+        logger.info(\"XXSuccessfully loaded BRISQUE quality metricXX\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_18": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_18(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Successfully loaded BRISQUE quality metric\")",
+  "+        logger.info(\"successfully loaded brisque quality metric\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_19": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_19(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Successfully loaded BRISQUE quality metric\")",
+  "+        logger.info(\"SUCCESSFULLY LOADED BRISQUE QUALITY METRIC\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_2": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_2(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Loading BRISQUE quality metric from piq\")",
+  "+        logger.info(\"XXLoading BRISQUE quality metric from piqXX\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_20": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_20(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.warning(\"piq package not installed. Install with: pip install piq\")",
+  "+        logger.warning(None)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_21": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_21(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.warning(\"piq package not installed. Install with: pip install piq\")",
+  "+        logger.warning(\"XXpiq package not installed. Install with: pip install piqXX\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_22": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_22(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.warning(\"piq package not installed. Install with: pip install piq\")",
+  "+        logger.warning(\"piq package not installed. install with: pip install piq\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_23": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_23(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.warning(\"piq package not installed. Install with: pip install piq\")",
+  "+        logger.warning(\"PIQ PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL PIQ\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_25": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_25(model_path: str) -> Any:  # noqa: ARG001",
+  "-            \"piq package required for image quality assessment. Install with: pip install piq\"",
+  "+            \"XXpiq package required for image quality assessment. Install with: pip install piqXX\""
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_26": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_26(model_path: str) -> Any:  # noqa: ARG001",
+  "-            \"piq package required for image quality assessment. Install with: pip install piq\"",
+  "+            \"piq package required for image quality assessment. install with: pip install piq\""
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_28": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_28(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(None, exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_29": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_29(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(\"Failed to load BRISQUE metric\", exc_info=None)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_3": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_3(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Loading BRISQUE quality metric from piq\")",
+  "+        logger.info(\"loading brisque quality metric from piq\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_31": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_31(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(\"Failed to load BRISQUE metric\", )"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_32": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_32(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(\"XXFailed to load BRISQUE metricXX\", exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_33": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_33(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(\"failed to load brisque metric\", exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_34": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_34(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(\"FAILED TO LOAD BRISQUE METRIC\", exc_info=True)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_35": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_35(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.error(\"Failed to load BRISQUE metric\", exc_info=True)",
+  "+        logger.error(\"Failed to load BRISQUE metric\", exc_info=False)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_4": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_4(model_path: str) -> Any:  # noqa: ARG001",
+  "-        logger.info(\"Loading BRISQUE quality metric from piq\")",
+  "+        logger.info(\"LOADING BRISQUE QUALITY METRIC FROM PIQ\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_6": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_6(model_path: str) -> Any:  # noqa: ARG001",
+  "-            logger.info(\"BRISQUE metric initialized (piq library)\")",
+  "+            logger.info(None)"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_7": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_7(model_path: str) -> Any:  # noqa: ARG001",
+  "-            logger.info(\"BRISQUE metric initialized (piq library)\")",
+  "+            logger.info(\"XXBRISQUE metric initialized (piq library)XX\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_8": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_8(model_path: str) -> Any:  # noqa: ARG001",
+  "-            logger.info(\"BRISQUE metric initialized (piq library)\")",
+  "+            logger.info(\"brisque metric initialized (piq library)\")"
+ ],
+ "backend.services.image_quality_loader.x_load_brisque_model__mutmut_9": [
+  "-async def x_load_brisque_model__mutmut_orig(model_path: str) -> Any:  # noqa: ARG001",
+  "+async def x_load_brisque_model__mutmut_9(model_path: str) -> Any:  # noqa: ARG001",
+  "-            logger.info(\"BRISQUE metric initialized (piq library)\")",
+  "+            logger.info(\"BRISQUE METRIC INITIALIZED (PIQ LIBRARY)\")"
+ ],
+ "backend.services.image_quality_loader.x\u01c1ImageQualityResult\u01c1format_context__mutmut_5": [
+  "-def x\u01c1ImageQualityResult\u01c1format_context__mutmut_orig(self) -> str:",
+  "+def x\u01c1ImageQualityResult\u01c1format_context__mutmut_5(self) -> str:",
+  "-        \", \".join(self.quality_issues) if self.quality_issues else \"general degradation\"",
+  "+        \"XX, XX\".join(self.quality_issues) if self.quality_issues else \"general degradation\""
+ ],
+ "backend.services.image_quality_loader.x\u01c1ImageQualityResult\u01c1format_context__mutmut_6": [
+  "-def x\u01c1ImageQualityResult\u01c1format_context__mutmut_orig(self) -> str:",
+  "+def x\u01c1ImageQualityResult\u01c1format_context__mutmut_6(self) -> str:",
+  "-        \", \".join(self.quality_issues) if self.quality_issues else \"general degradation\"",
+  "+        \", \".join(self.quality_issues) if self.quality_issues else \"XXgeneral degradationXX\""
+ ]
+}

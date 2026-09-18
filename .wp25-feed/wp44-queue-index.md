@@ -1009,3 +1009,46 @@ import artifacts), so six drafted tests cover ~600 survivors. routes/system
 serial lane unchanged: enrichment_pipeline metrics-label snapshot (534
 mutants/test). Dossiers .wp25-feed/wp44-triage/*.md — UNVERIFIED drafting;
 verification is the serial lane, one pytest job at a time.
+
+## WAVE 58 (GEN-2 NEW TIER, FIRST EIGHT) — FOLD 2026-09-18
+
+First eight NEW (never-tallied) modules, ~95 survivors each, dispatched 13:5x;
+workflow `wf_bfa427c6-4e0` completed, 8/8 agents, 8/8 arbiter sum-checks OK
+(journal survivors == arbiter survived == cluster-table sum, per module).
+
+| module | surv | G | E | L | drafts |
+|---|---|---|---|---|---|
+| image_quality_loader | 97 | 41 | 5 | 51 | 6 |
+| orchestrator/models | 97 | 95 | 2 | 0 | 5 |
+| zone_crossing_service | 97 | 66 | 24 | 7 | 6 |
+| container_orchestrator | 96 | 58 | 9 | 11+1 n/c | 9 |
+| gender_classifier_loader | 96 | 73 | 5 | 18 | 5 |
+| privacy_masking_service | 96 | 75 | 18 | 3 | 7 |
+| approach_vector_service | 95 | 76 | 17 | 2 | 6 |
+| service_managers | 94 | 13 | 29 | 52 | 6 |
+| **W58 TOTAL** | **768** | **497** | **109** | **144+1 n/c** | **50** |
+
+Reconciliation notes: (1) image_quality_loader — journal cluster math said
+G40/E5/L52; the dossier's own Classification-totals line says G41/E5/L51
+(C1,4,5,6,7,8,9,11 = G) — folded to the DOSSIER (artifact-of-record), sum 97
+holds either way. (2) container_orchestrator — cluster table header "96 =
+58+9+9+11+5+1+2+1" vs journal 58/9/29: journal G/E agree with the dossier's
+biggest cells (58 G, 9 E); the L remainder (29) is cluster-table arithmetic
+(9+11+5+1+2+1=29) — journal's E count is the outlier ONLY if read as E9, and
+both channels agree G=58; folded G58/E9/L29. (3) service_managers dossier
+Totals table gives 13G/29E/52L (journal agrees). (4) No draft-count channel
+split: journal len(drafted_tests) == per-dossier draft sections == 50.
+
+MEASURE — gen-2 cumulative through wave 58: 18,771 + 768 = **19,539 survivors**
+across 32 modules; G 10,445 + 497 = **10,942** (56.0%) / E 4,779 + 109 =
+**4,888** (25.0%) / L 3,548 + 145 = **3,693** (18.9%); **245 drafted kill-tests**
+(195 + 50). NEW-TIER shape at ~95-survivor weight: TEST-GAP dominates even
+harder (64.7% G here vs 55.6% cumulative) — thin modules are untested, not
+log-heavy; orchestrator/models 95/97 G and gender_classifier_loader 73/96 G
+confirm. service_managers inverts (13 G / 29 E / 52 L) — health-check plumbing
+whose wrong kwargs are invisible behind mocked httpx (drafted tests target
+exactly that). Head of the serial lane: container_discovery FULL-MODULE KILL
+CENSUS running (scripts/.wp44-killcount.py, JSONL /tmp/wp25/wp44-kills/) —
+first end-to-end "drafted → shipped → measured kills" number in the program.
+Dossiers .wp25-feed/wp44-triage/*.md — UNVERIFIED drafting until the serial
+lane lands.

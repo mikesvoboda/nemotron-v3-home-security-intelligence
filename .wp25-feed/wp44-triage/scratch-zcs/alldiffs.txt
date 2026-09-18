@@ -1,0 +1,341 @@
+############################## ZoneCrossingService._compute_entity_id__mutmut 3
+KEY 6
+         """
+-        enrichment = getattr(detection, "enrichment_data", None)
++        enrichment = getattr(detection, "enrichment_data", )
+         if enrichment and isinstance(enrichment, dict):
+-
+KEY 9
+         enrichment = getattr(detection, "enrichment_data", None)
+-        if enrichment and isinstance(enrichment, dict):
++        if enrichment or isinstance(enrichment, dict):
+             # Check for tracked entity ID from re-identification
+-
+KEY 24
+         # Fall back to detection ID
+-        detection_id = getattr(detection, "id", None)
++        detection_id = getattr(detection, "id", )
+         if detection_id is not None:
+-
+############################## ZoneCrossingService._compute_entity_type__mutmut 3
+KEY 6
+         """
+-        object_type = getattr(detection, "object_type", None)
++        object_type = getattr(detection, "object_type", )
+         if object_type:
+-
+KEY 16
+ 
+-        enrichment = getattr(detection, "enrichment_data", None)
++        enrichment = getattr(detection, "enrichment_data", )
+         if enrichment and isinstance(enrichment, dict):
+-
+KEY 19
+         enrichment = getattr(detection, "enrichment_data", None)
+-        if enrichment and isinstance(enrichment, dict):
++        if enrichment or isinstance(enrichment, dict):
+             entity_type = enrichment.get("entity_type") or enrichment.get("class")
+-
+############################## ZoneCrossingService._get_detection_in_zone__mutmut 2
+KEY 4
+
+-
+KEY 6
+
+-
+############################## ZoneCrossingService._handle_zone_exit__mutmut 7
+KEY 8
+
+-
+KEY 14
+
+-
+KEY 15
+
+-
+KEY 17
+
+-
+KEY 26
+
+-
+KEY 27
+
+-
+KEY 28
+
+-
+############################## ZoneCrossingService._handle_zone_enter__mutmut 3
+KEY 4
+
+-
+KEY 12
+
+-
+KEY 14
+
+-
+############################## ZoneCrossingService._handle_zone_dwell__mutmut 7
+KEY 1
+
+-
+KEY 9
+
+-
+KEY 14
+
+-
+KEY 20
+
+-
+KEY 21
+
+-
+KEY 22
+
+-
+KEY 24
+
+-
+############################## ZoneCrossingService.process_detection__mutmut 41
+KEY 6
+
+-
+KEY 7
+
+-
+KEY 8
+
+-
+KEY 10
+
+-
+KEY 12
+
+-
+KEY 13
+
+-
+KEY 14
+
+-
+KEY 15
+
+-
+KEY 16
+
+-
+KEY 17
+
+-
+KEY 18
+
+-
+KEY 22
+
+-
+KEY 23
+
+-
+KEY 24
+
+-
+KEY 31
+
+-
+KEY 36
+
+-
+KEY 37
+
+-
+KEY 39
+
+-
+KEY 41
+
+-
+KEY 42
+
+-
+KEY 43
+
+-
+KEY 47
+
+-
+KEY 48
+
+-
+KEY 49
+
+-
+KEY 50
+
+-
+KEY 60
+
+-
+KEY 63
+
+-
+KEY 66
+
+-
+KEY 70
+
+-
+KEY 71
+
+-
+KEY 74
+
+-
+KEY 75
+
+-
+KEY 84
+
+-
+KEY 85
+
+-
+KEY 87
+
+-
+KEY 104
+
+-
+KEY 106
+
+-
+KEY 119
+
+-
+KEY 126
+
+-
+KEY 127
+
+-
+KEY 129
+
+-
+############################## ZoneCrossingService._emit_zone_enter__mutmut 2
+KEY 34
+
+-
+KEY 42
+
+-
+############################## ZoneCrossingService._emit_zone_exit__mutmut 12
+KEY 12
+
+-
+KEY 13
+
+-
+KEY 16
+
+-
+KEY 17
+
+-
+KEY 18
+
+-
+KEY 19
+
+-
+KEY 20
+
+-
+KEY 21
+
+-
+KEY 22
+
+-
+KEY 23
+
+-
+KEY 37
+
+-
+KEY 59
+
+-
+############################## ZoneCrossingService._emit_zone_dwell__mutmut 10
+KEY 16
+
+-
+KEY 17
+
+-
+KEY 18
+
+-
+KEY 19
+
+-
+KEY 20
+
+-
+KEY 21
+
+-
+KEY 22
+
+-
+KEY 23
+
+-
+KEY 27
+
+-
+KEY 32
+
+-
+############################## ZoneCrossingService._emit_websocket_event__mutmut 7
+KEY 5
+ 
+-            settings = get_settings()
++            settings = None
+             channel = getattr(settings, "redis_event_channel", "hsi:events")
+-
+KEY 7
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(None, "redis_event_channel", "hsi:events")
+ 
+-
+KEY 9
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", None)
+ 
+-
+KEY 12
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", )
+ 
+-
+KEY 15
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", "XXhsi:eventsXX")
+ 
+-
+KEY 16
+             settings = get_settings()
+-            channel = getattr(settings, "redis_event_channel", "hsi:events")
++            channel = getattr(settings, "redis_event_channel", "HSI:EVENTS")
+ 
+-
+KEY 22
+         except Exception as e:
+-            logger.warning(f"Failed to emit WebSocket event for zone crossing: {e}")
++            logger.warning(None)
+ 
+-
