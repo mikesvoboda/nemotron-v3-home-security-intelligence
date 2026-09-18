@@ -1205,3 +1205,27 @@ wave 63's eight in-flight modules still counted as remaining until dossiers
 land). DECIDE: a rejected triage gets a direct-agent redo with the rejection
 reasons named in the prompt — the redo's own machine-checks (57/57 exact
 partition) are what make it foldable.
+
+## WAVE 63 (GEN-2 NEW TIER) — FOLD 2026-09-18
+
+Eight modules (survivors 42-50 band), all arbiter sum-checks OK, all eight
+dossiers present and reconciled to journal:
+
+orphan_scanner   48 survivors  29G/1E/18L   6 drafts
+rtsp_test        46 survivors  39G/0E/7L    6 drafts   (third route-like G-heavy twin)
+job_progress     50 survivors   6G/42E/2L   5 drafts   (E-heavy: progress-throttle cosmetics)
+summary_parser   49 survivors  37G/12E/0L   6 drafts
+face_detector    50 survivors  29G/12E/9L   6 drafts
+evaluation_queue 50 survivors  13G/37E/0L   4 drafts   (E-heavy twin of jpr)
+audit            42 survivors  34G/7E/1L    6 drafts
+plate_detector   46 survivors  32G/10E/4L   8 drafts
+
+MEASURE — wave 63: 381 survivors, G 219 (57.5%) / E 121 / L 41, 47 drafts.
+Gen-2 cumulative through 63: **22,190 survivors / 72 modules**; G 12,405
+(55.9%) / E 5,600 / L 4,169; **503 drafted kill-tests** — a half-thousand
+drafts milestone, zero of them measured-killed yet (serial lane + new parallel
+lane now working the proof). NEW tier remaining: **49 modules / 1,060
+survivors** (dossier-presence recount). Parallel census lane LIVE on exactly
+those 49 (7 workers, owner-approved carve-out; 8-module triage/wave cadence
+now runs against a shrinking untouched set — gen-2 triage waves are nearly
+done with their founding purpose once this band's dossiers land).
