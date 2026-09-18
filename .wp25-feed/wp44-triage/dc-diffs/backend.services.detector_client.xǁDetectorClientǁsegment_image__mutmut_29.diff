@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_29: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -51,7 +51,7 @@
+         )
+
+         for attempt in range(self._max_retries):
+-            span.set_attribute("retry_attempt", attempt)
++            span.set_attribute("retry_attempt", None)
+             try:
+                 async with semaphore:
+                     start_time = time.monotonic()

@@ -1,0 +1,11 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_current_config__mutmut_42: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -13,6 +13,6 @@
+     return {
+         "maxmemory_bytes": str(maxmemory_bytes),
+         "maxmemory_mb": f"{maxmemory_mb:.2f}",
+-        "maxmemory_policy": policy_config.get("maxmemory-policy", "noeviction"),
++        "maxmemory_policy": policy_config.get("maxmemory-policy", "NOEVICTION"),
+         "maxmemory_human": f"{maxmemory_mb:.0f}MB" if maxmemory_mb > 0 else "unlimited",
+     }

@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_21: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -25,7 +25,7 @@
+
+         messages: list[AnalysisStreamMessage] = []
+         for entry in claimed_messages:
+-            message_id, data = entry[:2]
++            message_id, data = entry[:3]
+             if data is None:
+                 continue
+             try:

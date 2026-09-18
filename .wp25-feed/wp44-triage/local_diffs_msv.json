@@ -1,0 +1,1542 @@
+[
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_16",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_16(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "groups = data.get(\"data\", {}).get(\"groups\", [])",
+        "new": "groups = data.get(\"data\", {}).get(\"groups\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_18",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_18(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "groups = data.get(\"data\", {}).get(\"groups\", [])",
+        "new": "groups = data.get(\"data\", {}).get(\"groups\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_2",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_2(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "url = f\"{self._prometheus_url}/api/v1/rules\"",
+        "new": "url = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_20",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_20(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "groups = data.get(\"data\", {}).get(\"groups\", [])",
+        "new": "groups = data.get(\"data\", None).get(\"groups\", [])"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_22",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_22(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "groups = data.get(\"data\", {}).get(\"groups\", [])",
+        "new": "groups = data.get(\"data\", ).get(\"groups\", [])"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_34",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_34(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_35",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_35(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(None, \"unknown\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_36",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_36(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"name\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_37",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_37(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"unknown\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_38",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_38(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"name\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_39",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_39(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"XXnameXX\", \"unknown\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_4",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_4(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "response = await client.get(url)",
+        "new": "response = await client.get(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_40",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_40(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"NAME\", \"unknown\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_41",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_41(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"name\", \"XXunknownXX\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_42",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_42(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "group_name = group.get(\"name\", \"unknown\")",
+        "new": "group_name = group.get(\"name\", \"UNKNOWN\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_43",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_43(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "rule_groups.append(group_name)",
+        "new": "rule_groups.append(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_46",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_46(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "rules = group.get(\"rules\", [])",
+        "new": "rules = group.get(\"rules\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_48",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_48(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "rules = group.get(\"rules\", [])",
+        "new": "rules = group.get(\"rules\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_69",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_69(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "f\"Alerting rules: {healthy_rules}/{total_rules} healthy, {len(rule_groups)} groups\"",
+        "new": "None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_78",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_78(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "unhealthy_rules=unhealthy_rules,",
+        "new": ""
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_81",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_81(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Rules check failed: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_87",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_orig(self) -> AlertingRulesStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_alerting_rules__mutmut_87(self) -> AlertingRulesStatus:"
+      },
+      {
+        "old": "error=str(e),",
+        "new": "error=str(None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_14",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_14(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "database_status = health_data.get(\"database\", \"unknown\")",
+        "new": "database_status = health_data.get(\"database\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_16",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_16(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "database_status = health_data.get(\"database\", \"unknown\")",
+        "new": "database_status = health_data.get(\"database\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_19",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_19(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "database_status = health_data.get(\"database\", \"unknown\")",
+        "new": "database_status = health_data.get(\"database\", \"XXunknownXX\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_2",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_2(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "health_url = f\"{self._grafana_url}/api/health\"",
+        "new": "health_url = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_20",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_20(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "database_status = health_data.get(\"database\", \"unknown\")",
+        "new": "database_status = health_data.get(\"database\", \"UNKNOWN\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_21",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_21(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "dashboard_count = 0",
+        "new": "dashboard_count = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_22",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_22(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "dashboard_count = 0",
+        "new": "dashboard_count = 1"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_29",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_29(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "if not is_healthy:",
+        "new": "if is_healthy:"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_30",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_30(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Grafana database status: {database_status}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_4",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_4(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "health_response = await client.get(health_url)",
+        "new": "health_response = await client.get(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_42",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_42(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Grafana check timed out: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_51",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_51(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Grafana check failed: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_60",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_orig(self) -> GrafanaStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_grafana__mutmut_60(self) -> GrafanaStatus:"
+      },
+      {
+        "old": "error=str(e),",
+        "new": "error=str(None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_11",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_11(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "healthy=False,",
+        "new": ""
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_12",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_12(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "reachable=False,",
+        "new": ""
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_2",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_2(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "url = f\"{self._prometheus_url}/api/v1/targets\"",
+        "new": "url = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_25",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_25(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_27",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_27(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_29",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_29(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", None).get(\"activeTargets\", [])"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_31",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_31(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", ).get(\"activeTargets\", [])"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_4",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_4(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "response = await client.get(url)",
+        "new": "response = await client.get(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_44",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_44(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "up_count = sum(1 for t in active_targets if t.get(\"health\") == \"up\")",
+        "new": "up_count = sum(1 for t in active_targets if t.get(\"health\") != \"up\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_53",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_53(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "down_count = sum(1 for t in active_targets if t.get(\"health\") == \"down\")",
+        "new": "down_count = sum(1 for t in active_targets if t.get(\"health\") != \"down\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_56",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_56(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "logger.debug(f\"Prometheus targets: {up_count}/{total} up, {down_count} down\")",
+        "new": "logger.debug(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_69",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_69(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Prometheus check timed out: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_7",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_7(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Prometheus returned status {response.status_code}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_78",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_orig(self) -> PrometheusStatus:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1check_prometheus__mutmut_78(self) -> PrometheusStatus:"
+      },
+      {
+        "old": "logger.warning(f\"Prometheus check failed: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1close__mutmut_4",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1close__mutmut_orig(self) -> None:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1close__mutmut_4(self) -> None:"
+      },
+      {
+        "old": "self._http_client = None",
+        "new": "self._http_client = \"\""
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_10",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_orig(self) -> list[dict[str, Any]]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_10(self) -> list[dict[str, Any]]:"
+      },
+      {
+        "old": "logger.warning(f\"Failed to get dashboards: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_2",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_orig(self) -> list[dict[str, Any]]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_2(self) -> list[dict[str, Any]]:"
+      },
+      {
+        "old": "url = f\"{self._grafana_url}/api/search?type=dash-db\"",
+        "new": "url = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_4",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_orig(self) -> list[dict[str, Any]]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_4(self) -> list[dict[str, Any]]:"
+      },
+      {
+        "old": "response = await client.get(url)",
+        "new": "response = await client.get(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_9",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_orig(self) -> list[dict[str, Any]]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_dashboards__mutmut_9(self) -> list[dict[str, Any]]:"
+      },
+      {
+        "old": "return dashboards if isinstance(dashboards, list) else []",
+        "new": "return dashboards if (isinstance(dashboards, list)) or True else []"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_100",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_100(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape=t.get(\"lastScrape\"),",
+        "new": "last_scrape=t.get(\"LASTSCRAPE\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_101",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_101(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(None, 0.0),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_102",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_102(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(\"lastScrapeDuration\", None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_103",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_103(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(0.0),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_104",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_104(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(\"lastScrapeDuration\", ),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_105",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_105(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(\"XXlastScrapeDurationXX\", 0.0),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_106",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_106(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(\"lastscrapeduration\", 0.0),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_107",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_107(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(\"LASTSCRAPEDURATION\", 0.0),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_108",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_108(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=t.get(\"lastScrapeDuration\", 1.0),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_115",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_115(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "logger.warning(f\"Failed to get scrape targets: {e}\")",
+        "new": "logger.warning(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_17",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_17(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_19",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_19(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_2",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_2(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "url = f\"{self._prometheus_url}/api/v1/targets\"",
+        "new": "url = None"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_21",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_21(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", None).get(\"activeTargets\", [])"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_23",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_23(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "active_targets = data.get(\"data\", {}).get(\"activeTargets\", [])",
+        "new": "active_targets = data.get(\"data\", ).get(\"activeTargets\", [])"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_31",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_31(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "health_str = t.get(\"health\", \"unknown\")",
+        "new": "health_str = t.get(\"health\", None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_33",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_33(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "health_str = t.get(\"health\", \"unknown\")",
+        "new": "health_str = t.get(\"health\", )"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_36",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_36(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "health_str = t.get(\"health\", \"unknown\")",
+        "new": "health_str = t.get(\"health\", \"XXunknownXX\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_37",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_37(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "health_str = t.get(\"health\", \"unknown\")",
+        "new": "health_str = t.get(\"health\", \"UNKNOWN\")"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_4",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_4(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "response = await client.get(url)",
+        "new": "response = await client.get(None)"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_48",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_48(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=None,"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_49",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_49(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=None,"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_51",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_51(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape=t.get(\"lastScrape\"),",
+        "new": "last_scrape=None,"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_52",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_52(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": "last_scrape_duration=None,"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_58",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_58(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape=t.get(\"lastScrape\"),",
+        "new": ""
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_59",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_59(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape_duration=t.get(\"lastScrapeDuration\", 0.0),",
+        "new": ""
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_62",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_62(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "job=t.get(\"labels\", {}).get(\"job\", \"unknown\"),",
+        "new": "job=t.get(\"labels\", {}).get(\"job\", None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_64",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_64(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "job=t.get(\"labels\", {}).get(\"job\", \"unknown\"),",
+        "new": "job=t.get(\"labels\", {}).get(\"job\", ),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_66",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_66(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "job=t.get(\"labels\", {}).get(\"job\", \"unknown\"),",
+        "new": "job=t.get(\"labels\", None).get(\"job\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_68",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_68(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "job=t.get(\"labels\", {}).get(\"job\", \"unknown\"),",
+        "new": "job=t.get(\"labels\", ).get(\"job\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_73",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_73(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "job=t.get(\"labels\", {}).get(\"job\", \"unknown\"),",
+        "new": "job=t.get(\"labels\", {}).get(\"job\", \"XXunknownXX\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_74",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_74(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "job=t.get(\"labels\", {}).get(\"job\", \"unknown\"),",
+        "new": "job=t.get(\"labels\", {}).get(\"job\", \"UNKNOWN\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_75",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_75(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(None, \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_76",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_76(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"instance\", None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_77",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_77(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_78",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_78(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"instance\", ),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_79",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_79(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(None, {}).get(\"instance\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_80",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_80(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", None).get(\"instance\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_82",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_82(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", ).get(\"instance\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_83",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_83(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"XXlabelsXX\", {}).get(\"instance\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_84",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_84(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"LABELS\", {}).get(\"instance\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_85",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_85(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"XXinstanceXX\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_86",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_86(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"INSTANCE\", \"unknown\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_87",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_87(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"instance\", \"XXunknownXX\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_88",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_88(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "instance=t.get(\"labels\", {}).get(\"instance\", \"unknown\"),",
+        "new": "instance=t.get(\"labels\", {}).get(\"instance\", \"UNKNOWN\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_89",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_89(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(None, \"\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_90",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_90(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"scrapeUrl\", None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_91",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_91(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_92",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_92(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"scrapeUrl\", ),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_93",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_93(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"XXscrapeUrlXX\", \"\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_94",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_94(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"scrapeurl\", \"\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_95",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_95(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"SCRAPEURL\", \"\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_96",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_96(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "scrape_url=t.get(\"scrapeUrl\", \"\"),",
+        "new": "scrape_url=t.get(\"scrapeUrl\", \"XXXX\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_97",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_97(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape=t.get(\"lastScrape\"),",
+        "new": "last_scrape=t.get(None),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_98",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_98(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape=t.get(\"lastScrape\"),",
+        "new": "last_scrape=t.get(\"XXlastScrapeXX\"),"
+      }
+    ]
+  ],
+  [
+    "backend.services.monitoring_stack_validator.x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_99",
+    "DIFF",
+    [
+      {
+        "old": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_orig(self) -> list[ScrapeTarget]:",
+        "new": "async def x\u01c1MonitoringStackValidator\u01c1get_scrape_targets__mutmut_99(self) -> list[ScrapeTarget]:"
+      },
+      {
+        "old": "last_scrape=t.get(\"lastScrape\"),",
+        "new": "last_scrape=t.get(\"lastscrape\"),"
+      }
+    ]
+  ]
+]

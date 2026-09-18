@@ -1,0 +1,1765 @@
+===KEY=== backend.services.job_timeout_service.x_get_job_timeout_service__mutmut_3
+# backend.services.job_timeout_service.x_get_job_timeout_service__mutmut_3: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -9,5 +9,5 @@
+     """
+     global _job_timeout_service  # noqa: PLW0603
+     if _job_timeout_service is None:
+-        _job_timeout_service = JobTimeoutService(redis_client)
++        _job_timeout_service = JobTimeoutService(None)
+     return _job_timeout_service
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_10
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_10: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,7 +12,7 @@
+     # Get all active job IDs from the registry
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+-        "-inf",
++        "-INF",
+         "+inf",
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_11
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_11: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -13,7 +13,7 @@
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+         "-inf",
+-        "+inf",
++        "XX+infXX",
+     )
+
+     if not active_job_ids:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_12
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_12: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -13,7 +13,7 @@
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+         "-inf",
+-        "+inf",
++        "+INF",
+     )
+
+     if not active_job_ids:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_14
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_14: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         return results
+
+     logger.debug(
+-        "Checking for job timeouts",
++        None,
+         extra={"active_job_count": len(active_job_ids)},
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_15
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_15: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -21,7 +21,7 @@
+
+     logger.debug(
+         "Checking for job timeouts",
+-        extra={"active_job_count": len(active_job_ids)},
++        extra=None,
+     )
+
+     # Check each active job
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_17
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_17: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -21,8 +21,7 @@
+
+     logger.debug(
+         "Checking for job timeouts",
+-        extra={"active_job_count": len(active_job_ids)},
+-    )
++        )
+
+     # Check each active job
+     for job_id in active_job_ids:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_18
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_18: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         return results
+
+     logger.debug(
+-        "Checking for job timeouts",
++        "XXChecking for job timeoutsXX",
+         extra={"active_job_count": len(active_job_ids)},
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_19
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_19: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         return results
+
+     logger.debug(
+-        "Checking for job timeouts",
++        "checking for job timeouts",
+         extra={"active_job_count": len(active_job_ids)},
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_20
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_20: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         return results
+
+     logger.debug(
+-        "Checking for job timeouts",
++        "CHECKING FOR JOB TIMEOUTS",
+         extra={"active_job_count": len(active_job_ids)},
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_21
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_21: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -21,7 +21,7 @@
+
+     logger.debug(
+         "Checking for job timeouts",
+-        extra={"active_job_count": len(active_job_ids)},
++        extra={"XXactive_job_countXX": len(active_job_ids)},
+     )
+
+     # Check each active job
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_22
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_22: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -21,7 +21,7 @@
+
+     logger.debug(
+         "Checking for job timeouts",
+-        extra={"active_job_count": len(active_job_ids)},
++        extra={"ACTIVE_JOB_COUNT": len(active_job_ids)},
+     )
+
+     # Check each active job
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_24
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_24: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -27,7 +27,7 @@
+     # Check each active job
+     for job_id in active_job_ids:
+         try:
+-            job = await self._job_status_service.get_job_status(job_id)
++            job = await self._job_status_service.get_job_status(None)
+
+             if job is None:
+                 # Job might have been cleaned up
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_26
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_26: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -31,7 +31,7 @@
+
+             if job is None:
+                 # Job might have been cleaned up
+-                continue
++                break
+
+             if await self.is_job_timed_out(job):
+                 result = await self.handle_timeout(job)
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_3
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_3: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,7 +11,7 @@
+
+     # Get all active job IDs from the registry
+     active_job_ids = await self._redis.zrangebyscore(
+-        JOBS_ACTIVE_KEY,
++        None,
+         "-inf",
+         "+inf",
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_31
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_31: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -45,7 +45,7 @@
+
+     if results:
+         logger.info(
+-            "Handled timed-out jobs",
++            None,
+             extra={
+                 "timed_out_count": len(results),
+                 "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_32
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_32: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -46,10 +46,7 @@
+     if results:
+         logger.info(
+             "Handled timed-out jobs",
+-            extra={
+-                "timed_out_count": len(results),
+-                "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+-            },
++            extra=None,
+         )
+
+     return results
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_34
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_34: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -46,10 +46,6 @@
+     if results:
+         logger.info(
+             "Handled timed-out jobs",
+-            extra={
+-                "timed_out_count": len(results),
+-                "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+-            },
+-        )
++            )
+
+     return results
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_35
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_35: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -45,7 +45,7 @@
+
+     if results:
+         logger.info(
+-            "Handled timed-out jobs",
++            "XXHandled timed-out jobsXX",
+             extra={
+                 "timed_out_count": len(results),
+                 "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_36
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_36: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -45,7 +45,7 @@
+
+     if results:
+         logger.info(
+-            "Handled timed-out jobs",
++            "handled timed-out jobs",
+             extra={
+                 "timed_out_count": len(results),
+                 "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_37
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_37: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -45,7 +45,7 @@
+
+     if results:
+         logger.info(
+-            "Handled timed-out jobs",
++            "HANDLED TIMED-OUT JOBS",
+             extra={
+                 "timed_out_count": len(results),
+                 "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_38
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_38: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -47,7 +47,7 @@
+         logger.info(
+             "Handled timed-out jobs",
+             extra={
+-                "timed_out_count": len(results),
++                "XXtimed_out_countXX": len(results),
+                 "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_39
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_39: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -47,7 +47,7 @@
+         logger.info(
+             "Handled timed-out jobs",
+             extra={
+-                "timed_out_count": len(results),
++                "TIMED_OUT_COUNT": len(results),
+                 "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_4
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_4: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,7 +12,7 @@
+     # Get all active job IDs from the registry
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+-        "-inf",
++        None,
+         "+inf",
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_40
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_40: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -48,7 +48,7 @@
+             "Handled timed-out jobs",
+             extra={
+                 "timed_out_count": len(results),
+-                "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
++                "XXrescheduled_countXX": sum(1 for r in results if r.was_rescheduled),
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_41
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_41: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -48,7 +48,7 @@
+             "Handled timed-out jobs",
+             extra={
+                 "timed_out_count": len(results),
+-                "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
++                "RESCHEDULED_COUNT": sum(1 for r in results if r.was_rescheduled),
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_43
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_43: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -48,7 +48,7 @@
+             "Handled timed-out jobs",
+             extra={
+                 "timed_out_count": len(results),
+-                "rescheduled_count": sum(1 for r in results if r.was_rescheduled),
++                "rescheduled_count": sum(2 for r in results if r.was_rescheduled),
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_5
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_5: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -13,7 +13,7 @@
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+         "-inf",
+-        "+inf",
++        None,
+     )
+
+     if not active_job_ids:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_6
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_6: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,7 +11,6 @@
+
+     # Get all active job IDs from the registry
+     active_job_ids = await self._redis.zrangebyscore(
+-        JOBS_ACTIVE_KEY,
+         "-inf",
+         "+inf",
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_7
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_7: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,7 +12,6 @@
+     # Get all active job IDs from the registry
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+-        "-inf",
+         "+inf",
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_8
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_8: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -13,8 +13,7 @@
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+         "-inf",
+-        "+inf",
+-    )
++        )
+
+     if not active_job_ids:
+         return results
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_9
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcheck_for_timeouts__mutmut_9: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,7 +12,7 @@
+     # Get all active job IDs from the registry
+     active_job_ids = await self._redis.zrangebyscore(
+         JOBS_ACTIVE_KEY,
+-        "-inf",
++        "XX-infXX",
+         "+inf",
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_10
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_10: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,5 +12,4 @@
+
+     logger.debug(
+         "Cleaned up timeout data for job",
+-        extra={"job_id": job_id},
+-    )
++        )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_11
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_11: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,6 +11,6 @@
+     await self._redis.delete(attempts_key)
+
+     logger.debug(
+-        "Cleaned up timeout data for job",
++        "XXCleaned up timeout data for jobXX",
+         extra={"job_id": job_id},
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_12
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_12: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,6 +11,6 @@
+     await self._redis.delete(attempts_key)
+
+     logger.debug(
+-        "Cleaned up timeout data for job",
++        "cleaned up timeout data for job",
+         extra={"job_id": job_id},
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_13
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_13: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,6 +11,6 @@
+     await self._redis.delete(attempts_key)
+
+     logger.debug(
+-        "Cleaned up timeout data for job",
++        "CLEANED UP TIMEOUT DATA FOR JOB",
+         extra={"job_id": job_id},
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_14
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_14: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,5 +12,5 @@
+
+     logger.debug(
+         "Cleaned up timeout data for job",
+-        extra={"job_id": job_id},
++        extra={"XXjob_idXX": job_id},
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_15
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_15: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,5 +12,5 @@
+
+     logger.debug(
+         "Cleaned up timeout data for job",
+-        extra={"job_id": job_id},
++        extra={"JOB_ID": job_id},
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_7
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_7: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,6 +11,6 @@
+     await self._redis.delete(attempts_key)
+
+     logger.debug(
+-        "Cleaned up timeout data for job",
++        None,
+         extra={"job_id": job_id},
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_8
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁcleanup_timeout_data__mutmut_8: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,5 +12,5 @@
+
+     logger.debug(
+         "Cleaned up timeout data for job",
+-        extra={"job_id": job_id},
++        extra=None,
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_11
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_11: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -23,7 +23,7 @@
+     elif config and config.deadline:
+         timeout_msg = f"Job timed out (deadline: {config.deadline.isoformat()})"
+     else:
+-        default_timeout = self.get_default_timeout(job.job_type)
++        default_timeout = None
+         timeout_msg = f"Job timed out after {default_timeout} seconds (default timeout)"
+
+     # Mark the current job as failed
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_12
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_12: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -23,7 +23,7 @@
+     elif config and config.deadline:
+         timeout_msg = f"Job timed out (deadline: {config.deadline.isoformat()})"
+     else:
+-        default_timeout = self.get_default_timeout(job.job_type)
++        default_timeout = self.get_default_timeout(None)
+         timeout_msg = f"Job timed out after {default_timeout} seconds (default timeout)"
+
+     # Mark the current job as failed
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_18
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_18: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -33,7 +33,7 @@
+     )
+
+     logger.warning(
+-        "Job timed out",
++        None,
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_19
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_19: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -34,12 +34,7 @@
+
+     logger.warning(
+         "Job timed out",
+-        extra={
+-            "job_id": job.job_id,
+-            "job_type": job.job_type,
+-            "attempt": current_attempts + 1,
+-            "max_attempts": max_attempts,
+-        },
++        extra=None,
+     )
+
+     # Check if we should retry
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_2
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_2: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -12,7 +12,7 @@
+         Returns:
+             TimeoutResult with handling details.
+         """
+-    config = await self.get_timeout_config(job.job_id)
++    config = await self.get_timeout_config(None)
+     max_attempts = config.max_retry_attempts if config else DEFAULT_MAX_RETRY_ATTEMPTS
+
+     current_attempts = await self.get_attempt_count(job.job_id)
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_21
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_21: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -34,13 +34,7 @@
+
+     logger.warning(
+         "Job timed out",
+-        extra={
+-            "job_id": job.job_id,
+-            "job_type": job.job_type,
+-            "attempt": current_attempts + 1,
+-            "max_attempts": max_attempts,
+-        },
+-    )
++        )
+
+     # Check if we should retry
+     was_rescheduled = False
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_22
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_22: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -33,7 +33,7 @@
+     )
+
+     logger.warning(
+-        "Job timed out",
++        "XXJob timed outXX",
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_23
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_23: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -33,7 +33,7 @@
+     )
+
+     logger.warning(
+-        "Job timed out",
++        "job timed out",
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_24
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_24: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -33,7 +33,7 @@
+     )
+
+     logger.warning(
+-        "Job timed out",
++        "JOB TIMED OUT",
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_25
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_25: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -35,7 +35,7 @@
+     logger.warning(
+         "Job timed out",
+         extra={
+-            "job_id": job.job_id,
++            "XXjob_idXX": job.job_id,
+             "job_type": job.job_type,
+             "attempt": current_attempts + 1,
+             "max_attempts": max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_26
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_26: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -35,7 +35,7 @@
+     logger.warning(
+         "Job timed out",
+         extra={
+-            "job_id": job.job_id,
++            "JOB_ID": job.job_id,
+             "job_type": job.job_type,
+             "attempt": current_attempts + 1,
+             "max_attempts": max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_27
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_27: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -36,7 +36,7 @@
+         "Job timed out",
+         extra={
+             "job_id": job.job_id,
+-            "job_type": job.job_type,
++            "XXjob_typeXX": job.job_type,
+             "attempt": current_attempts + 1,
+             "max_attempts": max_attempts,
+         },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_28
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_28: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -36,7 +36,7 @@
+         "Job timed out",
+         extra={
+             "job_id": job.job_id,
+-            "job_type": job.job_type,
++            "JOB_TYPE": job.job_type,
+             "attempt": current_attempts + 1,
+             "max_attempts": max_attempts,
+         },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_29
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_29: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -37,7 +37,7 @@
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+-            "attempt": current_attempts + 1,
++            "XXattemptXX": current_attempts + 1,
+             "max_attempts": max_attempts,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_30
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_30: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -37,7 +37,7 @@
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+-            "attempt": current_attempts + 1,
++            "ATTEMPT": current_attempts + 1,
+             "max_attempts": max_attempts,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_31
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_31: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -37,7 +37,7 @@
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+-            "attempt": current_attempts + 1,
++            "attempt": current_attempts - 1,
+             "max_attempts": max_attempts,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_32
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_32: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -37,7 +37,7 @@
+         extra={
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+-            "attempt": current_attempts + 1,
++            "attempt": current_attempts + 2,
+             "max_attempts": max_attempts,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_33
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_33: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -38,7 +38,7 @@
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+             "attempt": current_attempts + 1,
+-            "max_attempts": max_attempts,
++            "XXmax_attemptsXX": max_attempts,
+         },
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_34
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_34: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -38,7 +38,7 @@
+             "job_id": job.job_id,
+             "job_type": job.job_type,
+             "attempt": current_attempts + 1,
+-            "max_attempts": max_attempts,
++            "MAX_ATTEMPTS": max_attempts,
+         },
+     )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_38
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_38: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -44,7 +44,7 @@
+
+     # Check if we should retry
+     was_rescheduled = False
+-    if current_attempts + 1 < max_attempts:
++    if current_attempts + 2 < max_attempts:
+         # Increment attempt counter
+         new_attempt = await self.increment_attempt_count(job.job_id)
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_41
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_41: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -46,7 +46,7 @@
+     was_rescheduled = False
+     if current_attempts + 1 < max_attempts:
+         # Increment attempt counter
+-        new_attempt = await self.increment_attempt_count(job.job_id)
++        new_attempt = await self.increment_attempt_count(None)
+
+         # Create a new job for retry with the same type
+         # Note: In a real implementation, you might want to store and restore
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_43
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_43: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -53,7 +53,7 @@
+         # the original job metadata for retry
+         retry_job_id = await self._job_status_service.start_job(
+             job_id=None,  # Generate new ID
+-            job_type=job.job_type,
++            job_type=None,
+             metadata={
+                 "retry_of": job.job_id,
+                 "attempt": new_attempt + 1,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_44
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_44: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -54,11 +54,7 @@
+         retry_job_id = await self._job_status_service.start_job(
+             job_id=None,  # Generate new ID
+             job_type=job.job_type,
+-            metadata={
+-                "retry_of": job.job_id,
+-                "attempt": new_attempt + 1,
+-                "original_extra": job.extra,
+-            },
++            metadata=None,
+         )
+
+         # Copy timeout config to new job
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_45
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_45: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -52,7 +52,6 @@
+         # Note: In a real implementation, you might want to store and restore
+         # the original job metadata for retry
+         retry_job_id = await self._job_status_service.start_job(
+-            job_id=None,  # Generate new ID
+             job_type=job.job_type,
+             metadata={
+                 "retry_of": job.job_id,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_46
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_46: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -53,7 +53,6 @@
+         # the original job metadata for retry
+         retry_job_id = await self._job_status_service.start_job(
+             job_id=None,  # Generate new ID
+-            job_type=job.job_type,
+             metadata={
+                 "retry_of": job.job_id,
+                 "attempt": new_attempt + 1,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_47
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_47: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -54,12 +54,7 @@
+         retry_job_id = await self._job_status_service.start_job(
+             job_id=None,  # Generate new ID
+             job_type=job.job_type,
+-            metadata={
+-                "retry_of": job.job_id,
+-                "attempt": new_attempt + 1,
+-                "original_extra": job.extra,
+-            },
+-        )
++            )
+
+         # Copy timeout config to new job
+         if config:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_48
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_48: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -55,7 +55,7 @@
+             job_id=None,  # Generate new ID
+             job_type=job.job_type,
+             metadata={
+-                "retry_of": job.job_id,
++                "XXretry_ofXX": job.job_id,
+                 "attempt": new_attempt + 1,
+                 "original_extra": job.extra,
+             },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_49
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_49: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -55,7 +55,7 @@
+             job_id=None,  # Generate new ID
+             job_type=job.job_type,
+             metadata={
+-                "retry_of": job.job_id,
++                "RETRY_OF": job.job_id,
+                 "attempt": new_attempt + 1,
+                 "original_extra": job.extra,
+             },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_50
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_50: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -56,7 +56,7 @@
+             job_type=job.job_type,
+             metadata={
+                 "retry_of": job.job_id,
+-                "attempt": new_attempt + 1,
++                "XXattemptXX": new_attempt + 1,
+                 "original_extra": job.extra,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_51
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_51: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -56,7 +56,7 @@
+             job_type=job.job_type,
+             metadata={
+                 "retry_of": job.job_id,
+-                "attempt": new_attempt + 1,
++                "ATTEMPT": new_attempt + 1,
+                 "original_extra": job.extra,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_52
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_52: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -56,7 +56,7 @@
+             job_type=job.job_type,
+             metadata={
+                 "retry_of": job.job_id,
+-                "attempt": new_attempt + 1,
++                "attempt": new_attempt - 1,
+                 "original_extra": job.extra,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_53
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_53: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -56,7 +56,7 @@
+             job_type=job.job_type,
+             metadata={
+                 "retry_of": job.job_id,
+-                "attempt": new_attempt + 1,
++                "attempt": new_attempt + 2,
+                 "original_extra": job.extra,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_54
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_54: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -57,7 +57,7 @@
+             metadata={
+                 "retry_of": job.job_id,
+                 "attempt": new_attempt + 1,
+-                "original_extra": job.extra,
++                "XXoriginal_extraXX": job.extra,
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_55
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_55: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -57,7 +57,7 @@
+             metadata={
+                 "retry_of": job.job_id,
+                 "attempt": new_attempt + 1,
+-                "original_extra": job.extra,
++                "ORIGINAL_EXTRA": job.extra,
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_56
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_56: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -63,7 +63,7 @@
+
+         # Copy timeout config to new job
+         if config:
+-            await self.set_timeout_config(retry_job_id, config)
++            await self.set_timeout_config(None, config)
+
+         logger.info(
+             "Job rescheduled for retry after timeout",
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_60
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_60: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -66,7 +66,7 @@
+             await self.set_timeout_config(retry_job_id, config)
+
+         logger.info(
+-            "Job rescheduled for retry after timeout",
++            None,
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_61
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_61: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -67,12 +67,7 @@
+
+         logger.info(
+             "Job rescheduled for retry after timeout",
+-            extra={
+-                "original_job_id": job.job_id,
+-                "retry_job_id": retry_job_id,
+-                "attempt": new_attempt + 1,
+-                "max_attempts": max_attempts,
+-            },
++            extra=None,
+         )
+
+         was_rescheduled = True
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_63
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_63: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -67,13 +67,7 @@
+
+         logger.info(
+             "Job rescheduled for retry after timeout",
+-            extra={
+-                "original_job_id": job.job_id,
+-                "retry_job_id": retry_job_id,
+-                "attempt": new_attempt + 1,
+-                "max_attempts": max_attempts,
+-            },
+-        )
++            )
+
+         was_rescheduled = True
+     else:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_64
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_64: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -66,7 +66,7 @@
+             await self.set_timeout_config(retry_job_id, config)
+
+         logger.info(
+-            "Job rescheduled for retry after timeout",
++            "XXJob rescheduled for retry after timeoutXX",
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_65
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_65: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -66,7 +66,7 @@
+             await self.set_timeout_config(retry_job_id, config)
+
+         logger.info(
+-            "Job rescheduled for retry after timeout",
++            "job rescheduled for retry after timeout",
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_66
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_66: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -66,7 +66,7 @@
+             await self.set_timeout_config(retry_job_id, config)
+
+         logger.info(
+-            "Job rescheduled for retry after timeout",
++            "JOB RESCHEDULED FOR RETRY AFTER TIMEOUT",
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_67
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_67: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -68,7 +68,7 @@
+         logger.info(
+             "Job rescheduled for retry after timeout",
+             extra={
+-                "original_job_id": job.job_id,
++                "XXoriginal_job_idXX": job.job_id,
+                 "retry_job_id": retry_job_id,
+                 "attempt": new_attempt + 1,
+                 "max_attempts": max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_68
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_68: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -68,7 +68,7 @@
+         logger.info(
+             "Job rescheduled for retry after timeout",
+             extra={
+-                "original_job_id": job.job_id,
++                "ORIGINAL_JOB_ID": job.job_id,
+                 "retry_job_id": retry_job_id,
+                 "attempt": new_attempt + 1,
+                 "max_attempts": max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_69
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_69: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -69,7 +69,7 @@
+             "Job rescheduled for retry after timeout",
+             extra={
+                 "original_job_id": job.job_id,
+-                "retry_job_id": retry_job_id,
++                "XXretry_job_idXX": retry_job_id,
+                 "attempt": new_attempt + 1,
+                 "max_attempts": max_attempts,
+             },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_7
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_7: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -15,7 +15,7 @@
+     config = await self.get_timeout_config(job.job_id)
+     max_attempts = config.max_retry_attempts if config else DEFAULT_MAX_RETRY_ATTEMPTS
+
+-    current_attempts = await self.get_attempt_count(job.job_id)
++    current_attempts = await self.get_attempt_count(None)
+
+     # Determine timeout duration for error message
+     if config and config.timeout_seconds:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_70
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_70: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -69,7 +69,7 @@
+             "Job rescheduled for retry after timeout",
+             extra={
+                 "original_job_id": job.job_id,
+-                "retry_job_id": retry_job_id,
++                "RETRY_JOB_ID": retry_job_id,
+                 "attempt": new_attempt + 1,
+                 "max_attempts": max_attempts,
+             },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_71
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_71: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -70,7 +70,7 @@
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+-                "attempt": new_attempt + 1,
++                "XXattemptXX": new_attempt + 1,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_72
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_72: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -70,7 +70,7 @@
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+-                "attempt": new_attempt + 1,
++                "ATTEMPT": new_attempt + 1,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_73
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_73: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -70,7 +70,7 @@
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+-                "attempt": new_attempt + 1,
++                "attempt": new_attempt - 1,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_74
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_74: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -70,7 +70,7 @@
+             extra={
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+-                "attempt": new_attempt + 1,
++                "attempt": new_attempt + 2,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_75
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_75: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -71,7 +71,7 @@
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+                 "attempt": new_attempt + 1,
+-                "max_attempts": max_attempts,
++                "XXmax_attemptsXX": max_attempts,
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_76
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_76: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -71,7 +71,7 @@
+                 "original_job_id": job.job_id,
+                 "retry_job_id": retry_job_id,
+                 "attempt": new_attempt + 1,
+-                "max_attempts": max_attempts,
++                "MAX_ATTEMPTS": max_attempts,
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_79
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_79: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -78,7 +78,7 @@
+         was_rescheduled = True
+     else:
+         logger.error(
+-            "Job permanently failed after max timeout attempts",
++            None,
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_80
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_80: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -79,12 +79,7 @@
+     else:
+         logger.error(
+             "Job permanently failed after max timeout attempts",
+-            extra={
+-                "job_id": job.job_id,
+-                "job_type": job.job_type,
+-                "attempts": current_attempts + 1,
+-                "max_attempts": max_attempts,
+-            },
++            extra=None,
+         )
+
+     return TimeoutResult(
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_82
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_82: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -79,13 +79,7 @@
+     else:
+         logger.error(
+             "Job permanently failed after max timeout attempts",
+-            extra={
+-                "job_id": job.job_id,
+-                "job_type": job.job_type,
+-                "attempts": current_attempts + 1,
+-                "max_attempts": max_attempts,
+-            },
+-        )
++            )
+
+     return TimeoutResult(
+         job_id=job.job_id,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_83
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_83: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -78,7 +78,7 @@
+         was_rescheduled = True
+     else:
+         logger.error(
+-            "Job permanently failed after max timeout attempts",
++            "XXJob permanently failed after max timeout attemptsXX",
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_84
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_84: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -78,7 +78,7 @@
+         was_rescheduled = True
+     else:
+         logger.error(
+-            "Job permanently failed after max timeout attempts",
++            "job permanently failed after max timeout attempts",
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_85
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_85: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -78,7 +78,7 @@
+         was_rescheduled = True
+     else:
+         logger.error(
+-            "Job permanently failed after max timeout attempts",
++            "JOB PERMANENTLY FAILED AFTER MAX TIMEOUT ATTEMPTS",
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_86
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_86: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -80,7 +80,7 @@
+         logger.error(
+             "Job permanently failed after max timeout attempts",
+             extra={
+-                "job_id": job.job_id,
++                "XXjob_idXX": job.job_id,
+                 "job_type": job.job_type,
+                 "attempts": current_attempts + 1,
+                 "max_attempts": max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_87
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_87: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -80,7 +80,7 @@
+         logger.error(
+             "Job permanently failed after max timeout attempts",
+             extra={
+-                "job_id": job.job_id,
++                "JOB_ID": job.job_id,
+                 "job_type": job.job_type,
+                 "attempts": current_attempts + 1,
+                 "max_attempts": max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_88
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_88: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -81,7 +81,7 @@
+             "Job permanently failed after max timeout attempts",
+             extra={
+                 "job_id": job.job_id,
+-                "job_type": job.job_type,
++                "XXjob_typeXX": job.job_type,
+                 "attempts": current_attempts + 1,
+                 "max_attempts": max_attempts,
+             },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_89
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_89: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -81,7 +81,7 @@
+             "Job permanently failed after max timeout attempts",
+             extra={
+                 "job_id": job.job_id,
+-                "job_type": job.job_type,
++                "JOB_TYPE": job.job_type,
+                 "attempts": current_attempts + 1,
+                 "max_attempts": max_attempts,
+             },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_90
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_90: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -82,7 +82,7 @@
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+-                "attempts": current_attempts + 1,
++                "XXattemptsXX": current_attempts + 1,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_91
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_91: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -82,7 +82,7 @@
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+-                "attempts": current_attempts + 1,
++                "ATTEMPTS": current_attempts + 1,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_92
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_92: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -82,7 +82,7 @@
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+-                "attempts": current_attempts + 1,
++                "attempts": current_attempts - 1,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_93
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_93: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -82,7 +82,7 @@
+             extra={
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+-                "attempts": current_attempts + 1,
++                "attempts": current_attempts + 2,
+                 "max_attempts": max_attempts,
+             },
+         )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_94
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_94: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -83,7 +83,7 @@
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+                 "attempts": current_attempts + 1,
+-                "max_attempts": max_attempts,
++                "XXmax_attemptsXX": max_attempts,
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_95
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_95: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -83,7 +83,7 @@
+                 "job_id": job.job_id,
+                 "job_type": job.job_type,
+                 "attempts": current_attempts + 1,
+-                "max_attempts": max_attempts,
++                "MAX_ATTEMPTS": max_attempts,
+             },
+         )
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_97
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁhandle_timeout__mutmut_97: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -89,7 +89,7 @@
+
+     return TimeoutResult(
+         job_id=job.job_id,
+-        job_type=job.job_type,
++        job_type=None,
+         was_rescheduled=was_rescheduled,
+         attempt_count=current_attempts + 1,
+         max_attempts=max_attempts,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁincrement_attempt_count__mutmut_4
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁincrement_attempt_count__mutmut_4: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -11,7 +11,7 @@
+             New attempt count.
+         """
+     key = self._get_attempts_key(job_id)
+-    current = await self.get_attempt_count(job_id)
++    current = await self.get_attempt_count(None)
+     new_count = current + 1
+     await self._redis.set(key, {"count": new_count}, expire=ATTEMPT_COUNT_TTL_SECONDS)
+     return new_count
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_15
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_15: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -29,7 +29,7 @@
+     # Check timeout_seconds (duration since started_at)
+     if config and config.timeout_seconds is not None:
+         timeout_at = job.started_at + timedelta(seconds=config.timeout_seconds)
+-        if now >= timeout_at:
++        if now > timeout_at:
+             return True
+
+     # Check absolute deadline
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_20
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_20: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -36,7 +36,7 @@
+     if config and config.deadline is not None:
+         # Ensure deadline is timezone-aware
+         deadline = config.deadline
+-        if deadline.tzinfo is None:
++        if deadline.tzinfo is not None:
+             deadline = deadline.replace(tzinfo=UTC)
+         if now >= deadline:
+             return True
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_21
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_21: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -38,7 +38,7 @@
+         deadline = config.deadline
+         if deadline.tzinfo is None:
+             deadline = deadline.replace(tzinfo=UTC)
+-        if now >= deadline:
++        if now > deadline:
+             return True
+
+     # If no explicit config, use default timeout based on job type
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_26
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_26: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -42,7 +42,7 @@
+             return True
+
+     # If no explicit config, use default timeout based on job type
+-    if config is None or (config.timeout_seconds is None and config.deadline is None):
++    if config is None or (config.timeout_seconds is not None and config.deadline is None):
+         default_timeout = self.get_default_timeout(job.job_type)
+         timeout_at = job.started_at + timedelta(seconds=default_timeout)
+         if now >= timeout_at:
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_29
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_29: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -43,7 +43,7 @@
+
+     # If no explicit config, use default timeout based on job type
+     if config is None or (config.timeout_seconds is None and config.deadline is None):
+-        default_timeout = self.get_default_timeout(job.job_type)
++        default_timeout = self.get_default_timeout(None)
+         timeout_at = job.started_at + timedelta(seconds=default_timeout)
+         if now >= timeout_at:
+             return True
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_33
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_33: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -45,7 +45,7 @@
+     if config is None or (config.timeout_seconds is None and config.deadline is None):
+         default_timeout = self.get_default_timeout(job.job_type)
+         timeout_at = job.started_at + timedelta(seconds=default_timeout)
+-        if now >= timeout_at:
++        if now > timeout_at:
+             return True
+
+     return False
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_6
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_6: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -22,7 +22,7 @@
+
+     # Get timeout config if not provided
+     if config is None:
+-        config = await self.get_timeout_config(job.job_id)
++        config = None
+
+     now = datetime.now(UTC)
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_7
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁis_job_timed_out__mutmut_7: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -22,7 +22,7 @@
+
+     # Get timeout config if not provided
+     if config is None:
+-        config = await self.get_timeout_config(job.job_id)
++        config = await self.get_timeout_config(None)
+
+     now = datetime.now(UTC)
+
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_10
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_10: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -17,10 +17,5 @@
+
+     logger.debug(
+         "Set timeout config for job",
+-        extra={
+-            "job_id": job_id,
+-            "timeout_seconds": config.timeout_seconds,
+-            "deadline": config.deadline.isoformat() if config.deadline else None,
+-            "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+-        },
++        extra=None,
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_12
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_12: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -17,10 +17,4 @@
+
+     logger.debug(
+         "Set timeout config for job",
+-        extra={
+-            "job_id": job_id,
+-            "timeout_seconds": config.timeout_seconds,
+-            "deadline": config.deadline.isoformat() if config.deadline else None,
+-            "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+-        },
+-    )
++        )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_13
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_13: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -16,7 +16,7 @@
+     await self._redis.set(key, config.to_dict(), expire=TIMEOUT_CONFIG_TTL_SECONDS)
+
+     logger.debug(
+-        "Set timeout config for job",
++        "XXSet timeout config for jobXX",
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_14
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_14: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -16,7 +16,7 @@
+     await self._redis.set(key, config.to_dict(), expire=TIMEOUT_CONFIG_TTL_SECONDS)
+
+     logger.debug(
+-        "Set timeout config for job",
++        "set timeout config for job",
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_15
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_15: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -16,7 +16,7 @@
+     await self._redis.set(key, config.to_dict(), expire=TIMEOUT_CONFIG_TTL_SECONDS)
+
+     logger.debug(
+-        "Set timeout config for job",
++        "SET TIMEOUT CONFIG FOR JOB",
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_16
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_16: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -18,7 +18,7 @@
+     logger.debug(
+         "Set timeout config for job",
+         extra={
+-            "job_id": job_id,
++            "XXjob_idXX": job_id,
+             "timeout_seconds": config.timeout_seconds,
+             "deadline": config.deadline.isoformat() if config.deadline else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_17
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_17: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -18,7 +18,7 @@
+     logger.debug(
+         "Set timeout config for job",
+         extra={
+-            "job_id": job_id,
++            "JOB_ID": job_id,
+             "timeout_seconds": config.timeout_seconds,
+             "deadline": config.deadline.isoformat() if config.deadline else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_18
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_18: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -19,7 +19,7 @@
+         "Set timeout config for job",
+         extra={
+             "job_id": job_id,
+-            "timeout_seconds": config.timeout_seconds,
++            "XXtimeout_secondsXX": config.timeout_seconds,
+             "deadline": config.deadline.isoformat() if config.deadline else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_19
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_19: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -19,7 +19,7 @@
+         "Set timeout config for job",
+         extra={
+             "job_id": job_id,
+-            "timeout_seconds": config.timeout_seconds,
++            "TIMEOUT_SECONDS": config.timeout_seconds,
+             "deadline": config.deadline.isoformat() if config.deadline else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_20
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_20: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+-            "deadline": config.deadline.isoformat() if config.deadline else None,
++            "XXdeadlineXX": config.deadline.isoformat() if config.deadline else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_21
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_21: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+-            "deadline": config.deadline.isoformat() if config.deadline else None,
++            "DEADLINE": config.deadline.isoformat() if config.deadline else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_22
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_22: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -20,7 +20,7 @@
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+-            "deadline": config.deadline.isoformat() if config.deadline else None,
++            "deadline": config.deadline.isoformat() if (config.deadline) and False else None,
+             "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_24
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_24: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -21,6 +21,6 @@
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+             "deadline": config.deadline.isoformat() if config.deadline else None,
+-            "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
++            "XXttl_secondsXX": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_25
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_25: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -21,6 +21,6 @@
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,
+             "deadline": config.deadline.isoformat() if config.deadline else None,
+-            "ttl_seconds": TIMEOUT_CONFIG_TTL_SECONDS,
++            "TTL_SECONDS": TIMEOUT_CONFIG_TTL_SECONDS,
+         },
+     )
+===KEY=== backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_9
+# backend.services.job_timeout_service.xǁJobTimeoutServiceǁset_timeout_config__mutmut_9: survived
+--- backend/services/job_timeout_service.py
++++ backend/services/job_timeout_service.py
+@@ -16,7 +16,7 @@
+     await self._redis.set(key, config.to_dict(), expire=TIMEOUT_CONFIG_TTL_SECONDS)
+
+     logger.debug(
+-        "Set timeout config for job",
++        None,
+         extra={
+             "job_id": job_id,
+             "timeout_seconds": config.timeout_seconds,

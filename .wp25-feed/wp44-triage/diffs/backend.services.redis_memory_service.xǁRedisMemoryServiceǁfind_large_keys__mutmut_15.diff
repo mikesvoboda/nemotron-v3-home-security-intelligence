@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁfind_large_keys__mutmut_15: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -27,7 +27,7 @@
+             if memory_bytes is not None and memory_bytes >= min_size_bytes:
+                 large_keys.append(
+                     KeyMemoryInfo(
+-                        key=key,
++                        key=None,
+                         memory_bytes=memory_bytes,
+                         memory_kb=memory_bytes / 1024,
+                     )

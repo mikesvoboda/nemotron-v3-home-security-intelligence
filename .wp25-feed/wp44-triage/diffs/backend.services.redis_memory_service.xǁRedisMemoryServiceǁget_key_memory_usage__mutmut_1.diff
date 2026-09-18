@@ -1,0 +1,9 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_key_memory_usage__mutmut_1: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -7,4 +7,4 @@
+         Returns:
+             Memory usage in bytes, or None if key doesn't exist
+         """
+-    return await self._redis.memory_usage(key)
++    return await self._redis.memory_usage(None)

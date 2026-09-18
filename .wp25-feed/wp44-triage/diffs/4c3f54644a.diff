@@ -1,0 +1,9 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_weather_risk_modifier__mutmut_2: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -10,4 +10,4 @@
+         """
+     from backend.services.weather_loader import get_weather_risk_modifier
+
+-    return get_weather_risk_modifier(self.weather_classification, self._determine_nighttime())
++    return get_weather_risk_modifier(self.weather_classification, None)

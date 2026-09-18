@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁconsume_batches__mutmut_10: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -17,7 +17,7 @@
+             consumer_name,
+             {self._stream_key: ">"},
+             count=count,
+-            block=block_ms,
++            block=None,
+         )
+
+         if not result:

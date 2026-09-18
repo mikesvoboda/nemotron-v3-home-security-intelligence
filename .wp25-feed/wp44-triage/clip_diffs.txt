@@ -1,0 +1,2456 @@
+=====KEY backend.services.clip_generator.x__validate_roll_seconds__mutmut_3
+# backend.services.clip_generator.x__validate_roll_seconds__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -12,7 +12,7 @@
+         ValueError: If value is invalid
+     """
+     if not isinstance(seconds, int):
+-        raise ValueError(f"{param_name} must be an integer, got {type(seconds).__name__}")
++        raise ValueError(f"{param_name} must be an integer, got {type(None).__name__}")
+     # Reasonable bounds: 0 to 5 minutes (300 seconds)
+     if seconds < 0 or seconds > 300:
+         raise ValueError(f"{param_name} must be between 0 and 300 seconds, got {seconds}")
+____END
+=====KEY backend.services.clip_generator.x__validate_roll_seconds__mutmut_8
+# backend.services.clip_generator.x__validate_roll_seconds__mutmut_8: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -14,6 +14,6 @@
+     if not isinstance(seconds, int):
+         raise ValueError(f"{param_name} must be an integer, got {type(seconds).__name__}")
+     # Reasonable bounds: 0 to 5 minutes (300 seconds)
+-    if seconds < 0 or seconds > 300:
++    if seconds < 0 or seconds > 301:
+         raise ValueError(f"{param_name} must be between 0 and 300 seconds, got {seconds}")
+     return seconds
+____END
+=====KEY backend.services.clip_generator.x__validate_fps__mutmut_3
+# backend.services.clip_generator.x__validate_fps__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -11,7 +11,7 @@
+         ValueError: If fps is invalid or out of bounds
+     """
+     if not isinstance(fps, int):
+-        raise ValueError(f"fps must be an integer, got {type(fps).__name__}")
++        raise ValueError(f"fps must be an integer, got {type(None).__name__}")
+     if not (1 <= fps <= 60):
+         raise ValueError(f"fps must be between 1 and 60, got {fps}")
+     return fps
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_2
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_2: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ClipGenerationError: If ffmpeg command fails
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug(None)
+         return None
+
+     # Validate video path to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_3
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ClipGenerationError: If ffmpeg command fails
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("XXClip generation is disabledXX")
+         return None
+
+     # Validate video path to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_4
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_4: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ClipGenerationError: If ffmpeg command fails
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("clip generation is disabled")
+         return None
+
+     # Validate video path to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_5
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_5: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ClipGenerationError: If ffmpeg command fails
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("CLIP GENERATION IS DISABLED")
+         return None
+
+     # Validate video path to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_8
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_8: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -30,7 +30,7 @@
+     try:
+         validated_path = _validate_video_path(video_path)
+     except ValueError as e:
+-        logger.error(f"Video path validation failed: {e}")
++        logger.error(None)
+         return None
+
+     # Get and validate pre/post roll seconds
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_19
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_19: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -38,7 +38,7 @@
+     post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
+
+     try:
+-        validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
++        validated_pre = _validate_roll_seconds(pre_seconds, None)
+         validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+     except ValueError as e:
+         logger.error(f"Roll seconds validation failed: {e}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_22
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_22: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -38,7 +38,7 @@
+     post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
+
+     try:
+-        validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
++        validated_pre = _validate_roll_seconds(pre_seconds, "XXpre_secondsXX")
+         validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+     except ValueError as e:
+         logger.error(f"Roll seconds validation failed: {e}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_23
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_23: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -38,7 +38,7 @@
+     post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
+
+     try:
+-        validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
++        validated_pre = _validate_roll_seconds(pre_seconds, "PRE_SECONDS")
+         validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+     except ValueError as e:
+         logger.error(f"Roll seconds validation failed: {e}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_26
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_26: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -39,7 +39,7 @@
+
+     try:
+         validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+-        validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
++        validated_post = _validate_roll_seconds(post_seconds, None)
+     except ValueError as e:
+         logger.error(f"Roll seconds validation failed: {e}")
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_29
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_29: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -39,7 +39,7 @@
+
+     try:
+         validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+-        validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
++        validated_post = _validate_roll_seconds(post_seconds, "XXpost_secondsXX")
+     except ValueError as e:
+         logger.error(f"Roll seconds validation failed: {e}")
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_30
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_30: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -39,7 +39,7 @@
+
+     try:
+         validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+-        validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
++        validated_post = _validate_roll_seconds(post_seconds, "POST_SECONDS")
+     except ValueError as e:
+         logger.error(f"Roll seconds validation failed: {e}")
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_31
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_31: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -41,7 +41,7 @@
+         validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+         validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+     except ValueError as e:
+-        logger.error(f"Roll seconds validation failed: {e}")
++        logger.error(None)
+         return None
+
+     # Calculate start and end times
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_36
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_36: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -51,7 +51,7 @@
+     # Apply pre/post roll
+     # Convert to seconds from video start (assuming video starts at midnight of the same day)
+     # For simplicity, we'll use the event times directly and calculate duration
+-    duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
++    duration = (end_time - start_time).total_seconds() + validated_pre - validated_post
+
+     # Validate duration is reasonable (max 1 hour)
+     if duration < 0 or duration > 3600:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_37
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_37: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -51,7 +51,7 @@
+     # Apply pre/post roll
+     # Convert to seconds from video start (assuming video starts at midnight of the same day)
+     # For simplicity, we'll use the event times directly and calculate duration
+-    duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
++    duration = (end_time - start_time).total_seconds() - validated_pre + validated_post
+
+     # Validate duration is reasonable (max 1 hour)
+     if duration < 0 or duration > 3600:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_40
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_40: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -54,7 +54,7 @@
+     duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+
+     # Validate duration is reasonable (max 1 hour)
+-    if duration < 0 or duration > 3600:
++    if duration <= 0 or duration > 3600:
+         logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
+         return None
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_41
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_41: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -54,7 +54,7 @@
+     duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+
+     # Validate duration is reasonable (max 1 hour)
+-    if duration < 0 or duration > 3600:
++    if duration < 1 or duration > 3600:
+         logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
+         return None
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_42
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_42: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -54,7 +54,7 @@
+     duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+
+     # Validate duration is reasonable (max 1 hour)
+-    if duration < 0 or duration > 3600:
++    if duration < 0 or duration >= 3600:
+         logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
+         return None
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_43
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_43: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -54,7 +54,7 @@
+     duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+
+     # Validate duration is reasonable (max 1 hour)
+-    if duration < 0 or duration > 3600:
++    if duration < 0 or duration > 3601:
+         logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
+         return None
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_44
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_44: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -55,7 +55,7 @@
+
+     # Validate duration is reasonable (max 1 hour)
+     if duration < 0 or duration > 3600:
+-        logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
++        logger.error(None)
+         return None
+
+     # Generate output filename
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_50
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_50: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+     # -c:a copy: copy audio stream if present
+     cmd = [
+         "ffmpeg",
+-        "-y",  # Overwrite output file
++        "XX-yXX",  # Overwrite output file
+         "-ss",
+         str(validated_pre),  # Seek offset (relative, validated)
+         "-i",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_51
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_51: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+     # -c:a copy: copy audio stream if present
+     cmd = [
+         "ffmpeg",
+-        "-y",  # Overwrite output file
++        "-Y",  # Overwrite output file
+         "-ss",
+         str(validated_pre),  # Seek offset (relative, validated)
+         "-i",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_58
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_58: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -75,7 +75,7 @@
+         str(validated_pre),  # Seek offset (relative, validated)
+         "-i",
+         str(validated_path),  # Input file (validated)
+-        "-t",
++        "XX-tXX",
+         str(duration),  # Duration (validated)
+         "-c:v",
+         "libx264",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_59
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_59: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -75,7 +75,7 @@
+         str(validated_pre),  # Seek offset (relative, validated)
+         "-i",
+         str(validated_path),  # Input file (validated)
+-        "-t",
++        "-T",
+         str(duration),  # Duration (validated)
+         "-c:v",
+         "libx264",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_60
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_60: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -76,7 +76,7 @@
+         "-i",
+         str(validated_path),  # Input file (validated)
+         "-t",
+-        str(duration),  # Duration (validated)
++        str(None),  # Duration (validated)
+         "-c:v",
+         "libx264",
+         "-preset",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_61
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_61: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -77,7 +77,7 @@
+         str(validated_path),  # Input file (validated)
+         "-t",
+         str(duration),  # Duration (validated)
+-        "-c:v",
++        "XX-c:vXX",
+         "libx264",
+         "-preset",
+         "fast",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_62
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_62: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -77,7 +77,7 @@
+         str(validated_path),  # Input file (validated)
+         "-t",
+         str(duration),  # Duration (validated)
+-        "-c:v",
++        "-C:V",
+         "libx264",
+         "-preset",
+         "fast",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_63
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_63: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -78,7 +78,7 @@
+         "-t",
+         str(duration),  # Duration (validated)
+         "-c:v",
+-        "libx264",
++        "XXlibx264XX",
+         "-preset",
+         "fast",
+         "-crf",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_64
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_64: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -78,7 +78,7 @@
+         "-t",
+         str(duration),  # Duration (validated)
+         "-c:v",
+-        "libx264",
++        "LIBX264",
+         "-preset",
+         "fast",
+         "-crf",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_65
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_65: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -79,7 +79,7 @@
+         str(duration),  # Duration (validated)
+         "-c:v",
+         "libx264",
+-        "-preset",
++        "XX-presetXX",
+         "fast",
+         "-crf",
+         "23",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_66
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_66: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -79,7 +79,7 @@
+         str(duration),  # Duration (validated)
+         "-c:v",
+         "libx264",
+-        "-preset",
++        "-PRESET",
+         "fast",
+         "-crf",
+         "23",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_67
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_67: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -80,7 +80,7 @@
+         "-c:v",
+         "libx264",
+         "-preset",
+-        "fast",
++        "XXfastXX",
+         "-crf",
+         "23",
+         "-c:a",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_68
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_68: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -80,7 +80,7 @@
+         "-c:v",
+         "libx264",
+         "-preset",
+-        "fast",
++        "FAST",
+         "-crf",
+         "23",
+         "-c:a",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_69
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_69: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -81,7 +81,7 @@
+         "libx264",
+         "-preset",
+         "fast",
+-        "-crf",
++        "XX-crfXX",
+         "23",
+         "-c:a",
+         "copy",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_70
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_70: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -81,7 +81,7 @@
+         "libx264",
+         "-preset",
+         "fast",
+-        "-crf",
++        "-CRF",
+         "23",
+         "-c:a",
+         "copy",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_71
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_71: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -82,7 +82,7 @@
+         "-preset",
+         "fast",
+         "-crf",
+-        "23",
++        "XX23XX",
+         "-c:a",
+         "copy",
+         "-movflags",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_72
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_72: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -83,7 +83,7 @@
+         "fast",
+         "-crf",
+         "23",
+-        "-c:a",
++        "XX-c:aXX",
+         "copy",
+         "-movflags",
+         "+faststart",  # Enable fast start for web playback
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_73
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_73: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -83,7 +83,7 @@
+         "fast",
+         "-crf",
+         "23",
+-        "-c:a",
++        "-C:A",
+         "copy",
+         "-movflags",
+         "+faststart",  # Enable fast start for web playback
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_74
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_74: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -84,7 +84,7 @@
+         "-crf",
+         "23",
+         "-c:a",
+-        "copy",
++        "XXcopyXX",
+         "-movflags",
+         "+faststart",  # Enable fast start for web playback
+         str(output_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_75
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_75: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -84,7 +84,7 @@
+         "-crf",
+         "23",
+         "-c:a",
+-        "copy",
++        "COPY",
+         "-movflags",
+         "+faststart",  # Enable fast start for web playback
+         str(output_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_76
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_76: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -85,7 +85,7 @@
+         "23",
+         "-c:a",
+         "copy",
+-        "-movflags",
++        "XX-movflagsXX",
+         "+faststart",  # Enable fast start for web playback
+         str(output_path),
+     ]
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_77
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_77: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -85,7 +85,7 @@
+         "23",
+         "-c:a",
+         "copy",
+-        "-movflags",
++        "-MOVFLAGS",
+         "+faststart",  # Enable fast start for web playback
+         str(output_path),
+     ]
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_78
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_78: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -86,7 +86,7 @@
+         "-c:a",
+         "copy",
+         "-movflags",
+-        "+faststart",  # Enable fast start for web playback
++        "XX+faststartXX",  # Enable fast start for web playback
+         str(output_path),
+     ]
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_79
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_79: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -86,7 +86,7 @@
+         "-c:a",
+         "copy",
+         "-movflags",
+-        "+faststart",  # Enable fast start for web playback
++        "+FASTSTART",  # Enable fast start for web playback
+         str(output_path),
+     ]
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_81
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_81: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -91,7 +91,7 @@
+     ]
+
+     try:
+-        logger.info(f"Generating clip for event {event.id} from video {video_path}")
++        logger.info(None)
+         logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+
+         process = await asyncio.create_subprocess_exec(
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_82
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_82: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -92,7 +92,7 @@
+
+     try:
+         logger.info(f"Generating clip for event {event.id} from video {video_path}")
+-        logger.debug(f"FFmpeg command: {' '.join(cmd)}")
++        logger.debug(None)
+
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_84
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_84: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -92,7 +92,7 @@
+
+     try:
+         logger.info(f"Generating clip for event {event.id} from video {video_path}")
+-        logger.debug(f"FFmpeg command: {' '.join(cmd)}")
++        logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
+
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_86
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_86: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -96,7 +96,7 @@
+
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+-            stdout=asyncio.subprocess.PIPE,
++            stdout=None,
+             stderr=asyncio.subprocess.PIPE,
+         )
+         _stdout, stderr = await process.communicate()
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_87
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_87: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -97,7 +97,7 @@
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+             stdout=asyncio.subprocess.PIPE,
+-            stderr=asyncio.subprocess.PIPE,
++            stderr=None,
+         )
+         _stdout, stderr = await process.communicate()
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_89
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_89: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -96,7 +96,6 @@
+
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+-            stdout=asyncio.subprocess.PIPE,
+             stderr=asyncio.subprocess.PIPE,
+         )
+         _stdout, stderr = await process.communicate()
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_90
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_90: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -97,8 +97,7 @@
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+             stdout=asyncio.subprocess.PIPE,
+-            stderr=asyncio.subprocess.PIPE,
+-        )
++            )
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_94
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_94: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -102,7 +102,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = None
+             logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_95
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_95: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -102,7 +102,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if (stderr) and False else "Unknown error"
+             logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_96
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_96: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -102,7 +102,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if (stderr) or True else "Unknown error"
+             logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_97
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_97: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -102,7 +102,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
+             logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_98
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_98: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -102,7 +102,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "unknown error"
+             logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_99
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_99: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -102,7 +102,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
+             logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_100
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_100: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -103,7 +103,7 @@
+
+         if process.returncode != 0:
+             error_msg = stderr.decode() if stderr else "Unknown error"
+-            logger.error(f"FFmpeg failed for event {event.id}: {error_msg}")
++            logger.error(None)
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+             )
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_102
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_102: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -109,7 +109,7 @@
+             )
+
+         if output_path.exists():
+-            logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
++            logger.info(None)
+             return output_path
+
+         logger.error(f"Clip file not created: {output_path}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_103
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_103: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -112,7 +112,7 @@
+             logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
+             return output_path
+
+-        logger.error(f"Clip file not created: {output_path}")
++        logger.error(None)
+         return None
+
+     except FileNotFoundError:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_104
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_104: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -116,7 +116,7 @@
+         return None
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error(None)
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_105
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_105: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -116,7 +116,7 @@
+         return None
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error("XXffmpeg not found. Please ensure ffmpeg is installed.XX")
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_106
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_106: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -116,7 +116,7 @@
+         return None
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error("ffmpeg not found. please ensure ffmpeg is installed.")
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_107
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_107: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -116,7 +116,7 @@
+         return None
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error("FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.")
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_108
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_108: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -121,5 +121,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(None, exc_info=True)
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_109
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_109: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -121,5 +121,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=None)
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_111
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_111: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -121,5 +121,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(f"Failed to generate clip for event {event.id}: {e}", )
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_112
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_video__mutmut_112: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -121,5 +121,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=False)
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_8
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_8: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -22,7 +22,7 @@
+         # GIF generation
+         cmd = [
+             "ffmpeg",
+-            "-y",
++            "XX-yXX",
+             "-f",
+             "concat",
+             "-safe",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_9
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_9: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -22,7 +22,7 @@
+         # GIF generation
+         cmd = [
+             "ffmpeg",
+-            "-y",
++            "-Y",
+             "-f",
+             "concat",
+             "-safe",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_10
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_10: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+         cmd = [
+             "ffmpeg",
+             "-y",
+-            "-f",
++            "XX-fXX",
+             "concat",
+             "-safe",
+             "0",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_11
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_11: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+         cmd = [
+             "ffmpeg",
+             "-y",
+-            "-f",
++            "-F",
+             "concat",
+             "-safe",
+             "0",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_12
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_12: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -24,7 +24,7 @@
+             "ffmpeg",
+             "-y",
+             "-f",
+-            "concat",
++            "XXconcatXX",
+             "-safe",
+             "0",
+             "-i",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_13
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_13: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -24,7 +24,7 @@
+             "ffmpeg",
+             "-y",
+             "-f",
+-            "concat",
++            "CONCAT",
+             "-safe",
+             "0",
+             "-i",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_14
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_14: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -25,7 +25,7 @@
+             "-y",
+             "-f",
+             "concat",
+-            "-safe",
++            "XX-safeXX",
+             "0",
+             "-i",
+             str(list_file_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_15
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_15: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -25,7 +25,7 @@
+             "-y",
+             "-f",
+             "concat",
+-            "-safe",
++            "-SAFE",
+             "0",
+             "-i",
+             str(list_file_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_16
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_16: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -26,7 +26,7 @@
+             "-f",
+             "concat",
+             "-safe",
+-            "0",
++            "XX0XX",
+             "-i",
+             str(list_file_path),
+             "-vf",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_17
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_17: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -27,7 +27,7 @@
+             "concat",
+             "-safe",
+             "0",
+-            "-i",
++            "XX-iXX",
+             str(list_file_path),
+             "-vf",
+             f"fps={fps},scale=320:-1:flags=lanczos",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_18
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_18: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -27,7 +27,7 @@
+             "concat",
+             "-safe",
+             "0",
+-            "-i",
++            "-I",
+             str(list_file_path),
+             "-vf",
+             f"fps={fps},scale=320:-1:flags=lanczos",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_19
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_19: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -28,7 +28,7 @@
+             "-safe",
+             "0",
+             "-i",
+-            str(list_file_path),
++            str(None),
+             "-vf",
+             f"fps={fps},scale=320:-1:flags=lanczos",
+             "-loop",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_20
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_20: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -29,7 +29,7 @@
+             "0",
+             "-i",
+             str(list_file_path),
+-            "-vf",
++            "XX-vfXX",
+             f"fps={fps},scale=320:-1:flags=lanczos",
+             "-loop",
+             "0",  # Infinite loop
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_21
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_21: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -29,7 +29,7 @@
+             "0",
+             "-i",
+             str(list_file_path),
+-            "-vf",
++            "-VF",
+             f"fps={fps},scale=320:-1:flags=lanczos",
+             "-loop",
+             "0",  # Infinite loop
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_24
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_24: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -32,7 +32,7 @@
+             "-vf",
+             f"fps={fps},scale=320:-1:flags=lanczos",
+             "-loop",
+-            "0",  # Infinite loop
++            "XX0XX",  # Infinite loop
+             str(output_path),
+         ]
+     else:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_25
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_25: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -33,7 +33,7 @@
+             f"fps={fps},scale=320:-1:flags=lanczos",
+             "-loop",
+             "0",  # Infinite loop
+-            str(output_path),
++            str(None),
+         ]
+     else:
+         # MP4 generation
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_29
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_29: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -39,7 +39,7 @@
+         # MP4 generation
+         cmd = [
+             "ffmpeg",
+-            "-y",
++            "XX-yXX",
+             "-f",
+             "concat",
+             "-safe",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_30
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_30: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -39,7 +39,7 @@
+         # MP4 generation
+         cmd = [
+             "ffmpeg",
+-            "-y",
++            "-Y",
+             "-f",
+             "concat",
+             "-safe",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_31
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_31: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -40,7 +40,7 @@
+         cmd = [
+             "ffmpeg",
+             "-y",
+-            "-f",
++            "XX-fXX",
+             "concat",
+             "-safe",
+             "0",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_32
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_32: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -40,7 +40,7 @@
+         cmd = [
+             "ffmpeg",
+             "-y",
+-            "-f",
++            "-F",
+             "concat",
+             "-safe",
+             "0",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_33
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_33: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -41,7 +41,7 @@
+             "ffmpeg",
+             "-y",
+             "-f",
+-            "concat",
++            "XXconcatXX",
+             "-safe",
+             "0",
+             "-i",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_34
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_34: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -41,7 +41,7 @@
+             "ffmpeg",
+             "-y",
+             "-f",
+-            "concat",
++            "CONCAT",
+             "-safe",
+             "0",
+             "-i",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_35
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_35: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -42,7 +42,7 @@
+             "-y",
+             "-f",
+             "concat",
+-            "-safe",
++            "XX-safeXX",
+             "0",
+             "-i",
+             str(list_file_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_36
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_36: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -42,7 +42,7 @@
+             "-y",
+             "-f",
+             "concat",
+-            "-safe",
++            "-SAFE",
+             "0",
+             "-i",
+             str(list_file_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_37
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_37: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -43,7 +43,7 @@
+             "-f",
+             "concat",
+             "-safe",
+-            "0",
++            "XX0XX",
+             "-i",
+             str(list_file_path),
+             "-c:v",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_38
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_38: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -44,7 +44,7 @@
+             "concat",
+             "-safe",
+             "0",
+-            "-i",
++            "XX-iXX",
+             str(list_file_path),
+             "-c:v",
+             "libx264",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_39
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_39: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -44,7 +44,7 @@
+             "concat",
+             "-safe",
+             "0",
+-            "-i",
++            "-I",
+             str(list_file_path),
+             "-c:v",
+             "libx264",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_40
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_40: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -45,7 +45,7 @@
+             "-safe",
+             "0",
+             "-i",
+-            str(list_file_path),
++            str(None),
+             "-c:v",
+             "libx264",
+             "-preset",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_45
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_45: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -48,7 +48,7 @@
+             str(list_file_path),
+             "-c:v",
+             "libx264",
+-            "-preset",
++            "XX-presetXX",
+             "fast",
+             "-crf",
+             "23",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_46
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_46: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -48,7 +48,7 @@
+             str(list_file_path),
+             "-c:v",
+             "libx264",
+-            "-preset",
++            "-PRESET",
+             "fast",
+             "-crf",
+             "23",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_47
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_47: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -49,7 +49,7 @@
+             "-c:v",
+             "libx264",
+             "-preset",
+-            "fast",
++            "XXfastXX",
+             "-crf",
+             "23",
+             "-pix_fmt",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_48
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_48: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -49,7 +49,7 @@
+             "-c:v",
+             "libx264",
+             "-preset",
+-            "fast",
++            "FAST",
+             "-crf",
+             "23",
+             "-pix_fmt",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_49
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_49: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -50,7 +50,7 @@
+             "libx264",
+             "-preset",
+             "fast",
+-            "-crf",
++            "XX-crfXX",
+             "23",
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_50
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_50: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -50,7 +50,7 @@
+             "libx264",
+             "-preset",
+             "fast",
+-            "-crf",
++            "-CRF",
+             "23",
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_51
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_51: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -51,7 +51,7 @@
+             "-preset",
+             "fast",
+             "-crf",
+-            "23",
++            "XX23XX",
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+             "-movflags",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_52
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_52: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -52,7 +52,7 @@
+             "fast",
+             "-crf",
+             "23",
+-            "-pix_fmt",
++            "XX-pix_fmtXX",
+             "yuv420p",  # Compatibility
+             "-movflags",
+             "+faststart",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_53
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_53: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -52,7 +52,7 @@
+             "fast",
+             "-crf",
+             "23",
+-            "-pix_fmt",
++            "-PIX_FMT",
+             "yuv420p",  # Compatibility
+             "-movflags",
+             "+faststart",
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_54
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_54: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -53,7 +53,7 @@
+             "-crf",
+             "23",
+             "-pix_fmt",
+-            "yuv420p",  # Compatibility
++            "XXyuv420pXX",  # Compatibility
+             "-movflags",
+             "+faststart",
+             str(output_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_55
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_55: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -53,7 +53,7 @@
+             "-crf",
+             "23",
+             "-pix_fmt",
+-            "yuv420p",  # Compatibility
++            "YUV420P",  # Compatibility
+             "-movflags",
+             "+faststart",
+             str(output_path),
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_56
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_56: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -54,7 +54,7 @@
+             "23",
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+-            "-movflags",
++            "XX-movflagsXX",
+             "+faststart",
+             str(output_path),
+         ]
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_57
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_57: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -54,7 +54,7 @@
+             "23",
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+-            "-movflags",
++            "-MOVFLAGS",
+             "+faststart",
+             str(output_path),
+         ]
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_58
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_58: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -55,7 +55,7 @@
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+             "-movflags",
+-            "+faststart",
++            "XX+faststartXX",
+             str(output_path),
+         ]
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_59
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_59: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -55,7 +55,7 @@
+             "-pix_fmt",
+             "yuv420p",  # Compatibility
+             "-movflags",
+-            "+faststart",
++            "+FASTSTART",
+             str(output_path),
+         ]
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_60
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_60: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -56,7 +56,7 @@
+             "yuv420p",  # Compatibility
+             "-movflags",
+             "+faststart",
+-            str(output_path),
++            str(None),
+         ]
+
+     logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_61
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_61: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -59,7 +59,7 @@
+             str(output_path),
+         ]
+
+-    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
++    logger.debug(None)
+
+     try:
+         process = await asyncio.create_subprocess_exec(
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_63
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_63: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -59,7 +59,7 @@
+             str(output_path),
+         ]
+
+-    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
++    logger.debug(f"FFmpeg command: {'XX XX'.join(cmd)}")
+
+     try:
+         process = await asyncio.create_subprocess_exec(
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_65
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_65: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -64,7 +64,7 @@
+     try:
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+-            stdout=asyncio.subprocess.PIPE,
++            stdout=None,
+             stderr=asyncio.subprocess.PIPE,
+         )
+         _stdout, stderr = await process.communicate()
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_66
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_66: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -65,7 +65,7 @@
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+             stdout=asyncio.subprocess.PIPE,
+-            stderr=asyncio.subprocess.PIPE,
++            stderr=None,
+         )
+         _stdout, stderr = await process.communicate()
+
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_68
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_68: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -64,7 +64,6 @@
+     try:
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+-            stdout=asyncio.subprocess.PIPE,
+             stderr=asyncio.subprocess.PIPE,
+         )
+         _stdout, stderr = await process.communicate()
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_69
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_69: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -65,8 +65,7 @@
+         process = await asyncio.create_subprocess_exec(
+             *cmd,
+             stdout=asyncio.subprocess.PIPE,
+-            stderr=asyncio.subprocess.PIPE,
+-        )
++            )
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_73
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_73: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = None
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_74
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_74: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if (stderr) and False else "Unknown error"
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_75
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_75: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if (stderr) or True else "Unknown error"
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_76
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_76: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "XXUnknown errorXX"
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_77
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_77: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "unknown error"
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_78
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_78: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -70,7 +70,7 @@
+         _stdout, stderr = await process.communicate()
+
+         if process.returncode != 0:
+-            error_msg = stderr.decode() if stderr else "Unknown error"
++            error_msg = stderr.decode() if stderr else "UNKNOWN ERROR"
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_79
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_79: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -71,7 +71,7 @@
+
+         if process.returncode != 0:
+             error_msg = stderr.decode() if stderr else "Unknown error"
+-            logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
++            logger.error(None)
+             raise ClipGenerationError(
+                 f"FFmpeg exited with code {process.returncode}: {error_msg}"
+             )
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_80
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_80: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -73,7 +73,7 @@
+             error_msg = stderr.decode() if stderr else "Unknown error"
+             logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+             raise ClipGenerationError(
+-                f"FFmpeg exited with code {process.returncode}: {error_msg}"
++                None
+             )
+
+         if output_path.exists():
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_81
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_81: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -77,7 +77,7 @@
+             )
+
+         if output_path.exists():
+-            logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
++            logger.info(None)
+             return output_path
+
+         logger.error(f"Clip file not created: {output_path}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_82
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_82: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -80,7 +80,7 @@
+             logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
+             return output_path
+
+-        logger.error(f"Clip file not created: {output_path}")
++        logger.error(None)
+         return None
+     finally:
+         # Guaranteed cleanup of temp file even if exceptions occur
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_83
+# backend.services.clip_generator.xǁClipGeneratorǁ_run_ffmpeg_for_images__mutmut_83: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -87,4 +87,4 @@
+         try:
+             list_file_path.unlink()
+         except OSError:
+-            logger.debug(f"Could not delete temp file: {list_file_path}")
++            logger.debug(None)
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_2
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_2: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -24,7 +24,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug(None)
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_3
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -24,7 +24,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("XXClip generation is disabledXX")
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_4
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_4: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -24,7 +24,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("clip generation is disabled")
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_5
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_5: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -24,7 +24,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("CLIP GENERATION IS DISABLED")
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_11
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_11: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -34,7 +34,7 @@
+     validated_format = _validate_output_format(output_format)
+
+     if not image_paths:
+-        logger.warning(f"No images provided for event {event.id}")
++        logger.warning(None)
+         return None
+
+     # Validate images exist
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_15
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_15: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -40,7 +40,7 @@
+     # Validate images exist
+     valid_paths = self._validate_image_paths(image_paths)
+     if not valid_paths:
+-        logger.error(f"No valid images found for event {event.id}")
++        logger.error(None)
+         return None
+
+     # Generate output filename using validated format
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_23
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_23: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -51,8 +51,7 @@
+         list_file_path = self._create_concat_file(valid_paths, validated_fps)
+
+         logger.info(
+-            f"Generating {validated_format} clip for event {event.id} "
+-            f"from {len(valid_paths)} images"
++            None
+         )
+
+         return await self._run_ffmpeg_for_images(
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_24
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_24: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -56,7 +56,7 @@
+         )
+
+         return await self._run_ffmpeg_for_images(
+-            event.id, list_file_path, output_path, validated_format, validated_fps
++            None, list_file_path, output_path, validated_format, validated_fps
+         )
+
+     except FileNotFoundError:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_28
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_28: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -56,7 +56,7 @@
+         )
+
+         return await self._run_ffmpeg_for_images(
+-            event.id, list_file_path, output_path, validated_format, validated_fps
++            event.id, list_file_path, output_path, validated_format, None
+         )
+
+     except FileNotFoundError:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_34
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_34: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -60,7 +60,7 @@
+         )
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error(None)
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_35
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_35: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -60,7 +60,7 @@
+         )
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error("XXffmpeg not found. Please ensure ffmpeg is installed.XX")
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_36
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_36: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -60,7 +60,7 @@
+         )
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error("ffmpeg not found. please ensure ffmpeg is installed.")
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_37
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_37: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -60,7 +60,7 @@
+         )
+
+     except FileNotFoundError:
+-        logger.error("ffmpeg not found. Please ensure ffmpeg is installed.")
++        logger.error("FFMPEG NOT FOUND. PLEASE ENSURE FFMPEG IS INSTALLED.")
+         return None
+     except ClipGenerationError:
+         raise
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_38
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_38: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -65,5 +65,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(None, exc_info=True)
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_39
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_39: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -65,5 +65,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=None)
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_41
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_41: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -65,5 +65,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(f"Failed to generate clip for event {event.id}: {e}", )
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_42
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_from_images__mutmut_42: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -65,5 +65,5 @@
+     except ClipGenerationError:
+         raise
+     except Exception as e:
+-        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=True)
++        logger.error(f"Failed to generate clip for event {event.id}: {e}", exc_info=False)
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_5
+# backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_5: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -7,7 +7,7 @@
+     for img_path in image_paths:
+         path = Path(img_path).resolve()
+         if not path.exists():
+-            logger.warning(f"Image not found, skipping: {img_path}")
++            logger.warning(None)
+             continue
+         if not path.is_file():
+             logger.warning(f"Path is not a file, skipping: {img_path}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_6
+# backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_6: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -8,7 +8,7 @@
+         path = Path(img_path).resolve()
+         if not path.exists():
+             logger.warning(f"Image not found, skipping: {img_path}")
+-            continue
++            break
+         if not path.is_file():
+             logger.warning(f"Path is not a file, skipping: {img_path}")
+             continue
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_8
+# backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_8: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -10,7 +10,7 @@
+             logger.warning(f"Image not found, skipping: {img_path}")
+             continue
+         if not path.is_file():
+-            logger.warning(f"Path is not a file, skipping: {img_path}")
++            logger.warning(None)
+             continue
+         # Prevent paths that look like command-line options
+         if str(path).startswith("-"):
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_9
+# backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_9: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -11,7 +11,7 @@
+             continue
+         if not path.is_file():
+             logger.warning(f"Path is not a file, skipping: {img_path}")
+-            continue
++            break
+         # Prevent paths that look like command-line options
+         if str(path).startswith("-"):
+             logger.warning(f"Invalid image path (starts with '-'), skipping: {img_path}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_11
+# backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_11: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -13,7 +13,7 @@
+             logger.warning(f"Path is not a file, skipping: {img_path}")
+             continue
+         # Prevent paths that look like command-line options
+-        if str(path).startswith("-"):
++        if str(None).startswith("-"):
+             logger.warning(f"Invalid image path (starts with '-'), skipping: {img_path}")
+             continue
+         valid_paths.append(path)
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_12
+# backend.services.clip_generator.xǁClipGeneratorǁ_validate_image_paths__mutmut_12: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -13,7 +13,7 @@
+             logger.warning(f"Path is not a file, skipping: {img_path}")
+             continue
+         # Prevent paths that look like command-line options
+-        if str(path).startswith("-"):
++        if str(path).startswith("XX-XX"):
+             logger.warning(f"Invalid image path (starts with '-'), skipping: {img_path}")
+             continue
+         valid_paths.append(path)
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_2
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_2: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -2,7 +2,7 @@
+     """Create ffmpeg concat demuxer file for image sequence."""
+     import tempfile
+
+-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
++    with tempfile.NamedTemporaryFile(mode="w", suffix=None, delete=False) as list_file:
+         list_file_path = Path(list_file.name)
+         # Write file list in ffmpeg concat format
+         # Each line: file 'path' followed by duration line
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_3
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -2,7 +2,7 @@
+     """Create ffmpeg concat demuxer file for image sequence."""
+     import tempfile
+
+-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
++    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=None) as list_file:
+         list_file_path = Path(list_file.name)
+         # Write file list in ffmpeg concat format
+         # Each line: file 'path' followed by duration line
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_5
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_5: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -2,7 +2,7 @@
+     """Create ffmpeg concat demuxer file for image sequence."""
+     import tempfile
+
+-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
++    with tempfile.NamedTemporaryFile(mode="w", delete=False) as list_file:
+         list_file_path = Path(list_file.name)
+         # Write file list in ffmpeg concat format
+         # Each line: file 'path' followed by duration line
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_9
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_9: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -2,7 +2,7 @@
+     """Create ffmpeg concat demuxer file for image sequence."""
+     import tempfile
+
+-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
++    with tempfile.NamedTemporaryFile(mode="w", suffix="XX.txtXX", delete=False) as list_file:
+         list_file_path = Path(list_file.name)
+         # Write file list in ffmpeg concat format
+         # Each line: file 'path' followed by duration line
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_10
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_10: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -2,7 +2,7 @@
+     """Create ffmpeg concat demuxer file for image sequence."""
+     import tempfile
+
+-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as list_file:
++    with tempfile.NamedTemporaryFile(mode="w", suffix=".TXT", delete=False) as list_file:
+         list_file_path = Path(list_file.name)
+         # Write file list in ffmpeg concat format
+         # Each line: file 'path' followed by duration line
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_17
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_17: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -10,7 +10,7 @@
+         for img_path in valid_paths:
+             # Escape single quotes in paths for FFmpeg concat format
+             # FFmpeg uses shell-style quoting: ' -> '\''
+-            escaped_path = str(img_path).replace("'", "'\\''")
++            escaped_path = None
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_22
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_22: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -10,7 +10,7 @@
+         for img_path in valid_paths:
+             # Escape single quotes in paths for FFmpeg concat format
+             # FFmpeg uses shell-style quoting: ' -> '\''
+-            escaped_path = str(img_path).replace("'", "'\\''")
++            escaped_path = str(None).replace("'", "'\\''")
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_23
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_23: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -10,7 +10,7 @@
+         for img_path in valid_paths:
+             # Escape single quotes in paths for FFmpeg concat format
+             # FFmpeg uses shell-style quoting: ' -> '\''
+-            escaped_path = str(img_path).replace("'", "'\\''")
++            escaped_path = str(img_path).replace("XX'XX", "'\\''")
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_24
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_24: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -10,7 +10,7 @@
+         for img_path in valid_paths:
+             # Escape single quotes in paths for FFmpeg concat format
+             # FFmpeg uses shell-style quoting: ' -> '\''
+-            escaped_path = str(img_path).replace("'", "'\\''")
++            escaped_path = str(img_path).replace("'", "XX'\\''XX")
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_27
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_27: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -14,7 +14,7 @@
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+-        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
++        escaped_last = None
+         list_file.write(f"file '{escaped_last}'\n")
+
+     return list_file_path
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_32
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_32: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -14,7 +14,7 @@
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+-        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
++        escaped_last = str(None).replace("'", "'\\''")
+         list_file.write(f"file '{escaped_last}'\n")
+
+     return list_file_path
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_35
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_35: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -14,7 +14,7 @@
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+-        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
++        escaped_last = str(valid_paths[-1]).replace("XX'XX", "'\\''")
+         list_file.write(f"file '{escaped_last}'\n")
+
+     return list_file_path
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_36
+# backend.services.clip_generator.xǁClipGeneratorǁ_create_concat_file__mutmut_36: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -14,7 +14,7 @@
+             list_file.write(f"file '{escaped_path}'\n")
+             list_file.write(f"duration {frame_duration}\n")
+         # Repeat last image to ensure it's shown
+-        escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
++        escaped_last = str(valid_paths[-1]).replace("'", "XX'\\''XX")
+         list_file.write(f"file '{escaped_last}'\n")
+
+     return list_file_path
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_3
+# backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -12,7 +12,7 @@
+         clip_path = self._clips_directory / f"{event_id}_clip.mp4"
+         if clip_path.exists():
+             clip_path.unlink()
+-            logger.debug(f"Deleted clip: {clip_path}")
++            logger.debug(None)
+             return True
+
+         # Try GIF
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_7
+# backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_7: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -19,7 +19,7 @@
+         gif_path = self._clips_directory / f"{event_id}_clip.gif"
+         if gif_path.exists():
+             gif_path.unlink()
+-            logger.debug(f"Deleted clip: {gif_path}")
++            logger.debug(None)
+             return True
+
+         logger.warning(f"Clip not found for event {event_id}")
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_9
+# backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_9: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -22,7 +22,7 @@
+             logger.debug(f"Deleted clip: {gif_path}")
+             return True
+
+-        logger.warning(f"Clip not found for event {event_id}")
++        logger.warning(None)
+         return False
+
+     except Exception as e:
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_11
+# backend.services.clip_generator.xǁClipGeneratorǁdelete_clip__mutmut_11: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -26,5 +26,5 @@
+         return False
+
+     except Exception as e:
+-        logger.error(f"Failed to delete clip for event {event_id}: {e}")
++        logger.error(None)
+         return False
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_2
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_2: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug(None)
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_3
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_3: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("XXClip generation is disabledXX")
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_4
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_4: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("clip generation is disabled")
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_5
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_5: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -23,7 +23,7 @@
+             ValueError: If fps is not an integer between 1 and 60
+         """
+     if not self._enabled:
+-        logger.debug("Clip generation is disabled")
++        logger.debug("CLIP GENERATION IS DISABLED")
+         return None
+
+     # Validate fps parameter to prevent command injection
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_17
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_17: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -32,7 +32,7 @@
+     if video_path:
+         return await self.generate_clip_from_video(event, video_path)
+     elif image_paths:
+-        return await self.generate_clip_from_images(event, image_paths, fps=validated_fps)
++        return await self.generate_clip_from_images(event, image_paths, )
+     else:
+         logger.warning(f"No source provided for event {event.id} clip generation")
+         return None
+____END
+=====KEY backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_18
+# backend.services.clip_generator.xǁClipGeneratorǁgenerate_clip_for_event__mutmut_18: survived
+--- backend/services/clip_generator.py
++++ backend/services/clip_generator.py
+@@ -34,5 +34,5 @@
+     elif image_paths:
+         return await self.generate_clip_from_images(event, image_paths, fps=validated_fps)
+     else:
+-        logger.warning(f"No source provided for event {event.id} clip generation")
++        logger.warning(None)
+         return None
+____END
+DONE

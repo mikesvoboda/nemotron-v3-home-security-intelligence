@@ -1,0 +1,12 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_44
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_44: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -61,7 +61,7 @@
+         embedding=embedding,
+         camera_id=camera_id,
+         timestamp=timestamp,
+-        detection_id=str(detection_id),
++        detection_id=str(None),
+         attributes=attributes or {},
+     )

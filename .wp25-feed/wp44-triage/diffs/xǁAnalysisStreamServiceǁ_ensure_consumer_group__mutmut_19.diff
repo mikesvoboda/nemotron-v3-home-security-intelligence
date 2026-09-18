@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_19: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -20,7 +20,7 @@
+             logger.info(
+                 "Created analysis consumer group",
+                 extra={
+-                    "stream_key": self._stream_key,
++                    "XXstream_keyXX": self._stream_key,
+                     "consumer_group": self._consumer_group,
+                 },
+             )

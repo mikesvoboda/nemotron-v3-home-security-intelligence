@@ -1,0 +1,537 @@
+KEY backend.services.managed_service.xǁManagedServiceǁto_dict__mutmut_26
+OLD "last_failure_at": (self.last_failure_at.isoformat() if self.last_failure_at else None),
+NEW "last_failure_at": (self.last_failure_at.isoformat() if (self.last_failure_at) or True else None),
+KEY backend.services.managed_service.xǁManagedServiceǁto_dict__mutmut_30
+OLD "last_restart_at": (self.last_restart_at.isoformat() if self.last_restart_at else None),
+NEW "last_restart_at": (self.last_restart_at.isoformat() if (self.last_restart_at) or True else None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_1
+OLD last_failure_at = None
+NEW last_failure_at = ""
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_10
+OLD if data.get("last_restart_at"):
+NEW if data.get(None):
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_11
+OLD if data.get("last_restart_at"):
+NEW if data.get("XXlast_restart_atXX"):
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_12
+OLD if data.get("last_restart_at"):
+NEW if data.get("LAST_RESTART_AT"):
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_13
+OLD last_restart_at = datetime.fromisoformat(data["last_restart_at"])
+NEW last_restart_at = None
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_41
+OLD last_restart_at=last_restart_at,
+NEW last_restart_at=None,
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_59
+OLD last_restart_at=last_restart_at,
+NEW
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_97
+OLD failure_count=data.get("failure_count", 0),
+NEW failure_count=data.get("failure_count", None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_99
+OLD failure_count=data.get("failure_count", 0),
+NEW failure_count=data.get("failure_count", ),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_102
+OLD failure_count=data.get("failure_count", 0),
+NEW failure_count=data.get("failure_count", 1),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_104
+OLD restart_count=data.get("restart_count", 0),
+NEW restart_count=data.get("restart_count", None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_106
+OLD restart_count=data.get("restart_count", 0),
+NEW restart_count=data.get("restart_count", ),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_109
+OLD restart_count=data.get("restart_count", 0),
+NEW restart_count=data.get("restart_count", 1),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_111
+OLD max_failures=data.get("max_failures", 5),
+NEW max_failures=data.get("max_failures", None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_113
+OLD max_failures=data.get("max_failures", 5),
+NEW max_failures=data.get("max_failures", ),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_116
+OLD max_failures=data.get("max_failures", 5),
+NEW max_failures=data.get("max_failures", 6),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_118
+OLD restart_backoff_base=data.get("restart_backoff_base", 5.0),
+NEW restart_backoff_base=data.get("restart_backoff_base", None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_120
+OLD restart_backoff_base=data.get("restart_backoff_base", 5.0),
+NEW restart_backoff_base=data.get("restart_backoff_base", ),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_123
+OLD restart_backoff_base=data.get("restart_backoff_base", 5.0),
+NEW restart_backoff_base=data.get("restart_backoff_base", 6.0),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_125
+OLD restart_backoff_max=data.get("restart_backoff_max", 300.0),
+NEW restart_backoff_max=data.get("restart_backoff_max", None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_127
+OLD restart_backoff_max=data.get("restart_backoff_max", 300.0),
+NEW restart_backoff_max=data.get("restart_backoff_max", ),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_130
+OLD restart_backoff_max=data.get("restart_backoff_max", 300.0),
+NEW restart_backoff_max=data.get("restart_backoff_max", 301.0),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_132
+OLD startup_grace_period=data.get("startup_grace_period", 60),
+NEW startup_grace_period=data.get("startup_grace_period", None),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_134
+OLD startup_grace_period=data.get("startup_grace_period", 60),
+NEW startup_grace_period=data.get("startup_grace_period", ),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_dict__mutmut_137
+OLD startup_grace_period=data.get("startup_grace_period", 60),
+NEW startup_grace_period=data.get("startup_grace_period", 61),
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_7
+OLD health_cmd=config.health_cmd,
+NEW health_cmd=None,
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_11
+OLD restart_backoff_base=config.restart_backoff_base,
+NEW restart_backoff_base=None,
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_12
+OLD restart_backoff_max=config.restart_backoff_max,
+NEW restart_backoff_max=None,
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_20
+OLD health_cmd=config.health_cmd,
+NEW
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_22
+OLD status=ContainerServiceStatus.NOT_FOUND,
+NEW
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_24
+OLD restart_backoff_base=config.restart_backoff_base,
+NEW
+KEY backend.services.managed_service.xǁManagedServiceǁfrom_config__mutmut_25
+OLD restart_backoff_max=config.restart_backoff_max,
+NEW
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_2
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug(None, extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_3
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("Unregistered service", extra=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_5
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("Unregistered service", )
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_6
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("XXUnregistered serviceXX", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_7
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("unregistered service", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_8
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("UNREGISTERED SERVICE", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_9
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("Unregistered service", extra={"XXservice_nameXX": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁunregister__mutmut_10
+OLD logger.debug("Unregistered service", extra={"service_name": name})
+NEW logger.debug("Unregistered service", extra={"SERVICE_NAME": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_4
+OLD "Updated service status",
+NEW None,
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_5
+OLD extra={"service_name": name, "status": status.value},
+NEW extra=None,
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_7
+OLD extra={"service_name": name, "status": status.value}, | )
+NEW )
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_8
+OLD "Updated service status",
+NEW "XXUpdated service statusXX",
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_9
+OLD "Updated service status",
+NEW "updated service status",
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_10
+OLD "Updated service status",
+NEW "UPDATED SERVICE STATUS",
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_11
+OLD extra={"service_name": name, "status": status.value},
+NEW extra={"XXservice_nameXX": name, "status": status.value},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_12
+OLD extra={"service_name": name, "status": status.value},
+NEW extra={"SERVICE_NAME": name, "status": status.value},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_13
+OLD extra={"service_name": name, "status": status.value},
+NEW extra={"service_name": name, "XXstatusXX": status.value},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_status__mutmut_14
+OLD extra={"service_name": name, "status": status.value},
+NEW extra={"service_name": name, "STATUS": status.value},
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_3
+OLD service.failure_count += 1
+NEW service.failure_count = 1
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_7
+OLD service.last_failure_at = datetime.now(UTC)
+NEW service.last_failure_at = datetime.now(None)
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_8
+OLD "Incremented failure count",
+NEW None,
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_9
+OLD extra={"service_name": name, "failure_count": service.failure_count},
+NEW extra=None,
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_11
+OLD extra={"service_name": name, "failure_count": service.failure_count}, | )
+NEW )
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_12
+OLD "Incremented failure count",
+NEW "XXIncremented failure countXX",
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_13
+OLD "Incremented failure count",
+NEW "incremented failure count",
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_14
+OLD "Incremented failure count",
+NEW "INCREMENTED FAILURE COUNT",
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_15
+OLD extra={"service_name": name, "failure_count": service.failure_count},
+NEW extra={"XXservice_nameXX": name, "failure_count": service.failure_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_16
+OLD extra={"service_name": name, "failure_count": service.failure_count},
+NEW extra={"SERVICE_NAME": name, "failure_count": service.failure_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_17
+OLD extra={"service_name": name, "failure_count": service.failure_count},
+NEW extra={"service_name": name, "XXfailure_countXX": service.failure_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁincrement_failure__mutmut_18
+OLD extra={"service_name": name, "failure_count": service.failure_count},
+NEW extra={"service_name": name, "FAILURE_COUNT": service.failure_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_6
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug(None, extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_7
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("Reset failure tracking", extra=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_9
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("Reset failure tracking", )
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_10
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("XXReset failure trackingXX", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_11
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("reset failure tracking", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_12
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("RESET FAILURE TRACKING", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_13
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("Reset failure tracking", extra={"XXservice_nameXX": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁreset_failures__mutmut_14
+OLD logger.debug("Reset failure tracking", extra={"service_name": name})
+NEW logger.debug("Reset failure tracking", extra={"SERVICE_NAME": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_3
+OLD service.restart_count += 1
+NEW service.restart_count = 1
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_7
+OLD service.last_restart_at = datetime.now(UTC)
+NEW service.last_restart_at = datetime.now(None)
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_8
+OLD "Recorded restart",
+NEW None,
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_9
+OLD extra={"service_name": name, "restart_count": service.restart_count},
+NEW extra=None,
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_11
+OLD extra={"service_name": name, "restart_count": service.restart_count}, | )
+NEW )
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_12
+OLD "Recorded restart",
+NEW "XXRecorded restartXX",
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_13
+OLD "Recorded restart",
+NEW "recorded restart",
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_14
+OLD "Recorded restart",
+NEW "RECORDED RESTART",
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_15
+OLD extra={"service_name": name, "restart_count": service.restart_count},
+NEW extra={"XXservice_nameXX": name, "restart_count": service.restart_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_16
+OLD extra={"service_name": name, "restart_count": service.restart_count},
+NEW extra={"SERVICE_NAME": name, "restart_count": service.restart_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_17
+OLD extra={"service_name": name, "restart_count": service.restart_count},
+NEW extra={"service_name": name, "XXrestart_countXX": service.restart_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁrecord_restart__mutmut_18
+OLD extra={"service_name": name, "restart_count": service.restart_count},
+NEW extra={"service_name": name, "RESTART_COUNT": service.restart_count},
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_4
+OLD "Set service enabled",
+NEW None,
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_5
+OLD extra={"service_name": name, "enabled": enabled},
+NEW extra=None,
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_7
+OLD extra={"service_name": name, "enabled": enabled}, | )
+NEW )
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_8
+OLD "Set service enabled",
+NEW "XXSet service enabledXX",
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_9
+OLD "Set service enabled",
+NEW "set service enabled",
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_10
+OLD "Set service enabled",
+NEW "SET SERVICE ENABLED",
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_11
+OLD extra={"service_name": name, "enabled": enabled},
+NEW extra={"XXservice_nameXX": name, "enabled": enabled},
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_12
+OLD extra={"service_name": name, "enabled": enabled},
+NEW extra={"SERVICE_NAME": name, "enabled": enabled},
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_13
+OLD extra={"service_name": name, "enabled": enabled},
+NEW extra={"service_name": name, "XXenabledXX": enabled},
+KEY backend.services.managed_service.xǁServiceRegistryǁset_enabled__mutmut_14
+OLD extra={"service_name": name, "enabled": enabled},
+NEW extra={"service_name": name, "ENABLED": enabled},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_4
+OLD "Updated container_id",
+NEW None,
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_5
+OLD extra={"service_name": name, "container_id": container_id},
+NEW extra=None,
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_7
+OLD extra={"service_name": name, "container_id": container_id}, | )
+NEW )
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_8
+OLD "Updated container_id",
+NEW "XXUpdated container_idXX",
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_9
+OLD "Updated container_id",
+NEW "updated container_id",
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_10
+OLD "Updated container_id",
+NEW "UPDATED CONTAINER_ID",
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_11
+OLD extra={"service_name": name, "container_id": container_id},
+NEW extra={"XXservice_nameXX": name, "container_id": container_id},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_12
+OLD extra={"service_name": name, "container_id": container_id},
+NEW extra={"SERVICE_NAME": name, "container_id": container_id},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_13
+OLD extra={"service_name": name, "container_id": container_id},
+NEW extra={"service_name": name, "XXcontainer_idXX": container_id},
+KEY backend.services.managed_service.xǁServiceRegistryǁupdate_container_id__mutmut_14
+OLD extra={"service_name": name, "container_id": container_id},
+NEW extra={"service_name": name, "CONTAINER_ID": container_id},
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_2
+OLD logger.debug(f"No Redis client, skipping persist for {name}")
+NEW logger.debug(None)
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_14
+OLD service.last_failure_at.isoformat() if service.last_failure_at else None
+NEW service.last_failure_at.isoformat() if (service.last_failure_at) or True else None
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_18
+OLD service.last_restart_at.isoformat() if service.last_restart_at else None
+NEW service.last_restart_at.isoformat() if (service.last_restart_at) or True else None
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_26
+OLD await self._redis.set(key, state, expire=86400)
+NEW await self._redis.set(key, state, expire=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_29
+OLD await self._redis.set(key, state, expire=86400)
+NEW await self._redis.set(key, state, )
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_30
+OLD await self._redis.set(key, state, expire=86400)
+NEW await self._redis.set(key, state, expire=86401)
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_31
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug(None, extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_32
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("Persisted service state to Redis", extra=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_33
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug(extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_34
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("Persisted service state to Redis", )
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_35
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("XXPersisted service state to RedisXX", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_36
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("persisted service state to redis", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_37
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("PERSISTED SERVICE STATE TO REDIS", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_38
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("Persisted service state to Redis", extra={"XXservice_nameXX": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁpersist_state__mutmut_39
+OLD logger.debug("Persisted service state to Redis", extra={"service_name": name})
+NEW logger.debug("Persisted service state to Redis", extra={"SERVICE_NAME": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_3
+OLD service.enabled = state.get("enabled", True)
+NEW service.enabled = state.get("enabled", None)
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_5
+OLD service.enabled = state.get("enabled", True)
+NEW service.enabled = state.get("enabled", )
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_8
+OLD service.enabled = state.get("enabled", True)
+NEW service.enabled = state.get("enabled", False)
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_11
+OLD service.failure_count = state.get("failure_count", 0)
+NEW service.failure_count = state.get("failure_count", None)
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_13
+OLD service.failure_count = state.get("failure_count", 0)
+NEW service.failure_count = state.get("failure_count", )
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_16
+OLD service.failure_count = state.get("failure_count", 0)
+NEW service.failure_count = state.get("failure_count", 1)
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_19
+OLD service.restart_count = state.get("restart_count", 0)
+NEW service.restart_count = state.get("restart_count", None)
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_21
+OLD service.restart_count = state.get("restart_count", 0)
+NEW service.restart_count = state.get("restart_count", )
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_24
+OLD service.restart_count = state.get("restart_count", 0)
+NEW service.restart_count = state.get("restart_count", 1)
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_31
+OLD service.last_failure_at = datetime.fromisoformat(last_failure) if last_failure else None
+NEW service.last_failure_at = datetime.fromisoformat(last_failure) if (last_failure) or True else None
+KEY backend.services.managed_service.xǁServiceRegistryǁ_apply_state_to_service__mutmut_39
+OLD service.last_restart_at = datetime.fromisoformat(last_restart) if last_restart else None
+NEW service.last_restart_at = datetime.fromisoformat(last_restart) if (last_restart) or True else None
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_2
+OLD logger.debug(f"No Redis client, skipping load_state for {name}")
+NEW logger.debug(None)
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_6
+OLD key = f"{REDIS_KEY_PREFIX}:{name}:state"
+NEW key = None
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_8
+OLD state = await self._redis.get(key)
+NEW state = await self._redis.get(None)
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_10
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug(None, extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_11
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("No Redis state found for service", extra=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_12
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug(extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_13
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("No Redis state found for service", )
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_14
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("XXNo Redis state found for serviceXX", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_15
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("no redis state found for service", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_16
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("NO REDIS STATE FOUND FOR SERVICE", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_17
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("No Redis state found for service", extra={"XXservice_nameXX": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_18
+OLD logger.debug("No Redis state found for service", extra={"service_name": name})
+NEW logger.debug("No Redis state found for service", extra={"SERVICE_NAME": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_24
+OLD self._apply_state_to_service(service, state, name)
+NEW self._apply_state_to_service(service, state, None)
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_28
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug(None, extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_29
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("Loaded service state from Redis", extra=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_30
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug(extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_31
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("Loaded service state from Redis", )
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_32
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("XXLoaded service state from RedisXX", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_33
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("loaded service state from redis", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_34
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("LOADED SERVICE STATE FROM REDIS", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_35
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("Loaded service state from Redis", extra={"XXservice_nameXX": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_state__mutmut_36
+OLD logger.debug("Loaded service state from Redis", extra={"service_name": name})
+NEW logger.debug("Loaded service state from Redis", extra={"SERVICE_NAME": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_4
+OLD "Loaded state for all services from Redis",
+NEW None,
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_5
+OLD extra={"service_count": len(names)},
+NEW extra=None,
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_7
+OLD extra={"service_count": len(names)}, | )
+NEW )
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_8
+OLD "Loaded state for all services from Redis",
+NEW "XXLoaded state for all services from RedisXX",
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_9
+OLD "Loaded state for all services from Redis",
+NEW "loaded state for all services from redis",
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_10
+OLD "Loaded state for all services from Redis",
+NEW "LOADED STATE FOR ALL SERVICES FROM REDIS",
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_11
+OLD extra={"service_count": len(names)},
+NEW extra={"XXservice_countXX": len(names)},
+KEY backend.services.managed_service.xǁServiceRegistryǁload_all_state__mutmut_12
+OLD extra={"service_count": len(names)},
+NEW extra={"SERVICE_COUNT": len(names)},
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_4
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug(None, extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_5
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("Cleared service state from Redis", extra=None)
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_6
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug(extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_7
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("Cleared service state from Redis", )
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_8
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("XXCleared service state from RedisXX", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_9
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("cleared service state from redis", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_10
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("CLEARED SERVICE STATE FROM REDIS", extra={"service_name": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_11
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("Cleared service state from Redis", extra={"XXservice_nameXX": name})
+KEY backend.services.managed_service.xǁServiceRegistryǁclear_state__mutmut_12
+OLD logger.debug("Cleared service state from Redis", extra={"service_name": name})
+NEW logger.debug("Cleared service state from Redis", extra={"SERVICE_NAME": name})
+KEY backend.services.managed_service.x_get_service_registry__mutmut_2
+OLD redis_client = await init_redis()
+NEW redis_client = None
+KEY backend.services.managed_service.x_get_service_registry__mutmut_4
+OLD _service_registry = ServiceRegistry(redis_client=redis_client)
+NEW _service_registry = ServiceRegistry(redis_client=None)
+KEY backend.services.managed_service.x_get_service_registry__mutmut_5
+OLD logger.info("Created global ServiceRegistry singleton")
+NEW logger.info(None)
+KEY backend.services.managed_service.x_get_service_registry__mutmut_6
+OLD logger.info("Created global ServiceRegistry singleton")
+NEW logger.info("XXCreated global ServiceRegistry singletonXX")
+KEY backend.services.managed_service.x_get_service_registry__mutmut_7
+OLD logger.info("Created global ServiceRegistry singleton")
+NEW logger.info("created global serviceregistry singleton")
+KEY backend.services.managed_service.x_get_service_registry__mutmut_8
+OLD logger.info("Created global ServiceRegistry singleton")
+NEW logger.info("CREATED GLOBAL SERVICEREGISTRY SINGLETON")
+KEY backend.services.managed_service.x_reset_service_registry__mutmut_2
+OLD logger.debug("Reset global ServiceRegistry singleton")
+NEW logger.debug(None)
+KEY backend.services.managed_service.x_reset_service_registry__mutmut_3
+OLD logger.debug("Reset global ServiceRegistry singleton")
+NEW logger.debug("XXReset global ServiceRegistry singletonXX")
+KEY backend.services.managed_service.x_reset_service_registry__mutmut_4
+OLD logger.debug("Reset global ServiceRegistry singleton")
+NEW logger.debug("reset global serviceregistry singleton")
+KEY backend.services.managed_service.x_reset_service_registry__mutmut_5
+OLD logger.debug("Reset global ServiceRegistry singleton")
+NEW logger.debug("RESET GLOBAL SERVICEREGISTRY SINGLETON")

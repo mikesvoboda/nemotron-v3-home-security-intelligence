@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁmodel_readiness_probe__mutmut_23: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -21,7 +21,7 @@
+
+         # Send detection request - result is not needed, just verify no exception
+         await self._send_detection_request(
+-            image_data=image_data,
++            image_data=None,
+             image_name="warmup_test.jpg",
+             camera_id="warmup",
+             image_path="/dev/null",  # placeholder path for warmup probe

@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_26: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -47,7 +47,7 @@
+             model_version=self._model_version,
+             model_provider="huggingface",
+             device="cuda:0",
+-            batch_size=1,
++            batch_size=2,
+         )
+
+         for attempt in range(self._max_retries):

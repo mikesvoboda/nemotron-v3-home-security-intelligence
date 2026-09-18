@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_degradation_status__mutmut_11: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -22,7 +22,7 @@
+
+         # Convert services to response format
+         services_list: list[ServiceHealthStatusResponse] = []
+-        services_dict = status.get("services", {})
++        services_dict = status.get("services", )
+         for name, health in services_dict.items():
+             services_list.append(
+                 ServiceHealthStatusResponse(

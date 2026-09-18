@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_3: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -19,7 +19,7 @@
+             RuntimeError: If Redis client not connected
+         """
+     if not self._redis._client:
+-        raise RuntimeError("Redis client not connected")
++        raise RuntimeError("XXRedis client not connectedXX")
+
+     # Build DLQ message with original data plus metadata
+     dlq_fields: StreamFields = {

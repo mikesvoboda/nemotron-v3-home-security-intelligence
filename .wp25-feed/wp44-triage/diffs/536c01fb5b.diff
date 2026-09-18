@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_105: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -80,7 +80,7 @@
+                 "detection_id": det_id,
+                 "vehicle_id": match.vehicle_id,
+                 "vehicle_description": match.vehicle_description,
+-                "similarity": match.similarity,
++                "SIMILARITY": match.similarity,
+                 "match_type": match.match_type,
+             }
+             for det_id, match in self.vehicle_household_matches.items()

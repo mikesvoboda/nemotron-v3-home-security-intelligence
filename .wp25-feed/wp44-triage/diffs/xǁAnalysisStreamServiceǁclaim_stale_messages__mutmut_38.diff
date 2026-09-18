@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_38: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -39,7 +39,7 @@
+                 delivery_count = _pending_delivery_count(pending_info)
+
+                 msg = AnalysisStreamMessage.from_stream_entry(
+-                    _text(message_id),
++                    None,
+                     {_text(k): _text(v) for k, v in data.items()},
+                     delivery_count=delivery_count,
+                 )

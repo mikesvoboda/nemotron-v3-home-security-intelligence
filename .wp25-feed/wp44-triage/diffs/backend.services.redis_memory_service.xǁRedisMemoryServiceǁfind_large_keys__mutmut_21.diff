@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁfind_large_keys__mutmut_21: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -29,7 +29,7 @@
+                     KeyMemoryInfo(
+                         key=key,
+                         memory_bytes=memory_bytes,
+-                        memory_kb=memory_bytes / 1024,
++                        memory_kb=memory_bytes * 1024,
+                     )
+                 )
+         except Exception as e:

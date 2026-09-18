@@ -1,0 +1,13 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_20: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -37,8 +37,7 @@
+         # Clothing analysis
+         "clothing_analysis_context": format_clothing_analysis_context(
+             self.clothing_classifications,
+-            self.clothing_segmentation,
+-        ),
++            ),
+         # Vehicle classification
+         "vehicle_classification_context": format_vehicle_classification_context(
+             self.vehicle_classifications

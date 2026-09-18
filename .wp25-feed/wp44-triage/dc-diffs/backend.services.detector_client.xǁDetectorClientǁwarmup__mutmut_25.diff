@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁwarmup__mutmut_25: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -32,7 +32,7 @@
+         result = await self.model_readiness_probe()
+
+         duration = time.monotonic() - start_time
+-        observe_model_warmup_duration("yolo26", duration)
++        observe_model_warmup_duration("XXyolo26XX", duration)
+
+         if result:
+             self._track_inference()

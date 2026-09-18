@@ -1,0 +1,11 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_7: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -15,7 +15,7 @@
+             self._consumer_group,
+             consumer_name,
+             self._claim_min_idle_ms,
+-            start_id="0-0",
++            start_id=None,
+             count=count,
+         )

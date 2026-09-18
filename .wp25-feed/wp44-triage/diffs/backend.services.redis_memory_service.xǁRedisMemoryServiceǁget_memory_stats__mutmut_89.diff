@@ -1,0 +1,12 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_89: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -35,7 +35,7 @@
+     # Calculate usage percentage
+     memory_usage_percent = 0.0
+     if maxmemory > 0:
+-        memory_usage_percent = (used_memory / maxmemory) * 100
++        memory_usage_percent = (used_memory / maxmemory) * 101
+
+     return MemoryStats(
+         used_memory_bytes=used_memory,

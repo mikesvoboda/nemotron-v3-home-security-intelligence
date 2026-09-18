@@ -1,0 +1,1163 @@
+===KEY=== backend.services.file_service.xǁFileServiceǁschedule_deletion__mutmut_3
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -17,7 +17,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot schedule file deletion")
++        logger.warning(None)
+         return None
+
+     # Filter out empty paths and non-existent files
+===KEY=== backend.services.file_service.xǁFileServiceǁschedule_deletion__mutmut_4
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -17,7 +17,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot schedule file deletion")
++        logger.warning("XXRedis unavailable, cannot schedule file deletionXX")
+         return None
+
+     # Filter out empty paths and non-existent files
+===KEY=== backend.services.file_service.xǁFileServiceǁschedule_deletion__mutmut_5
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -17,7 +17,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot schedule file deletion")
++        logger.warning("redis unavailable, cannot schedule file deletion")
+         return None
+
+     # Filter out empty paths and non-existent files
+===KEY=== backend.services.file_service.xǁFileServiceǁschedule_deletion__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -17,7 +17,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot schedule file deletion")
++        logger.warning("REDIS UNAVAILABLE, CANNOT SCHEDULE FILE DELETION")
+         return None
+
+     # Filter out empty paths and non-existent files
+===KEY=== backend.services.file_service.xǁFileServiceǁschedule_deletion__mutmut_11
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -23,7 +23,7 @@
+     # Filter out empty paths and non-existent files
+     valid_paths = [p for p in file_paths if p and Path(p).exists()]
+     if not valid_paths:
+-        logger.debug(f"No valid file paths to delete for event {event_id}")
++        logger.debug(None)
+         return None
+
+     if delay_seconds is None:
+===KEY=== backend.services.file_service.xǁFileServiceǁschedule_deletion__mutmut_25
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -36,8 +36,7 @@
+     await redis.zadd(FILE_DELETION_QUEUE, {job.to_json(): deletion_time})
+
+     logger.info(
+-        f"Scheduled {len(valid_paths)} files for deletion in {delay_seconds}s "
+-        f"(event_id={event_id}, job_id={job.job_id})"
++        None
+     )
+
+     return job.job_id
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_4
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(None, 0, -1)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_5
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, None, -1)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, None)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_7
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(0, -1)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_8
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, -1)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_9
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, )
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_10
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 1, -1)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_11
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, +1)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_12
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return False
+
+     # Get all jobs and find the one with matching job_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -2)
+
+     for job_json in all_jobs:
+         try:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_16
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.job_id == job_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(None, job_json)
+                 logger.info(f"Cancelled file deletion job {job_id}")
+                 return True
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_17
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.job_id == job_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(FILE_DELETION_QUEUE, None)
+                 logger.info(f"Cancelled file deletion job {job_id}")
+                 return True
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_18
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.job_id == job_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(job_json)
+                 logger.info(f"Cancelled file deletion job {job_id}")
+                 return True
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_19
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.job_id == job_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(FILE_DELETION_QUEUE, )
+                 logger.info(f"Cancelled file deletion job {job_id}")
+                 return True
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_20
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,7 @@
+             job = FileDeletionJob.from_json(job_json)
+             if job.job_id == job_id:
+                 await redis.zrem(FILE_DELETION_QUEUE, job_json)
+-                logger.info(f"Cancelled file deletion job {job_id}")
++                logger.info(None)
+                 return True
+         except json.JSONDecodeError, KeyError:
+             continue
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion__mutmut_22
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -25,5 +25,5 @@
+         except json.JSONDecodeError, KeyError:
+             continue
+
+-    logger.debug(f"File deletion job {job_id} not found")
++    logger.debug(None)
+     return False
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_3
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -9,7 +9,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot cancel file deletion")
++        logger.warning(None)
+         return 0
+
+     # Get all jobs and find those matching the event_id
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_4
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -9,7 +9,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot cancel file deletion")
++        logger.warning("XXRedis unavailable, cannot cancel file deletionXX")
+         return 0
+
+     # Get all jobs and find those matching the event_id
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_5
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -9,7 +9,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot cancel file deletion")
++        logger.warning("redis unavailable, cannot cancel file deletion")
+         return 0
+
+     # Get all jobs and find those matching the event_id
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -9,7 +9,7 @@
+         """
+     redis = self._get_redis()
+     if not redis:
+-        logger.warning("Redis unavailable, cannot cancel file deletion")
++        logger.warning("REDIS UNAVAILABLE, CANNOT CANCEL FILE DELETION")
+         return 0
+
+     # Get all jobs and find those matching the event_id
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_7
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -10,7 +10,7 @@
+     redis = self._get_redis()
+     if not redis:
+         logger.warning("Redis unavailable, cannot cancel file deletion")
+-        return 0
++        return 1
+
+     # Get all jobs and find those matching the event_id
+     all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_9
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(None, 0, -1)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_10
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, None, -1)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_11
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, None)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_12
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(0, -1)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_13
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, -1)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_14
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, )
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_15
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 1, -1)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_16
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, +1)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_17
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -13,7 +13,7 @@
+         return 0
+
+     # Get all jobs and find those matching the event_id
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -2)
+     cancelled_count = 0
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_23
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.event_id == event_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(None, job_json)
+                 cancelled_count += 1
+                 logger.debug(f"Cancelled file deletion job {job.job_id} for event {event_id}")
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_24
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.event_id == event_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(FILE_DELETION_QUEUE, None)
+                 cancelled_count += 1
+                 logger.debug(f"Cancelled file deletion job {job.job_id} for event {event_id}")
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_25
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.event_id == event_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(job_json)
+                 cancelled_count += 1
+                 logger.debug(f"Cancelled file deletion job {job.job_id} for event {event_id}")
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_26
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,7 @@
+         try:
+             job = FileDeletionJob.from_json(job_json)
+             if job.event_id == event_id:
+-                await redis.zrem(FILE_DELETION_QUEUE, job_json)
++                await redis.zrem(FILE_DELETION_QUEUE, )
+                 cancelled_count += 1
+                 logger.debug(f"Cancelled file deletion job {job.job_id} for event {event_id}")
+         except json.JSONDecodeError, KeyError:
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_30
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -22,7 +22,7 @@
+             if job.event_id == event_id:
+                 await redis.zrem(FILE_DELETION_QUEUE, job_json)
+                 cancelled_count += 1
+-                logger.debug(f"Cancelled file deletion job {job.job_id} for event {event_id}")
++                logger.debug(None)
+         except json.JSONDecodeError, KeyError:
+             continue
+
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_31
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -26,7 +26,7 @@
+         except json.JSONDecodeError, KeyError:
+             continue
+
+-    if cancelled_count > 0:
++    if cancelled_count >= 0:
+         logger.info(f"Cancelled {cancelled_count} file deletion jobs for event {event_id}")
+
+     return cancelled_count
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_32
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -26,7 +26,7 @@
+         except json.JSONDecodeError, KeyError:
+             continue
+
+-    if cancelled_count > 0:
++    if cancelled_count > 1:
+         logger.info(f"Cancelled {cancelled_count} file deletion jobs for event {event_id}")
+
+     return cancelled_count
+===KEY=== backend.services.file_service.xǁFileServiceǁcancel_deletion_by_event_id__mutmut_33
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -27,6 +27,6 @@
+             continue
+
+     if cancelled_count > 0:
+-        logger.info(f"Cancelled {cancelled_count} file deletion jobs for event {event_id}")
++        logger.info(None)
+
+     return cancelled_count
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_3
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -14,7 +14,7 @@
+     if not redis:
+         return 0, 0
+
+-    current_time = time.time()
++    current_time = None
+
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_5
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -18,7 +18,7 @@
+
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+-        FILE_DELETION_QUEUE,
++        None,
+         "-inf",
+         current_time,
+         start=0,
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+         FILE_DELETION_QUEUE,
+-        "-inf",
++        None,
+         current_time,
+         start=0,
+         num=batch_size,
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_7
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,7 @@
+     due_jobs = await redis.zrangebyscore(
+         FILE_DELETION_QUEUE,
+         "-inf",
+-        current_time,
++        None,
+         start=0,
+         num=batch_size,
+     )
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_8
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -21,7 +21,7 @@
+         FILE_DELETION_QUEUE,
+         "-inf",
+         current_time,
+-        start=0,
++        start=None,
+         num=batch_size,
+     )
+
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_9
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -22,7 +22,7 @@
+         "-inf",
+         current_time,
+         start=0,
+-        num=batch_size,
++        num=None,
+     )
+
+     jobs_processed = 0
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_10
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -18,7 +18,6 @@
+
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+-        FILE_DELETION_QUEUE,
+         "-inf",
+         current_time,
+         start=0,
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_11
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,6 @@
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+         FILE_DELETION_QUEUE,
+-        "-inf",
+         current_time,
+         start=0,
+         num=batch_size,
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_12
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -20,7 +20,6 @@
+     due_jobs = await redis.zrangebyscore(
+         FILE_DELETION_QUEUE,
+         "-inf",
+-        current_time,
+         start=0,
+         num=batch_size,
+     )
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_13
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -21,7 +21,6 @@
+         FILE_DELETION_QUEUE,
+         "-inf",
+         current_time,
+-        start=0,
+         num=batch_size,
+     )
+
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_14
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -22,8 +22,7 @@
+         "-inf",
+         current_time,
+         start=0,
+-        num=batch_size,
+-    )
++        )
+
+     jobs_processed = 0
+     files_deleted = 0
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_15
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+         FILE_DELETION_QUEUE,
+-        "-inf",
++        "XX-infXX",
+         current_time,
+         start=0,
+         num=batch_size,
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_16
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -19,7 +19,7 @@
+     # Get jobs that are due for deletion (score <= current_time)
+     due_jobs = await redis.zrangebyscore(
+         FILE_DELETION_QUEUE,
+-        "-inf",
++        "-INF",
+         current_time,
+         start=0,
+         num=batch_size,
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_17
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -21,7 +21,7 @@
+         FILE_DELETION_QUEUE,
+         "-inf",
+         current_time,
+-        start=0,
++        start=1,
+         num=batch_size,
+     )
+
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_28
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -38,7 +38,7 @@
+                     files_deleted += 1
+
+             # Remove from queue after processing
+-            await redis.zrem(FILE_DELETION_QUEUE, job_json)
++            await redis.zrem(None, job_json)
+             jobs_processed += 1
+
+             logger.debug(
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_29
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -38,7 +38,7 @@
+                     files_deleted += 1
+
+             # Remove from queue after processing
+-            await redis.zrem(FILE_DELETION_QUEUE, job_json)
++            await redis.zrem(FILE_DELETION_QUEUE, None)
+             jobs_processed += 1
+
+             logger.debug(
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_30
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -38,7 +38,7 @@
+                     files_deleted += 1
+
+             # Remove from queue after processing
+-            await redis.zrem(FILE_DELETION_QUEUE, job_json)
++            await redis.zrem(job_json)
+             jobs_processed += 1
+
+             logger.debug(
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_31
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -38,7 +38,7 @@
+                     files_deleted += 1
+
+             # Remove from queue after processing
+-            await redis.zrem(FILE_DELETION_QUEUE, job_json)
++            await redis.zrem(FILE_DELETION_QUEUE, )
+             jobs_processed += 1
+
+             logger.debug(
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_32
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -39,7 +39,7 @@
+
+             # Remove from queue after processing
+             await redis.zrem(FILE_DELETION_QUEUE, job_json)
+-            jobs_processed += 1
++            jobs_processed = 1
+
+             logger.debug(
+                 f"Processed file deletion job {job.job_id} "
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_35
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -42,8 +42,7 @@
+             jobs_processed += 1
+
+             logger.debug(
+-                f"Processed file deletion job {job.job_id} "
+-                f"(event_id={job.event_id}, files={len(job.file_paths)})"
++                None
+             )
+
+         except (json.JSONDecodeError, KeyError) as e:
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_36
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -51,7 +51,7 @@
+             # Remove malformed entry
+             await redis.zrem(FILE_DELETION_QUEUE, job_json)
+
+-    if jobs_processed > 0:
++    if jobs_processed >= 0:
+         logger.info(
+             f"Processed {jobs_processed} file deletion jobs, deleted {files_deleted} files"
+         )
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_37
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -51,7 +51,7 @@
+             # Remove malformed entry
+             await redis.zrem(FILE_DELETION_QUEUE, job_json)
+
+-    if jobs_processed > 0:
++    if jobs_processed > 1:
+         logger.info(
+             f"Processed {jobs_processed} file deletion jobs, deleted {files_deleted} files"
+         )
+===KEY=== backend.services.file_service.xǁFileServiceǁprocess_deletion_queue__mutmut_38
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -53,7 +53,7 @@
+
+     if jobs_processed > 0:
+         logger.info(
+-            f"Processed {jobs_processed} file deletion jobs, deleted {files_deleted} files"
++            None
+         )
+
+     return jobs_processed, files_deleted
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_file__mutmut_4
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+         path = Path(file_path)
+         if path.exists():
+             Path(file_path).unlink()
+-            logger.debug(f"Deleted file: {file_path}")
++            logger.debug(None)
+             return True
+         else:
+             logger.debug(f"File not found (already deleted?): {file_path}")
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_file__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -14,7 +14,7 @@
+             logger.debug(f"Deleted file: {file_path}")
+             return True
+         else:
+-            logger.debug(f"File not found (already deleted?): {file_path}")
++            logger.debug(None)
+             return False
+     except OSError as e:
+         logger.error(f"Failed to delete file {file_path}: {e}")
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_14
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -29,7 +29,7 @@
+             if path.exists():
+                 path.unlink()
+                 files_deleted += 1
+-                logger.debug(f"Immediately deleted file: {file_path}")
++                logger.debug(None)
+             # Non-existent files are not counted as deleted or failed
+             # (they're already gone, which is the desired state)
+         except OSError as e:
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_15
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -36,7 +36,7 @@
+             logger.error(f"Failed to immediately delete file {file_path}: {e}")
+             files_failed += 1
+
+-    if files_deleted > 0 or files_failed > 0:
++    if files_deleted > 0 and files_failed > 0:
+         logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
+
+     return files_deleted, files_failed
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_16
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -36,7 +36,7 @@
+             logger.error(f"Failed to immediately delete file {file_path}: {e}")
+             files_failed += 1
+
+-    if files_deleted > 0 or files_failed > 0:
++    if files_deleted >= 0 or files_failed > 0:
+         logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
+
+     return files_deleted, files_failed
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_17
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -36,7 +36,7 @@
+             logger.error(f"Failed to immediately delete file {file_path}: {e}")
+             files_failed += 1
+
+-    if files_deleted > 0 or files_failed > 0:
++    if files_deleted > 1 or files_failed > 0:
+         logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
+
+     return files_deleted, files_failed
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_18
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -36,7 +36,7 @@
+             logger.error(f"Failed to immediately delete file {file_path}: {e}")
+             files_failed += 1
+
+-    if files_deleted > 0 or files_failed > 0:
++    if files_deleted > 0 or files_failed >= 0:
+         logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
+
+     return files_deleted, files_failed
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_19
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -36,7 +36,7 @@
+             logger.error(f"Failed to immediately delete file {file_path}: {e}")
+             files_failed += 1
+
+-    if files_deleted > 0 or files_failed > 0:
++    if files_deleted > 0 or files_failed > 1:
+         logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
+
+     return files_deleted, files_failed
+===KEY=== backend.services.file_service.xǁFileServiceǁdelete_files_immediately__mutmut_20
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -37,6 +37,6 @@
+             files_failed += 1
+
+     if files_deleted > 0 or files_failed > 0:
+-        logger.info(f"Immediate file deletion: {files_deleted} deleted, {files_failed} failed")
++        logger.info(None)
+
+     return files_deleted, files_failed
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_4
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(None, 0, -1)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_5
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, None, -1)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, None)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_7
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(0, -1)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_8
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, -1)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_9
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, )
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_10
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 1, -1)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_11
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, +1)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁget_pending_jobs_for_event__mutmut_12
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -11,7 +11,7 @@
+     if not redis:
+         return []
+
+-    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -1)
++    all_jobs = await redis.zrange(FILE_DELETION_QUEUE, 0, -2)
+     result = []
+
+     for job_json in all_jobs:
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_1
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the background task for processing deletions."""
+     if self._running:
+-        logger.warning("FileService background task already running")
++        logger.warning(None)
+         return
+
+     self._running = True
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_2
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the background task for processing deletions."""
+     if self._running:
+-        logger.warning("FileService background task already running")
++        logger.warning("XXFileService background task already runningXX")
+         return
+
+     self._running = True
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_3
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the background task for processing deletions."""
+     if self._running:
+-        logger.warning("FileService background task already running")
++        logger.warning("fileservice background task already running")
+         return
+
+     self._running = True
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_4
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -1,7 +1,7 @@
+ async def start(self) -> None:
+     """Start the background task for processing deletions."""
+     if self._running:
+-        logger.warning("FileService background task already running")
++        logger.warning("FILESERVICE BACKGROUND TASK ALREADY RUNNING")
+         return
+
+     self._running = True
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_9
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -6,5 +6,5 @@
+
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+-    self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
++    self._task = asyncio.create_task(self._background_worker(), name=None)
+     logger.info("FileService background task started")
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_11
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -6,5 +6,5 @@
+
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+-    self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
++    self._task = asyncio.create_task(self._background_worker(), )
+     logger.info("FileService background task started")
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_12
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -6,5 +6,5 @@
+
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+-    self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
++    self._task = asyncio.create_task(self._background_worker(), name="XXfile-service-workerXX")
+     logger.info("FileService background task started")
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_13
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -6,5 +6,5 @@
+
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+-    self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
++    self._task = asyncio.create_task(self._background_worker(), name="FILE-SERVICE-WORKER")
+     logger.info("FileService background task started")
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_14
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -7,4 +7,4 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
+-    logger.info("FileService background task started")
++    logger.info(None)
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_15
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -7,4 +7,4 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
+-    logger.info("FileService background task started")
++    logger.info("XXFileService background task startedXX")
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_16
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -7,4 +7,4 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
+-    logger.info("FileService background task started")
++    logger.info("fileservice background task started")
+===KEY=== backend.services.file_service.xǁFileServiceǁstart__mutmut_17
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -7,4 +7,4 @@
+     self._running = True
+     # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+     self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
+-    logger.info("FileService background task started")
++    logger.info("FILESERVICE BACKGROUND TASK STARTED")
+===KEY=== backend.services.file_service.xǁFileServiceǁstop__mutmut_5
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -15,4 +15,4 @@
+             pass
+         self._task = None
+
+-    logger.info("FileService background task stopped")
++    logger.info(None)
+===KEY=== backend.services.file_service.xǁFileServiceǁstop__mutmut_6
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -15,4 +15,4 @@
+             pass
+         self._task = None
+
+-    logger.info("FileService background task stopped")
++    logger.info("XXFileService background task stoppedXX")
+===KEY=== backend.services.file_service.xǁFileServiceǁstop__mutmut_7
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -15,4 +15,4 @@
+             pass
+         self._task = None
+
+-    logger.info("FileService background task stopped")
++    logger.info("fileservice background task stopped")
+===KEY=== backend.services.file_service.xǁFileServiceǁstop__mutmut_8
+--- backend/services/file_service.py
++++ backend/services/file_service.py
+@@ -15,4 +15,4 @@
+             pass
+         self._task = None
+
+-    logger.info("FileService background task stopped")
++    logger.info("FILESERVICE BACKGROUND TASK STOPPED")

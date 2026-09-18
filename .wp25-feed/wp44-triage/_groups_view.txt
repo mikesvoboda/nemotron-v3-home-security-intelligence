@@ -1,0 +1,620 @@
+distinct groups: 203 total: 203
+==============================================================================================================
+x_get_memory_pressure_level groups: 10 survivors: 10
+  n=  1 idx=[1]
+      -async def get_memory_pressure_level() -> Any: ;; if _gpu_monitor is None:
+      +async def x_get_memory_pressure_level__mutmut_1() -> Any: ;; if _gpu_monitor is not None:
+  n=  1 idx=[2]
+      -async def get_memory_pressure_level() -> Any: ;; f"Failed to check memory pressure: {e}",
+      +async def x_get_memory_pressure_level__mutmut_2() -> Any: ;; None,
+  n=  1 idx=[3]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_3() -> Any: ;; extra=None,
+  n=  1 idx=[5]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__}, ;; )
+      +async def x_get_memory_pressure_level__mutmut_5() -> Any: ;; )
+  n=  1 idx=[6]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_6() -> Any: ;; extra={"XXerrorXX": str(e), "error_type": type(e).__name__},
+  n=  1 idx=[7]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_7() -> Any: ;; extra={"ERROR": str(e), "error_type": type(e).__name__},
+  n=  1 idx=[8]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_8() -> Any: ;; extra={"error": str(None), "error_type": type(e).__name__},
+  n=  1 idx=[9]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_9() -> Any: ;; extra={"error": str(e), "XXerror_typeXX": type(e).__name__},
+  n=  1 idx=[10]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_10() -> Any: ;; extra={"error": str(e), "ERROR_TYPE": type(e).__name__},
+  n=  1 idx=[11]
+      -async def get_memory_pressure_level() -> Any: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def x_get_memory_pressure_level__mutmut_11() -> Any: ;; extra={"error": str(e), "error_type": type(None).__name__},
+==============================================================================================================
+x_recover_orphaned_detections groups: 71 survivors: 71
+  n=  1 idx=[2]
+      -async def recover_orphaned_detections( ;; cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+      +async def x_recover_orphaned_detections__mutmut_2( ;; cutoff_time = datetime.now(UTC) + timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+  n=  1 idx=[3]
+      -async def recover_orphaned_detections( ;; cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+      +async def x_recover_orphaned_detections__mutmut_3( ;; cutoff_time = datetime.now(None) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+  n=  1 idx=[5]
+      -async def recover_orphaned_detections( ;; stmt = ( ;; select(Detection) ;; .outerjoin( ;; EventDetection, ;; Detection.id == EventDetection.detection_id, ;; ) ;
+      +async def x_recover_orphaned_detections__mutmut_5( ;; stmt = None
+  n=  1 idx=[6]
+      -async def recover_orphaned_detections( ;; .limit(ORPHAN_RECOVERY_LIMIT)
+      +async def x_recover_orphaned_detections__mutmut_6( ;; .limit(None)
+  n=  1 idx=[7]
+      -async def recover_orphaned_detections( ;; .order_by(Detection.detected_at.asc())
+      +async def x_recover_orphaned_detections__mutmut_7( ;; .order_by(None)
+  n=  1 idx=[9]
+      -async def recover_orphaned_detections( ;; EventDetection.event_id.is_(None),
+      +async def x_recover_orphaned_detections__mutmut_9( ;; None,
+  n=  1 idx=[10]
+      -async def recover_orphaned_detections( ;; Detection.detected_at < cutoff_time,
+      +async def x_recover_orphaned_detections__mutmut_10( ;; None,
+  n=  1 idx=[11]
+      -async def recover_orphaned_detections( ;; EventDetection.event_id.is_(None),
+      +async def x_recover_orphaned_detections__mutmut_11(
+  n=  1 idx=[12]
+      -async def recover_orphaned_detections( ;; Detection.detected_at < cutoff_time, ;; )
+      +async def x_recover_orphaned_detections__mutmut_12( ;; )
+  n=  1 idx=[14]
+      -async def recover_orphaned_detections( ;; Detection.id == EventDetection.detection_id,
+      +async def x_recover_orphaned_detections__mutmut_14( ;; None,
+  n=  1 idx=[16]
+      -async def recover_orphaned_detections( ;; Detection.id == EventDetection.detection_id, ;; )
+      +async def x_recover_orphaned_detections__mutmut_16( ;; )
+  n=  1 idx=[17]
+      -async def recover_orphaned_detections( ;; select(Detection)
+      +async def x_recover_orphaned_detections__mutmut_17( ;; select(None)
+  n=  1 idx=[18]
+      -async def recover_orphaned_detections( ;; Detection.id == EventDetection.detection_id,
+      +async def x_recover_orphaned_detections__mutmut_18( ;; Detection.id != EventDetection.detection_id,
+  n=  1 idx=[19]
+      -async def recover_orphaned_detections( ;; Detection.detected_at < cutoff_time,
+      +async def x_recover_orphaned_detections__mutmut_19( ;; Detection.detected_at <= cutoff_time,
+  n=  1 idx=[25]
+      -async def recover_orphaned_detections( ;; Detection.id,
+      +async def x_recover_orphaned_detections__mutmut_25(
+  n=  1 idx=[26]
+      -async def recover_orphaned_detections( ;; Detection.camera_id,
+      +async def x_recover_orphaned_detections__mutmut_26(
+  n=  1 idx=[27]
+      -async def recover_orphaned_detections( ;; Detection.file_path,
+      +async def x_recover_orphaned_detections__mutmut_27(
+  n=  1 idx=[28]
+      -async def recover_orphaned_detections( ;; Detection.confidence,
+      +async def x_recover_orphaned_detections__mutmut_28(
+  n=  1 idx=[29]
+      -async def recover_orphaned_detections( ;; Detection.object_type, ;; )
+      +async def x_recover_orphaned_detections__mutmut_29( ;; )
+  n=  1 idx=[31]
+      -async def recover_orphaned_detections( ;; result = await session.execute(stmt)
+      +async def x_recover_orphaned_detections__mutmut_31( ;; result = await session.execute(None)
+  n=  1 idx=[42]
+      -async def recover_orphaned_detections( ;; _file_path=detection.file_path,
+      +async def x_recover_orphaned_detections__mutmut_42( ;; _file_path=None,
+  n=  1 idx=[43]
+      -async def recover_orphaned_detections( ;; confidence=detection.confidence,
+      +async def x_recover_orphaned_detections__mutmut_43( ;; confidence=None,
+  n=  1 idx=[44]
+      -async def recover_orphaned_detections( ;; object_type=detection.object_type,
+      +async def x_recover_orphaned_detections__mutmut_44( ;; object_type=None,
+  n=  1 idx=[47]
+      -async def recover_orphaned_detections( ;; _file_path=detection.file_path,
+      +async def x_recover_orphaned_detections__mutmut_47(
+  n=  1 idx=[48]
+      -async def recover_orphaned_detections( ;; confidence=detection.confidence,
+      +async def x_recover_orphaned_detections__mutmut_48(
+  n=  1 idx=[49]
+      -async def recover_orphaned_detections( ;; object_type=detection.object_type, ;; )
+      +async def x_recover_orphaned_detections__mutmut_49( ;; )
+  n=  1 idx=[53]
+      -async def recover_orphaned_detections( ;; "Failed to recover orphaned detection",
+      +async def x_recover_orphaned_detections__mutmut_53( ;; None,
+  n=  1 idx=[54]
+      -async def recover_orphaned_detections( ;; extra={ ;; "detection_id": detection.id, ;; "camera_id": camera_id, ;; "error": str(e), ;; },
+      +async def x_recover_orphaned_detections__mutmut_54( ;; extra=None,
+  n=  1 idx=[56]
+      -async def recover_orphaned_detections( ;; extra={ ;; "detection_id": detection.id, ;; "camera_id": camera_id, ;; "error": str(e), ;; }, ;; )
+      +async def x_recover_orphaned_detections__mutmut_56( ;; )
+  n=  1 idx=[57]
+      -async def recover_orphaned_detections( ;; "Failed to recover orphaned detection",
+      +async def x_recover_orphaned_detections__mutmut_57( ;; "XXFailed to recover orphaned detectionXX",
+  n=  1 idx=[58]
+      -async def recover_orphaned_detections( ;; "Failed to recover orphaned detection",
+      +async def x_recover_orphaned_detections__mutmut_58( ;; "failed to recover orphaned detection",
+  n=  1 idx=[59]
+      -async def recover_orphaned_detections( ;; "Failed to recover orphaned detection",
+      +async def x_recover_orphaned_detections__mutmut_59( ;; "FAILED TO RECOVER ORPHANED DETECTION",
+  n=  1 idx=[60]
+      -async def recover_orphaned_detections( ;; "detection_id": detection.id,
+      +async def x_recover_orphaned_detections__mutmut_60( ;; "XXdetection_idXX": detection.id,
+  n=  1 idx=[61]
+      -async def recover_orphaned_detections( ;; "detection_id": detection.id,
+      +async def x_recover_orphaned_detections__mutmut_61( ;; "DETECTION_ID": detection.id,
+  n=  1 idx=[62]
+      -async def recover_orphaned_detections( ;; "camera_id": camera_id,
+      +async def x_recover_orphaned_detections__mutmut_62( ;; "XXcamera_idXX": camera_id,
+  n=  1 idx=[63]
+      -async def recover_orphaned_detections( ;; "camera_id": camera_id,
+      +async def x_recover_orphaned_detections__mutmut_63( ;; "CAMERA_ID": camera_id,
+  n=  1 idx=[64]
+      -async def recover_orphaned_detections( ;; "error": str(e),
+      +async def x_recover_orphaned_detections__mutmut_64( ;; "XXerrorXX": str(e),
+  n=  1 idx=[65]
+      -async def recover_orphaned_detections( ;; "error": str(e),
+      +async def x_recover_orphaned_detections__mutmut_65( ;; "ERROR": str(e),
+  n=  1 idx=[66]
+      -async def recover_orphaned_detections( ;; "error": str(e),
+      +async def x_recover_orphaned_detections__mutmut_66( ;; "error": str(None),
+  n=  1 idx=[67]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections for camera",
+      +async def x_recover_orphaned_detections__mutmut_67( ;; None,
+  n=  1 idx=[68]
+      -async def recover_orphaned_detections( ;; extra={ ;; "camera_id": camera_id, ;; "detection_count": len(detections), ;; },
+      +async def x_recover_orphaned_detections__mutmut_68( ;; extra=None,
+  n=  1 idx=[70]
+      -async def recover_orphaned_detections( ;; extra={ ;; "camera_id": camera_id, ;; "detection_count": len(detections), ;; }, ;; )
+      +async def x_recover_orphaned_detections__mutmut_70( ;; )
+  n=  1 idx=[71]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections for camera",
+      +async def x_recover_orphaned_detections__mutmut_71( ;; "XXRecovered orphaned detections for cameraXX",
+  n=  1 idx=[72]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections for camera",
+      +async def x_recover_orphaned_detections__mutmut_72( ;; "recovered orphaned detections for camera",
+  n=  1 idx=[73]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections for camera",
+      +async def x_recover_orphaned_detections__mutmut_73( ;; "RECOVERED ORPHANED DETECTIONS FOR CAMERA",
+  n=  1 idx=[74]
+      -async def recover_orphaned_detections( ;; "camera_id": camera_id,
+      +async def x_recover_orphaned_detections__mutmut_74( ;; "XXcamera_idXX": camera_id,
+  n=  1 idx=[75]
+      -async def recover_orphaned_detections( ;; "camera_id": camera_id,
+      +async def x_recover_orphaned_detections__mutmut_75( ;; "CAMERA_ID": camera_id,
+  n=  1 idx=[76]
+      -async def recover_orphaned_detections( ;; "detection_count": len(detections),
+      +async def x_recover_orphaned_detections__mutmut_76( ;; "XXdetection_countXX": len(detections),
+  n=  1 idx=[77]
+      -async def recover_orphaned_detections( ;; "detection_count": len(detections),
+      +async def x_recover_orphaned_detections__mutmut_77( ;; "DETECTION_COUNT": len(detections),
+  n=  1 idx=[78]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections across cameras",
+      +async def x_recover_orphaned_detections__mutmut_78( ;; None,
+  n=  1 idx=[79]
+      -async def recover_orphaned_detections( ;; extra={ ;; "total_recovered": total_recovered, ;; "camera_count": len(camera_groups), ;; },
+      +async def x_recover_orphaned_detections__mutmut_79( ;; extra=None,
+  n=  1 idx=[81]
+      -async def recover_orphaned_detections( ;; extra={ ;; "total_recovered": total_recovered, ;; "camera_count": len(camera_groups), ;; }, ;; )
+      +async def x_recover_orphaned_detections__mutmut_81( ;; )
+  n=  1 idx=[82]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections across cameras",
+      +async def x_recover_orphaned_detections__mutmut_82( ;; "XXRecovered orphaned detections across camerasXX",
+  n=  1 idx=[83]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections across cameras",
+      +async def x_recover_orphaned_detections__mutmut_83( ;; "recovered orphaned detections across cameras",
+  n=  1 idx=[84]
+      -async def recover_orphaned_detections( ;; "Recovered orphaned detections across cameras",
+      +async def x_recover_orphaned_detections__mutmut_84( ;; "RECOVERED ORPHANED DETECTIONS ACROSS CAMERAS",
+  n=  1 idx=[85]
+      -async def recover_orphaned_detections( ;; "total_recovered": total_recovered,
+      +async def x_recover_orphaned_detections__mutmut_85( ;; "XXtotal_recoveredXX": total_recovered,
+  n=  1 idx=[86]
+      -async def recover_orphaned_detections( ;; "total_recovered": total_recovered,
+      +async def x_recover_orphaned_detections__mutmut_86( ;; "TOTAL_RECOVERED": total_recovered,
+  n=  1 idx=[87]
+      -async def recover_orphaned_detections( ;; "camera_count": len(camera_groups),
+      +async def x_recover_orphaned_detections__mutmut_87( ;; "XXcamera_countXX": len(camera_groups),
+  n=  1 idx=[88]
+      -async def recover_orphaned_detections( ;; "camera_count": len(camera_groups),
+      +async def x_recover_orphaned_detections__mutmut_88( ;; "CAMERA_COUNT": len(camera_groups),
+  n=  1 idx=[89]
+      -async def recover_orphaned_detections( ;; "Orphaned detection recovery failed",
+      +async def x_recover_orphaned_detections__mutmut_89( ;; None,
+  n=  1 idx=[90]
+      -async def recover_orphaned_detections( ;; extra={"error": str(e)},
+      +async def x_recover_orphaned_detections__mutmut_90( ;; extra=None,
+  n=  1 idx=[91]
+      -async def recover_orphaned_detections( ;; exc_info=True,
+      +async def x_recover_orphaned_detections__mutmut_91( ;; exc_info=None,
+  n=  1 idx=[93]
+      -async def recover_orphaned_detections( ;; extra={"error": str(e)},
+      +async def x_recover_orphaned_detections__mutmut_93(
+  n=  1 idx=[94]
+      -async def recover_orphaned_detections( ;; exc_info=True, ;; )
+      +async def x_recover_orphaned_detections__mutmut_94( ;; )
+  n=  1 idx=[95]
+      -async def recover_orphaned_detections( ;; "Orphaned detection recovery failed",
+      +async def x_recover_orphaned_detections__mutmut_95( ;; "XXOrphaned detection recovery failedXX",
+  n=  1 idx=[96]
+      -async def recover_orphaned_detections( ;; "Orphaned detection recovery failed",
+      +async def x_recover_orphaned_detections__mutmut_96( ;; "orphaned detection recovery failed",
+  n=  1 idx=[97]
+      -async def recover_orphaned_detections( ;; "Orphaned detection recovery failed",
+      +async def x_recover_orphaned_detections__mutmut_97( ;; "ORPHANED DETECTION RECOVERY FAILED",
+  n=  1 idx=[98]
+      -async def recover_orphaned_detections( ;; extra={"error": str(e)},
+      +async def x_recover_orphaned_detections__mutmut_98( ;; extra={"XXerrorXX": str(e)},
+  n=  1 idx=[99]
+      -async def recover_orphaned_detections( ;; extra={"error": str(e)},
+      +async def x_recover_orphaned_detections__mutmut_99( ;; extra={"ERROR": str(e)},
+  n=  1 idx=[100]
+      -async def recover_orphaned_detections( ;; extra={"error": str(e)},
+      +async def x_recover_orphaned_detections__mutmut_100( ;; extra={"error": str(None)},
+  n=  1 idx=[101]
+      -async def recover_orphaned_detections( ;; exc_info=True,
+      +async def x_recover_orphaned_detections__mutmut_101( ;; exc_info=False,
+==============================================================================================================
+x_set_gpu_monitor groups: 5 survivors: 5
+  n=  1 idx=[1]
+      -def set_gpu_monitor(monitor: Any) -> None: ;; _gpu_monitor = monitor
+      +def x_set_gpu_monitor__mutmut_1(monitor: Any) -> None: ;; _gpu_monitor = None
+  n=  1 idx=[2]
+      -def set_gpu_monitor(monitor: Any) -> None: ;; logger.debug("GPU monitor set for batch aggregator backpressure")
+      +def x_set_gpu_monitor__mutmut_2(monitor: Any) -> None: ;; logger.debug(None)
+  n=  1 idx=[3]
+      -def set_gpu_monitor(monitor: Any) -> None: ;; logger.debug("GPU monitor set for batch aggregator backpressure")
+      +def x_set_gpu_monitor__mutmut_3(monitor: Any) -> None: ;; logger.debug("XXGPU monitor set for batch aggregator backpressureXX")
+  n=  1 idx=[4]
+      -def set_gpu_monitor(monitor: Any) -> None: ;; logger.debug("GPU monitor set for batch aggregator backpressure")
+      +def x_set_gpu_monitor__mutmut_4(monitor: Any) -> None: ;; logger.debug("gpu monitor set for batch aggregator backpressure")
+  n=  1 idx=[5]
+      -def set_gpu_monitor(monitor: Any) -> None: ;; logger.debug("GPU monitor set for batch aggregator backpressure")
+      +def x_set_gpu_monitor__mutmut_5(monitor: Any) -> None: ;; logger.debug("GPU MONITOR SET FOR BATCH AGGREGATOR BACKPRESSURE")
+==============================================================================================================
+xǁBatchAggregatorǁ_close_batch_for_size_limit groups: 100 survivors: 100
+  n=  1 idx=[5]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Cannot close batch: camera_id not found",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_5(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[6]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={"batch_id": batch_id},
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_6(self, batch_id: str) -> dict[str, Any] | None: ;; extra=None,
+  n=  1 idx=[8]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={"batch_id": batch_id}, ;; )
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_8(self, batch_id: str) -> dict[str, Any] | None: ;; )
+  n=  1 idx=[9]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Cannot close batch: camera_id not found",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_9(self, batch_id: str) -> dict[str, Any] | None: ;; "XXCannot close batch: camera_id not foundXX
+  n=  1 idx=[10]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Cannot close batch: camera_id not found",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_10(self, batch_id: str) -> dict[str, Any] | None: ;; "cannot close batch: camera_id not found",
+  n=  1 idx=[11]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Cannot close batch: camera_id not found",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_11(self, batch_id: str) -> dict[str, Any] | None: ;; "CANNOT CLOSE BATCH: CAMERA_ID NOT FOUND",
+  n=  1 idx=[12]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={"batch_id": batch_id},
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_12(self, batch_id: str) -> dict[str, Any] | None: ;; extra={"XXbatch_idXX": batch_id},
+  n=  1 idx=[13]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={"batch_id": batch_id},
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_13(self, batch_id: str) -> dict[str, Any] | None: ;; extra={"BATCH_ID": batch_id},
+  n=  1 idx=[14]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=batch_id, camera_id=camera_id):
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_14(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=None, camera_id=c
+  n=  1 idx=[15]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=batch_id, camera_id=camera_id):
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_15(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=batch_id, camera_
+  n=  1 idx=[16]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=batch_id, camera_id=camera_id):
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_16(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(camera_id=camera_id):
+  n=  1 idx=[17]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=batch_id, camera_id=camera_id):
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_17(self, batch_id: str) -> dict[str, Any] | None: ;; with log_context(batch_id=batch_id, ):
+  n=  1 idx=[19]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "1",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_19(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[22]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "1",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_22(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[24]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "1",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_24(self, batch_id: str) -> dict[str, Any] | None: ;; "XX1XX",
+  n=  1 idx=[25]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key = f"batch:{batch_id}:detections"
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_25(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key = None
+  n=  1 idx=[27]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_27(self, batch_id: str) -> dict[str, Any] | None: ;; None, 0, -1
+  n=  1 idx=[28]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_28(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, None, -1
+  n=  1 idx=[29]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_29(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, None
+  n=  1 idx=[30]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_30(self, batch_id: str) -> dict[str, Any] | None: ;; 0, -1
+  n=  1 idx=[31]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_31(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, -1
+  n=  1 idx=[32]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1 ;; )
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_32(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, )
+  n=  1 idx=[33]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_33(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 1, -1
+  n=  1 idx=[34]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_34(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, +1
+  n=  1 idx=[35]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -1
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_35(self, batch_id: str) -> dict[str, Any] | None: ;; detections_key, 0, -2
+  n=  1 idx=[41]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; detections.append(int(item.decode("utf-8")))
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_41(self, batch_id: str) -> dict[str, Any] | None: ;; detections.append(int(item.decode("UTF-8"))
+  n=  1 idx=[44]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_44(self, batch_id: str) -> dict[str, Any] | None: ;; started_at_str = None
+  n=  1 idx=[45]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_45(self, batch_id: str) -> dict[str, Any] | None: ;; started_at_str = await self._redis.get(None
+  n=  1 idx=[49]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; started_at: float = float(started_at_str) if started_at_str else time.ti
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_49(self, batch_id: str) -> dict[str, Any] | None: ;; started_at: float = float(started_at_str) i
+  n=  1 idx=[50]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; started_at: float = float(started_at_str) if started_at_str else time.ti
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_50(self, batch_id: str) -> dict[str, Any] | None: ;; started_at: float = float(started_at_str) i
+  n=  1 idx=[60]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "started_at": started_at,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_60(self, batch_id: str) -> dict[str, Any] | None: ;; "XXstarted_atXX": started_at,
+  n=  1 idx=[61]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "started_at": started_at,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_61(self, batch_id: str) -> dict[str, Any] | None: ;; "STARTED_AT": started_at,
+  n=  1 idx=[62]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "ended_at": ended_at,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_62(self, batch_id: str) -> dict[str, Any] | None: ;; "XXended_atXX": ended_at,
+  n=  1 idx=[63]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "ended_at": ended_at,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_63(self, batch_id: str) -> dict[str, Any] | None: ;; "ENDED_AT": ended_at,
+  n=  1 idx=[72]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; self._analysis_queue,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_72(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[74]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; overflow_policy=QueueOverflowPolicy.DLQ,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_74(self, batch_id: str) -> dict[str, Any] | None: ;; overflow_policy=None,
+  n=  1 idx=[77]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; overflow_policy=QueueOverflowPolicy.DLQ, ;; )
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_77(self, batch_id: str) -> dict[str, Any] | None: ;; )
+  n=  1 idx=[79]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={ ;; "detection_count": len(detections), ;; "queue_name": self._an
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_79(self, batch_id: str) -> dict[str, Any] | None: ;; extra=None,
+  n=  1 idx=[81]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={ ;; "detection_count": len(detections), ;; "queue_name": self._an
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_81(self, batch_id: str) -> dict[str, Any] | None: ;; )
+  n=  1 idx=[82]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Queue overflow handling triggered for batch",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_82(self, batch_id: str) -> dict[str, Any] | None: ;; "XXQueue overflow handling triggered for ba
+  n=  1 idx=[83]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Queue overflow handling triggered for batch",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_83(self, batch_id: str) -> dict[str, Any] | None: ;; "queue overflow handling triggered for batc
+  n=  1 idx=[84]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Queue overflow handling triggered for batch",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_84(self, batch_id: str) -> dict[str, Any] | None: ;; "QUEUE OVERFLOW HANDLING TRIGGERED FOR BATC
+  n=  1 idx=[85]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "detection_count": len(detections),
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_85(self, batch_id: str) -> dict[str, Any] | None: ;; "XXdetection_countXX": len(detections),
+  n=  1 idx=[86]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "detection_count": len(detections),
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_86(self, batch_id: str) -> dict[str, Any] | None: ;; "DETECTION_COUNT": len(detections),
+  n=  1 idx=[87]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "queue_name": self._analysis_queue,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_87(self, batch_id: str) -> dict[str, Any] | None: ;; "XXqueue_nameXX": self._analysis_queue,
+  n=  1 idx=[88]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "queue_name": self._analysis_queue,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_88(self, batch_id: str) -> dict[str, Any] | None: ;; "QUEUE_NAME": self._analysis_queue,
+  n=  1 idx=[89]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "queue_length": result.queue_length,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_89(self, batch_id: str) -> dict[str, Any] | None: ;; "XXqueue_lengthXX": result.queue_length,
+  n=  1 idx=[90]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "queue_length": result.queue_length,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_90(self, batch_id: str) -> dict[str, Any] | None: ;; "QUEUE_LENGTH": result.queue_length,
+  n=  1 idx=[91]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "moved_to_dlq": result.moved_to_dlq_count,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_91(self, batch_id: str) -> dict[str, Any] | None: ;; "XXmoved_to_dlqXX": result.moved_to_dlq_cou
+  n=  1 idx=[92]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "moved_to_dlq": result.moved_to_dlq_count,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_92(self, batch_id: str) -> dict[str, Any] | None: ;; "MOVED_TO_DLQ": result.moved_to_dlq_count,
+  n=  1 idx=[93]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "warning": result.warning,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_93(self, batch_id: str) -> dict[str, Any] | None: ;; "XXwarningXX": result.warning,
+  n=  1 idx=[94]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "warning": result.warning,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_94(self, batch_id: str) -> dict[str, Any] | None: ;; "WARNING": result.warning,
+  n=  1 idx=[95]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at - started_at) * 1000
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_95(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = None
+  n=  1 idx=[96]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at - started_at) * 1000
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_96(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at - started_at)
+  n=  1 idx=[97]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at - started_at) * 1000
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_97(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at + started_at)
+  n=  1 idx=[98]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at - started_at) * 1000
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_98(self, batch_id: str) -> dict[str, Any] | None: ;; batch_duration_ms = (ended_at - started_at)
+  n=  1 idx=[99]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Batch closed",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_99(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[100]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={ ;; "detection_count": len(detections), ;; "duration_ms": batch_d
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_100(self, batch_id: str) -> dict[str, Any] | None: ;; extra=None,
+  n=  1 idx=[102]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; extra={ ;; "detection_count": len(detections), ;; "duration_ms": batch_d
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_102(self, batch_id: str) -> dict[str, Any] | None: ;; )
+  n=  1 idx=[103]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Batch closed",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_103(self, batch_id: str) -> dict[str, Any] | None: ;; "XXBatch closedXX",
+  n=  1 idx=[104]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Batch closed",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_104(self, batch_id: str) -> dict[str, Any] | None: ;; "batch closed",
+  n=  1 idx=[105]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "Batch closed",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_105(self, batch_id: str) -> dict[str, Any] | None: ;; "BATCH CLOSED",
+  n=  1 idx=[106]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "detection_count": len(detections),
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_106(self, batch_id: str) -> dict[str, Any] | None: ;; "XXdetection_countXX": len(detections),
+  n=  1 idx=[107]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "detection_count": len(detections),
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_107(self, batch_id: str) -> dict[str, Any] | None: ;; "DETECTION_COUNT": len(detections),
+  n=  1 idx=[108]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "duration_ms": batch_duration_ms,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_108(self, batch_id: str) -> dict[str, Any] | None: ;; "XXduration_msXX": batch_duration_ms,
+  n=  1 idx=[109]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "duration_ms": batch_duration_ms,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_109(self, batch_id: str) -> dict[str, Any] | None: ;; "DURATION_MS": batch_duration_ms,
+  n=  1 idx=[110]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "close_reason": "max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_110(self, batch_id: str) -> dict[str, Any] | None: ;; "XXclose_reasonXX": "max_size",
+  n=  1 idx=[111]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "close_reason": "max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_111(self, batch_id: str) -> dict[str, Any] | None: ;; "CLOSE_REASON": "max_size",
+  n=  1 idx=[112]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "close_reason": "max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_112(self, batch_id: str) -> dict[str, Any] | None: ;; "close_reason": "XXmax_sizeXX",
+  n=  1 idx=[113]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; "close_reason": "max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_113(self, batch_id: str) -> dict[str, Any] | None: ;; "close_reason": "MAX_SIZE",
+  n=  1 idx=[114]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Batch has no detections, skipping analysis queue")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_114(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug(None)
+  n=  1 idx=[115]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Batch has no detections, skipping analysis queue")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_115(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("XXBatch has no detections, s
+  n=  1 idx=[116]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Batch has no detections, skipping analysis queue")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_116(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("batch has no detections, ski
+  n=  1 idx=[117]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Batch has no detections, skipping analysis queue")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_117(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("BATCH HAS NO DETECTIONS, SKI
+  n=  1 idx=[118]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{camera_id}:current",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_118(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[119]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:camera_id",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_119(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[120]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:detections",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_120(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[121]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:started_at",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_121(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[122]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:last_activity",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_122(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[123]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:pipeline_start_time",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_123(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[124]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:closing",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_124(self, batch_id: str) -> dict[str, Any] | None: ;; None,
+  n=  1 idx=[125]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{camera_id}:current",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_125(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[126]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:camera_id",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_126(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[127]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:detections",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_127(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[128]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:started_at",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_128(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[129]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:last_activity",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_129(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[130]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:pipeline_start_time",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_130(self, batch_id: str) -> dict[str, Any] | None:
+  n=  1 idx=[131]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; f"batch:{batch_id}:closing", ;; )
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_131(self, batch_id: str) -> dict[str, Any] | None: ;; )
+  n=  1 idx=[132]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Cleaned up Redis keys for batch")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_132(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug(None)
+  n=  1 idx=[133]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Cleaned up Redis keys for batch")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_133(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("XXCleaned up Redis keys for
+  n=  1 idx=[134]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Cleaned up Redis keys for batch")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_134(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("cleaned up redis keys for ba
+  n=  1 idx=[135]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("Cleaned up Redis keys for batch")
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_135(self, batch_id: str) -> dict[str, Any] | None: ;; logger.debug("CLEANED UP REDIS KEYS FOR BA
+  n=  1 idx=[136]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; batch_id=batch_id,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_136(self, batch_id: str) -> dict[str, Any] | None: ;; batch_id=None,
+  n=  1 idx=[137]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; camera_id=camera_id,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_137(self, batch_id: str) -> dict[str, Any] | None: ;; camera_id=None,
+  n=  1 idx=[139]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; started_at=started_at,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_139(self, batch_id: str) -> dict[str, Any] | None: ;; started_at=None,
+  n=  1 idx=[140]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; closed_at=ended_at,
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_140(self, batch_id: str) -> dict[str, Any] | None: ;; closed_at=None,
+  n=  1 idx=[141]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason="max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_141(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason=None,
+  n=  1 idx=[147]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason="max_size", ;; )
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_147(self, batch_id: str) -> dict[str, Any] | None: ;; )
+  n=  1 idx=[148]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason="max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_148(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason="XXmax_sizeXX",
+  n=  1 idx=[149]
+      -async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason="max_size",
+      +async def xǁBatchAggregatorǁ_close_batch_for_size_limit__mutmut_149(self, batch_id: str) -> dict[str, Any] | None: ;; close_reason="MAX_SIZE",
+==============================================================================================================
+xǁBatchAggregatorǁshould_apply_backpressure groups: 17 survivors: 17
+  n=  1 idx=[4]
+      -async def should_apply_backpressure(self) -> bool: ;; "Backpressure active due to critical GPU memory pressure",
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_4(self) -> bool: ;; None,
+  n=  1 idx=[5]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"pressure_level": pressure_level.value},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_5(self) -> bool: ;; extra=None,
+  n=  1 idx=[7]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"pressure_level": pressure_level.value}, ;; )
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_7(self) -> bool: ;; )
+  n=  1 idx=[8]
+      -async def should_apply_backpressure(self) -> bool: ;; "Backpressure active due to critical GPU memory pressure",
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_8(self) -> bool: ;; "XXBackpressure active due to critical GPU memory pressureXX",
+  n=  1 idx=[9]
+      -async def should_apply_backpressure(self) -> bool: ;; "Backpressure active due to critical GPU memory pressure",
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_9(self) -> bool: ;; "backpressure active due to critical gpu memory pressure",
+  n=  1 idx=[10]
+      -async def should_apply_backpressure(self) -> bool: ;; "Backpressure active due to critical GPU memory pressure",
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_10(self) -> bool: ;; "BACKPRESSURE ACTIVE DUE TO CRITICAL GPU MEMORY PRESSURE",
+  n=  1 idx=[11]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"pressure_level": pressure_level.value},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_11(self) -> bool: ;; extra={"XXpressure_levelXX": pressure_level.value},
+  n=  1 idx=[12]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"pressure_level": pressure_level.value},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_12(self) -> bool: ;; extra={"PRESSURE_LEVEL": pressure_level.value},
+  n=  1 idx=[13]
+      -async def should_apply_backpressure(self) -> bool: ;; f"Error checking backpressure: {e}",
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_13(self) -> bool: ;; None,
+  n=  1 idx=[14]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_14(self) -> bool: ;; extra=None,
+  n=  1 idx=[16]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__}, ;; )
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_16(self) -> bool: ;; )
+  n=  1 idx=[17]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_17(self) -> bool: ;; extra={"XXerrorXX": str(e), "error_type": type(e).__name__},
+  n=  1 idx=[18]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_18(self) -> bool: ;; extra={"ERROR": str(e), "error_type": type(e).__name__},
+  n=  1 idx=[19]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_19(self) -> bool: ;; extra={"error": str(None), "error_type": type(e).__name__},
+  n=  1 idx=[20]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_20(self) -> bool: ;; extra={"error": str(e), "XXerror_typeXX": type(e).__name__},
+  n=  1 idx=[21]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_21(self) -> bool: ;; extra={"error": str(e), "ERROR_TYPE": type(e).__name__},
+  n=  1 idx=[22]
+      -async def should_apply_backpressure(self) -> bool: ;; extra={"error": str(e), "error_type": type(e).__name__},
+      +async def xǁBatchAggregatorǁshould_apply_backpressure__mutmut_22(self) -> bool: ;; extra={"error": str(e), "error_type": type(None).__name__},

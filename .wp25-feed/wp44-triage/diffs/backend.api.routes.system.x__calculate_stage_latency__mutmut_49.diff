@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__calculate_stage_latency__mutmut_49: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -31,7 +31,7 @@
+         avg_ms=sum(sorted_samples) / count,
+         min_ms=sorted_samples[0],
+         max_ms=sorted_samples[-1],
+-        p50_ms=_calculate_percentile(sorted_samples, 50),
++        p50_ms=_calculate_percentile(sorted_samples, 51),
+         p95_ms=_calculate_percentile(sorted_samples, 95),
+         p99_ms=_calculate_percentile(sorted_samples, 99),
+         sample_count=count,

@@ -1,0 +1,12 @@
+# backend.services.redis_streams.x_get_detection_stream_service__mutmut_5: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -8,7 +8,7 @@
+         settings = get_settings()
+         _detection_stream_service = DetectionStreamService(
+             redis_client=redis_client,
+-            maxlen=settings.queue_max_size,
++            maxlen=None,
+         )
+
+     return _detection_stream_service

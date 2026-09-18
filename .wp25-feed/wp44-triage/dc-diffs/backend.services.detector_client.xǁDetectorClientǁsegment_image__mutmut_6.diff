@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_6: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -38,7 +38,7 @@
+     explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+
+     with trace_span(
+-        f"{self._detector_type}_segmentation_request",
++        None,
+         image_size_bytes=len(image_data),
+     ) as span:
+         AIModelAttributes.set_on_span(

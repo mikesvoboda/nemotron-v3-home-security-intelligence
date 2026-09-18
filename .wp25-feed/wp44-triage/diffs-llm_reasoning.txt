@@ -1,0 +1,1576 @@
+=== backend.api.routes.llm_reasoning.x__parse_json_response__mutmut_1
+@@ -1,7 +1,7 @@
+ def _parse_json_response(raw_response: str) -> dict[str, Any] | None:
+     """Parse raw LLM response when it's structured JSON."""
+     try:
+-        parsed = json.loads(raw_response)
++        parsed = None
+     except json.JSONDecodeError, TypeError:
+         return None
+     if isinstance(parsed, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_json_response__mutmut_2
+@@ -1,7 +1,7 @@
+ def _parse_json_response(raw_response: str) -> dict[str, Any] | None:
+     """Parse raw LLM response when it's structured JSON."""
+     try:
+-        parsed = json.loads(raw_response)
++        parsed = json.loads(None)
+     except json.JSONDecodeError, TypeError:
+         return None
+     if isinstance(parsed, dict):
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_9
+@@ -21,7 +21,7 @@
+     ]
+
+     for pattern in patterns:
+-        matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
++        matches = re.findall(pattern, think_content, )
+         for match in matches:
+             obs = match.strip()
+             if obs and len(obs) > 5 and obs not in observations:
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_10
+@@ -21,7 +21,7 @@
+     ]
+
+     for pattern in patterns:
+-        matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
++        matches = re.findall(pattern, think_content, re.IGNORECASE & re.MULTILINE)
+         for match in matches:
+             obs = match.strip()
+             if obs and len(obs) > 5 and obs not in observations:
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_12
+@@ -24,7 +24,7 @@
+         matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
+         for match in matches:
+             obs = match.strip()
+-            if obs and len(obs) > 5 and obs not in observations:
++            if obs and len(obs) > 5 or obs not in observations:
+                 observations.append(obs)
+
+     return observations[:10]
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_13
+@@ -24,7 +24,7 @@
+         matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
+         for match in matches:
+             obs = match.strip()
+-            if obs and len(obs) > 5 and obs not in observations:
++            if obs or len(obs) > 5 and obs not in observations:
+                 observations.append(obs)
+
+     return observations[:10]
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_14
+@@ -24,7 +24,7 @@
+         matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
+         for match in matches:
+             obs = match.strip()
+-            if obs and len(obs) > 5 and obs not in observations:
++            if obs and len(obs) >= 5 and obs not in observations:
+                 observations.append(obs)
+
+     return observations[:10]
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_15
+@@ -24,7 +24,7 @@
+         matches = re.findall(pattern, think_content, re.IGNORECASE | re.MULTILINE)
+         for match in matches:
+             obs = match.strip()
+-            if obs and len(obs) > 5 and obs not in observations:
++            if obs and len(obs) > 6 and obs not in observations:
+                 observations.append(obs)
+
+     return observations[:10]
+
+=== backend.api.routes.llm_reasoning.x__extract_key_observations__mutmut_18
+@@ -27,4 +27,4 @@
+             if obs and len(obs) > 5 and obs not in observations:
+                 observations.append(obs)
+
+-    return observations[:10]
++    return observations[:11]
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_3
+@@ -11,7 +11,7 @@
+
+     # Known enrichment source categories
+     known_sources = {
+-        "florence": "Florence-2 Vision Analysis",
++        "XXflorenceXX": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_4
+@@ -11,7 +11,7 @@
+
+     # Known enrichment source categories
+     known_sources = {
+-        "florence": "Florence-2 Vision Analysis",
++        "FLORENCE": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_5
+@@ -11,7 +11,7 @@
+
+     # Known enrichment source categories
+     known_sources = {
+-        "florence": "Florence-2 Vision Analysis",
++        "florence": "XXFlorence-2 Vision AnalysisXX",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_8
+@@ -12,7 +12,7 @@
+     # Known enrichment source categories
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+-        "clip": "CLIP Embeddings",
++        "XXclipXX": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_9
+@@ -12,7 +12,7 @@
+     # Known enrichment source categories
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+-        "clip": "CLIP Embeddings",
++        "CLIP": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_10
+@@ -12,7 +12,7 @@
+     # Known enrichment source categories
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+-        "clip": "CLIP Embeddings",
++        "clip": "XXCLIP EmbeddingsXX",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_11
+@@ -12,7 +12,7 @@
+     # Known enrichment source categories
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+-        "clip": "CLIP Embeddings",
++        "clip": "clip embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_12
+@@ -12,7 +12,7 @@
+     # Known enrichment source categories
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+-        "clip": "CLIP Embeddings",
++        "clip": "CLIP EMBEDDINGS",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_13
+@@ -13,7 +13,7 @@
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+-        "weather": "Weather Analysis",
++        "XXweatherXX": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_14
+@@ -13,7 +13,7 @@
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+-        "weather": "Weather Analysis",
++        "WEATHER": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_15
+@@ -13,7 +13,7 @@
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+-        "weather": "Weather Analysis",
++        "weather": "XXWeather AnalysisXX",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_16
+@@ -13,7 +13,7 @@
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+-        "weather": "Weather Analysis",
++        "weather": "weather analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_17
+@@ -13,7 +13,7 @@
+     known_sources = {
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+-        "weather": "Weather Analysis",
++        "weather": "WEATHER ANALYSIS",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_18
+@@ -14,7 +14,7 @@
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+-        "violence": "Violence Detection",
++        "XXviolenceXX": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_19
+@@ -14,7 +14,7 @@
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+-        "violence": "Violence Detection",
++        "VIOLENCE": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_20
+@@ -14,7 +14,7 @@
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+-        "violence": "Violence Detection",
++        "violence": "XXViolence DetectionXX",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_21
+@@ -14,7 +14,7 @@
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+-        "violence": "Violence Detection",
++        "violence": "violence detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_22
+@@ -14,7 +14,7 @@
+         "florence": "Florence-2 Vision Analysis",
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+-        "violence": "Violence Detection",
++        "violence": "VIOLENCE DETECTION",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_23
+@@ -15,7 +15,7 @@
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+-        "clothing": "Clothing Analysis",
++        "XXclothingXX": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_24
+@@ -15,7 +15,7 @@
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+-        "clothing": "Clothing Analysis",
++        "CLOTHING": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_25
+@@ -15,7 +15,7 @@
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+-        "clothing": "Clothing Analysis",
++        "clothing": "XXClothing AnalysisXX",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_26
+@@ -15,7 +15,7 @@
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+-        "clothing": "Clothing Analysis",
++        "clothing": "clothing analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_27
+@@ -15,7 +15,7 @@
+         "clip": "CLIP Embeddings",
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+-        "clothing": "Clothing Analysis",
++        "clothing": "CLOTHING ANALYSIS",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_28
+@@ -16,7 +16,7 @@
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+-        "vehicle": "Vehicle Classification",
++        "XXvehicleXX": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_29
+@@ -16,7 +16,7 @@
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+-        "vehicle": "Vehicle Classification",
++        "VEHICLE": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_30
+@@ -16,7 +16,7 @@
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+-        "vehicle": "Vehicle Classification",
++        "vehicle": "XXVehicle ClassificationXX",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_31
+@@ -16,7 +16,7 @@
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+-        "vehicle": "Vehicle Classification",
++        "vehicle": "vehicle classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_32
+@@ -16,7 +16,7 @@
+         "weather": "Weather Analysis",
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+-        "vehicle": "Vehicle Classification",
++        "vehicle": "VEHICLE CLASSIFICATION",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_33
+@@ -17,7 +17,7 @@
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+-        "pet": "Pet Detection",
++        "XXpetXX": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_34
+@@ -17,7 +17,7 @@
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+-        "pet": "Pet Detection",
++        "PET": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_35
+@@ -17,7 +17,7 @@
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+-        "pet": "Pet Detection",
++        "pet": "XXPet DetectionXX",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_36
+@@ -17,7 +17,7 @@
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+-        "pet": "Pet Detection",
++        "pet": "pet detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_37
+@@ -17,7 +17,7 @@
+         "violence": "Violence Detection",
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+-        "pet": "Pet Detection",
++        "pet": "PET DETECTION",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_38
+@@ -18,7 +18,7 @@
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+-        "pose": "Pose Estimation",
++        "XXposeXX": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_39
+@@ -18,7 +18,7 @@
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+-        "pose": "Pose Estimation",
++        "POSE": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_40
+@@ -18,7 +18,7 @@
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+-        "pose": "Pose Estimation",
++        "pose": "XXPose EstimationXX",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_41
+@@ -18,7 +18,7 @@
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+-        "pose": "Pose Estimation",
++        "pose": "pose estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_42
+@@ -18,7 +18,7 @@
+         "clothing": "Clothing Analysis",
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+-        "pose": "Pose Estimation",
++        "pose": "POSE ESTIMATION",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_43
+@@ -19,7 +19,7 @@
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+-        "demographics": "Demographics Analysis",
++        "XXdemographicsXX": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_44
+@@ -19,7 +19,7 @@
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+-        "demographics": "Demographics Analysis",
++        "DEMOGRAPHICS": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_45
+@@ -19,7 +19,7 @@
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+-        "demographics": "Demographics Analysis",
++        "demographics": "XXDemographics AnalysisXX",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_46
+@@ -19,7 +19,7 @@
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+-        "demographics": "Demographics Analysis",
++        "demographics": "demographics analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_47
+@@ -19,7 +19,7 @@
+         "vehicle": "Vehicle Classification",
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+-        "demographics": "Demographics Analysis",
++        "demographics": "DEMOGRAPHICS ANALYSIS",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_48
+@@ -20,7 +20,7 @@
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+-        "image_quality": "Image Quality Assessment",
++        "XXimage_qualityXX": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_49
+@@ -20,7 +20,7 @@
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+-        "image_quality": "Image Quality Assessment",
++        "IMAGE_QUALITY": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_50
+@@ -20,7 +20,7 @@
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+-        "image_quality": "Image Quality Assessment",
++        "image_quality": "XXImage Quality AssessmentXX",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_51
+@@ -20,7 +20,7 @@
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+-        "image_quality": "Image Quality Assessment",
++        "image_quality": "image quality assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_52
+@@ -20,7 +20,7 @@
+         "pet": "Pet Detection",
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+-        "image_quality": "Image Quality Assessment",
++        "image_quality": "IMAGE QUALITY ASSESSMENT",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_53
+@@ -21,7 +21,7 @@
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+-        "zones": "Zone Analysis",
++        "XXzonesXX": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_54
+@@ -21,7 +21,7 @@
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+-        "zones": "Zone Analysis",
++        "ZONES": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_55
+@@ -21,7 +21,7 @@
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+-        "zones": "Zone Analysis",
++        "zones": "XXZone AnalysisXX",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_56
+@@ -21,7 +21,7 @@
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+-        "zones": "Zone Analysis",
++        "zones": "zone analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_57
+@@ -21,7 +21,7 @@
+         "pose": "Pose Estimation",
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+-        "zones": "Zone Analysis",
++        "zones": "ZONE ANALYSIS",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_58
+@@ -22,7 +22,7 @@
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+-        "baseline": "Baseline Comparison",
++        "XXbaselineXX": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_59
+@@ -22,7 +22,7 @@
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+-        "baseline": "Baseline Comparison",
++        "BASELINE": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_60
+@@ -22,7 +22,7 @@
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+-        "baseline": "Baseline Comparison",
++        "baseline": "XXBaseline ComparisonXX",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_61
+@@ -22,7 +22,7 @@
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+-        "baseline": "Baseline Comparison",
++        "baseline": "baseline comparison",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_62
+@@ -22,7 +22,7 @@
+         "demographics": "Demographics Analysis",
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+-        "baseline": "Baseline Comparison",
++        "baseline": "BASELINE COMPARISON",
+         "cross_camera": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_63
+@@ -23,7 +23,7 @@
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+-        "cross_camera": "Cross-Camera Correlation",
++        "XXcross_cameraXX": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_64
+@@ -23,7 +23,7 @@
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+-        "cross_camera": "Cross-Camera Correlation",
++        "CROSS_CAMERA": "Cross-Camera Correlation",
+         "detections": "Object Detections",
+     }
+
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_65
+@@ -23,7 +23,7 @@
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+-        "cross_camera": "Cross-Camera Correlation",
++        "cross_camera": "XXCross-Camera CorrelationXX",
+         "detections": "Object Detections",
+     }
+
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_66
+@@ -23,7 +23,7 @@
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+-        "cross_camera": "Cross-Camera Correlation",
++        "cross_camera": "cross-camera correlation",
+         "detections": "Object Detections",
+     }
+
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_67
+@@ -23,7 +23,7 @@
+         "image_quality": "Image Quality Assessment",
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+-        "cross_camera": "Cross-Camera Correlation",
++        "cross_camera": "CROSS-CAMERA CORRELATION",
+         "detections": "Object Detections",
+     }
+
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_68
+@@ -24,7 +24,7 @@
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+-        "detections": "Object Detections",
++        "XXdetectionsXX": "Object Detections",
+     }
+
+     for key, display_name in known_sources.items():
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_69
+@@ -24,7 +24,7 @@
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+-        "detections": "Object Detections",
++        "DETECTIONS": "Object Detections",
+     }
+
+     for key, display_name in known_sources.items():
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_70
+@@ -24,7 +24,7 @@
+         "zones": "Zone Analysis",
+         "baseline": "Baseline Comparison",
+         "cross_camera": "Cross-Camera Correlation",
+-        "detections": "Object Detections",
++        "detections": "XXObject DetectionsXX",
+     }
+
+     for key, display_name in known_sources.items():
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_78
+@@ -31,7 +31,7 @@
+         if key in enrichment_snapshot:
+             data = enrichment_snapshot[key]
+             populated = bool(data)
+-            field_count = 0
++            field_count = 1
+             sample_fields: list[str] = []
+
+             if isinstance(data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_83
+@@ -36,7 +36,7 @@
+
+             if isinstance(data, dict):
+                 field_count = len(data)
+-                sample_fields = list(data.keys())[:5]
++                sample_fields = list(data.keys())[:6]
+             elif isinstance(data, list):
+                 field_count = len(data)
+                 if data and isinstance(data[0], dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_88
+@@ -40,7 +40,7 @@
+             elif isinstance(data, list):
+                 field_count = len(data)
+                 if data and isinstance(data[0], dict):
+-                    sample_fields = list(data[0].keys())[:5]
++                    sample_fields = list(data[1].keys())[:5]
+
+             sources.append(
+                 EnrichmentSource(
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_89
+@@ -40,7 +40,7 @@
+             elif isinstance(data, list):
+                 field_count = len(data)
+                 if data and isinstance(data[0], dict):
+-                    sample_fields = list(data[0].keys())[:5]
++                    sample_fields = list(data[0].keys())[:6]
+
+             sources.append(
+                 EnrichmentSource(
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_98
+@@ -47,8 +47,7 @@
+                     name=display_name,
+                     populated=populated,
+                     field_count=field_count,
+-                    sample_fields=sample_fields,
+-                )
++                    )
+             )
+
+     # Add any unknown sources from the snapshot
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_99
+@@ -53,7 +53,7 @@
+
+     # Add any unknown sources from the snapshot
+     for key, data in enrichment_snapshot.items():
+-        if key not in known_sources:
++        if key in known_sources:
+             populated = bool(data)
+             field_count = 0
+             sample_fields = []
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_101
+@@ -54,7 +54,7 @@
+     # Add any unknown sources from the snapshot
+     for key, data in enrichment_snapshot.items():
+         if key not in known_sources:
+-            populated = bool(data)
++            populated = bool(None)
+             field_count = 0
+             sample_fields = []
+
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_103
+@@ -55,7 +55,7 @@
+     for key, data in enrichment_snapshot.items():
+         if key not in known_sources:
+             populated = bool(data)
+-            field_count = 0
++            field_count = 1
+             sample_fields = []
+
+             if isinstance(data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_112
+@@ -68,7 +68,6 @@
+                 EnrichmentSource(
+                     name=key.replace("_", " ").title(),
+                     populated=populated,
+-                    field_count=field_count,
+                     sample_fields=sample_fields,
+                 )
+             )
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_113
+@@ -69,8 +69,7 @@
+                     name=key.replace("_", " ").title(),
+                     populated=populated,
+                     field_count=field_count,
+-                    sample_fields=sample_fields,
+-                )
++                    )
+             )
+
+     return sources
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_118
+@@ -66,7 +66,7 @@
+
+             sources.append(
+                 EnrichmentSource(
+-                    name=key.replace("_", " ").title(),
++                    name=key.replace("XX_XX", " ").title(),
+                     populated=populated,
+                     field_count=field_count,
+                     sample_fields=sample_fields,
+
+=== backend.api.routes.llm_reasoning.x__parse_enrichment_sources__mutmut_119
+@@ -66,7 +66,7 @@
+
+             sources.append(
+                 EnrichmentSource(
+-                    name=key.replace("_", " ").title(),
++                    name=key.replace("_", "XX XX").title(),
+                     populated=populated,
+                     field_count=field_count,
+                     sample_fields=sample_fields,
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_8
+@@ -15,5 +15,5 @@
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+-        truncation_reason=truncation_log.get("reason"),
++        truncation_reason=None,
+     )
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_13
+@@ -15,5 +15,4 @@
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+-        truncation_reason=truncation_log.get("reason"),
+-    )
++        )
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_15
+@@ -11,7 +11,7 @@
+         return TruncationInfo(was_truncated=False)
+
+     return TruncationInfo(
+-        was_truncated=truncation_log.get("was_truncated", False),
++        was_truncated=truncation_log.get("was_truncated", None),
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_17
+@@ -11,7 +11,7 @@
+         return TruncationInfo(was_truncated=False)
+
+     return TruncationInfo(
+-        was_truncated=truncation_log.get("was_truncated", False),
++        was_truncated=truncation_log.get("was_truncated", ),
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_20
+@@ -11,7 +11,7 @@
+         return TruncationInfo(was_truncated=False)
+
+     return TruncationInfo(
+-        was_truncated=truncation_log.get("was_truncated", False),
++        was_truncated=truncation_log.get("was_truncated", True),
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_33
+@@ -15,5 +15,5 @@
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+-        truncation_reason=truncation_log.get("reason"),
++        truncation_reason=truncation_log.get(None),
+     )
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_34
+@@ -15,5 +15,5 @@
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+-        truncation_reason=truncation_log.get("reason"),
++        truncation_reason=truncation_log.get("XXreasonXX"),
+     )
+
+=== backend.api.routes.llm_reasoning.x__parse_truncation_info__mutmut_35
+@@ -15,5 +15,5 @@
+         original_length=truncation_log.get("original_length"),
+         truncated_length=truncation_log.get("truncated_length"),
+         dropped_sections=truncation_log.get("dropped_sections", []),
+-        truncation_reason=truncation_log.get("reason"),
++        truncation_reason=truncation_log.get("REASON"),
+     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_7
+@@ -21,7 +21,7 @@
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+-                        match_method=match.get("match_method"),
++                        match_method=None,
+                     )
+                 )
+
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_11
+@@ -21,8 +21,7 @@
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+-                        match_method=match.get("match_method"),
+-                    )
++                        )
+                 )
+
+     # Handle dict with entity types as keys
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_13
+@@ -18,7 +18,7 @@
+             if isinstance(match, dict):
+                 matches.append(
+                     HouseholdMatch(
+-                        entity_type=match.get("entity_type", "unknown"),
++                        entity_type=match.get("entity_type", None),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_15
+@@ -18,7 +18,7 @@
+             if isinstance(match, dict):
+                 matches.append(
+                     HouseholdMatch(
+-                        entity_type=match.get("entity_type", "unknown"),
++                        entity_type=match.get("entity_type", ),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_18
+@@ -18,7 +18,7 @@
+             if isinstance(match, dict):
+                 matches.append(
+                     HouseholdMatch(
+-                        entity_type=match.get("entity_type", "unknown"),
++                        entity_type=match.get("entity_type", "XXunknownXX"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_19
+@@ -18,7 +18,7 @@
+             if isinstance(match, dict):
+                 matches.append(
+                     HouseholdMatch(
+-                        entity_type=match.get("entity_type", "unknown"),
++                        entity_type=match.get("entity_type", "UNKNOWN"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_24
+@@ -19,7 +19,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=match.get("entity_type", "unknown"),
+-                        entity_name=match.get("entity_name") or match.get("name"),
++                        entity_name=match.get("entity_name") or match.get(None),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_25
+@@ -19,7 +19,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=match.get("entity_type", "unknown"),
+-                        entity_name=match.get("entity_name") or match.get("name"),
++                        entity_name=match.get("entity_name") or match.get("XXnameXX"),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_26
+@@ -19,7 +19,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=match.get("entity_type", "unknown"),
+-                        entity_name=match.get("entity_name") or match.get("name"),
++                        entity_name=match.get("entity_name") or match.get("NAME"),
+                         similarity_score=match.get("similarity_score", 0.0),
+                         match_method=match.get("match_method"),
+                     )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_28
+@@ -20,7 +20,7 @@
+                     HouseholdMatch(
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+-                        similarity_score=match.get("similarity_score", 0.0),
++                        similarity_score=match.get("similarity_score", None),
+                         match_method=match.get("match_method"),
+                     )
+                 )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_30
+@@ -20,7 +20,7 @@
+                     HouseholdMatch(
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+-                        similarity_score=match.get("similarity_score", 0.0),
++                        similarity_score=match.get("similarity_score", ),
+                         match_method=match.get("match_method"),
+                     )
+                 )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_33
+@@ -20,7 +20,7 @@
+                     HouseholdMatch(
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+-                        similarity_score=match.get("similarity_score", 0.0),
++                        similarity_score=match.get("similarity_score", 1.0),
+                         match_method=match.get("match_method"),
+                     )
+                 )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_34
+@@ -21,7 +21,7 @@
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+-                        match_method=match.get("match_method"),
++                        match_method=match.get(None),
+                     )
+                 )
+
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_35
+@@ -21,7 +21,7 @@
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+-                        match_method=match.get("match_method"),
++                        match_method=match.get("XXmatch_methodXX"),
+                     )
+                 )
+
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_36
+@@ -21,7 +21,7 @@
+                         entity_type=match.get("entity_type", "unknown"),
+                         entity_name=match.get("entity_name") or match.get("name"),
+                         similarity_score=match.get("similarity_score", 0.0),
+-                        match_method=match.get("match_method"),
++                        match_method=match.get("MATCH_METHOD"),
+                     )
+                 )
+
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_37
+@@ -32,14 +32,7 @@
+                 for item in match_data:
+                     if isinstance(item, dict):
+                         matches.append(
+-                            HouseholdMatch(
+-                                entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
+-                                similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
+-                                ),
+-                                match_method=item.get("method") or item.get("match_method"),
+-                            )
++                            None
+                         )
+             elif isinstance(match_data, dict):
+                 matches.append(
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_39
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=None,
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_41
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=None,
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_43
+@@ -34,7 +34,6 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_45
+@@ -38,8 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
+-                            )
++                                )
+                         )
+             elif isinstance(match_data, dict):
+                 matches.append(
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_46
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get("name") and item.get("entity_name"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_47
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get(None) or item.get("entity_name"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_48
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get("XXnameXX") or item.get("entity_name"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_49
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get("NAME") or item.get("entity_name"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_50
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get("name") or item.get(None),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_51
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get("name") or item.get("XXentity_nameXX"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_52
+@@ -34,7 +34,7 @@
+                         matches.append(
+                             HouseholdMatch(
+                                 entity_type=entity_type,
+-                                entity_name=item.get("name") or item.get("entity_name"),
++                                entity_name=item.get("name") or item.get("ENTITY_NAME"),
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_53
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    None, item.get("similarity_score", 0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_54
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", None
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_56
+@@ -36,8 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
+-                                ),
++                                    "similarity", ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+                         )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_57
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "XXsimilarityXX", item.get("similarity_score", 0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_58
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "SIMILARITY", item.get("similarity_score", 0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_59
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get(None, 0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_60
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get("similarity_score", None)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_61
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get(0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_62
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get("similarity_score", )
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_63
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get("XXsimilarity_scoreXX", 0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_64
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get("SIMILARITY_SCORE", 0.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_65
+@@ -36,7 +36,7 @@
+                                 entity_type=entity_type,
+                                 entity_name=item.get("name") or item.get("entity_name"),
+                                 similarity_score=item.get(
+-                                    "similarity", item.get("similarity_score", 0.0)
++                                    "similarity", item.get("similarity_score", 1.0)
+                                 ),
+                                 match_method=item.get("method") or item.get("match_method"),
+                             )
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_66
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get("method") and item.get("match_method"),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_67
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get(None) or item.get("match_method"),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_68
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get("XXmethodXX") or item.get("match_method"),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_69
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get("METHOD") or item.get("match_method"),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_70
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get("method") or item.get(None),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_71
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get("method") or item.get("XXmatch_methodXX"),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_72
+@@ -38,7 +38,7 @@
+                                 similarity_score=item.get(
+                                     "similarity", item.get("similarity_score", 0.0)
+                                 ),
+-                                match_method=item.get("method") or item.get("match_method"),
++                                match_method=item.get("method") or item.get("MATCH_METHOD"),
+                             )
+                         )
+             elif isinstance(match_data, dict):
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_73
+@@ -43,14 +43,7 @@
+                         )
+             elif isinstance(match_data, dict):
+                 matches.append(
+-                    HouseholdMatch(
+-                        entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
+-                        similarity_score=match_data.get(
+-                            "similarity", match_data.get("similarity_score", 0.0)
+-                        ),
+-                        match_method=match_data.get("method") or match_data.get("match_method"),
+-                    )
++                    None
+                 )
+
+     return matches
+
+=== backend.api.routes.llm_reasoning.x__parse_household_matches__mutmut_75
+@@ -45,7 +45,7 @@
+                 matches.append(
+                     HouseholdMatch(
+                         entity_type=entity_type,
+-                        entity_name=match_data.get("name") or match_data.get("entity_name"),
++                        entity_name=None,
+                         similarity_score=match_data.get(
+                             "similarity", match_data.get("similarity_score", 0.0)
+                         ),

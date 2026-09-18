@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_26: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -45,7 +45,7 @@
+         ),
+         # Vehicle damage
+         "vehicle_damage_context": format_vehicle_damage_context(
+-            self.vehicle_damage,
++            None,
+             time_of_day=time_of_day,
+         ),
+         # Pet classification

@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_59
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁstore_detection_embedding__mutmut_59: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -76,7 +76,7 @@
+         logger.warning(
+             "Failed to store embedding in Redis for detection %d: %s",
+             detection_id,
+-            str(e),
++            None,
+         )
+
+     return entity.id, is_new

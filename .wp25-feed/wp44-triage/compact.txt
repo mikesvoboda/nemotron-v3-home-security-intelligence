@@ -1,0 +1,125 @@
+ServiceRegistry._apply_loaded_state#6	-service.enabled = state.get("enabled", True)	+service.enabled = state.get("enabled", None)
+ServiceRegistry._apply_loaded_state#8	-service.enabled = state.get("enabled", True)	+service.enabled = state.get("enabled", )
+ServiceRegistry._apply_loaded_state#11	-service.enabled = state.get("enabled", True)	+service.enabled = state.get("enabled", False)
+ServiceRegistry._apply_loaded_state#14	-service.failure_count = state.get("failure_count", 0)	+service.failure_count = state.get("failure_count", None)
+ServiceRegistry._apply_loaded_state#16	-service.failure_count = state.get("failure_count", 0)	+service.failure_count = state.get("failure_count", )
+ServiceRegistry._apply_loaded_state#19	-service.failure_count = state.get("failure_count", 0)	+service.failure_count = state.get("failure_count", 1)
+ServiceRegistry._apply_loaded_state#22	-service.restart_count = state.get("restart_count", 0)	+service.restart_count = state.get("restart_count", None)
+ServiceRegistry._apply_loaded_state#24	-service.restart_count = state.get("restart_count", 0)	+service.restart_count = state.get("restart_count", )
+ServiceRegistry._apply_loaded_state#27	-service.restart_count = state.get("restart_count", 0)	+service.restart_count = state.get("restart_count", 1)
+ServiceRegistry.clear_state#4	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug(None, extra={"service_name": name})
+ServiceRegistry.clear_state#5	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("Cleared service state from Redis", extra=None)
+ServiceRegistry.clear_state#6	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug(extra={"service_name": name})
+ServiceRegistry.clear_state#7	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("Cleared service state from Redis", )
+ServiceRegistry.clear_state#8	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("XXCleared service state from RedisXX", extra={"service_name": name})
+ServiceRegistry.clear_state#9	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("cleared service state from redis", extra={"service_name": name})
+ServiceRegistry.clear_state#10	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("CLEARED SERVICE STATE FROM REDIS", extra={"service_name": name})
+ServiceRegistry.clear_state#11	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("Cleared service state from Redis", extra={"XXservice_nameXX": name})
+ServiceRegistry.clear_state#12	-logger.debug("Cleared service state from Redis", extra={"service_name": name})	+logger.debug("Cleared service state from Redis", extra={"SERVICE_NAME": name})
+ServiceRegistry.clear_state#13	-"Failed to clear service state from Redis",	+None,
+ServiceRegistry.clear_state#14	-extra={"service_name": name, "error": str(e)},	+extra=None,
+ServiceRegistry.clear_state#16	-extra={"service_name": name, "error": str(e)}, || )	+)
+ServiceRegistry.clear_state#17	-"Failed to clear service state from Redis",	+"XXFailed to clear service state from RedisXX",
+ServiceRegistry.clear_state#18	-"Failed to clear service state from Redis",	+"failed to clear service state from redis",
+ServiceRegistry.clear_state#19	-"Failed to clear service state from Redis",	+"FAILED TO CLEAR SERVICE STATE FROM REDIS",
+ServiceRegistry.clear_state#20	-extra={"service_name": name, "error": str(e)},	+extra={"XXservice_nameXX": name, "error": str(e)},
+ServiceRegistry.clear_state#21	-extra={"service_name": name, "error": str(e)},	+extra={"SERVICE_NAME": name, "error": str(e)},
+ServiceRegistry.clear_state#22	-extra={"service_name": name, "error": str(e)},	+extra={"service_name": name, "XXerrorXX": str(e)},
+ServiceRegistry.clear_state#23	-extra={"service_name": name, "error": str(e)},	+extra={"service_name": name, "ERROR": str(e)},
+ServiceRegistry.clear_state#24	-extra={"service_name": name, "error": str(e)},	+extra={"service_name": name, "error": str(None)},
+ServiceRegistry.persist_state#2	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug(None, extra={"service_name": name})
+ServiceRegistry.persist_state#3	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("No Redis client, skipping persist", extra=None)
+ServiceRegistry.persist_state#5	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("No Redis client, skipping persist", )
+ServiceRegistry.persist_state#6	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("XXNo Redis client, skipping persistXX", extra={"service_name": name})
+ServiceRegistry.persist_state#7	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("no redis client, skipping persist", extra={"service_name": name})
+ServiceRegistry.persist_state#8	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("NO REDIS CLIENT, SKIPPING PERSIST", extra={"service_name": name})
+ServiceRegistry.persist_state#9	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("No Redis client, skipping persist", extra={"XXservice_nameXX": name})
+ServiceRegistry.persist_state#10	-logger.debug("No Redis client, skipping persist", extra={"service_name": name})	+logger.debug("No Redis client, skipping persist", extra={"SERVICE_NAME": name})
+ServiceRegistry.persist_state#21	-service.last_failure_at.isoformat() if service.last_failure_at else None	+service.last_failure_at.isoformat() if (service.last_failure_at) and False else None
+ServiceRegistry.persist_state#25	-service.last_restart_at.isoformat() if service.last_restart_at else None	+service.last_restart_at.isoformat() if (service.last_restart_at) and False else None
+ServiceRegistry.persist_state#36	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug(None, extra={"service_name": name})
+ServiceRegistry.persist_state#37	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("Persisted service state to Redis", extra=None)
+ServiceRegistry.persist_state#38	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug(extra={"service_name": name})
+ServiceRegistry.persist_state#39	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("Persisted service state to Redis", )
+ServiceRegistry.persist_state#40	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("XXPersisted service state to RedisXX", extra={"service_name": name})
+ServiceRegistry.persist_state#41	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("persisted service state to redis", extra={"service_name": name})
+ServiceRegistry.persist_state#42	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("PERSISTED SERVICE STATE TO REDIS", extra={"service_name": name})
+ServiceRegistry.persist_state#43	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("Persisted service state to Redis", extra={"XXservice_nameXX": name})
+ServiceRegistry.persist_state#44	-logger.debug("Persisted service state to Redis", extra={"service_name": name})	+logger.debug("Persisted service state to Redis", extra={"SERVICE_NAME": name})
+ServiceRegistry.persist_state#45	-"Failed to persist service state to Redis",	+None,
+ServiceRegistry.persist_state#46	-extra={"service_name": name, "error": str(e)},	+extra=None,
+ServiceRegistry.persist_state#48	-extra={"service_name": name, "error": str(e)}, || )	+)
+ServiceRegistry.persist_state#49	-"Failed to persist service state to Redis",	+"XXFailed to persist service state to RedisXX",
+ServiceRegistry.persist_state#50	-"Failed to persist service state to Redis",	+"failed to persist service state to redis",
+ServiceRegistry.persist_state#51	-"Failed to persist service state to Redis",	+"FAILED TO PERSIST SERVICE STATE TO REDIS",
+ServiceRegistry.persist_state#52	-extra={"service_name": name, "error": str(e)},	+extra={"XXservice_nameXX": name, "error": str(e)},
+ServiceRegistry.persist_state#53	-extra={"service_name": name, "error": str(e)},	+extra={"SERVICE_NAME": name, "error": str(e)},
+ServiceRegistry.persist_state#54	-extra={"service_name": name, "error": str(e)},	+extra={"service_name": name, "XXerrorXX": str(e)},
+ServiceRegistry.persist_state#55	-extra={"service_name": name, "error": str(e)},	+extra={"service_name": name, "ERROR": str(e)},
+ServiceRegistry.persist_state#56	-extra={"service_name": name, "error": str(e)},	+extra={"service_name": name, "error": str(None)},
+ServiceRegistry.record_restart#3	-"Recorded restart",	+None,
+ServiceRegistry.record_restart#4	-extra={"service_name": name, "restart_count": service.restart_count},	+extra=None,
+ServiceRegistry.record_restart#6	-extra={"service_name": name, "restart_count": service.restart_count}, || )	+)
+ServiceRegistry.record_restart#7	-"Recorded restart",	+"XXRecorded restartXX",
+ServiceRegistry.record_restart#8	-"Recorded restart",	+"recorded restart",
+ServiceRegistry.record_restart#9	-"Recorded restart",	+"RECORDED RESTART",
+ServiceRegistry.record_restart#10	-extra={"service_name": name, "restart_count": service.restart_count},	+extra={"XXservice_nameXX": name, "restart_count": service.restart_count},
+ServiceRegistry.record_restart#11	-extra={"service_name": name, "restart_count": service.restart_count},	+extra={"SERVICE_NAME": name, "restart_count": service.restart_count},
+ServiceRegistry.record_restart#12	-extra={"service_name": name, "restart_count": service.restart_count},	+extra={"service_name": name, "XXrestart_countXX": service.restart_count},
+ServiceRegistry.record_restart#13	-extra={"service_name": name, "restart_count": service.restart_count},	+extra={"service_name": name, "RESTART_COUNT": service.restart_count},
+ServiceRegistry.reset_failures#3	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug(None, extra={"service_name": name})
+ServiceRegistry.reset_failures#4	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("Reset failure tracking", extra=None)
+ServiceRegistry.reset_failures#6	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("Reset failure tracking", )
+ServiceRegistry.reset_failures#7	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("XXReset failure trackingXX", extra={"service_name": name})
+ServiceRegistry.reset_failures#8	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("reset failure tracking", extra={"service_name": name})
+ServiceRegistry.reset_failures#9	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("RESET FAILURE TRACKING", extra={"service_name": name})
+ServiceRegistry.reset_failures#10	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("Reset failure tracking", extra={"XXservice_nameXX": name})
+ServiceRegistry.reset_failures#11	-logger.debug("Reset failure tracking", extra={"service_name": name})	+logger.debug("Reset failure tracking", extra={"SERVICE_NAME": name})
+ServiceRegistry.set_enabled#4	-"Set service enabled",	+None,
+ServiceRegistry.set_enabled#5	-extra={"service_name": name, "enabled": enabled},	+extra=None,
+ServiceRegistry.set_enabled#7	-extra={"service_name": name, "enabled": enabled}, || )	+)
+ServiceRegistry.set_enabled#8	-"Set service enabled",	+"XXSet service enabledXX",
+ServiceRegistry.set_enabled#9	-"Set service enabled",	+"set service enabled",
+ServiceRegistry.set_enabled#10	-"Set service enabled",	+"SET SERVICE ENABLED",
+ServiceRegistry.set_enabled#11	-extra={"service_name": name, "enabled": enabled},	+extra={"XXservice_nameXX": name, "enabled": enabled},
+ServiceRegistry.set_enabled#12	-extra={"service_name": name, "enabled": enabled},	+extra={"SERVICE_NAME": name, "enabled": enabled},
+ServiceRegistry.set_enabled#13	-extra={"service_name": name, "enabled": enabled},	+extra={"service_name": name, "XXenabledXX": enabled},
+ServiceRegistry.set_enabled#14	-extra={"service_name": name, "enabled": enabled},	+extra={"service_name": name, "ENABLED": enabled},
+ServiceRegistry.unregister#2	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug(None, extra={"service_name": name})
+ServiceRegistry.unregister#3	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("Unregistered service", extra=None)
+ServiceRegistry.unregister#5	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("Unregistered service", )
+ServiceRegistry.unregister#6	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("XXUnregistered serviceXX", extra={"service_name": name})
+ServiceRegistry.unregister#7	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("unregistered service", extra={"service_name": name})
+ServiceRegistry.unregister#8	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("UNREGISTERED SERVICE", extra={"service_name": name})
+ServiceRegistry.unregister#9	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("Unregistered service", extra={"XXservice_nameXX": name})
+ServiceRegistry.unregister#10	-logger.debug("Unregistered service", extra={"service_name": name})	+logger.debug("Unregistered service", extra={"SERVICE_NAME": name})
+ServiceRegistry.update_container_id#4	-"Updated container ID",	+None,
+ServiceRegistry.update_container_id#5	-extra={"service_name": name, "container_id": container_id},	+extra=None,
+ServiceRegistry.update_container_id#7	-extra={"service_name": name, "container_id": container_id}, || )	+)
+ServiceRegistry.update_container_id#8	-"Updated container ID",	+"XXUpdated container IDXX",
+ServiceRegistry.update_container_id#9	-"Updated container ID",	+"updated container id",
+ServiceRegistry.update_container_id#10	-"Updated container ID",	+"UPDATED CONTAINER ID",
+ServiceRegistry.update_container_id#11	-extra={"service_name": name, "container_id": container_id},	+extra={"XXservice_nameXX": name, "container_id": container_id},
+ServiceRegistry.update_container_id#12	-extra={"service_name": name, "container_id": container_id},	+extra={"SERVICE_NAME": name, "container_id": container_id},
+ServiceRegistry.update_container_id#13	-extra={"service_name": name, "container_id": container_id},	+extra={"service_name": name, "XXcontainer_idXX": container_id},
+ServiceRegistry.update_container_id#14	-extra={"service_name": name, "container_id": container_id},	+extra={"service_name": name, "CONTAINER_ID": container_id},
+ServiceRegistry.update_warmth_state#4	-"Updated warmth state",	+None,
+ServiceRegistry.update_warmth_state#5	-extra={"service_name": name, "warmth_state": state},	+extra=None,
+ServiceRegistry.update_warmth_state#7	-extra={"service_name": name, "warmth_state": state}, || )	+)
+ServiceRegistry.update_warmth_state#8	-"Updated warmth state",	+"XXUpdated warmth stateXX",
+ServiceRegistry.update_warmth_state#9	-"Updated warmth state",	+"updated warmth state",
+ServiceRegistry.update_warmth_state#10	-"Updated warmth state",	+"UPDATED WARMTH STATE",
+ServiceRegistry.update_warmth_state#11	-extra={"service_name": name, "warmth_state": state},	+extra={"XXservice_nameXX": name, "warmth_state": state},
+ServiceRegistry.update_warmth_state#12	-extra={"service_name": name, "warmth_state": state},	+extra={"SERVICE_NAME": name, "warmth_state": state},
+ServiceRegistry.update_warmth_state#13	-extra={"service_name": name, "warmth_state": state},	+extra={"service_name": name, "XXwarmth_stateXX": state},
+ServiceRegistry.update_warmth_state#14	-extra={"service_name": name, "warmth_state": state},	+extra={"service_name": name, "WARMTH_STATE": state},
+x_get_service_registry#2	-redis_client = await init_redis()	+redis_client = None
+x_get_service_registry#4	-_service_registry = ServiceRegistry(redis_client=redis_client)	+_service_registry = ServiceRegistry(redis_client=None)
+x_get_service_registry#5	-logger.info("Created global ServiceRegistry singleton")	+logger.info(None)
+x_get_service_registry#6	-logger.info("Created global ServiceRegistry singleton")	+logger.info("XXCreated global ServiceRegistry singletonXX")
+x_get_service_registry#7	-logger.info("Created global ServiceRegistry singleton")	+logger.info("created global serviceregistry singleton")
+x_get_service_registry#8	-logger.info("Created global ServiceRegistry singleton")	+logger.info("CREATED GLOBAL SERVICEREGISTRY SINGLETON")
+x_reset_service_registry#2	-logger.debug("Reset global ServiceRegistry singleton")	+logger.debug(None)
+x_reset_service_registry#3	-logger.debug("Reset global ServiceRegistry singleton")	+logger.debug("XXReset global ServiceRegistry singletonXX")
+x_reset_service_registry#4	-logger.debug("Reset global ServiceRegistry singleton")	+logger.debug("reset global serviceregistry singleton")
+x_reset_service_registry#5	-logger.debug("Reset global ServiceRegistry singleton")	+logger.debug("RESET GLOBAL SERVICEREGISTRY SINGLETON")

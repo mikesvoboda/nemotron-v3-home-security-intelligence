@@ -1,0 +1,11 @@
+# backend.services.redis_memory_service.xǁRedisMemoryServiceǁget_memory_stats__mutmut_134: survived
+--- backend/services/redis_memory_service.py
++++ backend/services/redis_memory_service.py
+@@ -49,6 +49,6 @@
+         total_keys=total_keys,
+         keys_with_ttl=keys_with_ttl,
+         evicted_keys=evicted_keys,
+-        is_memory_limited=maxmemory > 0,
++        is_memory_limited=maxmemory > 1,
+         memory_usage_percent=memory_usage_percent,
+     )

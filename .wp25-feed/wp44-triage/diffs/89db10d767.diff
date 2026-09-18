@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_45: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -42,7 +42,7 @@
+         "quality_change_description": self.quality_change_description,
+         "threat_detection": (
+             self.threat_detection.to_dict()
+-            if self.threat_detection and hasattr(self.threat_detection, "to_dict")
++            if self.threat_detection or hasattr(self.threat_detection, "to_dict")
+             else None
+         ),
+         "age_classifications": {

@@ -1,0 +1,12 @@
+# backend.services.redis_streams.x_get_detection_stream_service__mutmut_1: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -4,7 +4,7 @@
+     """Get or create the detection stream service."""
+     global _detection_stream_service  # noqa: PLW0603
+
+-    if _detection_stream_service is None:
++    if _detection_stream_service is not None:
+         settings = get_settings()
+         _detection_stream_service = DetectionStreamService(
+             redis_client=redis_client,

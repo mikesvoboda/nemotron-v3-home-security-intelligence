@@ -1,0 +1,11 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_44: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -53,6 +53,6 @@
+         },
+     )
+
+-    record_pipeline_error("stream_dlq_move")
++    record_pipeline_error(None)
+
+     return dlq_message_id

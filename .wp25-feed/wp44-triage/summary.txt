@@ -1,0 +1,184 @@
+x_get_detection_stream_service__mutmut_1 | - if _detection_stream_service is None: | + if _detection_stream_service is not None:
+x_get_detection_stream_service__mutmut_3 | - _detection_stream_service = DetectionStreamService( ; redis_client=redis_client, ; maxlen=settings.queue_max_size, ; ) | + _detection_stream_service = None
+x_get_detection_stream_service__mutmut_4 | - redis_client=redis_client, | + redis_client=None,
+x_get_detection_stream_service__mutmut_5 | - maxlen=settings.queue_max_size, | + maxlen=None,
+x_get_detection_stream_service__mutmut_7 | - maxlen=settings.queue_max_size, ; ) | + )
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_10 | - id="0", | + id="XX0XX",
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_11 | - mkstream=True, | + mkstream=False,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_12 | - "Created analysis consumer group", | + None,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_13 | - extra={ ; "stream_key": self._stream_key, ; "consumer_group": self._consumer_group, ; }, | + extra=None,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_15 | - extra={ ; "stream_key": self._stream_key, ; "consumer_group": self._consumer_group, ; }, ; ) | + )
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_16 | - "Created analysis consumer group", | + "XXCreated analysis consumer groupXX",
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_17 | - "Created analysis consumer group", | + "created analysis consumer group",
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_18 | - "Created analysis consumer group", | + "CREATED ANALYSIS CONSUMER GROUP",
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_19 | - "stream_key": self._stream_key, | + "XXstream_keyXX": self._stream_key,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_2 | - self._stream_key, | + None,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_20 | - "stream_key": self._stream_key, | + "STREAM_KEY": self._stream_key,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_21 | - "consumer_group": self._consumer_group, | + "XXconsumer_groupXX": self._consumer_group,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_22 | - "consumer_group": self._consumer_group, | + "CONSUMER_GROUP": self._consumer_group,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_23 | - self._group_created = True | + self._group_created = None
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_24 | - self._group_created = True | + self._group_created = False
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_3 | - self._consumer_group, | + None,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_4 | - id="0", | + id=None,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_5 | - mkstream=True, | + mkstream=None,
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_6 | - self._stream_key, | +
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_7 | - self._consumer_group, | +
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_8 | - id="0", | +
+xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_9 | - mkstream=True, ; ) | + )
+xǁAnalysisStreamServiceǁacknowledge__mutmut_9 | - return result > 0 | + return result >= 0
+xǁAnalysisStreamServiceǁadd_batch__mutmut_10 | - "timestamp": str(time.time()), | + "XXtimestampXX": str(time.time()),
+xǁAnalysisStreamServiceǁadd_batch__mutmut_11 | - "timestamp": str(time.time()), | + "TIMESTAMP": str(time.time()),
+xǁAnalysisStreamServiceǁadd_batch__mutmut_12 | - "timestamp": str(time.time()), | + "timestamp": str(None),
+xǁAnalysisStreamServiceǁadd_batch__mutmut_20 | - self._stream_key, | + None,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_22 | - maxlen=self._maxlen, | + maxlen=None,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_23 | - approximate=DEFAULT_STREAM_APPROXIMATE, | + approximate=None,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_26 | - maxlen=self._maxlen, | +
+xǁAnalysisStreamServiceǁadd_batch__mutmut_27 | - approximate=DEFAULT_STREAM_APPROXIMATE, ; ) | + )
+xǁAnalysisStreamServiceǁadd_batch__mutmut_28 | - "Added batch to analysis stream", | + None,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_29 | - extra={ ; "stream_key": self._stream_key, ; "message_id": message_id, ; "batch_id": batch_id, ; "detection_count": len(detection_ids), ; }, | + extra=None,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_31 | - extra={ ; "stream_key": self._stream_key, ; "message_id": message_id, ; "batch_id": batch_id, ; "detection_count": len(detection_ids), ; }, ; ) | + )
+xǁAnalysisStreamServiceǁadd_batch__mutmut_32 | - "Added batch to analysis stream", | + "XXAdded batch to analysis streamXX",
+xǁAnalysisStreamServiceǁadd_batch__mutmut_33 | - "Added batch to analysis stream", | + "added batch to analysis stream",
+xǁAnalysisStreamServiceǁadd_batch__mutmut_34 | - "Added batch to analysis stream", | + "ADDED BATCH TO ANALYSIS STREAM",
+xǁAnalysisStreamServiceǁadd_batch__mutmut_35 | - "stream_key": self._stream_key, | + "XXstream_keyXX": self._stream_key,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_36 | - "stream_key": self._stream_key, | + "STREAM_KEY": self._stream_key,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_37 | - "message_id": message_id, | + "XXmessage_idXX": message_id,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_38 | - "message_id": message_id, | + "MESSAGE_ID": message_id,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_39 | - "batch_id": batch_id, | + "XXbatch_idXX": batch_id,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_40 | - "batch_id": batch_id, | + "BATCH_ID": batch_id,
+xǁAnalysisStreamServiceǁadd_batch__mutmut_41 | - "detection_count": len(detection_ids), | + "XXdetection_countXX": len(detection_ids),
+xǁAnalysisStreamServiceǁadd_batch__mutmut_42 | - "detection_count": len(detection_ids), | + "DETECTION_COUNT": len(detection_ids),
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_10 | - self._consumer_group, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_11 | - consumer_name, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_12 | - self._claim_min_idle_ms, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_13 | - start_id="0-0", | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_14 | - count=count, ; ) | + )
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_15 | - start_id="0-0", | + start_id="XX0-0XX",
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_21 | - message_id, data = entry[:2] | + message_id, data = entry[:3]
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_24 | - self._stream_key, | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_25 | - self._consumer_group, | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_26 | - min=message_id, | + min=None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_27 | - max=message_id, | + max=None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_28 | - count=1, | + count=None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_29 | - self._stream_key, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_3 | - self._stream_key, | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_30 | - self._consumer_group, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_31 | - min=message_id, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_32 | - max=message_id, | +
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_33 | - count=1, ; ) | + )
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_34 | - count=1, | + count=2,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_38 | - _text(message_id), | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_4 | - self._consumer_group, | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_44 | - _text(message_id), | + _text(None),
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_48 | - "Claimed stale analysis messages", | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_49 | - extra={ ; "consumer_name": consumer_name, ; "claimed_count": len(messages), ; }, | + extra=None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_5 | - consumer_name, | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_51 | - extra={ ; "consumer_name": consumer_name, ; "claimed_count": len(messages), ; }, ; ) | + )
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_52 | - "Claimed stale analysis messages", | + "XXClaimed stale analysis messagesXX",
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_53 | - "Claimed stale analysis messages", | + "claimed stale analysis messages",
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_54 | - "Claimed stale analysis messages", | + "CLAIMED STALE ANALYSIS MESSAGES",
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_55 | - "consumer_name": consumer_name, | + "XXconsumer_nameXX": consumer_name,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_56 | - "consumer_name": consumer_name, | + "CONSUMER_NAME": consumer_name,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_57 | - "claimed_count": len(messages), | + "XXclaimed_countXX": len(messages),
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_58 | - "claimed_count": len(messages), | + "CLAIMED_COUNT": len(messages),
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_6 | - self._claim_min_idle_ms, | + None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_7 | - start_id="0-0", | + start_id=None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_8 | - count=count, | + count=None,
+xǁAnalysisStreamServiceǁclaim_stale_messages__mutmut_9 | - self._stream_key, | +
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_10 | - block=block_ms, | + block=None,
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_11 | - self._consumer_group, | +
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_12 | - consumer_name, | +
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_13 | - {self._stream_key: ">"}, | +
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_14 | - count=count, | +
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_15 | - block=block_ms, ; ) | + )
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_16 | - {self._stream_key: ">"}, | + {self._stream_key: "XX>XX"},
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_2 | - block_ms = self._block_ms if block else None | + block_ms = None
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_21 | - message_id, data, delivery_count=1 | + None, data, delivery_count=1
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_23 | - message_id, data, delivery_count=1 | + message_id, data, delivery_count=None
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_26 | - message_id, data, delivery_count=1 ; ) | + message_id, data, )
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_27 | - message_id, data, delivery_count=1 | + message_id, data, delivery_count=2
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_3 | - block_ms = self._block_ms if block else None | + block_ms = self._block_ms if (block) and False else None
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_4 | - block_ms = self._block_ms if block else None | + block_ms = self._block_ms if (block) or True else None
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_6 | - self._consumer_group, | + None,
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_7 | - consumer_name, | + None,
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_8 | - {self._stream_key: ">"}, | + None,
+xǁAnalysisStreamServiceǁconsume_batches__mutmut_9 | - count=count, | + count=None,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_11 | - "length": info.get("length", 0), | + "length": info.get("length", None),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_13 | - "length": info.get("length", 0), | + "length": info.get("length", ),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_16 | - "length": info.get("length", 0), | + "length": info.get("length", 1),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_17 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "XXradix_tree_keysXX": info.get("radix-tree-keys", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_18 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "RADIX_TREE_KEYS": info.get("radix-tree-keys", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_19 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get(None, 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_20 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get("radix-tree-keys", None),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_21 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get(0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_22 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get("radix-tree-keys", ),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_23 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get("XXradix-tree-keysXX", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_24 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get("RADIX-TREE-KEYS", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_25 | - "radix_tree_keys": info.get("radix-tree-keys", 0), | + "radix_tree_keys": info.get("radix-tree-keys", 1),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_26 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "XXradix_tree_nodesXX": info.get("radix-tree-nodes", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_27 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "RADIX_TREE_NODES": info.get("radix-tree-nodes", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_28 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get(None, 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_29 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get("radix-tree-nodes", None),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_3 | - raise RuntimeError("Redis client not connected") | + raise RuntimeError("XXRedis client not connectedXX")
+xǁDetectionStreamServiceǁget_stream_info__mutmut_30 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get(0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_31 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get("radix-tree-nodes", ),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_32 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get("XXradix-tree-nodesXX", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_33 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get("RADIX-TREE-NODES", 0),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_34 | - "radix_tree_nodes": info.get("radix-tree-nodes", 0), | + "radix_tree_nodes": info.get("radix-tree-nodes", 1),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_38 | - "groups": info.get("groups", 0), | + "groups": info.get("groups", None),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_40 | - "groups": info.get("groups", 0), | + "groups": info.get("groups", ),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_43 | - "groups": info.get("groups", 0), | + "groups": info.get("groups", 1),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_47 | - "last_entry_id": info.get("last-generated-id", ""), | + "last_entry_id": info.get("last-generated-id", None),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_49 | - "last_entry_id": info.get("last-generated-id", ""), | + "last_entry_id": info.get("last-generated-id", ),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_52 | - "last_entry_id": info.get("last-generated-id", ""), | + "last_entry_id": info.get("last-generated-id", "XXXX"),
+xǁDetectionStreamServiceǁget_stream_info__mutmut_55 | - if info.get("first-entry") | + if (info.get("first-entry")) and False
+xǁDetectionStreamServiceǁget_stream_info__mutmut_57 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get(None, [""])[0]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_58 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get("first-entry", None)[0]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_60 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get("first-entry", )[0]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_61 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get("XXfirst-entryXX", [""])[0]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_62 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get("FIRST-ENTRY", [""])[0]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_63 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get("first-entry", ["XXXX"])[0]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_64 | - "first_entry_id": info.get("first-entry", [""])[0] | + "first_entry_id": info.get("first-entry", [""])[1]
+xǁDetectionStreamServiceǁget_stream_info__mutmut_65 | - if info.get("first-entry") | + if info.get(None)
+xǁDetectionStreamServiceǁget_stream_info__mutmut_66 | - if info.get("first-entry") | + if info.get("XXfirst-entryXX")
+xǁDetectionStreamServiceǁget_stream_info__mutmut_67 | - if info.get("first-entry") | + if info.get("FIRST-ENTRY")
+xǁDetectionStreamServiceǁget_stream_info__mutmut_7 | - info = await self._redis._client.xinfo_stream(self._stream_key) | + info = await self._redis._client.xinfo_stream(None)
+xǁDetectionStreamServiceǁget_stream_info__mutmut_77 | - "radix_tree_keys": 0, | + "XXradix_tree_keysXX": 0,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_78 | - "radix_tree_keys": 0, | + "RADIX_TREE_KEYS": 0,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_79 | - "radix_tree_keys": 0, | + "radix_tree_keys": 1,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_80 | - "radix_tree_nodes": 0, | + "XXradix_tree_nodesXX": 0,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_81 | - "radix_tree_nodes": 0, | + "RADIX_TREE_NODES": 0,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_82 | - "radix_tree_nodes": 0, | + "radix_tree_nodes": 1,
+xǁDetectionStreamServiceǁget_stream_info__mutmut_86 | - "last_entry_id": "", | + "XXlast_entry_idXX": "",
+xǁDetectionStreamServiceǁget_stream_info__mutmut_87 | - "last_entry_id": "", | + "LAST_ENTRY_ID": "",
+xǁDetectionStreamServiceǁget_stream_info__mutmut_88 | - "last_entry_id": "", | + "last_entry_id": "XXXX",
+xǁDetectionStreamServiceǁget_stream_info__mutmut_89 | - "first_entry_id": "", | + "XXfirst_entry_idXX": "",
+xǁDetectionStreamServiceǁget_stream_info__mutmut_90 | - "first_entry_id": "", | + "FIRST_ENTRY_ID": "",
+xǁDetectionStreamServiceǁget_stream_info__mutmut_91 | - "first_entry_id": "", | + "first_entry_id": "XXXX",
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_12 | - "dlq_timestamp": str(time.time()), | + "XXdlq_timestampXX": str(time.time()),
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_13 | - "dlq_timestamp": str(time.time()), | + "DLQ_TIMESTAMP": str(time.time()),
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_14 | - "dlq_timestamp": str(time.time()), | + "dlq_timestamp": str(None),
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_22 | - maxlen=self._maxlen, | + maxlen=None,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_23 | - approximate=DEFAULT_STREAM_APPROXIMATE, | + approximate=None,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_26 | - maxlen=self._maxlen, | +
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_27 | - approximate=DEFAULT_STREAM_APPROXIMATE, ; ) | + )
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_28 | - await self.acknowledge(message.id) | + await self.acknowledge(None)
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_29 | - "Moved message to DLQ", | + None,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_3 | - raise RuntimeError("Redis client not connected") | + raise RuntimeError("XXRedis client not connectedXX")
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_30 | - extra={ ; "original_message_id": message.id, ; "dlq_message_id": dlq_message_id, ; "reason": reason, ; "delivery_count": message.delivery_count, ; }, | + extra=None,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_32 | - extra={ ; "original_message_id": message.id, ; "dlq_message_id": dlq_message_id, ; "reason": reason, ; "delivery_count": message.delivery_count, ; }, ; ) | + )
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_33 | - "Moved message to DLQ", | + "XXMoved message to DLQXX",
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_34 | - "Moved message to DLQ", | + "moved message to dlq",
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_35 | - "Moved message to DLQ", | + "MOVED MESSAGE TO DLQ",
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_36 | - "original_message_id": message.id, | + "XXoriginal_message_idXX": message.id,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_37 | - "original_message_id": message.id, | + "ORIGINAL_MESSAGE_ID": message.id,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_38 | - "dlq_message_id": dlq_message_id, | + "XXdlq_message_idXX": dlq_message_id,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_39 | - "dlq_message_id": dlq_message_id, | + "DLQ_MESSAGE_ID": dlq_message_id,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_40 | - "reason": reason, | + "XXreasonXX": reason,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_41 | - "reason": reason, | + "REASON": reason,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_42 | - "delivery_count": message.delivery_count, | + "XXdelivery_countXX": message.delivery_count,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_43 | - "delivery_count": message.delivery_count, | + "DELIVERY_COUNT": message.delivery_count,
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_44 | - record_pipeline_error("stream_dlq_move") | + record_pipeline_error(None)
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_45 | - record_pipeline_error("stream_dlq_move") | + record_pipeline_error("XXstream_dlq_moveXX")
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_46 | - record_pipeline_error("stream_dlq_move") | + record_pipeline_error("STREAM_DLQ_MOVE")
+xǁDetectionStreamServiceǁmove_to_dlq__mutmut_7 | - **{k: str(v) for k, v in message.raw_data.items()}, | + **{k: str(None) for k, v in message.raw_data.items()},

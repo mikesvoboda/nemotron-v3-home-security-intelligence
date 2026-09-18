@@ -1,0 +1,12 @@
+# backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_12: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -10,7 +10,7 @@
+     breakers: dict[str, CircuitState] = {}
+
+     for name, cb_status in all_status.items():
+-        state_value = cb_status.get("state", "closed")
++        state_value = cb_status.get("state", None)
+         if state_value == "open":
+             state = CircuitState.OPEN
+             open_count += 1

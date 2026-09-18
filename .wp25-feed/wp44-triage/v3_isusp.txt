@@ -1,0 +1,43 @@
+def x_is_suspicious_damage_pattern__mutmut_3(
+    result: VehicleDamageResult,
+    hour_of_day: int | None = None,
+) -> tuple[bool, str]:
+    """Determine if damage pattern is suspicious for security purposes.
+
+    Args:
+        result: VehicleDamageResult to analyze
+        hour_of_day: Hour of day (0-23) when damage was detected
+
+    Returns:
+        Tuple of (is_suspicious, reason)
+    """
+    if not result.has_damage:
+        return False, "XXNo damage detectedXX"
+
+    reasons = []
+
+    # High-security damage types are always suspicious
+    if result.has_high_security_damage:
+        if "glass_shatter" in result.damage_types:
+            reasons.append("glass shatter detected (possible break-in)")
+        if "lamp_broken" in result.damage_types:
+            reasons.append("broken lamp detected (possible vandalism)")
+
+    # Night time + any damage = suspicious
+    if hour_of_day is not None:
+        is_night = hour_of_day < 6 or hour_of_day >= 22
+        if is_night and result.has_damage:
+            reasons.append(f"damage detected at night (hour: {hour_of_day})")
+
+    # Multiple damage types = likely incident
+    if len(result.damage_types) >= 2:
+        reasons.append(f"multiple damage types ({len(result.damage_types)}) suggest incident")
+
+    # High confidence glass shatter + lamp broken = break-in pattern
+    if "glass_shatter" in result.damage_types and "lamp_broken" in result.damage_types:
+        reasons.append("glass + lamp damage pattern consistent with break-in attempt")
+
+    if reasons:
+        return True, "; ".join(reasons)
+
+    return False, "Damage detected but no suspicious patterns"

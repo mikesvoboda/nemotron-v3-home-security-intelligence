@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_96: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -95,7 +95,7 @@
+                     record_pipeline_error(f"{self._detector_type}_segmentation_error")
+                     logger.error(
+                         f"Segmentation failed after {self._max_retries} attempts",
+-                        exc_info=True,
++                        exc_info=False,
+                     )
+
+             except httpx.HTTPStatusError as e:

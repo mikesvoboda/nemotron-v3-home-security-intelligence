@@ -1,0 +1,11 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_155: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -102,7 +102,7 @@
+                 {
+                     "type": "weather_low_visibility",
+                     "description": f"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility",
+-                    "severity": "info",
++                    "severity": "XXinfoXX",
+                 }
+             )

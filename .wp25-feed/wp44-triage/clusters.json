@@ -1,0 +1,133 @@
+{
+  "C1": {
+    "fn": "x__build_exporter_status",
+    "nums": [4, 58, 69, 70],
+    "class": "TEST-GAP"
+  },
+  "C2": {
+    "fn": "x__build_exporter_status",
+    "nums": [
+      9, 10, 12, 13, 14, 16, 17, 18, 19, 25, 27, 28, 29, 31, 32, 33, 34, 38, 40, 43, 49, 51, 54, 55,
+      63, 64, 65, 66, 67, 71, 72, 73, 74, 75, 76, 77, 78
+    ],
+    "class": "EQUIVALENT"
+  },
+  "C3": {
+    "fn": "x__build_exporter_status",
+    "nums": [11, 24, 26, 62, 68],
+    "class": "TEST-GAP"
+  },
+  "C4": {
+    "fn": "x__build_exporter_status",
+    "nums": [82, 83, 84, 87, 88, 89, 91, 92, 93, 97, 101, 102],
+    "class": "EQUIVALENT"
+  },
+  "C5": {
+    "fn": "x__build_exporter_status",
+    "nums": [90],
+    "class": "LOW-VALUE"
+  },
+  "C6": {
+    "fn": "x__build_exporter_status",
+    "nums": [104, 105, 106],
+    "class": "LOW-VALUE"
+  },
+  "C7": {
+    "fn": "x__get_degradation_status",
+    "nums": [2, 9, 17, 19, 22, 24, 33, 34, 35, 43, 44, 45, 57, 59],
+    "class": "TEST-GAP"
+  },
+  "C8": {
+    "fn": "x__get_degradation_status",
+    "nums": [3, 102, 103, 105, 106],
+    "class": "EQUIVALENT"
+  },
+  "C9": {
+    "fn": "x__get_degradation_status",
+    "nums": [11, 28, 39, 64, 72, 79, 86, 93, 99],
+    "class": "EQUIVALENT"
+  },
+  "C10": {
+    "fn": "x__get_degradation_status",
+    "nums": [
+      25, 26, 29, 30, 31, 32, 36, 37, 40, 41, 42, 62, 67, 68, 69, 70, 73, 74, 77, 83, 84, 87, 88,
+      90, 91, 94, 95, 96, 97, 100, 101
+    ],
+    "class": "TEST-GAP"
+  },
+  "C11": {
+    "fn": "x__get_degradation_status",
+    "nums": [75, 82, 89],
+    "class": "LOW-VALUE"
+  },
+  "C12": {
+    "fn": "x__check_redis_health_full",
+    "nums": [8, 24, 48, 59],
+    "class": "EQUIVALENT"
+  },
+  "C13": {
+    "fn": "x__check_redis_health_full",
+    "nums": [46, 51, 52],
+    "class": "TEST-GAP"
+  },
+  "C14": {
+    "fn": "x__check_redis_health_full",
+    "nums": [11, 12, 13],
+    "class": "LOW-VALUE"
+  },
+  "C15": {
+    "fn": "x__check_postgres_health_full",
+    "nums": [2, 3, 4],
+    "class": "TEST-GAP"
+  },
+  "C16": {
+    "fn": "x__check_postgres_health_full",
+    "nums": [11, 23],
+    "class": "EQUIVALENT"
+  },
+  "C17": {
+    "fn": "x__get_worker_status",
+    "nums": [11, 25, 27, 30, 41],
+    "class": "TEST-GAP"
+  },
+  "C18": {
+    "fn": "x_get_latency_stats",
+    "nums": [5, 6, 10, 11, 12],
+    "class": "TEST-GAP"
+  },
+  "C19": {
+    "fn": "x__get_model_category",
+    "nums": [1],
+    "class": "TEST-GAP"
+  },
+  "C20": {
+    "fn": "x__get_model_category",
+    "nums": [2, 3, 4],
+    "class": "LOW-VALUE"
+  },
+  "C21": {
+    "fn": "x__calculate_stage_latency",
+    "nums": [49, 54, 59],
+    "class": "TEST-GAP"
+  },
+  "C22": {
+    "fn": "x__build_empty_batch_response",
+    "nums": [6],
+    "class": "EQUIVALENT"
+  },
+  "C23": {
+    "fn": "x\u01c1PerformanceMetricsCacheEntry\u01c1is_valid",
+    "nums": [2],
+    "class": "EQUIVALENT"
+  },
+  "C24": {
+    "fn": "x__get_circuit_breaker_summary",
+    "nums": [12, 14, 17, 18],
+    "class": "TEST-GAP"
+  },
+  "C25": {
+    "fn": "x__get_circuit_breaker_summary",
+    "nums": [23, 30],
+    "class": "TEST-GAP"
+  }
+}

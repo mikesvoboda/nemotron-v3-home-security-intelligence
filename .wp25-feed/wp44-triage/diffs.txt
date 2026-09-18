@@ -1,0 +1,1216 @@
+# backend.services.cache_service.xǁCacheServiceǁget_or_set__mutmut_4: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -27,7 +27,7 @@
+         return cached
+
+     # Cache miss - compute value
+-    logger.debug(f"Cache miss for key: {key}, computing value")
++    logger.debug(None)
+     try:
+         result = factory()
+         # Handle async factories
+# backend.services.cache_service.xǁCacheServiceǁget_or_set__mutmut_14: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -38,5 +38,5 @@
+         await self.set(key, result, ttl)
+         return result
+     except Exception as e:
+-        logger.error(f"Factory failed for cache key {key}: {e}")
++        logger.error(None)
+         raise
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_4: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -37,7 +37,7 @@
+     if stale_ttl is None:
+         stale_ttl = settings.cache_swr_stale_ttl
+
+-    metric_type = cache_type or self._infer_cache_type(key)
++    metric_type = None
+     full_key = f"{CACHE_PREFIX}{key}"
+     freshness_key = f"{full_key}:fresh_until"
+
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_5: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -37,7 +37,7 @@
+     if stale_ttl is None:
+         stale_ttl = settings.cache_swr_stale_ttl
+
+-    metric_type = cache_type or self._infer_cache_type(key)
++    metric_type = cache_type and self._infer_cache_type(key)
+     full_key = f"{CACHE_PREFIX}{key}"
+     freshness_key = f"{full_key}:fresh_until"
+
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_7: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -38,7 +38,7 @@
+         stale_ttl = settings.cache_swr_stale_ttl
+
+     metric_type = cache_type or self._infer_cache_type(key)
+-    full_key = f"{CACHE_PREFIX}{key}"
++    full_key = None
+     freshness_key = f"{full_key}:fresh_until"
+
+     try:
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_8: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -39,7 +39,7 @@
+
+     metric_type = cache_type or self._infer_cache_type(key)
+     full_key = f"{CACHE_PREFIX}{key}"
+-    freshness_key = f"{full_key}:fresh_until"
++    freshness_key = None
+
+     try:
+         # Try to get cached value and freshness timestamp
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_11: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -43,7 +43,7 @@
+
+     try:
+         # Try to get cached value and freshness timestamp
+-        cached_value = await self.get(key, cache_type=cache_type)
++        cached_value = await self.get(key, cache_type=None)
+
+         if cached_value is not None:
+             # Check if data is still fresh
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_13: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -43,7 +43,7 @@
+
+     try:
+         # Try to get cached value and freshness timestamp
+-        cached_value = await self.get(key, cache_type=cache_type)
++        cached_value = await self.get(key, )
+
+         if cached_value is not None:
+             # Check if data is still fresh
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_15: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -47,7 +47,7 @@
+
+         if cached_value is not None:
+             # Check if data is still fresh
+-            fresh_until_str = await self._redis.get(freshness_key)
++            fresh_until_str = None
+             now = time.time()
+
+             if fresh_until_str:
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_16: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -47,7 +47,7 @@
+
+         if cached_value is not None:
+             # Check if data is still fresh
+-            fresh_until_str = await self._redis.get(freshness_key)
++            fresh_until_str = await self._redis.get(None)
+             now = time.time()
+
+             if fresh_until_str:
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_20: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -52,7 +52,7 @@
+
+             if fresh_until_str:
+                 fresh_until = float(fresh_until_str)
+-                if now < fresh_until:
++                if now <= fresh_until:
+                     # Data is fresh - return immediately
+                     return cached_value
+                 else:
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_21: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -78,7 +78,7 @@
+                 return cached_value
+
+         # Cache miss - compute synchronously
+-        logger.debug(f"SWR: Cache miss for key: {key}, computing value")
++        logger.debug(None)
+         return await self._fetch_and_cache_swr(key, factory, ttl, stale_ttl)
+
+     except (RedisConnectionError, RedisTimeoutError, RedisError) as e:
+# backend.services.cache_service.xǁCacheServiceǁget_or_set_swr__mutmut_22: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -79,7 +79,7 @@
+
+         # Cache miss - compute synchronously
+         logger.debug(f"SWR: Cache miss for key: {key}, computing value")
+-        return await self._fetch_and_cache_swr(key, factory, ttl, stale_ttl)
++        return await self._fetch_and_cache_swr(None, factory, ttl, stale_ttl)
+
+     except (RedisConnectionError, RedisTimeoutError, RedisError) as e:
+         logger.warning(
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_4: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -12,7 +12,7 @@
+     if asyncio.iscoroutine(result):
+         result = await result
+
+-    full_key = f"{CACHE_PREFIX}{key}"
++    full_key = None
+     freshness_key = f"{full_key}:fresh_until"
+
+     # Set the value with total TTL (fresh + stale)
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_5: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,7 +13,7 @@
+         result = await result
+
+     full_key = f"{CACHE_PREFIX}{key}"
+-    freshness_key = f"{full_key}:fresh_until"
++    freshness_key = None
+
+     # Set the value with total TTL (fresh + stale)
+     total_ttl = ttl + stale_ttl
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     freshness_key = f"{full_key}:fresh_until"
+
+     # Set the value with total TTL (fresh + stale)
+-    total_ttl = ttl + stale_ttl
++    total_ttl = None
+     await self.set(key, result, ttl=total_ttl)
+
+     # Set the freshness marker
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_7: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     freshness_key = f"{full_key}:fresh_until"
+
+     # Set the value with total TTL (fresh + stale)
+-    total_ttl = ttl + stale_ttl
++    total_ttl = ttl - stale_ttl
+     await self.set(key, result, ttl=total_ttl)
+
+     # Set the freshness marker
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_8: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -17,7 +17,7 @@
+
+     # Set the value with total TTL (fresh + stale)
+     total_ttl = ttl + stale_ttl
+-    await self.set(key, result, ttl=total_ttl)
++    await self.set(None, result, ttl=total_ttl)
+
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_9: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -17,7 +17,7 @@
+
+     # Set the value with total TTL (fresh + stale)
+     total_ttl = ttl + stale_ttl
+-    await self.set(key, result, ttl=total_ttl)
++    await self.set(key, None, ttl=total_ttl)
+
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_10: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -17,7 +17,7 @@
+
+     # Set the value with total TTL (fresh + stale)
+     total_ttl = ttl + stale_ttl
+-    await self.set(key, result, ttl=total_ttl)
++    await self.set(key, result, ttl=None)
+
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_13: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -17,7 +17,7 @@
+
+     # Set the value with total TTL (fresh + stale)
+     total_ttl = ttl + stale_ttl
+-    await self.set(key, result, ttl=total_ttl)
++    await self.set(key, result, )
+
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_14: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -20,7 +20,7 @@
+     await self.set(key, result, ttl=total_ttl)
+
+     # Set the freshness marker
+-    fresh_until = time.time() + ttl
++    fresh_until = None
+     try:
+         await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
+     except Exception as e:
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_15: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -20,7 +20,7 @@
+     await self.set(key, result, ttl=total_ttl)
+
+     # Set the freshness marker
+-    fresh_until = time.time() + ttl
++    fresh_until = time.time() - ttl
+     try:
+         await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
+     except Exception as e:
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_16: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(None, str(fresh_until), expire=total_ttl)
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_17: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(freshness_key, None, expire=total_ttl)
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_18: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(freshness_key, str(fresh_until), expire=None)
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_19: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(str(fresh_until), expire=total_ttl)
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_20: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(freshness_key, expire=total_ttl)
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_21: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(freshness_key, str(fresh_until), )
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁ_fetch_and_cache_swr__mutmut_22: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -22,7 +22,7 @@
+     # Set the freshness marker
+     fresh_until = time.time() + ttl
+     try:
+-        await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
++        await self._redis.set(freshness_key, str(None), expire=total_ttl)
+     except Exception as e:
+         logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_4: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -10,7 +10,7 @@
+     full_key = f"{CACHE_PREFIX}{key}"
+     try:
+         deleted = await self._redis.delete(full_key)
+-        if deleted > 0:
++        if deleted >= 0:
+             logger.debug(f"Cache invalidated for key: {key}")
+         return deleted > 0
+     except RedisConnectionError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_5: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -10,7 +10,7 @@
+     full_key = f"{CACHE_PREFIX}{key}"
+     try:
+         deleted = await self._redis.delete(full_key)
+-        if deleted > 0:
++        if deleted > 1:
+             logger.debug(f"Cache invalidated for key: {key}")
+         return deleted > 0
+     except RedisConnectionError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -11,7 +11,7 @@
+     try:
+         deleted = await self._redis.delete(full_key)
+         if deleted > 0:
+-            logger.debug(f"Cache invalidated for key: {key}")
++            logger.debug(None)
+         return deleted > 0
+     except RedisConnectionError as e:
+         logger.warning(
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_9: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -15,7 +15,7 @@
+         return deleted > 0
+     except RedisConnectionError as e:
+         logger.warning(
+-            f"Cache invalidation failed for key {key}: Redis connection error: {e}",
++            None,
+             extra={"key": key, "error_type": "connection_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_10: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra=None,
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_12: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,8 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
+-        )
++            )
+         return False
+     except RedisTimeoutError as e:
+         logger.warning(
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_13: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"XXkeyXX": key, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_14: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"KEY": key, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_15: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "XXerror_typeXX": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_16: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "ERROR_TYPE": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_17: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "error_type": "XXconnection_errorXX"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_18: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "error_type": "CONNECTION_ERROR"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_20: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -27,7 +27,7 @@
+         return False
+     except RedisError as e:
+         logger.warning(
+-            f"Cache invalidation failed for key {key}: Redis error: {e}",
++            None,
+             extra={"key": key, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_21: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra=None,
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_23: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,5 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
+-        )
++            )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_24: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"XXkeyXX": key, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_25: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"KEY": key, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_26: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "XXerror_typeXX": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_27: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "ERROR_TYPE": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_28: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "error_type": "XXredis_errorXX"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate__mutmut_29: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache invalidation failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "error_type": "REDIS_ERROR"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_2: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
++    return await self.invalidate_pattern("events:*", reason=None, cache_type="events")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_3: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
++    return await self.invalidate_pattern("events:*", reason=reason, cache_type=None)
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_5: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
++    return await self.invalidate_pattern("events:*", cache_type="events")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
++    return await self.invalidate_pattern("events:*", reason=reason, )
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_9: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
++    return await self.invalidate_pattern("events:*", reason=reason, cache_type="XXeventsXX")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_events__mutmut_10: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("events:*", reason=reason, cache_type="events")
++    return await self.invalidate_pattern("events:*", reason=reason, cache_type="EVENTS")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_cameras__mutmut_3: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("cameras:*", reason=reason, cache_type="cameras")
++    return await self.invalidate_pattern("cameras:*", reason=reason, cache_type=None)
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_cameras__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("cameras:*", reason=reason, cache_type="cameras")
++    return await self.invalidate_pattern("cameras:*", reason=reason, )
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_2: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
++    return await self.invalidate_pattern("system:*", reason=None, cache_type="system")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_3: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
++    return await self.invalidate_pattern("system:*", reason=reason, cache_type=None)
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_5: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
++    return await self.invalidate_pattern("system:*", cache_type="system")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
++    return await self.invalidate_pattern("system:*", reason=reason, )
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_9: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
++    return await self.invalidate_pattern("system:*", reason=reason, cache_type="XXsystemXX")
+# backend.services.cache_service.xǁCacheServiceǁinvalidate_system_status__mutmut_10: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,4 +13,4 @@
+         Returns:
+             Number of keys deleted
+         """
+-    return await self.invalidate_pattern("system:*", reason=reason, cache_type="system")
++    return await self.invalidate_pattern("system:*", reason=reason, cache_type="SYSTEM")
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_5: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -15,7 +15,7 @@
+         return await self._redis.exists(full_key) > 0
+     except RedisConnectionError as e:
+         logger.warning(
+-            f"Cache exists check failed for key {key}: Redis connection error: {e}",
++            None,
+             extra={"key": key, "error_type": "connection_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra=None,
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_8: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,8 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
+-        )
++            )
+         return False
+     except RedisTimeoutError as e:
+         logger.warning(
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_9: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"XXkeyXX": key, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_10: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"KEY": key, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_11: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "XXerror_typeXX": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_12: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "ERROR_TYPE": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_13: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "error_type": "XXconnection_errorXX"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_14: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -16,7 +16,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "error_type": "connection_error"},
++            extra={"key": key, "error_type": "CONNECTION_ERROR"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_16: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -27,7 +27,7 @@
+         return False
+     except RedisError as e:
+         logger.warning(
+-            f"Cache exists check failed for key {key}: Redis error: {e}",
++            None,
+             extra={"key": key, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_17: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra=None,
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_19: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,5 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
+-        )
++            )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_20: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"XXkeyXX": key, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_21: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"KEY": key, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_22: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "XXerror_typeXX": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_23: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "ERROR_TYPE": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_24: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "error_type": "XXredis_errorXX"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁexists__mutmut_25: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -28,6 +28,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache exists check failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "error_type": "redis_error"},
++            extra={"key": key, "error_type": "REDIS_ERROR"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_6: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -13,7 +13,7 @@
+         return await self._redis.expire(full_key, ttl)
+     except RedisConnectionError as e:
+         logger.warning(
+-            f"Cache refresh failed for key {key}: Redis connection error: {e}",
++            None,
+             extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_7: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra=None,
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_9: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,8 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
+-        )
++            )
+         return False
+     except RedisTimeoutError as e:
+         logger.warning(
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_10: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"XXkeyXX": key, "ttl": ttl, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_11: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"KEY": key, "ttl": ttl, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_12: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"key": key, "XXttlXX": ttl, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_13: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"key": key, "TTL": ttl, "error_type": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_14: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"key": key, "ttl": ttl, "XXerror_typeXX": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_15: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"key": key, "ttl": ttl, "ERROR_TYPE": "connection_error"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_16: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"key": key, "ttl": ttl, "error_type": "XXconnection_errorXX"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_17: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -14,7 +14,7 @@
+     except RedisConnectionError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis connection error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "connection_error"},
++            extra={"key": key, "ttl": ttl, "error_type": "CONNECTION_ERROR"},
+         )
+         return False
+     except RedisTimeoutError as e:
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_19: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -25,7 +25,7 @@
+         return False
+     except RedisError as e:
+         logger.warning(
+-            f"Cache refresh failed for key {key}: Redis error: {e}",
++            None,
+             extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_20: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra=None,
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_22: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,5 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
+-        )
++            )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_23: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"XXkeyXX": key, "ttl": ttl, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_24: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"KEY": key, "ttl": ttl, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_25: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"key": key, "XXttlXX": ttl, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_26: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"key": key, "TTL": ttl, "error_type": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_27: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"key": key, "ttl": ttl, "XXerror_typeXX": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_28: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"key": key, "ttl": ttl, "ERROR_TYPE": "redis_error"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_29: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"key": key, "ttl": ttl, "error_type": "XXredis_errorXX"},
+         )
+         return False
+# backend.services.cache_service.xǁCacheServiceǁrefresh__mutmut_30: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -26,6 +26,6 @@
+     except RedisError as e:
+         logger.warning(
+             f"Cache refresh failed for key {key}: Redis error: {e}",
+-            extra={"key": key, "ttl": ttl, "error_type": "redis_error"},
++            extra={"key": key, "ttl": ttl, "error_type": "REDIS_ERROR"},
+         )
+         return False
+# backend.services.cache_service.x_cached_swr__mutmut_1: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -7,7 +7,7 @@
+     cache_key: str | Callable[..., str],
+     ttl: int = DEFAULT_TTL,
+     stale_ttl: int | None = None,
+-    cache_type: str = "other",
++    cache_type: str = "XXotherXX",
+ ) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+     """Decorator for caching with Stale-While-Revalidate pattern.
+
+# backend.services.cache_service.x_cached_swr__mutmut_2: survived
+--- backend/services/cache_service.py
++++ backend/services/cache_service.py
+@@ -7,7 +7,7 @@
+     cache_key: str | Callable[..., str],
+     ttl: int = DEFAULT_TTL,
+     stale_ttl: int | None = None,
+-    cache_type: str = "other",
++    cache_type: str = "OTHER",
+ ) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+     """Decorator for caching with Stale-While-Revalidate pattern.

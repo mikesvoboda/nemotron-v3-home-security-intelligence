@@ -1,0 +1,1754 @@
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_3===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_3: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -23,7 +23,7 @@
+             """Run detection synchronously."""
+             # Run inference
+             results = model.predict(
+-                source=image,
++                source=None,
+                 conf=confidence_threshold,
+                 verbose=False,
+             )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_5===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_5: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -25,7 +25,7 @@
+             results = model.predict(
+                 source=image,
+                 conf=confidence_threshold,
+-                verbose=False,
++                verbose=None,
+             )
+
+             if not results or len(results) == 0:
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_6===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_6: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -23,7 +23,6 @@
+             """Run detection synchronously."""
+             # Run inference
+             results = model.predict(
+-                source=image,
+                 conf=confidence_threshold,
+                 verbose=False,
+             )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_8===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_8: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -25,8 +25,7 @@
+             results = model.predict(
+                 source=image,
+                 conf=confidence_threshold,
+-                verbose=False,
+-            )
++                )
+
+             if not results or len(results) == 0:
+                 return ThreatDetectionResult()
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_9===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_9: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -25,7 +25,7 @@
+             results = model.predict(
+                 source=image,
+                 conf=confidence_threshold,
+-                verbose=False,
++                verbose=True,
+             )
+
+             if not results or len(results) == 0:
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_10===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_10: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -28,7 +28,7 @@
+                 verbose=False,
+             )
+
+-            if not results or len(results) == 0:
++            if not results and len(results) == 0:
+                 return ThreatDetectionResult()
+
+             result = results[0]
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_19===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_19: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -36,7 +36,7 @@
+             # Extract detections
+             threats: list[ThreatDetection] = []
+
+-            if result.boxes is not None and len(result.boxes) > 0:
++            if result.boxes is not None and len(result.boxes) >= 0:
+                 boxes = result.boxes
+                 for i in range(len(boxes)):
+                     # Get class name
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_39===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_39: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -51,7 +51,7 @@
+
+                     # Get bounding box
+                     xyxy = boxes.xyxy[i].tolist()
+-                    bbox = (float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3]))
++                    bbox = None
+
+                     # Determine if high priority
+                     is_high_priority = class_name in HIGH_PRIORITY_THREATS
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_41===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_41: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -51,7 +51,7 @@
+
+                     # Get bounding box
+                     xyxy = boxes.xyxy[i].tolist()
+-                    bbox = (float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3]))
++                    bbox = (float(xyxy[1]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3]))
+
+                     # Determine if high priority
+                     is_high_priority = class_name in HIGH_PRIORITY_THREATS
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_43===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_43: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -51,7 +51,7 @@
+
+                     # Get bounding box
+                     xyxy = boxes.xyxy[i].tolist()
+-                    bbox = (float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3]))
++                    bbox = (float(xyxy[0]), float(xyxy[2]), float(xyxy[2]), float(xyxy[3]))
+
+                     # Determine if high priority
+                     is_high_priority = class_name in HIGH_PRIORITY_THREATS
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_45===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_45: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -51,7 +51,7 @@
+
+                     # Get bounding box
+                     xyxy = boxes.xyxy[i].tolist()
+-                    bbox = (float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3]))
++                    bbox = (float(xyxy[0]), float(xyxy[1]), float(xyxy[3]), float(xyxy[3]))
+
+                     # Determine if high priority
+                     is_high_priority = class_name in HIGH_PRIORITY_THREATS
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_53===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_53: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -60,7 +60,7 @@
+                         ThreatDetection(
+                             class_name=class_name,
+                             confidence=conf,
+-                            bbox=bbox,
++                            bbox=None,
+                             is_high_priority=is_high_priority,
+                         )
+                     )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_63===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_63: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error(None, exc_info=True)
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_64===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_64: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error("Threat detection failed", exc_info=None)
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_66===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_66: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error("Threat detection failed", )
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_67===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_67: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error("XXThreat detection failedXX", exc_info=True)
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_68===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_68: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error("threat detection failed", exc_info=True)
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_69===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_69: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error("THREAT DETECTION FAILED", exc_info=True)
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats__mutmut_70===
+# backend.services.threat_detection_loader.x_detect_threats__mutmut_70: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect)
+
+     except Exception as e:
+-        logger.error("Threat detection failed", exc_info=True)
++        logger.error("Threat detection failed", exc_info=False)
+         raise RuntimeError(f"Threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_4===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_4: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -25,7 +25,7 @@
+             """Run batch detection synchronously."""
+             # Run inference on all images
+             results = model.predict(
+-                source=images,
++                source=None,
+                 conf=confidence_threshold,
+                 verbose=False,
+             )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_5===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_5: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -26,7 +26,7 @@
+             # Run inference on all images
+             results = model.predict(
+                 source=images,
+-                conf=confidence_threshold,
++                conf=None,
+                 verbose=False,
+             )
+
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_6===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_6: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+             results = model.predict(
+                 source=images,
+                 conf=confidence_threshold,
+-                verbose=False,
++                verbose=None,
+             )
+
+             detection_results: list[ThreatDetectionResult] = []
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_7===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_7: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -25,7 +25,6 @@
+             """Run batch detection synchronously."""
+             # Run inference on all images
+             results = model.predict(
+-                source=images,
+                 conf=confidence_threshold,
+                 verbose=False,
+             )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_8===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_8: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -26,7 +26,6 @@
+             # Run inference on all images
+             results = model.predict(
+                 source=images,
+-                conf=confidence_threshold,
+                 verbose=False,
+             )
+
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_9===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_9: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,8 +27,7 @@
+             results = model.predict(
+                 source=images,
+                 conf=confidence_threshold,
+-                verbose=False,
+-            )
++                )
+
+             detection_results: list[ThreatDetectionResult] = []
+
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_10===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_10: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+             results = model.predict(
+                 source=images,
+                 conf=confidence_threshold,
+-                verbose=False,
++                verbose=True,
+             )
+
+             detection_results: list[ThreatDetectionResult] = []
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_15===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_15: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -35,7 +35,7 @@
+             for result in results:
+                 threats: list[ThreatDetection] = []
+
+-                if result.boxes is not None and len(result.boxes) > 0:
++                if result.boxes is not None and len(result.boxes) >= 0:
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_19===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_19: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -38,7 +38,7 @@
+                 if result.boxes is not None and len(result.boxes) > 0:
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+-                        cls_id = int(boxes.cls[i].item())
++                        cls_id = None
+                         if hasattr(model, "names") and cls_id in model.names:
+                             class_name = model.names[cls_id].lower()
+                         else:
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_21===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_21: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+-                        if hasattr(model, "names") and cls_id in model.names:
++                        if hasattr(model, "names") or cls_id in model.names:
+                             class_name = model.names[cls_id].lower()
+                         else:
+                             class_name = f"class_{cls_id}"
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_22===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_22: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+-                        if hasattr(model, "names") and cls_id in model.names:
++                        if hasattr(None, "names") and cls_id in model.names:
+                             class_name = model.names[cls_id].lower()
+                         else:
+                             class_name = f"class_{cls_id}"
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_26===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_26: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+-                        if hasattr(model, "names") and cls_id in model.names:
++                        if hasattr(model, "XXnamesXX") and cls_id in model.names:
+                             class_name = model.names[cls_id].lower()
+                         else:
+                             class_name = f"class_{cls_id}"
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_27===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_27: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+-                        if hasattr(model, "names") and cls_id in model.names:
++                        if hasattr(model, "NAMES") and cls_id in model.names:
+                             class_name = model.names[cls_id].lower()
+                         else:
+                             class_name = f"class_{cls_id}"
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_28===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_28: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+                     boxes = result.boxes
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+-                        if hasattr(model, "names") and cls_id in model.names:
++                        if hasattr(model, "names") and cls_id not in model.names:
+                             class_name = model.names[cls_id].lower()
+                         else:
+                             class_name = f"class_{cls_id}"
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_29===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_29: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -40,7 +40,7 @@
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+                         if hasattr(model, "names") and cls_id in model.names:
+-                            class_name = model.names[cls_id].lower()
++                            class_name = None
+                         else:
+                             class_name = f"class_{cls_id}"
+
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_30===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_30: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -40,7 +40,7 @@
+                     for i in range(len(boxes)):
+                         cls_id = int(boxes.cls[i].item())
+                         if hasattr(model, "names") and cls_id in model.names:
+-                            class_name = model.names[cls_id].lower()
++                            class_name = model.names[cls_id].upper()
+                         else:
+                             class_name = f"class_{cls_id}"
+
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_31===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_31: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -44,7 +44,7 @@
+                         else:
+                             class_name = f"class_{cls_id}"
+
+-                        conf = float(boxes.conf[i].item())
++                        conf = None
+                         xyxy = boxes.xyxy[i].tolist()
+                         bbox = (
+                             float(xyxy[0]),
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_34===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_34: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -46,12 +46,7 @@
+
+                         conf = float(boxes.conf[i].item())
+                         xyxy = boxes.xyxy[i].tolist()
+-                        bbox = (
+-                            float(xyxy[0]),
+-                            float(xyxy[1]),
+-                            float(xyxy[2]),
+-                            float(xyxy[3]),
+-                        )
++                        bbox = None
+                         is_high_priority = class_name in HIGH_PRIORITY_THREATS
+
+                         threats.append(
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_36===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_36: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -47,7 +47,7 @@
+                         conf = float(boxes.conf[i].item())
+                         xyxy = boxes.xyxy[i].tolist()
+                         bbox = (
+-                            float(xyxy[0]),
++                            float(xyxy[1]),
+                             float(xyxy[1]),
+                             float(xyxy[2]),
+                             float(xyxy[3]),
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_38===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_38: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -48,7 +48,7 @@
+                         xyxy = boxes.xyxy[i].tolist()
+                         bbox = (
+                             float(xyxy[0]),
+-                            float(xyxy[1]),
++                            float(xyxy[2]),
+                             float(xyxy[2]),
+                             float(xyxy[3]),
+                         )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_40===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_40: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -49,7 +49,7 @@
+                         bbox = (
+                             float(xyxy[0]),
+                             float(xyxy[1]),
+-                            float(xyxy[2]),
++                            float(xyxy[3]),
+                             float(xyxy[3]),
+                         )
+                         is_high_priority = class_name in HIGH_PRIORITY_THREATS
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_43===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_43: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -52,7 +52,7 @@
+                             float(xyxy[2]),
+                             float(xyxy[3]),
+                         )
+-                        is_high_priority = class_name in HIGH_PRIORITY_THREATS
++                        is_high_priority = None
+
+                         threats.append(
+                             ThreatDetection(
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_44===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_44: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -52,7 +52,7 @@
+                             float(xyxy[2]),
+                             float(xyxy[3]),
+                         )
+-                        is_high_priority = class_name in HIGH_PRIORITY_THREATS
++                        is_high_priority = class_name not in HIGH_PRIORITY_THREATS
+
+                         threats.append(
+                             ThreatDetection(
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_46===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_46: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -56,7 +56,7 @@
+
+                         threats.append(
+                             ThreatDetection(
+-                                class_name=class_name,
++                                class_name=None,
+                                 confidence=conf,
+                                 bbox=bbox,
+                                 is_high_priority=is_high_priority,
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_47===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_47: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -57,7 +57,7 @@
+                         threats.append(
+                             ThreatDetection(
+                                 class_name=class_name,
+-                                confidence=conf,
++                                confidence=None,
+                                 bbox=bbox,
+                                 is_high_priority=is_high_priority,
+                             )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_48===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_48: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -58,7 +58,7 @@
+                             ThreatDetection(
+                                 class_name=class_name,
+                                 confidence=conf,
+-                                bbox=bbox,
++                                bbox=None,
+                                 is_high_priority=is_high_priority,
+                             )
+                         )
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_49===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_49: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -59,7 +59,7 @@
+                                 class_name=class_name,
+                                 confidence=conf,
+                                 bbox=bbox,
+-                                is_high_priority=is_high_priority,
++                                is_high_priority=None,
+                             )
+                         )
+
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_53===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_53: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -59,8 +59,7 @@
+                                 class_name=class_name,
+                                 confidence=conf,
+                                 bbox=bbox,
+-                                is_high_priority=is_high_priority,
+-                            )
++                                )
+                         )
+
+                 detection_results.append(ThreatDetectionResult(threats=threats))
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_59===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_59: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error(None, exc_info=True)
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_60===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_60: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error("Batch threat detection failed", exc_info=None)
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_62===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_62: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error("Batch threat detection failed", )
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_63===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_63: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error("XXBatch threat detection failedXX", exc_info=True)
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_64===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_64: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error("batch threat detection failed", exc_info=True)
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_65===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_65: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error("BATCH THREAT DETECTION FAILED", exc_info=True)
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_66===
+# backend.services.threat_detection_loader.x_detect_threats_batch__mutmut_66: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,5 +70,5 @@
+         return await loop.run_in_executor(None, _detect_batch)
+
+     except Exception as e:
+-        logger.error("Batch threat detection failed", exc_info=True)
++        logger.error("Batch threat detection failed", exc_info=False)
+         raise RuntimeError(f"Batch threat detection failed: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_2===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_2: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -12,7 +12,7 @@
+         Formatted string for inclusion in risk analysis prompt
+     """
+     if threat_result is None:
+-        return "Threat detection: Not performed"
++        return "XXThreat detection: Not performedXX"
+
+     if not threat_result.has_threats:
+         return "Threat detection: No weapons or threatening objects detected"
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_6===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_6: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -15,7 +15,7 @@
+         return "Threat detection: Not performed"
+
+     if not threat_result.has_threats:
+-        return "Threat detection: No weapons or threatening objects detected"
++        return "XXThreat detection: No weapons or threatening objects detectedXX"
+
+     lines = ["**WEAPON/THREAT DETECTION**"]
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_10===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_10: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -17,7 +17,7 @@
+     if not threat_result.has_threats:
+         return "Threat detection: No weapons or threatening objects detected"
+
+-    lines = ["**WEAPON/THREAT DETECTION**"]
++    lines = ["XX**WEAPON/THREAT DETECTION**XX"]
+
+     if threat_result.has_high_priority:
+         lines.append("  CRITICAL ALERT: High-priority weapon detected!")
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_13===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_13: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -20,7 +20,7 @@
+     lines = ["**WEAPON/THREAT DETECTION**"]
+
+     if threat_result.has_high_priority:
+-        lines.append("  CRITICAL ALERT: High-priority weapon detected!")
++        lines.append("XX  CRITICAL ALERT: High-priority weapon detected!XX")
+         lines.append("  Immediate review recommended.")
+
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_17===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_17: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -21,7 +21,7 @@
+
+     if threat_result.has_high_priority:
+         lines.append("  CRITICAL ALERT: High-priority weapon detected!")
+-        lines.append("  Immediate review recommended.")
++        lines.append("XX  Immediate review recommended.XX")
+
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_18===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_18: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -21,7 +21,7 @@
+
+     if threat_result.has_high_priority:
+         lines.append("  CRITICAL ALERT: High-priority weapon detected!")
+-        lines.append("  Immediate review recommended.")
++        lines.append("  immediate review recommended.")
+
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_19===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_19: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -21,7 +21,7 @@
+
+     if threat_result.has_high_priority:
+         lines.append("  CRITICAL ALERT: High-priority weapon detected!")
+-        lines.append("  Immediate review recommended.")
++        lines.append("  IMMEDIATE REVIEW RECOMMENDED.")
+
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_24===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_24: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -26,7 +26,7 @@
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+-    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
++    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=None)[:5]:
+         priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_27===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_27: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -26,7 +26,7 @@
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+-    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
++    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, )[:5]:
+         priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_29===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_29: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -26,7 +26,7 @@
+     lines.append(f"  Threats found: {threat_result.threat_summary}")
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+-    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
++    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=False)[:5]:
+         priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_31===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_31: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+     for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+-        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
++        priority = None
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_32===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_32: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+     for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+-        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
++        priority = " **HIGH PRIORITY**" if (threat.is_high_priority) and False else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_33===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_33: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+     for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+-        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
++        priority = " **HIGH PRIORITY**" if (threat.is_high_priority) or True else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_34===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_34: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+     for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+-        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
++        priority = "XX **HIGH PRIORITY**XX" if threat.is_high_priority else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_35===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_35: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+     for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+-        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
++        priority = " **high priority**" if threat.is_high_priority else ""
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_36===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_36: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -27,7 +27,7 @@
+     lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+     for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+-        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
++        priority = " **HIGH PRIORITY**" if threat.is_high_priority else "XXXX"
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_43===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_43: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -31,7 +31,7 @@
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "XXlate_nightXX", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Armed threat at unusual hour")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_44===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_44: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -31,7 +31,7 @@
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "LATE_NIGHT", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Armed threat at unusual hour")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_45===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_45: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -31,7 +31,7 @@
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "late_night", "XXearly_morningXX"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Armed threat at unusual hour")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_46===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_46: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -31,7 +31,7 @@
+         lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+     # Time-based escalation
+-    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
++    if time_of_day and time_of_day.lower() in ("night", "late_night", "EARLY_MORNING"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Armed threat at unusual hour")
+
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_49===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_49: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -33,6 +33,6 @@
+     # Time-based escalation
+     if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+-        lines.append("  Elevated concern: Armed threat at unusual hour")
++        lines.append("XX  Elevated concern: Armed threat at unusual hourXX")
+
+     return "\n".join(lines)
+
+===KEY backend.services.threat_detection_loader.x_format_threat_context__mutmut_53===
+# backend.services.threat_detection_loader.x_format_threat_context__mutmut_53: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -35,4 +35,4 @@
+         lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+         lines.append("  Elevated concern: Armed threat at unusual hour")
+
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_1===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_1: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -19,7 +19,7 @@
+     try:
+         from ultralytics import YOLO
+
+-        logger.info(f"Loading threat detection model from {model_path}")
++        logger.info(None)
+
+         loop = asyncio.get_running_loop()
+
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_4===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_4: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -33,7 +33,7 @@
+             By calling fuse() immediately after loading, we ensure the model
+             is ready for concurrent use without race conditions.
+             """
+-            model_dir = Path(model_path)
++            model_dir = Path(None)
+
+             # Find the model weights file — check common names first,
+             # then fall back to recursive search (handles weights/best.pt layout).
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_7===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_7: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -37,7 +37,7 @@
+
+             # Find the model weights file — check common names first,
+             # then fall back to recursive search (handles weights/best.pt layout).
+-            weights_file = model_dir / "model.pt"
++            weights_file = model_dir / "XXmodel.ptXX"
+             if not weights_file.exists():
+                 weights_file = model_dir / "best.pt"
+             if not weights_file.exists():
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_8===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_8: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -37,7 +37,7 @@
+
+             # Find the model weights file — check common names first,
+             # then fall back to recursive search (handles weights/best.pt layout).
+-            weights_file = model_dir / "model.pt"
++            weights_file = model_dir / "MODEL.PT"
+             if not weights_file.exists():
+                 weights_file = model_dir / "best.pt"
+             if not weights_file.exists():
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_12===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_12: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+             # then fall back to recursive search (handles weights/best.pt layout).
+             weights_file = model_dir / "model.pt"
+             if not weights_file.exists():
+-                weights_file = model_dir / "best.pt"
++                weights_file = model_dir / "XXbest.ptXX"
+             if not weights_file.exists():
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_13===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_13: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -39,7 +39,7 @@
+             # then fall back to recursive search (handles weights/best.pt layout).
+             weights_file = model_dir / "model.pt"
+             if not weights_file.exists():
+-                weights_file = model_dir / "best.pt"
++                weights_file = model_dir / "BEST.PT"
+             if not weights_file.exists():
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_17===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_17: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -41,7 +41,7 @@
+             if not weights_file.exists():
+                 weights_file = model_dir / "best.pt"
+             if not weights_file.exists():
+-                weights_file = model_dir / "threat-detection-yolov8n.pt"
++                weights_file = model_dir / "XXthreat-detection-yolov8n.ptXX"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+                 pt_files = sorted(model_dir.rglob("*.pt"))
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_18===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_18: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -41,7 +41,7 @@
+             if not weights_file.exists():
+                 weights_file = model_dir / "best.pt"
+             if not weights_file.exists():
+-                weights_file = model_dir / "threat-detection-yolov8n.pt"
++                weights_file = model_dir / "THREAT-DETECTION-YOLOV8N.PT"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+                 pt_files = sorted(model_dir.rglob("*.pt"))
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_20===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_20: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -44,7 +44,7 @@
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+-                pt_files = sorted(model_dir.rglob("*.pt"))
++                pt_files = None
+                 if pt_files:
+                     weights_file = pt_files[0]
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_21===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_21: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -44,7 +44,7 @@
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+-                pt_files = sorted(model_dir.rglob("*.pt"))
++                pt_files = sorted(None)
+                 if pt_files:
+                     weights_file = pt_files[0]
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_22===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_22: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -44,7 +44,7 @@
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+-                pt_files = sorted(model_dir.rglob("*.pt"))
++                pt_files = sorted(model_dir.rglob(None))
+                 if pt_files:
+                     weights_file = pt_files[0]
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_23===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_23: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -44,7 +44,7 @@
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+-                pt_files = sorted(model_dir.rglob("*.pt"))
++                pt_files = sorted(model_dir.rglob("XX*.ptXX"))
+                 if pt_files:
+                     weights_file = pt_files[0]
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_24===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_24: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -44,7 +44,7 @@
+                 weights_file = model_dir / "threat-detection-yolov8n.pt"
+             if not weights_file.exists():
+                 # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+-                pt_files = sorted(model_dir.rglob("*.pt"))
++                pt_files = sorted(model_dir.rglob("*.PT"))
+                 if pt_files:
+                     weights_file = pt_files[0]
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_25===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_25: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -48,7 +48,7 @@
+                 if pt_files:
+                     weights_file = pt_files[0]
+                 else:
+-                    raise FileNotFoundError(f"No model weights (.pt) found in {model_dir}")
++                    raise FileNotFoundError(None)
+
+             model = YOLO(str(weights_file))
+
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_27===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_27: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -50,7 +50,7 @@
+                 else:
+                     raise FileNotFoundError(f"No model weights (.pt) found in {model_dir}")
+
+-            model = YOLO(str(weights_file))
++            model = YOLO(None)
+
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_28===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_28: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -50,7 +50,7 @@
+                 else:
+                     raise FileNotFoundError(f"No model weights (.pt) found in {model_dir}")
+
+-            model = YOLO(str(weights_file))
++            model = YOLO(str(None))
+
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_33===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_33: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -53,7 +53,7 @@
+             model = YOLO(str(weights_file))
+
+             # Pre-fuse to avoid race condition
+-            if hasattr(model, "fuse"):
++            if hasattr(model, "XXfuseXX"):
+                 inner_model = getattr(model, "model", None)
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_34===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_34: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -53,7 +53,7 @@
+             model = YOLO(str(weights_file))
+
+             # Pre-fuse to avoid race condition
+-            if hasattr(model, "fuse"):
++            if hasattr(model, "FUSE"):
+                 inner_model = getattr(model, "model", None)
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_40===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_40: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -54,7 +54,7 @@
+
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+-                inner_model = getattr(model, "model", None)
++                inner_model = getattr(model, "model", )
+                 if inner_model is not None and hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_43===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_43: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -55,7 +55,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None or hasattr(inner_model, "is_fused"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_49===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_49: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -55,7 +55,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None and hasattr(inner_model, "XXis_fusedXX"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_50===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_50: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -55,7 +55,7 @@
+             # Pre-fuse to avoid race condition
+             if hasattr(model, "fuse"):
+                 inner_model = getattr(model, "model", None)
+-                if inner_model is not None and hasattr(inner_model, "is_fused"):
++                if inner_model is not None and hasattr(inner_model, "IS_FUSED"):
+                     if not inner_model.is_fused():
+                         model.fuse()
+                 else:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_52===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_52: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -61,7 +61,7 @@
+                 else:
+                     model.fuse()
+
+-            logger.info(f"Loaded threat detection model from {weights_file}")
++            logger.info(None)
+             return model
+
+         model = await loop.run_in_executor(None, _load_and_fuse)
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_57===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_57: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -66,7 +66,7 @@
+
+         model = await loop.run_in_executor(None, _load_and_fuse)
+
+-        logger.info(f"Successfully loaded threat detection model from {model_path}")
++        logger.info(None)
+         return model
+
+     except ImportError as e:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_58===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_58: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,7 +70,7 @@
+         return model
+
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning(None)
+         raise ImportError(
+             "Threat detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_59===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_59: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,7 +70,7 @@
+         return model
+
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("XXultralytics package not installed. Install with: pip install ultralyticsXX")
+         raise ImportError(
+             "Threat detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_60===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_60: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,7 +70,7 @@
+         return model
+
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("ultralytics package not installed. install with: pip install ultralytics")
+         raise ImportError(
+             "Threat detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_61===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_61: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -70,7 +70,7 @@
+         return model
+
+     except ImportError as e:
+-        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
++        logger.warning("ULTRALYTICS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL ULTRALYTICS")
+         raise ImportError(
+             "Threat detection requires ultralytics. Install with: pip install ultralytics"
+         ) from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_63===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_63: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -72,7 +72,7 @@
+     except ImportError as e:
+         logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+         raise ImportError(
+-            "Threat detection requires ultralytics. Install with: pip install ultralytics"
++            "XXThreat detection requires ultralytics. Install with: pip install ultralyticsXX"
+         ) from e
+
+     except Exception as e:
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_66===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_66: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -77,7 +77,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load threat detection model",
++            None,
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_67===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_67: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -78,7 +78,7 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load threat detection model",
+-            exc_info=True,
++            exc_info=None,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_68===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_68: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -79,6 +79,6 @@
+         logger.error(
+             "Failed to load threat detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra=None,
+         )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_70===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_70: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -78,7 +78,6 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load threat detection model",
+-            exc_info=True,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_71===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_71: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -79,6 +79,5 @@
+         logger.error(
+             "Failed to load threat detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
+-        )
++            )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_72===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_72: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -77,7 +77,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load threat detection model",
++            "XXFailed to load threat detection modelXX",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_73===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_73: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -77,7 +77,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load threat detection model",
++            "failed to load threat detection model",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_74===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_74: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -77,7 +77,7 @@
+
+     except Exception as e:
+         logger.error(
+-            "Failed to load threat detection model",
++            "FAILED TO LOAD THREAT DETECTION MODEL",
+             exc_info=True,
+             extra={"model_path": model_path},
+         )
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_75===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_75: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -78,7 +78,7 @@
+     except Exception as e:
+         logger.error(
+             "Failed to load threat detection model",
+-            exc_info=True,
++            exc_info=False,
+             extra={"model_path": model_path},
+         )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_76===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_76: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -79,6 +79,6 @@
+         logger.error(
+             "Failed to load threat detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra={"XXmodel_pathXX": model_path},
+         )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_77===
+# backend.services.threat_detection_loader.x_load_threat_detection_model__mutmut_77: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -79,6 +79,6 @@
+         logger.error(
+             "Failed to load threat detection model",
+             exc_info=True,
+-            extra={"model_path": model_path},
++            extra={"MODEL_PATH": model_path},
+         )
+         raise RuntimeError(f"Failed to load threat detection model: {e}") from e
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_2===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_2: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -5,7 +5,7 @@
+             Human-readable threat detection summary for Nemotron context
+         """
+     if not self.has_threats:
+-        return "Threat scan: No weapons or threatening objects detected"
++        return "XXThreat scan: No weapons or threatening objects detectedXX"
+
+     lines = ["**THREAT DETECTION ALERT**"]
+
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_6===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_6: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -7,7 +7,7 @@
+     if not self.has_threats:
+         return "Threat scan: No weapons or threatening objects detected"
+
+-    lines = ["**THREAT DETECTION ALERT**"]
++    lines = ["XX**THREAT DETECTION ALERT**XX"]
+
+     if self.has_high_priority:
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_9===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_9: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -10,7 +10,7 @@
+     lines = ["**THREAT DETECTION ALERT**"]
+
+     if self.has_high_priority:
+-        lines.append("  CRITICAL: High-priority threat(s) detected!")
++        lines.append("XX  CRITICAL: High-priority threat(s) detected!XX")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+         priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_20===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_20: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -13,7 +13,7 @@
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
++        priority_marker = None
+         lines.append(
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_21===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_21: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -13,7 +13,7 @@
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
++        priority_marker = " [HIGH PRIORITY]" if (threat.is_high_priority) and False else ""
+         lines.append(
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_22===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_22: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -13,7 +13,7 @@
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
++        priority_marker = " [HIGH PRIORITY]" if (threat.is_high_priority) or True else ""
+         lines.append(
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_23===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_23: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -13,7 +13,7 @@
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
++        priority_marker = "XX [HIGH PRIORITY]XX" if threat.is_high_priority else ""
+         lines.append(
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_24===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_24: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -13,7 +13,7 @@
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
++        priority_marker = " [high priority]" if threat.is_high_priority else ""
+         lines.append(
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_25===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_25: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -13,7 +13,7 @@
+         lines.append("  CRITICAL: High-priority threat(s) detected!")
+
+     for threat in sorted(self.threats, key=lambda t: t.confidence, reverse=True):
+-        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else ""
++        priority_marker = " [HIGH PRIORITY]" if threat.is_high_priority else "XXXX"
+         lines.append(
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_28===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_context_string__mutmut_28: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -18,4 +18,4 @@
+             f"  - {threat.class_name}: {threat.confidence:.0%} confidence{priority_marker}"
+         )
+
+-    return "\n".join(lines)
++    return "XX\nXX".join(lines)
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_dict__mutmut_9===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_dict__mutmut_9: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -5,6 +5,6 @@
+         "has_threats": self.has_threats,
+         "has_high_priority": self.has_high_priority,
+         "highest_confidence": self.highest_confidence,
+-        "threat_summary": self.threat_summary,
++        "XXthreat_summaryXX": self.threat_summary,
+         "threat_count": len(self.threats),
+     }
+
+===KEY backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_dict__mutmut_10===
+# backend.services.threat_detection_loader.xǁThreatDetectionResultǁto_dict__mutmut_10: survived
+--- backend/services/threat_detection_loader.py
++++ backend/services/threat_detection_loader.py
+@@ -5,6 +5,6 @@
+         "has_threats": self.has_threats,
+         "has_high_priority": self.has_high_priority,
+         "highest_confidence": self.highest_confidence,
+-        "threat_summary": self.threat_summary,
++        "THREAT_SUMMARY": self.threat_summary,
+         "threat_count": len(self.threats),
+     }

@@ -1,0 +1,13 @@
+# backend.api.routes.system.x__check_redis_health_full__mutmut_8: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -5,8 +5,7 @@
+             name="redis",
+             status=ServiceHealthState.UNHEALTHY,
+             message="Redis client not available",
+-            details=None,
+-        )
++            )
+     try:
+         info = await redis.health_check()
+         if info.get("error"):

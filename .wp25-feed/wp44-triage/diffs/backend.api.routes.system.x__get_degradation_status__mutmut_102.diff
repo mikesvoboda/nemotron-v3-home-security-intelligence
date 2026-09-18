@@ -1,0 +1,10 @@
+# backend.api.routes.system.x__get_degradation_status__mutmut_102: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -45,5 +45,5 @@
+         )
+     except (KeyError, ValueError, AttributeError) as e:
+         # Status data parsing failures
+-        logger.error(f"Error getting degradation status: {e}", exc_info=True)
++        logger.error(None, exc_info=True)
+         return None

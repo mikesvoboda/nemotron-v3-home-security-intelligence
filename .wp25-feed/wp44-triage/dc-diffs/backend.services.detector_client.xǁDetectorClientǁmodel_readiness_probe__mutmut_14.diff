@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁmodel_readiness_probe__mutmut_14: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -12,7 +12,7 @@
+     try:
+         # Create a simple 32x32 black test image
+         # This is small enough to be fast but exercises the full inference path
+-        test_image = Image.new("RGB", (32, 32), color=(0, 0, 0))
++        test_image = Image.new("RGB", (32, 32), color=(0, 0, 1))
+         import io
+
+         buffer = io.BytesIO()

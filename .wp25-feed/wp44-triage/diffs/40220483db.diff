@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_68: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -65,7 +65,7 @@
+         # Now keyed by detection ID for context isolation
+         "person_household_matches": {
+             str(det_id): {
+-                "detection_id": det_id,
++                "DETECTION_ID": det_id,
+                 "member_id": match.member_id,
+                 "member_name": match.member_name,
+                 "similarity": match.similarity,

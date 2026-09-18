@@ -1,0 +1,1063 @@
+{
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_1": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 1,
+    "minus": ["    if self._last_inference_time is None:"],
+    "plus": ["    if self._last_inference_time is not None:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_10": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 10,
+    "minus": ["        \"state\": \"cold\" if is_cold else \"warm\","],
+    "plus": ["        \"state\": \"XXcoldXX\" if is_cold else \"warm\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_11": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 11,
+    "minus": ["        \"state\": \"cold\" if is_cold else \"warm\","],
+    "plus": ["        \"state\": \"COLD\" if is_cold else \"warm\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_3": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 3,
+    "minus": ["    seconds_ago = time.monotonic() - self._last_inference_time"],
+    "plus": ["    seconds_ago = time.monotonic() + self._last_inference_time"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_4": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 4,
+    "minus": ["    is_cold = seconds_ago > self._cold_start_threshold"],
+    "plus": ["    is_cold = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_5": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 5,
+    "minus": ["    is_cold = seconds_ago > self._cold_start_threshold"],
+    "plus": ["    is_cold = seconds_ago >= self._cold_start_threshold"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_8": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 8,
+    "minus": ["        \"state\": \"cold\" if is_cold else \"warm\","],
+    "plus": ["        \"state\": \"cold\" if (is_cold) and False else \"warm\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1get_warmth_state__mutmut_9": {
+    "fn": "x\u01c1DetectorClient\u01c1get_warmth_state",
+    "idx": 9,
+    "minus": ["        \"state\": \"cold\" if is_cold else \"warm\","],
+    "plus": ["        \"state\": \"cold\" if (is_cold) or True else \"warm\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1is_cold__mutmut_5": {
+    "fn": "x\u01c1DetectorClient\u01c1is_cold",
+    "idx": 5,
+    "minus": ["    return seconds_since_last > self._cold_start_threshold"],
+    "plus": ["    return seconds_since_last >= self._cold_start_threshold"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_10": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 10,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (33, 32), color=(0, 0, 0))"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_11": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 11,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (32, 33), color=(0, 0, 0))"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_12": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 12,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(1, 0, 0))"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_13": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 13,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 1, 0))"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_14": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 14,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 1))"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_21": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 21,
+    "minus": ["        test_image.save(buffer, format=\"JPEG\")"],
+    "plus": ["        test_image.save(buffer, format=\"jpeg\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_22": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 22,
+    "minus": ["        image_data = buffer.getvalue()"],
+    "plus": ["        image_data = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_23": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 23,
+    "minus": ["            image_data=image_data,"],
+    "plus": ["            image_data=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_24": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 24,
+    "minus": ["            image_name=\"warmup_test.jpg\","],
+    "plus": ["            image_name=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_25": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 25,
+    "minus": ["            camera_id=\"warmup\","],
+    "plus": ["            camera_id=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_26": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 26,
+    "minus": ["            image_path=\"/dev/null\",  # placeholder path for warmup probe"],
+    "plus": ["            image_path=None,  # placeholder path for warmup probe"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_27": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 27,
+    "minus": ["            image_data=image_data,"],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_28": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 28,
+    "minus": ["            image_name=\"warmup_test.jpg\","],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_29": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 29,
+    "minus": ["            camera_id=\"warmup\","],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_30": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 30,
+    "minus": [
+      "            image_path=\"/dev/null\",  # placeholder path for warmup probe",
+      "        )"
+    ],
+    "plus": ["            )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_31": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 31,
+    "minus": ["            image_name=\"warmup_test.jpg\","],
+    "plus": ["            image_name=\"XXwarmup_test.jpgXX\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_32": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 32,
+    "minus": ["            image_name=\"warmup_test.jpg\","],
+    "plus": ["            image_name=\"WARMUP_TEST.JPG\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_33": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 33,
+    "minus": ["            camera_id=\"warmup\","],
+    "plus": ["            camera_id=\"XXwarmupXX\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_34": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 34,
+    "minus": ["            camera_id=\"warmup\","],
+    "plus": ["            camera_id=\"WARMUP\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_35": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 35,
+    "minus": ["            image_path=\"/dev/null\",  # placeholder path for warmup probe"],
+    "plus": ["            image_path=\"XX/dev/nullXX\",  # placeholder path for warmup probe"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_36": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 36,
+    "minus": ["            image_path=\"/dev/null\",  # placeholder path for warmup probe"],
+    "plus": ["            image_path=\"/DEV/NULL\",  # placeholder path for warmup probe"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_38": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 38,
+    "minus": ["        logger.warning(f\"YOLO26 readiness probe failed (unavailable): {e}\")"],
+    "plus": ["        logger.warning(None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_4": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 4,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (32, 32), color=None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1model_readiness_probe__mutmut_7": {
+    "fn": "x\u01c1DetectorClient\u01c1model_readiness_probe",
+    "idx": 7,
+    "minus": ["        test_image = Image.new(\"RGB\", (32, 32), color=(0, 0, 0))"],
+    "plus": ["        test_image = Image.new(\"RGB\", (32, 32), )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_1": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 1,
+    "minus": ["    last_exception: Exception | None = None"],
+    "plus": ["    last_exception: Exception | None = \"\""]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_101": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 101,
+    "minus": ["        error_msg = f\"Segmentation failed after {self._max_retries} attempts\""],
+    "plus": ["        error_msg = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_102": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 102,
+    "minus": ["        span.set_attribute(\"error\", True)"],
+    "plus": ["        span.set_attribute(None, True)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_103": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 103,
+    "minus": ["        span.set_attribute(\"error\", True)"],
+    "plus": ["        span.set_attribute(\"error\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_106": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 106,
+    "minus": ["        span.set_attribute(\"error\", True)"],
+    "plus": ["        span.set_attribute(\"XXerrorXX\", True)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_107": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 107,
+    "minus": ["        span.set_attribute(\"error\", True)"],
+    "plus": ["        span.set_attribute(\"ERROR\", True)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_108": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 108,
+    "minus": ["        span.set_attribute(\"error\", True)"],
+    "plus": ["        span.set_attribute(\"error\", False)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_109": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 109,
+    "minus": ["        span.set_attribute(\"error.message\", error_msg)"],
+    "plus": ["        span.set_attribute(None, error_msg)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_11": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 11,
+    "minus": ["            model_name=self._detector_type,"],
+    "plus": ["            model_name=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_110": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 110,
+    "minus": ["        span.set_attribute(\"error.message\", error_msg)"],
+    "plus": ["        span.set_attribute(\"error.message\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_113": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 113,
+    "minus": ["        span.set_attribute(\"error.message\", error_msg)"],
+    "plus": ["        span.set_attribute(\"XXerror.messageXX\", error_msg)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_114": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 114,
+    "minus": ["        span.set_attribute(\"error.message\", error_msg)"],
+    "plus": ["        span.set_attribute(\"ERROR.MESSAGE\", error_msg)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_115": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 115,
+    "minus": ["                error_msg, original_error=last_exception"],
+    "plus": ["                None, original_error=last_exception"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_116": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 116,
+    "minus": ["                error_msg, original_error=last_exception"],
+    "plus": ["                error_msg, original_error=None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_117": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 117,
+    "minus": ["                error_msg, original_error=last_exception"],
+    "plus": ["                original_error=last_exception"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_118": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 118,
+    "minus": [
+      "                error_msg, original_error=last_exception",
+      "            ) from last_exception"
+    ],
+    "plus": ["                error_msg, ) from last_exception"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_12": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 12,
+    "minus": ["            model_version=self._model_version,"],
+    "plus": ["            model_version=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_13": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 13,
+    "minus": ["            model_provider=\"huggingface\","],
+    "plus": ["            model_provider=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_14": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 14,
+    "minus": ["            device=\"cuda:0\","],
+    "plus": ["            device=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_15": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 15,
+    "minus": ["            batch_size=1,"],
+    "plus": ["            batch_size=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_17": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 17,
+    "minus": ["            model_name=self._detector_type,"],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_18": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 18,
+    "minus": ["            model_version=self._model_version,"],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_19": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 19,
+    "minus": ["            model_provider=\"huggingface\","],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_20": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 20,
+    "minus": ["            device=\"cuda:0\","],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_21": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 21,
+    "minus": ["            batch_size=1,", "        )"],
+    "plus": ["            )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_22": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 22,
+    "minus": ["            model_provider=\"huggingface\","],
+    "plus": ["            model_provider=\"XXhuggingfaceXX\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_23": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 23,
+    "minus": ["            model_provider=\"huggingface\","],
+    "plus": ["            model_provider=\"HUGGINGFACE\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_24": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 24,
+    "minus": ["            device=\"cuda:0\","],
+    "plus": ["            device=\"XXcuda:0XX\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_25": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 25,
+    "minus": ["            device=\"cuda:0\","],
+    "plus": ["            device=\"CUDA:0\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_26": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 26,
+    "minus": ["            batch_size=1,"],
+    "plus": ["            batch_size=2,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_28": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 28,
+    "minus": ["            span.set_attribute(\"retry_attempt\", attempt)"],
+    "plus": ["            span.set_attribute(None, attempt)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_29": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 29,
+    "minus": ["            span.set_attribute(\"retry_attempt\", attempt)"],
+    "plus": ["            span.set_attribute(\"retry_attempt\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_32": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 32,
+    "minus": ["            span.set_attribute(\"retry_attempt\", attempt)"],
+    "plus": ["            span.set_attribute(\"XXretry_attemptXX\", attempt)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_33": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 33,
+    "minus": ["            span.set_attribute(\"retry_attempt\", attempt)"],
+    "plus": ["            span.set_attribute(\"RETRY_ATTEMPT\", attempt)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_35": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 35,
+    "minus": ["                    async with asyncio.timeout(explicit_timeout):"],
+    "plus": ["                    async with asyncio.timeout(None):"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_36": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 36,
+    "minus": [
+      "                        files = {\"file\": (image_name, image_data, \"image/jpeg\")}"
+    ],
+    "plus": ["                        files = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_37": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 37,
+    "minus": [
+      "                        files = {\"file\": (image_name, image_data, \"image/jpeg\")}"
+    ],
+    "plus": [
+      "                        files = {\"XXfileXX\": (image_name, image_data, \"image/jpeg\")}"
+    ]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_38": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 38,
+    "minus": [
+      "                        files = {\"file\": (image_name, image_data, \"image/jpeg\")}"
+    ],
+    "plus": ["                        files = {\"FILE\": (image_name, image_data, \"image/jpeg\")}"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_39": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 39,
+    "minus": [
+      "                        files = {\"file\": (image_name, image_data, \"image/jpeg\")}"
+    ],
+    "plus": [
+      "                        files = {\"file\": (image_name, image_data, \"XXimage/jpegXX\")}"
+    ]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_4": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 4,
+    "minus": ["    explicit_timeout = self._read_timeout + settings.ai_connect_timeout"],
+    "plus": ["    explicit_timeout = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_40": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 40,
+    "minus": [
+      "                        files = {\"file\": (image_name, image_data, \"image/jpeg\")}"
+    ],
+    "plus": ["                        files = {\"file\": (image_name, image_data, \"IMAGE/JPEG\")}"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_43": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 43,
+    "minus": ["                            files=files,"],
+    "plus": ["                            files=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_44": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 44,
+    "minus": ["                            headers=self._get_auth_headers(),"],
+    "plus": ["                            headers=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_46": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 46,
+    "minus": ["                            files=files,"],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_47": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 47,
+    "minus": [
+      "                            headers=self._get_auth_headers(),",
+      "                        )"
+    ],
+    "plus": ["                            )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_49": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 49,
+    "minus": ["                        inference_time_ms = (time.monotonic() - start_time) * 1000"],
+    "plus": ["                        inference_time_ms = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_5": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 5,
+    "minus": ["    explicit_timeout = self._read_timeout + settings.ai_connect_timeout"],
+    "plus": ["    explicit_timeout = self._read_timeout - settings.ai_connect_timeout"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_50": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 50,
+    "minus": ["                        inference_time_ms = (time.monotonic() - start_time) * 1000"],
+    "plus": ["                        inference_time_ms = (time.monotonic() - start_time) / 1000"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_51": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 51,
+    "minus": ["                        inference_time_ms = (time.monotonic() - start_time) * 1000"],
+    "plus": ["                        inference_time_ms = (time.monotonic() + start_time) * 1000"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_52": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 52,
+    "minus": ["                        inference_time_ms = (time.monotonic() - start_time) * 1000"],
+    "plus": ["                        inference_time_ms = (time.monotonic() - start_time) * 1001"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_53": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 53,
+    "minus": ["                        detections = result.get(\"detections\", [])"],
+    "plus": ["                        detections = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_54": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 54,
+    "minus": ["                        detections = result.get(\"detections\", [])"],
+    "plus": ["                        detections = result.get(None, [])"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_55": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 55,
+    "minus": ["                        detections = result.get(\"detections\", [])"],
+    "plus": ["                        detections = result.get(\"detections\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_57": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 57,
+    "minus": ["                        detections = result.get(\"detections\", [])"],
+    "plus": ["                        detections = result.get(\"detections\", )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_58": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 58,
+    "minus": ["                        detections = result.get(\"detections\", [])"],
+    "plus": ["                        detections = result.get(\"XXdetectionsXX\", [])"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_59": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 59,
+    "minus": ["                        detections = result.get(\"detections\", [])"],
+    "plus": ["                        detections = result.get(\"DETECTIONS\", [])"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_6": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 6,
+    "minus": ["        f\"{self._detector_type}_segmentation_request\","],
+    "plus": ["        None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_61": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 61,
+    "minus": ["                            detections=detections,"],
+    "plus": ["                            detections=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_62": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 62,
+    "minus": ["                            inference_time_ms=inference_time_ms,"],
+    "plus": ["                            inference_time_ms=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_64": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 64,
+    "minus": ["                            detections=detections,"],
+    "plus": []
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_65": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 65,
+    "minus": [
+      "                            inference_time_ms=inference_time_ms,",
+      "                        )"
+    ],
+    "plus": ["                            )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_67": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 67,
+    "minus": [
+      "                            span, duration_ms=inference_time_ms, status=\"success\""
+    ],
+    "plus": ["                            span, duration_ms=None, status=\"success\""]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_68": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 68,
+    "minus": [
+      "                            span, duration_ms=inference_time_ms, status=\"success\""
+    ],
+    "plus": ["                            span, duration_ms=inference_time_ms, status=None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_7": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 7,
+    "minus": ["        image_size_bytes=len(image_data),"],
+    "plus": ["        image_size_bytes=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_70": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 70,
+    "minus": [
+      "                            span, duration_ms=inference_time_ms, status=\"success\""
+    ],
+    "plus": ["                            span, status=\"success\""]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_71": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 71,
+    "minus": [
+      "                            span, duration_ms=inference_time_ms, status=\"success\"",
+      "                        )"
+    ],
+    "plus": ["                            span, duration_ms=inference_time_ms, )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_72": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 72,
+    "minus": [
+      "                            span, duration_ms=inference_time_ms, status=\"success\""
+    ],
+    "plus": [
+      "                            span, duration_ms=inference_time_ms, status=\"XXsuccessXX\""
+    ]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_73": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 73,
+    "minus": [
+      "                            span, duration_ms=inference_time_ms, status=\"success\""
+    ],
+    "plus": ["                            span, duration_ms=inference_time_ms, status=\"SUCCESS\""]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_74": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 74,
+    "minus": ["                last_exception = e"],
+    "plus": ["                last_exception = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_75": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 75,
+    "minus": ["                if attempt < self._max_retries - 1:"],
+    "plus": ["                if attempt <= self._max_retries - 1:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_76": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 76,
+    "minus": ["                if attempt < self._max_retries - 1:"],
+    "plus": ["                if attempt < self._max_retries + 1:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_77": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 77,
+    "minus": ["                if attempt < self._max_retries - 1:"],
+    "plus": ["                if attempt < self._max_retries - 2:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_78": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 78,
+    "minus": ["                    delay = min(2**attempt, 30)"],
+    "plus": ["                    delay = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_83": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 83,
+    "minus": ["                    delay = min(2**attempt, 30)"],
+    "plus": ["                    delay = min(2 * attempt, 30)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_84": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 84,
+    "minus": ["                    delay = min(2**attempt, 30)"],
+    "plus": ["                    delay = min(3**attempt, 30)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_85": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 85,
+    "minus": ["                    delay = min(2**attempt, 30)"],
+    "plus": ["                    delay = min(2**attempt, 31)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_86": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 86,
+    "minus": [
+      "                        f\"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), \"",
+      "                        f\"retrying in {delay}s: {sanitize_error(e)}\","
+    ],
+    "plus": ["                        None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_87": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 87,
+    "minus": [
+      "                        f\"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), \""
+    ],
+    "plus": [
+      "                        f\"Segmentation request failed (attempt {attempt - 1}/{self._max_retries}), \""
+    ]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_88": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 88,
+    "minus": [
+      "                        f\"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), \""
+    ],
+    "plus": [
+      "                        f\"Segmentation request failed (attempt {attempt + 2}/{self._max_retries}), \""
+    ]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_89": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 89,
+    "minus": ["                        f\"retrying in {delay}s: {sanitize_error(e)}\","],
+    "plus": ["                        f\"retrying in {delay}s: {sanitize_error(None)}\","]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_9": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 9,
+    "minus": ["        image_size_bytes=len(image_data),", "    ) as span:"],
+    "plus": ["        ) as span:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_90": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 90,
+    "minus": ["                    await asyncio.sleep(delay)"],
+    "plus": ["                    await asyncio.sleep(None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_91": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 91,
+    "minus": [
+      "                    record_pipeline_error(f\"{self._detector_type}_segmentation_error\")"
+    ],
+    "plus": ["                    record_pipeline_error(None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_92": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 92,
+    "minus": [
+      "                        f\"Segmentation failed after {self._max_retries} attempts\","
+    ],
+    "plus": ["                        None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_93": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 93,
+    "minus": ["                        exc_info=True,"],
+    "plus": ["                        exc_info=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_95": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 95,
+    "minus": ["                        exc_info=True,", "                    )"],
+    "plus": ["                        )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_96": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 96,
+    "minus": ["                        exc_info=True,"],
+    "plus": ["                        exc_info=False,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_98": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 98,
+    "minus": ["                if status_code >= 500:"],
+    "plus": ["                if status_code > 500:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1segment_image__mutmut_99": {
+    "fn": "x\u01c1DetectorClient\u01c1segment_image",
+    "idx": 99,
+    "minus": ["                if status_code >= 500:"],
+    "plus": ["                if status_code >= 501:"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_10": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 10,
+    "minus": ["    set_model_warmth_state(\"yolo26\", \"warming\")"],
+    "plus": ["    set_model_warmth_state(\"YOLO26\", \"warming\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_11": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 11,
+    "minus": ["    set_model_warmth_state(\"yolo26\", \"warming\")"],
+    "plus": ["    set_model_warmth_state(\"yolo26\", \"XXwarmingXX\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_12": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 12,
+    "minus": ["    set_model_warmth_state(\"yolo26\", \"warming\")"],
+    "plus": ["    set_model_warmth_state(\"yolo26\", \"WARMING\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_13": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 13,
+    "minus": ["        logger.info(\"Starting YOLO26 model warmup...\")"],
+    "plus": ["        logger.info(None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_14": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 14,
+    "minus": ["        logger.info(\"Starting YOLO26 model warmup...\")"],
+    "plus": ["        logger.info(\"XXStarting YOLO26 model warmup...XX\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_15": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 15,
+    "minus": ["        logger.info(\"Starting YOLO26 model warmup...\")"],
+    "plus": ["        logger.info(\"starting yolo26 model warmup...\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_16": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 16,
+    "minus": ["        logger.info(\"Starting YOLO26 model warmup...\")"],
+    "plus": ["        logger.info(\"STARTING YOLO26 MODEL WARMUP...\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_2": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 2,
+    "minus": ["    was_cold = self.is_cold()"],
+    "plus": ["    was_cold = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_20": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 20,
+    "minus": ["        duration = time.monotonic() - start_time"],
+    "plus": ["        duration = time.monotonic() + start_time"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_21": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 21,
+    "minus": ["        observe_model_warmup_duration(\"yolo26\", duration)"],
+    "plus": ["        observe_model_warmup_duration(None, duration)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_25": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 25,
+    "minus": ["        observe_model_warmup_duration(\"yolo26\", duration)"],
+    "plus": ["        observe_model_warmup_duration(\"XXyolo26XX\", duration)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_26": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 26,
+    "minus": ["        observe_model_warmup_duration(\"yolo26\", duration)"],
+    "plus": ["        observe_model_warmup_duration(\"YOLO26\", duration)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_27": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 27,
+    "minus": ["                record_model_cold_start(\"yolo26\")"],
+    "plus": ["                record_model_cold_start(None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_28": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 28,
+    "minus": ["                record_model_cold_start(\"yolo26\")"],
+    "plus": ["                record_model_cold_start(\"XXyolo26XX\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_29": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 29,
+    "minus": ["                record_model_cold_start(\"yolo26\")"],
+    "plus": ["                record_model_cold_start(\"YOLO26\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_3": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 3,
+    "minus": ["    self._is_warming = True"],
+    "plus": ["    self._is_warming = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_30": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 30,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"warm\")"],
+    "plus": ["            set_model_warmth_state(None, \"warm\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_31": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 31,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"warm\")"],
+    "plus": ["            set_model_warmth_state(\"yolo26\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_34": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 34,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"warm\")"],
+    "plus": ["            set_model_warmth_state(\"XXyolo26XX\", \"warm\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_35": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 35,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"warm\")"],
+    "plus": ["            set_model_warmth_state(\"YOLO26\", \"warm\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_36": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 36,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"warm\")"],
+    "plus": ["            set_model_warmth_state(\"yolo26\", \"XXwarmXX\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_37": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 37,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"warm\")"],
+    "plus": ["            set_model_warmth_state(\"yolo26\", \"WARM\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_38": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 38,
+    "minus": ["                f\"YOLO26 warmup completed in {duration:.2f}s\","],
+    "plus": ["                None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_39": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 39,
+    "minus": ["                extra={\"duration\": duration, \"was_cold\": was_cold},"],
+    "plus": ["                extra=None,"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_4": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 4,
+    "minus": ["    self._is_warming = True"],
+    "plus": ["    self._is_warming = False"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_41": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 41,
+    "minus": [
+      "                extra={\"duration\": duration, \"was_cold\": was_cold},",
+      "            )"
+    ],
+    "plus": ["                )"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_42": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 42,
+    "minus": ["                extra={\"duration\": duration, \"was_cold\": was_cold},"],
+    "plus": ["                extra={\"XXdurationXX\": duration, \"was_cold\": was_cold},"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_43": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 43,
+    "minus": ["                extra={\"duration\": duration, \"was_cold\": was_cold},"],
+    "plus": ["                extra={\"DURATION\": duration, \"was_cold\": was_cold},"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_44": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 44,
+    "minus": ["                extra={\"duration\": duration, \"was_cold\": was_cold},"],
+    "plus": ["                extra={\"duration\": duration, \"XXwas_coldXX\": was_cold},"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_45": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 45,
+    "minus": ["                extra={\"duration\": duration, \"was_cold\": was_cold},"],
+    "plus": ["                extra={\"duration\": duration, \"WAS_COLD\": was_cold},"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_47": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 47,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"cold\")"],
+    "plus": ["            set_model_warmth_state(None, \"cold\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_48": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 48,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"cold\")"],
+    "plus": ["            set_model_warmth_state(\"yolo26\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_5": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 5,
+    "minus": ["    set_model_warmth_state(\"yolo26\", \"warming\")"],
+    "plus": ["    set_model_warmth_state(None, \"warming\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_51": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 51,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"cold\")"],
+    "plus": ["            set_model_warmth_state(\"XXyolo26XX\", \"cold\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_52": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 52,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"cold\")"],
+    "plus": ["            set_model_warmth_state(\"YOLO26\", \"cold\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_53": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 53,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"cold\")"],
+    "plus": ["            set_model_warmth_state(\"yolo26\", \"XXcoldXX\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_54": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 54,
+    "minus": ["            set_model_warmth_state(\"yolo26\", \"cold\")"],
+    "plus": ["            set_model_warmth_state(\"yolo26\", \"COLD\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_55": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 55,
+    "minus": ["            logger.warning(\"YOLO26 warmup failed - model not ready\")"],
+    "plus": ["            logger.warning(None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_56": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 56,
+    "minus": ["            logger.warning(\"YOLO26 warmup failed - model not ready\")"],
+    "plus": ["            logger.warning(\"XXYOLO26 warmup failed - model not readyXX\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_57": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 57,
+    "minus": ["            logger.warning(\"YOLO26 warmup failed - model not ready\")"],
+    "plus": ["            logger.warning(\"yolo26 warmup failed - model not ready\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_58": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 58,
+    "minus": ["            logger.warning(\"YOLO26 warmup failed - model not ready\")"],
+    "plus": ["            logger.warning(\"YOLO26 WARMUP FAILED - MODEL NOT READY\")"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_6": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 6,
+    "minus": ["    set_model_warmth_state(\"yolo26\", \"warming\")"],
+    "plus": ["    set_model_warmth_state(\"yolo26\", None)"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_60": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 60,
+    "minus": ["        self._is_warming = False"],
+    "plus": ["        self._is_warming = None"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_61": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 61,
+    "minus": ["        self._is_warming = False"],
+    "plus": ["        self._is_warming = True"]
+  },
+  "backend.services.detector_client.x\u01c1DetectorClient\u01c1warmup__mutmut_9": {
+    "fn": "x\u01c1DetectorClient\u01c1warmup",
+    "idx": 9,
+    "minus": ["    set_model_warmth_state(\"yolo26\", \"warming\")"],
+    "plus": ["    set_model_warmth_state(\"XXyolo26XX\", \"warming\")"]
+  }
+}

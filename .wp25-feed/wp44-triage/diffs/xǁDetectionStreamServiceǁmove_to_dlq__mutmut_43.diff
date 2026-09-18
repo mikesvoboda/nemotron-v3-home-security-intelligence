@@ -1,0 +1,11 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_43: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -49,7 +49,7 @@
+             "original_message_id": message.id,
+             "dlq_message_id": dlq_message_id,
+             "reason": reason,
+-            "delivery_count": message.delivery_count,
++            "DELIVERY_COUNT": message.delivery_count,
+         },
+     )

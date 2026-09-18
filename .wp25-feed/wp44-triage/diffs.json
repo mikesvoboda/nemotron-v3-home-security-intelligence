@@ -1,0 +1,588 @@
+{
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_2": [
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    data.zone_type.value if (hasattr(data.zone_type, \"value\")) and False else str(data.zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_3": [
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    data.zone_type.value if (hasattr(data.zone_type, \"value\")) or True else str(data.zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_4": [
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    data.zone_type.value if hasattr(None, \"value\") else str(data.zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_8": [
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    data.zone_type.value if hasattr(data.zone_type, \"XXvalueXX\") else str(data.zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_9": [
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    data.zone_type.value if hasattr(data.zone_type, \"VALUE\") else str(data.zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_10": [
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_14": [
+    "-    polygon=data.polygon,",
+    "+    polygon=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_23": [
+    "-    polygon=data.polygon,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_31": [
+    "-self.db.add(zone)",
+    "+self.db.add(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_32": [
+    "-await self.db.refresh(zone)",
+    "+await self.db.refresh(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_34": [
+    "-    extra={",
+    "-        \"zone_id\": zone.id,",
+    "-        \"camera_id\": camera_id,",
+    "-        \"zone_type\": zone_type_value,",
+    "-        \"vertex_count\": len(data.polygon),",
+    "-    },",
+    "+    extra=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_36": [
+    "-    extra={",
+    "-        \"zone_id\": zone.id,",
+    "-        \"camera_id\": camera_id,",
+    "-        \"zone_type\": zone_type_value,",
+    "-        \"vertex_count\": len(data.polygon),",
+    "-    },",
+    "-)",
+    "+    )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_37": [
+    "-        \"zone_id\": zone.id,",
+    "+        \"XXzone_idXX\": zone.id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_38": [
+    "-        \"zone_id\": zone.id,",
+    "+        \"ZONE_ID\": zone.id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_39": [
+    "-        \"camera_id\": camera_id,",
+    "+        \"XXcamera_idXX\": camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_40": [
+    "-        \"camera_id\": camera_id,",
+    "+        \"CAMERA_ID\": camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_41": [
+    "-        \"zone_type\": zone_type_value,",
+    "+        \"XXzone_typeXX\": zone_type_value,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_42": [
+    "-        \"zone_type\": zone_type_value,",
+    "+        \"ZONE_TYPE\": zone_type_value,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_43": [
+    "-        \"vertex_count\": len(data.polygon),",
+    "+        \"XXvertex_countXX\": len(data.polygon),"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1create_zone__mutmut_44": [
+    "-# Convert zone_type enum to string if needed",
+    "-zone_type_value = (",
+    "-    data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "-)",
+    "-zone = PolygonZone(",
+    "-    camera_id=camera_id,",
+    "-    name=data.name,",
+    "-    polygon=data.polygon,",
+    "-    zone_type=zone_type_value,",
+    "-    alert_threshold=data.alert_threshold,",
+    "-    target_classes=data.target_classes,",
+    "-    is_active=data.is_active,",
+    "-    color=data.color,",
+    "-    current_count=0,",
+    "-)",
+    "-self.db.add(zone)",
+    "-await self.db.flush()",
+    "-await self.db.refresh(zone)",
+    "-logger.info(",
+    "-    f\"Created polygon zone {zone.id} '{zone.name}' for camera {camera_id}\",",
+    "-    extra={",
+    "-        \"zone_id\": zone.id,",
+    "-        \"camera_id\": camera_id,",
+    "-        \"zone_type\": zone_type_value,",
+    "-        \"vertex_count\": len(data.polygon),",
+    "-    },",
+    "-)",
+    "-return zone",
+    "+    # Convert zone_type enum to string if needed",
+    "+    zone_type_value = (",
+    "+        data.zone_type.value if hasattr(data.zone_type, \"value\") else str(data.zone_type)",
+    "+    )",
+    "+    zone = PolygonZone(",
+    "+        camera_id=camera_id,",
+    "+        name=data.name,",
+    "+        polygon=data.polygon,",
+    "+        zone_type=zone_type_value,",
+    "+        alert_threshold=data.alert_threshold,",
+    "+        target_classes=data.target_classes,",
+    "+        is_active=data.is_active,",
+    "+        color=data.color,",
+    "+        current_count=0,",
+    "+    )",
+    "+    self.db.add(zone)",
+    "+    await self.db.flush()",
+    "+    await self.db.refresh(zone)",
+    "+    logger.info(",
+    "+        f\"Created polygon zone {zone.id} '{zone.name}' for camera {camera_id}\",",
+    "+        extra={",
+    "+            \"zone_id\": zone.id,",
+    "+            \"camera_id\": camera_id,",
+    "+            \"zone_type\": zone_type_value,",
+    "+            \"VERTEX_COUNT\": len(data.polygon),",
+    "+        },",
+    "+    )",
+    "+    return zone",
+    "+@_mutmut_mutated(mutants_x\u01c1PolygonZoneService\u01c1get_zone__mutmut)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zone__mutmut_1": [
+    "-stmt = select(PolygonZone).where(PolygonZone.id == zone_id)",
+    "+stmt = None"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zone__mutmut_2": [
+    "-stmt = select(PolygonZone).where(PolygonZone.id == zone_id)",
+    "+stmt = select(PolygonZone).where(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zone__mutmut_3": [
+    "-stmt = select(PolygonZone).where(PolygonZone.id == zone_id)",
+    "+stmt = select(None).where(PolygonZone.id == zone_id)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zone__mutmut_4": [
+    "-stmt = select(PolygonZone).where(PolygonZone.id == zone_id)",
+    "+stmt = select(PolygonZone).where(PolygonZone.id != zone_id)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zone__mutmut_6": [
+    "-stmt = select(PolygonZone).where(PolygonZone.id == zone_id)",
+    "-result = await self.db.execute(stmt)",
+    "-return result.scalar_one_or_none()",
+    "+    stmt = select(PolygonZone).where(PolygonZone.id == zone_id)",
+    "+    result = await self.db.execute(None)",
+    "+    return result.scalar_one_or_none()",
+    "+@_mutmut_mutated(mutants_x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_2": [
+    "-    stmt = select(PolygonZone).where(PolygonZone.camera_id == camera_id)",
+    "+    stmt = select(PolygonZone).where(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_3": [
+    "-    stmt = select(PolygonZone).where(PolygonZone.camera_id == camera_id)",
+    "+    stmt = select(None).where(PolygonZone.camera_id == camera_id)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_4": [
+    "-    stmt = select(PolygonZone).where(PolygonZone.camera_id == camera_id)",
+    "+    stmt = select(PolygonZone).where(PolygonZone.camera_id != camera_id)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_6": [
+    "-        stmt = stmt.where(PolygonZone.is_active == True)  # noqa: E712",
+    "+        stmt = stmt.where(None)  # noqa: E712"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_7": [
+    "-        stmt = stmt.where(PolygonZone.is_active == True)  # noqa: E712",
+    "+        stmt = stmt.where(PolygonZone.is_active != True)  # noqa: E712"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_8": [
+    "-        stmt = stmt.where(PolygonZone.is_active == True)  # noqa: E712",
+    "+        stmt = stmt.where(PolygonZone.is_active == False)  # noqa: E712"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_9": [
+    "-    stmt = stmt.order_by(PolygonZone.created_at)",
+    "+    stmt = None"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_10": [
+    "-    stmt = stmt.order_by(PolygonZone.created_at)",
+    "+    stmt = stmt.order_by(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_camera__mutmut_12": [
+    "-    result = await self.db.execute(stmt)",
+    "+    result = await self.db.execute(None)",
+    "+@_mutmut_mutated(mutants_x\u01c1PolygonZoneService\u01c1update_zone__mutmut)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_2": [
+    "-zone = await self.get_zone(zone_id)",
+    "+zone = await self.get_zone(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_6": [
+    "-update_data = data.model_dump(exclude_unset=True)",
+    "+update_data = data.model_dump(exclude_unset=False)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_8": [
+    "-if \"zone_type\" in update_data and update_data[\"zone_type\"] is not None:",
+    "+if \"XXzone_typeXX\" in update_data and update_data[\"zone_type\"] is not None:"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_9": [
+    "-if \"zone_type\" in update_data and update_data[\"zone_type\"] is not None:",
+    "+if \"ZONE_TYPE\" in update_data and update_data[\"zone_type\"] is not None:"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_13": [
+    "-if \"zone_type\" in update_data and update_data[\"zone_type\"] is not None:",
+    "+if \"zone_type\" in update_data and update_data[\"zone_type\"] is None:"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_18": [
+    "-    update_data[\"zone_type\"] = (",
+    "+    update_data[\"XXzone_typeXX\"] = ("
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_19": [
+    "-    update_data[\"zone_type\"] = (",
+    "+    update_data[\"ZONE_TYPE\"] = ("
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_20": [
+    "-        zone_type.value if hasattr(zone_type, \"value\") else str(zone_type)",
+    "+        zone_type.value if (hasattr(zone_type, \"value\")) and False else str(zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_21": [
+    "-        zone_type.value if hasattr(zone_type, \"value\") else str(zone_type)",
+    "+        zone_type.value if (hasattr(zone_type, \"value\")) or True else str(zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_22": [
+    "-        zone_type.value if hasattr(zone_type, \"value\") else str(zone_type)",
+    "+        zone_type.value if hasattr(None, \"value\") else str(zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_26": [
+    "-        zone_type.value if hasattr(zone_type, \"value\") else str(zone_type)",
+    "+        zone_type.value if hasattr(zone_type, \"XXvalueXX\") else str(zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_27": [
+    "-        zone_type.value if hasattr(zone_type, \"value\") else str(zone_type)",
+    "+        zone_type.value if hasattr(zone_type, \"VALUE\") else str(zone_type)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_28": [
+    "-        zone_type.value if hasattr(zone_type, \"value\") else str(zone_type)",
+    "+        zone_type.value if hasattr(zone_type, \"value\") else str(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_35": [
+    "-await self.db.refresh(zone)",
+    "+await self.db.refresh(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_37": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"updated_fields\": list(update_data.keys()),",
+    "-    },",
+    "+    extra=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_39": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"updated_fields\": list(update_data.keys()),",
+    "-    },",
+    "-)",
+    "+    )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_40": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"XXzone_idXX\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_41": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"ZONE_ID\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_42": [
+    "-        \"updated_fields\": list(update_data.keys()),",
+    "+        \"XXupdated_fieldsXX\": list(update_data.keys()),"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_zone__mutmut_43": [
+    "-        \"updated_fields\": list(update_data.keys()),",
+    "+        \"UPDATED_FIELDS\": list(update_data.keys()),"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_2": [
+    "-zone = await self.get_zone(zone_id)",
+    "+zone = await self.get_zone(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_5": [
+    "-camera_id = zone.camera_id",
+    "+camera_id = None"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_6": [
+    "-zone_name = zone.name",
+    "+zone_name = None"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_7": [
+    "-await self.db.delete(zone)",
+    "+await self.db.delete(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_9": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"camera_id\": camera_id,",
+    "-    },",
+    "+    extra=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_11": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"camera_id\": camera_id,",
+    "-    },",
+    "-)",
+    "+    )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_12": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"XXzone_idXX\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_13": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"ZONE_ID\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_14": [
+    "-        \"camera_id\": camera_id,",
+    "+        \"XXcamera_idXX\": camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1delete_zone__mutmut_15": [
+    "-        \"camera_id\": camera_id,",
+    "+        \"CAMERA_ID\": camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_5": [
+    "-zone = await self.get_zone(zone_id)",
+    "+zone = await self.get_zone(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_7": [
+    "-    logger.warning(f\"Attempted to update count for non-existent zone {zone_id}\")",
+    "+    logger.warning(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_10": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"count\": count,",
+    "-    },",
+    "+    extra=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_12": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"count\": count,",
+    "-    },",
+    "-)",
+    "+    )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_13": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"XXzone_idXX\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_14": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"ZONE_ID\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_15": [
+    "-        \"count\": count,",
+    "+        \"XXcountXX\": count,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1update_count__mutmut_16": [
+    "-if count < 0:",
+    "-    raise ValueError(f\"Count cannot be negative: {count}\")",
+    "-zone = await self.get_zone(zone_id)",
+    "-if zone is None:",
+    "-    logger.warning(f\"Attempted to update count for non-existent zone {zone_id}\")",
+    "-    return",
+    "-zone.current_count = count",
+    "-await self.db.flush()",
+    "-logger.debug(",
+    "-    f\"Updated polygon zone {zone_id} count to {count}\",",
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"count\": count,",
+    "-    },",
+    "-)",
+    "+    if count < 0:",
+    "+        raise ValueError(f\"Count cannot be negative: {count}\")",
+    "+    zone = await self.get_zone(zone_id)",
+    "+    if zone is None:",
+    "+        logger.warning(f\"Attempted to update count for non-existent zone {zone_id}\")",
+    "+        return",
+    "+    zone.current_count = count",
+    "+    await self.db.flush()",
+    "+    logger.debug(",
+    "+        f\"Updated polygon zone {zone_id} count to {count}\",",
+    "+        extra={",
+    "+            \"zone_id\": zone_id,",
+    "+            \"COUNT\": count,",
+    "+        },",
+    "+    )",
+    "+@_mutmut_mutated(mutants_x\u01c1PolygonZoneService\u01c1set_active__mutmut)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_2": [
+    "-zone = await self.get_zone(zone_id)",
+    "+zone = await self.get_zone(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_5": [
+    "-await self.db.refresh(zone)",
+    "+await self.db.refresh(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_7": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"is_active\": is_active,",
+    "-    },",
+    "+    extra=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_9": [
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"is_active\": is_active,",
+    "-    },",
+    "-)",
+    "+    )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_10": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"XXzone_idXX\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_11": [
+    "-        \"zone_id\": zone_id,",
+    "+        \"ZONE_ID\": zone_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_12": [
+    "-        \"is_active\": is_active,",
+    "+        \"XXis_activeXX\": is_active,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1set_active__mutmut_13": [
+    "-zone = await self.get_zone(zone_id)",
+    "-if zone is None:",
+    "-    return None",
+    "-zone.is_active = is_active",
+    "-await self.db.flush()",
+    "-await self.db.refresh(zone)",
+    "-logger.info(",
+    "-    f\"Set polygon zone {zone_id} active={is_active}\",",
+    "-    extra={",
+    "-        \"zone_id\": zone_id,",
+    "-        \"is_active\": is_active,",
+    "-    },",
+    "-)",
+    "-return zone",
+    "+    zone = await self.get_zone(zone_id)",
+    "+    if zone is None:",
+    "+        return None",
+    "+    zone.is_active = is_active",
+    "+    await self.db.flush()",
+    "+    await self.db.refresh(zone)",
+    "+    logger.info(",
+    "+        f\"Set polygon zone {zone_id} active={is_active}\",",
+    "+        extra={",
+    "+            \"zone_id\": zone_id,",
+    "+            \"IS_ACTIVE\": is_active,",
+    "+        },",
+    "+    )",
+    "+    return zone",
+    "+@_mutmut_mutated(mutants_x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_1": [
+    "-stmt = (",
+    "-    select(PolygonZone)",
+    "-    .where(",
+    "-        PolygonZone.camera_id == camera_id,",
+    "-        PolygonZone.zone_type == zone_type,",
+    "-    )",
+    "-    .order_by(PolygonZone.created_at)",
+    "-)",
+    "+stmt = None"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_2": [
+    "-    .order_by(PolygonZone.created_at)",
+    "+    .order_by(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_3": [
+    "-        PolygonZone.camera_id == camera_id,",
+    "+        None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_4": [
+    "-        PolygonZone.zone_type == zone_type,",
+    "+        None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_5": [
+    "-        PolygonZone.camera_id == camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_6": [
+    "-        PolygonZone.zone_type == zone_type,",
+    "-    )",
+    "+        )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_7": [
+    "-    select(PolygonZone)",
+    "+    select(None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_8": [
+    "-        PolygonZone.camera_id == camera_id,",
+    "+        PolygonZone.camera_id != camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_9": [
+    "-        PolygonZone.zone_type == zone_type,",
+    "+        PolygonZone.zone_type != zone_type,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1get_zones_by_type__mutmut_11": [
+    "-stmt = (",
+    "-    select(PolygonZone)",
+    "-    .where(",
+    "-        PolygonZone.camera_id == camera_id,",
+    "-        PolygonZone.zone_type == zone_type,",
+    "+    stmt = (",
+    "+        select(PolygonZone)",
+    "+        .where(",
+    "+            PolygonZone.camera_id == camera_id,",
+    "+            PolygonZone.zone_type == zone_type,",
+    "+        )",
+    "+        .order_by(PolygonZone.created_at)",
+    "-    .order_by(PolygonZone.created_at)",
+    "-)",
+    "-result = await self.db.execute(stmt)",
+    "-return result.scalars().all()",
+    "+    result = await self.db.execute(None)",
+    "+    return result.scalars().all()",
+    "+@_mutmut_mutated(mutants_x\u01c1PolygonZoneService\u01c1get_all_zones__mutmut)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_2": [
+    "-zones = await self.get_zones_by_camera(camera_id, active_only=False)",
+    "+zones = await self.get_zones_by_camera(None, active_only=False)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_3": [
+    "-zones = await self.get_zones_by_camera(camera_id, active_only=False)",
+    "+zones = await self.get_zones_by_camera(camera_id, active_only=None)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_5": [
+    "-zones = await self.get_zones_by_camera(camera_id, active_only=False)",
+    "+zones = await self.get_zones_by_camera(camera_id, )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_6": [
+    "-zones = await self.get_zones_by_camera(camera_id, active_only=False)",
+    "+zones = await self.get_zones_by_camera(camera_id, active_only=True)"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_10": [
+    "-    extra={",
+    "-        \"camera_id\": camera_id,",
+    "-        \"zone_count\": len(zones),",
+    "-    },",
+    "+    extra=None,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_12": [
+    "-    extra={",
+    "-        \"camera_id\": camera_id,",
+    "-        \"zone_count\": len(zones),",
+    "-    },",
+    "-)",
+    "+    )"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_13": [
+    "-        \"camera_id\": camera_id,",
+    "+        \"XXcamera_idXX\": camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_14": [
+    "-        \"camera_id\": camera_id,",
+    "+        \"CAMERA_ID\": camera_id,"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_15": [
+    "-        \"zone_count\": len(zones),",
+    "+        \"XXzone_countXX\": len(zones),"
+  ],
+  "backend.services.polygon_zone_service.x\u01c1PolygonZoneService\u01c1reset_all_counts__mutmut_16": [
+    "-        \"zone_count\": len(zones),",
+    "+        \"ZONE_COUNT\": len(zones),"
+  ]
+}

@@ -1,0 +1,9 @@
+# backend.services.detector_client.xǁDetectorClientǁis_cold__mutmut_5: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -11,4 +11,4 @@
+     if self._last_inference_time is None:
+         return True
+     seconds_since_last = time.monotonic() - self._last_inference_time
+-    return seconds_since_last > self._cold_start_threshold
++    return seconds_since_last >= self._cold_start_threshold

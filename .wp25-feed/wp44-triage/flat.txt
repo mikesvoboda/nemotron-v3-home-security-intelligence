@@ -1,0 +1,110 @@
+check_alerting_rules#16: -groups = data.get("data", {}).get("groups", []) +groups = data.get("data", {}).get("groups", None)
+check_alerting_rules#18: -groups = data.get("data", {}).get("groups", []) +groups = data.get("data", {}).get("groups", )
+check_alerting_rules#2: -url = f"{self._prometheus_url}/api/v1/rules" +url = None
+check_alerting_rules#20: -groups = data.get("data", {}).get("groups", []) +groups = data.get("data", None).get("groups", [])
+check_alerting_rules#22: -groups = data.get("data", {}).get("groups", []) +groups = data.get("data", ).get("groups", [])
+check_alerting_rules#34: -group_name = group.get("name", "unknown") +group_name = None
+check_alerting_rules#35: -group_name = group.get("name", "unknown") +group_name = group.get(None, "unknown")
+check_alerting_rules#36: -group_name = group.get("name", "unknown") +group_name = group.get("name", None)
+check_alerting_rules#37: -group_name = group.get("name", "unknown") +group_name = group.get("unknown")
+check_alerting_rules#38: -group_name = group.get("name", "unknown") +group_name = group.get("name", )
+check_alerting_rules#39: -group_name = group.get("name", "unknown") +group_name = group.get("XXnameXX", "unknown")
+check_alerting_rules#4: -response = await client.get(url) +response = await client.get(None)
+check_alerting_rules#40: -group_name = group.get("name", "unknown") +group_name = group.get("NAME", "unknown")
+check_alerting_rules#41: -group_name = group.get("name", "unknown") +group_name = group.get("name", "XXunknownXX")
+check_alerting_rules#42: -group_name = group.get("name", "unknown") +group_name = group.get("name", "UNKNOWN")
+check_alerting_rules#43: -rule_groups.append(group_name) +rule_groups.append(None)
+check_alerting_rules#46: -rules = group.get("rules", []) +rules = group.get("rules", None)
+check_alerting_rules#48: -rules = group.get("rules", []) +rules = group.get("rules", )
+check_alerting_rules#69: -f"Alerting rules: {healthy_rules}/{total_rules} healthy, {len(rule_groups)} groups" +None
+check_alerting_rules#78: -unhealthy_rules=unhealthy_rules, +
+check_alerting_rules#81: -logger.warning(f"Rules check failed: {e}") +logger.warning(None)
+check_alerting_rules#87: -error=str(e), +error=str(None),
+check_grafana#14: -database_status = health_data.get("database", "unknown") +database_status = health_data.get("database", None)
+check_grafana#16: -database_status = health_data.get("database", "unknown") +database_status = health_data.get("database", )
+check_grafana#19: -database_status = health_data.get("database", "unknown") +database_status = health_data.get("database", "XXunknownXX")
+check_grafana#2: -health_url = f"{self._grafana_url}/api/health" +health_url = None
+check_grafana#20: -database_status = health_data.get("database", "unknown") +database_status = health_data.get("database", "UNKNOWN")
+check_grafana#21: -dashboard_count = 0 +dashboard_count = None
+check_grafana#22: -dashboard_count = 0 +dashboard_count = 1
+check_grafana#29: -if not is_healthy: +if is_healthy:
+check_grafana#30: -logger.warning(f"Grafana database status: {database_status}") +logger.warning(None)
+check_grafana#4: -health_response = await client.get(health_url) +health_response = await client.get(None)
+check_grafana#42: -logger.warning(f"Grafana check timed out: {e}") +logger.warning(None)
+check_grafana#51: -logger.warning(f"Grafana check failed: {e}") +logger.warning(None)
+check_grafana#60: -error=str(e), +error=str(None),
+check_prometheus#11: -healthy=False, +
+check_prometheus#12: -reachable=False, +
+check_prometheus#2: -url = f"{self._prometheus_url}/api/v1/targets" +url = None
+check_prometheus#25: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", {}).get("activeTargets", None)
+check_prometheus#27: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", {}).get("activeTargets", )
+check_prometheus#29: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", None).get("activeTargets", [])
+check_prometheus#31: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", ).get("activeTargets", [])
+check_prometheus#4: -response = await client.get(url) +response = await client.get(None)
+check_prometheus#44: -up_count = sum(1 for t in active_targets if t.get("health") == "up") +up_count = sum(1 for t in active_targets if t.get("health") != "up")
+check_prometheus#53: -down_count = sum(1 for t in active_targets if t.get("health") == "down") +down_count = sum(1 for t in active_targets if t.get("health") != "down")
+check_prometheus#56: -logger.debug(f"Prometheus targets: {up_count}/{total} up, {down_count} down") +logger.debug(None)
+check_prometheus#69: -logger.warning(f"Prometheus check timed out: {e}") +logger.warning(None)
+check_prometheus#7: -logger.warning(f"Prometheus returned status {response.status_code}") +logger.warning(None)
+check_prometheus#78: -logger.warning(f"Prometheus check failed: {e}") +logger.warning(None)
+close#4: -self._http_client = None +self._http_client = ""
+get_dashboards#10: -logger.warning(f"Failed to get dashboards: {e}") +logger.warning(None)
+get_dashboards#2: -url = f"{self._grafana_url}/api/search?type=dash-db" +url = None
+get_dashboards#4: -response = await client.get(url) +response = await client.get(None)
+get_dashboards#9: -return dashboards if isinstance(dashboards, list) else [] +return dashboards if (isinstance(dashboards, list)) or True else []
+get_scrape_targets#100: -last_scrape=t.get("lastScrape"), +last_scrape=t.get("LASTSCRAPE"),
+get_scrape_targets#101: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get(None, 0.0),
+get_scrape_targets#102: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get("lastScrapeDuration", None),
+get_scrape_targets#103: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get(0.0),
+get_scrape_targets#104: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get("lastScrapeDuration", ),
+get_scrape_targets#105: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get("XXlastScrapeDurationXX", 0.0),
+get_scrape_targets#106: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get("lastscrapeduration", 0.0),
+get_scrape_targets#107: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get("LASTSCRAPEDURATION", 0.0),
+get_scrape_targets#108: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=t.get("lastScrapeDuration", 1.0),
+get_scrape_targets#115: -logger.warning(f"Failed to get scrape targets: {e}") +logger.warning(None)
+get_scrape_targets#17: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", {}).get("activeTargets", None)
+get_scrape_targets#19: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", {}).get("activeTargets", )
+get_scrape_targets#2: -url = f"{self._prometheus_url}/api/v1/targets" +url = None
+get_scrape_targets#21: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", None).get("activeTargets", [])
+get_scrape_targets#23: -active_targets = data.get("data", {}).get("activeTargets", []) +active_targets = data.get("data", ).get("activeTargets", [])
+get_scrape_targets#31: -health_str = t.get("health", "unknown") +health_str = t.get("health", None)
+get_scrape_targets#33: -health_str = t.get("health", "unknown") +health_str = t.get("health", )
+get_scrape_targets#36: -health_str = t.get("health", "unknown") +health_str = t.get("health", "XXunknownXX")
+get_scrape_targets#37: -health_str = t.get("health", "unknown") +health_str = t.get("health", "UNKNOWN")
+get_scrape_targets#4: -response = await client.get(url) +response = await client.get(None)
+get_scrape_targets#48: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=None,
+get_scrape_targets#49: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=None,
+get_scrape_targets#51: -last_scrape=t.get("lastScrape"), +last_scrape=None,
+get_scrape_targets#52: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +last_scrape_duration=None,
+get_scrape_targets#58: -last_scrape=t.get("lastScrape"), +
+get_scrape_targets#59: -last_scrape_duration=t.get("lastScrapeDuration", 0.0), +
+get_scrape_targets#62: -job=t.get("labels", {}).get("job", "unknown"), +job=t.get("labels", {}).get("job", None),
+get_scrape_targets#64: -job=t.get("labels", {}).get("job", "unknown"), +job=t.get("labels", {}).get("job", ),
+get_scrape_targets#66: -job=t.get("labels", {}).get("job", "unknown"), +job=t.get("labels", None).get("job", "unknown"),
+get_scrape_targets#68: -job=t.get("labels", {}).get("job", "unknown"), +job=t.get("labels", ).get("job", "unknown"),
+get_scrape_targets#73: -job=t.get("labels", {}).get("job", "unknown"), +job=t.get("labels", {}).get("job", "XXunknownXX"),
+get_scrape_targets#74: -job=t.get("labels", {}).get("job", "unknown"), +job=t.get("labels", {}).get("job", "UNKNOWN"),
+get_scrape_targets#75: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get(None, "unknown"),
+get_scrape_targets#76: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("instance", None),
+get_scrape_targets#77: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("unknown"),
+get_scrape_targets#78: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("instance", ),
+get_scrape_targets#79: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get(None, {}).get("instance", "unknown"),
+get_scrape_targets#80: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", None).get("instance", "unknown"),
+get_scrape_targets#82: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", ).get("instance", "unknown"),
+get_scrape_targets#83: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("XXlabelsXX", {}).get("instance", "unknown"),
+get_scrape_targets#84: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("LABELS", {}).get("instance", "unknown"),
+get_scrape_targets#85: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("XXinstanceXX", "unknown"),
+get_scrape_targets#86: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("INSTANCE", "unknown"),
+get_scrape_targets#87: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("instance", "XXunknownXX"),
+get_scrape_targets#88: -instance=t.get("labels", {}).get("instance", "unknown"), +instance=t.get("labels", {}).get("instance", "UNKNOWN"),
+get_scrape_targets#89: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get(None, ""),
+get_scrape_targets#90: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get("scrapeUrl", None),
+get_scrape_targets#91: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get(""),
+get_scrape_targets#92: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get("scrapeUrl", ),
+get_scrape_targets#93: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get("XXscrapeUrlXX", ""),
+get_scrape_targets#94: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get("scrapeurl", ""),
+get_scrape_targets#95: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get("SCRAPEURL", ""),
+get_scrape_targets#96: -scrape_url=t.get("scrapeUrl", ""), +scrape_url=t.get("scrapeUrl", "XXXX"),
+get_scrape_targets#97: -last_scrape=t.get("lastScrape"), +last_scrape=t.get(None),
+get_scrape_targets#98: -last_scrape=t.get("lastScrape"), +last_scrape=t.get("XXlastScrapeXX"),
+get_scrape_targets#99: -last_scrape=t.get("lastScrape"), +last_scrape=t.get("lastscrape"),

@@ -1,0 +1,11 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_61: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -59,7 +59,7 @@
+             {
+                 "type": "quality_issue",
+                 "description": self.quality_change_description,
+-                "severity": "alert",
++                "SEVERITY": "alert",
+             }
+         )

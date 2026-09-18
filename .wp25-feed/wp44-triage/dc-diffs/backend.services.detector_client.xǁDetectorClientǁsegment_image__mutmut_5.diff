@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_5: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -35,7 +35,7 @@
+     last_exception: Exception | None = None
+     semaphore = self._get_semaphore()
+     settings = get_settings()
+-    explicit_timeout = self._read_timeout + settings.ai_connect_timeout
++    explicit_timeout = self._read_timeout - settings.ai_connect_timeout
+
+     with trace_span(
+         f"{self._detector_type}_segmentation_request",

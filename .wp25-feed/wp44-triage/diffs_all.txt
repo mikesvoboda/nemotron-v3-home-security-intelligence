@@ -1,0 +1,1556 @@
+==== x_get_service_registry__mutmut_2
+---
++++
+@@ -1,3 +1,3 @@
+
+-async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
++async def x_get_service_registry__mutmut_2() -> ServiceRegistry:
+     """Get the global ServiceRegistry singleton.
+@@ -16,3 +16,3 @@
+
+-            redis_client = await init_redis()
++            redis_client = None
+             _service_registry = ServiceRegistry(redis_client=redis_client)
+==== x_get_service_registry__mutmut_4
+---
++++
+@@ -1,3 +1,3 @@
+
+-async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
++async def x_get_service_registry__mutmut_4() -> ServiceRegistry:
+     """Get the global ServiceRegistry singleton.
+@@ -17,3 +17,3 @@
+             redis_client = await init_redis()
+-            _service_registry = ServiceRegistry(redis_client=redis_client)
++            _service_registry = ServiceRegistry(redis_client=None)
+             logger.info("Created global ServiceRegistry singleton")
+==== x_get_service_registry__mutmut_5
+---
++++
+@@ -1,3 +1,3 @@
+
+-async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
++async def x_get_service_registry__mutmut_5() -> ServiceRegistry:
+     """Get the global ServiceRegistry singleton.
+@@ -18,3 +18,3 @@
+             _service_registry = ServiceRegistry(redis_client=redis_client)
+-            logger.info("Created global ServiceRegistry singleton")
++            logger.info(None)
+
+==== x_get_service_registry__mutmut_6
+---
++++
+@@ -1,3 +1,3 @@
+
+-async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
++async def x_get_service_registry__mutmut_6() -> ServiceRegistry:
+     """Get the global ServiceRegistry singleton.
+@@ -18,3 +18,3 @@
+             _service_registry = ServiceRegistry(redis_client=redis_client)
+-            logger.info("Created global ServiceRegistry singleton")
++            logger.info("XXCreated global ServiceRegistry singletonXX")
+
+==== x_get_service_registry__mutmut_7
+---
++++
+@@ -1,3 +1,3 @@
+
+-async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
++async def x_get_service_registry__mutmut_7() -> ServiceRegistry:
+     """Get the global ServiceRegistry singleton.
+@@ -18,3 +18,3 @@
+             _service_registry = ServiceRegistry(redis_client=redis_client)
+-            logger.info("Created global ServiceRegistry singleton")
++            logger.info("created global serviceregistry singleton")
+
+==== x_get_service_registry__mutmut_8
+---
++++
+@@ -1,3 +1,3 @@
+
+-async def x_get_service_registry__mutmut_orig() -> ServiceRegistry:
++async def x_get_service_registry__mutmut_8() -> ServiceRegistry:
+     """Get the global ServiceRegistry singleton.
+@@ -18,3 +18,3 @@
+             _service_registry = ServiceRegistry(redis_client=redis_client)
+-            logger.info("Created global ServiceRegistry singleton")
++            logger.info("CREATED GLOBAL SERVICEREGISTRY SINGLETON")
+
+==== x_reset_service_registry__mutmut_2
+---
++++
+@@ -1,3 +1,3 @@
+
+-def x_reset_service_registry__mutmut_orig() -> None:
++def x_reset_service_registry__mutmut_2() -> None:
+     """Reset the global ServiceRegistry singleton.
+@@ -10,3 +10,3 @@
+         _service_registry = None
+-        logger.debug("Reset global ServiceRegistry singleton")
++        logger.debug(None)
+
+==== x_reset_service_registry__mutmut_3
+---
++++
+@@ -1,3 +1,3 @@
+
+-def x_reset_service_registry__mutmut_orig() -> None:
++def x_reset_service_registry__mutmut_3() -> None:
+     """Reset the global ServiceRegistry singleton.
+@@ -10,3 +10,3 @@
+         _service_registry = None
+-        logger.debug("Reset global ServiceRegistry singleton")
++        logger.debug("XXReset global ServiceRegistry singletonXX")
+
+==== x_reset_service_registry__mutmut_4
+---
++++
+@@ -1,3 +1,3 @@
+
+-def x_reset_service_registry__mutmut_orig() -> None:
++def x_reset_service_registry__mutmut_4() -> None:
+     """Reset the global ServiceRegistry singleton.
+@@ -10,3 +10,3 @@
+         _service_registry = None
+-        logger.debug("Reset global ServiceRegistry singleton")
++        logger.debug("reset global serviceregistry singleton")
+
+==== x_reset_service_registry__mutmut_5
+---
++++
+@@ -1,3 +1,3 @@
+
+-def x_reset_service_registry__mutmut_orig() -> None:
++def x_reset_service_registry__mutmut_5() -> None:
+     """Reset the global ServiceRegistry singleton.
+@@ -10,3 +10,3 @@
+         _service_registry = None
+-        logger.debug("Reset global ServiceRegistry singleton")
++        logger.debug("RESET GLOBAL SERVICEREGISTRY SINGLETON")
+
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_6
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_6(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -12,3 +12,3 @@
+
+-            service.enabled = state.get("enabled", True)
++            service.enabled = state.get("enabled", None)
+             service.failure_count = state.get("failure_count", 0)
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_8(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -12,3 +12,3 @@
+
+-            service.enabled = state.get("enabled", True)
++            service.enabled = state.get("enabled", )
+             service.failure_count = state.get("failure_count", 0)
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_11
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_11(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -12,3 +12,3 @@
+
+-            service.enabled = state.get("enabled", True)
++            service.enabled = state.get("enabled", False)
+             service.failure_count = state.get("failure_count", 0)
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_14
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_14(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -13,3 +13,3 @@
+             service.enabled = state.get("enabled", True)
+-            service.failure_count = state.get("failure_count", 0)
++            service.failure_count = state.get("failure_count", None)
+             service.restart_count = state.get("restart_count", 0)
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_16
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_16(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -13,3 +13,3 @@
+             service.enabled = state.get("enabled", True)
+-            service.failure_count = state.get("failure_count", 0)
++            service.failure_count = state.get("failure_count", )
+             service.restart_count = state.get("restart_count", 0)
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_19
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_19(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -13,3 +13,3 @@
+             service.enabled = state.get("enabled", True)
+-            service.failure_count = state.get("failure_count", 0)
++            service.failure_count = state.get("failure_count", 1)
+             service.restart_count = state.get("restart_count", 0)
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_22
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_22(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -14,3 +14,3 @@
+             service.failure_count = state.get("failure_count", 0)
+-            service.restart_count = state.get("restart_count", 0)
++            service.restart_count = state.get("restart_count", None)
+
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_24
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_24(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -14,3 +14,3 @@
+             service.failure_count = state.get("failure_count", 0)
+-            service.restart_count = state.get("restart_count", 0)
++            service.restart_count = state.get("restart_count", )
+
+==== xǁServiceRegistryǁ_apply_loaded_state__mutmut_27
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_orig(self, name: str, state: dict) -> None:
++    def xǁServiceRegistryǁ_apply_loaded_state__mutmut_27(self, name: str, state: dict) -> None:
+         """Apply loaded state to a service.
+@@ -14,3 +14,3 @@
+             service.failure_count = state.get("failure_count", 0)
+-            service.restart_count = state.get("restart_count", 0)
++            service.restart_count = state.get("restart_count", 1)
+
+==== xǁServiceRegistryǁclear_state__mutmut_4
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_4(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug(None, extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_5
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_5(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("Cleared service state from Redis", extra=None)
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_6
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_6(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug(extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_7
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_7(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("Cleared service state from Redis", )
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_8(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("XXCleared service state from RedisXX", extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_9
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_9(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("cleared service state from redis", extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_10
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_10(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("CLEARED SERVICE STATE FROM REDIS", extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_11
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_11(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("Cleared service state from Redis", extra={"XXservice_nameXX": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_12
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_12(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -12,3 +12,3 @@
+             await self._redis.delete(key)
+-            logger.debug("Cleared service state from Redis", extra={"service_name": name})
++            logger.debug("Cleared service state from Redis", extra={"SERVICE_NAME": name})
+         except Exception as e:
+==== xǁServiceRegistryǁclear_state__mutmut_13
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_13(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -15,3 +15,3 @@
+             logger.warning(
+-                "Failed to clear service state from Redis",
++                None,
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁclear_state__mutmut_14
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_14(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,3 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra=None,
+             )
+==== xǁServiceRegistryǁclear_state__mutmut_16
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_16(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,4 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
+-            )
++                )
+
+==== xǁServiceRegistryǁclear_state__mutmut_17
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_17(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -15,3 +15,3 @@
+             logger.warning(
+-                "Failed to clear service state from Redis",
++                "XXFailed to clear service state from RedisXX",
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁclear_state__mutmut_18
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_18(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -15,3 +15,3 @@
+             logger.warning(
+-                "Failed to clear service state from Redis",
++                "failed to clear service state from redis",
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁclear_state__mutmut_19
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_19(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -15,3 +15,3 @@
+             logger.warning(
+-                "Failed to clear service state from Redis",
++                "FAILED TO CLEAR SERVICE STATE FROM REDIS",
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁclear_state__mutmut_20
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_20(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,3 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"XXservice_nameXX": name, "error": str(e)},
+             )
+==== xǁServiceRegistryǁclear_state__mutmut_21
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_21(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,3 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"SERVICE_NAME": name, "error": str(e)},
+             )
+==== xǁServiceRegistryǁclear_state__mutmut_22
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_22(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,3 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"service_name": name, "XXerrorXX": str(e)},
+             )
+==== xǁServiceRegistryǁclear_state__mutmut_23
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_23(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,3 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"service_name": name, "ERROR": str(e)},
+             )
+==== xǁServiceRegistryǁclear_state__mutmut_24
+---
++++
+@@ -1,2 +1,2 @@
+-    async def xǁServiceRegistryǁclear_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁclear_state__mutmut_24(self, name: str) -> None:
+         """Clear service state from Redis.
+@@ -16,3 +16,3 @@
+                 "Failed to clear service state from Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"service_name": name, "error": str(None)},
+             )
+==== xǁServiceRegistryǁpersist_state__mutmut_2
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_2(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug(None, extra={"service_name": name})
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_3
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_3(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("No Redis client, skipping persist", extra=None)
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_5
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_5(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("No Redis client, skipping persist", )
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_6
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_6(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("XXNo Redis client, skipping persistXX", extra={"service_name": name})
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_7
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_7(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("no redis client, skipping persist", extra={"service_name": name})
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_8
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_8(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("NO REDIS CLIENT, SKIPPING PERSIST", extra={"service_name": name})
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_9
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_9(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("No Redis client, skipping persist", extra={"XXservice_nameXX": name})
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_10
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_10(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -17,3 +17,3 @@
+         if self._redis is None:
+-            logger.debug("No Redis client, skipping persist", extra={"service_name": name})
++            logger.debug("No Redis client, skipping persist", extra={"SERVICE_NAME": name})
+             return
+==== xǁServiceRegistryǁpersist_state__mutmut_21
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_21(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -29,3 +29,3 @@
+                 "last_failure_at": (
+-                    service.last_failure_at.isoformat() if service.last_failure_at else None
++                    service.last_failure_at.isoformat() if (service.last_failure_at) and False else None
+                 ),
+==== xǁServiceRegistryǁpersist_state__mutmut_25
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_25(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -32,3 +32,3 @@
+                 "last_restart_at": (
+-                    service.last_restart_at.isoformat() if service.last_restart_at else None
++                    service.last_restart_at.isoformat() if (service.last_restart_at) and False else None
+                 ),
+==== xǁServiceRegistryǁpersist_state__mutmut_36
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_36(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug(None, extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_37
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_37(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("Persisted service state to Redis", extra=None)
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_38
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_38(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug(extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_39
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_39(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("Persisted service state to Redis", )
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_40
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_40(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("XXPersisted service state to RedisXX", extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_41
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_41(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("persisted service state to redis", extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_42
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_42(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("PERSISTED SERVICE STATE TO REDIS", extra={"service_name": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_43
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_43(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("Persisted service state to Redis", extra={"XXservice_nameXX": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_44
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_44(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -42,3 +42,3 @@
+             await self._redis.set(key, state)
+-            logger.debug("Persisted service state to Redis", extra={"service_name": name})
++            logger.debug("Persisted service state to Redis", extra={"SERVICE_NAME": name})
+         except Exception as e:
+==== xǁServiceRegistryǁpersist_state__mutmut_45
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_45(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -45,3 +45,3 @@
+             logger.warning(
+-                "Failed to persist service state to Redis",
++                None,
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁpersist_state__mutmut_46
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_46(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,3 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra=None,
+             )
+==== xǁServiceRegistryǁpersist_state__mutmut_48
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_48(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,4 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
+-            )
++                )
+
+==== xǁServiceRegistryǁpersist_state__mutmut_49
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_49(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -45,3 +45,3 @@
+             logger.warning(
+-                "Failed to persist service state to Redis",
++                "XXFailed to persist service state to RedisXX",
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁpersist_state__mutmut_50
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_50(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -45,3 +45,3 @@
+             logger.warning(
+-                "Failed to persist service state to Redis",
++                "failed to persist service state to redis",
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁpersist_state__mutmut_51
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_51(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -45,3 +45,3 @@
+             logger.warning(
+-                "Failed to persist service state to Redis",
++                "FAILED TO PERSIST SERVICE STATE TO REDIS",
+                 extra={"service_name": name, "error": str(e)},
+==== xǁServiceRegistryǁpersist_state__mutmut_52
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_52(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,3 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"XXservice_nameXX": name, "error": str(e)},
+             )
+==== xǁServiceRegistryǁpersist_state__mutmut_53
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_53(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,3 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"SERVICE_NAME": name, "error": str(e)},
+             )
+==== xǁServiceRegistryǁpersist_state__mutmut_54
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_54(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,3 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"service_name": name, "XXerrorXX": str(e)},
+             )
+==== xǁServiceRegistryǁpersist_state__mutmut_55
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_55(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,3 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"service_name": name, "ERROR": str(e)},
+             )
+==== xǁServiceRegistryǁpersist_state__mutmut_56
+---
++++
+@@ -4,3 +4,3 @@
+
+-    async def xǁServiceRegistryǁpersist_state__mutmut_orig(self, name: str) -> None:
++    async def xǁServiceRegistryǁpersist_state__mutmut_56(self, name: str) -> None:
+         """Persist service state to Redis.
+@@ -46,3 +46,3 @@
+                 "Failed to persist service state to Redis",
+-                extra={"service_name": name, "error": str(e)},
++                extra={"service_name": name, "error": str(None)},
+             )
+==== xǁServiceRegistryǁrecord_restart__mutmut_3
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_3(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -13,3 +13,3 @@
+                 logger.debug(
+-                    "Recorded restart",
++                    None,
+                     extra={"service_name": name, "restart_count": service.restart_count},
+==== xǁServiceRegistryǁrecord_restart__mutmut_4
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_4(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -14,3 +14,3 @@
+                     "Recorded restart",
+-                    extra={"service_name": name, "restart_count": service.restart_count},
++                    extra=None,
+                 )
+==== xǁServiceRegistryǁrecord_restart__mutmut_6
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_6(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -14,4 +14,3 @@
+                     "Recorded restart",
+-                    extra={"service_name": name, "restart_count": service.restart_count},
+-                )
++                    )
+
+==== xǁServiceRegistryǁrecord_restart__mutmut_7
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_7(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -13,3 +13,3 @@
+                 logger.debug(
+-                    "Recorded restart",
++                    "XXRecorded restartXX",
+                     extra={"service_name": name, "restart_count": service.restart_count},
+==== xǁServiceRegistryǁrecord_restart__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_8(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -13,3 +13,3 @@
+                 logger.debug(
+-                    "Recorded restart",
++                    "recorded restart",
+                     extra={"service_name": name, "restart_count": service.restart_count},
+==== xǁServiceRegistryǁrecord_restart__mutmut_9
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_9(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -13,3 +13,3 @@
+                 logger.debug(
+-                    "Recorded restart",
++                    "RECORDED RESTART",
+                     extra={"service_name": name, "restart_count": service.restart_count},
+==== xǁServiceRegistryǁrecord_restart__mutmut_10
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_10(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -14,3 +14,3 @@
+                     "Recorded restart",
+-                    extra={"service_name": name, "restart_count": service.restart_count},
++                    extra={"XXservice_nameXX": name, "restart_count": service.restart_count},
+                 )
+==== xǁServiceRegistryǁrecord_restart__mutmut_11
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_11(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -14,3 +14,3 @@
+                     "Recorded restart",
+-                    extra={"service_name": name, "restart_count": service.restart_count},
++                    extra={"SERVICE_NAME": name, "restart_count": service.restart_count},
+                 )
+==== xǁServiceRegistryǁrecord_restart__mutmut_12
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_12(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -14,3 +14,3 @@
+                     "Recorded restart",
+-                    extra={"service_name": name, "restart_count": service.restart_count},
++                    extra={"service_name": name, "XXrestart_countXX": service.restart_count},
+                 )
+==== xǁServiceRegistryǁrecord_restart__mutmut_13
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁrecord_restart__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁrecord_restart__mutmut_13(self, name: str) -> None:
+         """Record a restart for a service.
+@@ -14,3 +14,3 @@
+                     "Recorded restart",
+-                    extra={"service_name": name, "restart_count": service.restart_count},
++                    extra={"service_name": name, "RESTART_COUNT": service.restart_count},
+                 )
+==== xǁServiceRegistryǁreset_failures__mutmut_3
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_3(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug(None, extra={"service_name": name})
+
+==== xǁServiceRegistryǁreset_failures__mutmut_4
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_4(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("Reset failure tracking", extra=None)
+
+==== xǁServiceRegistryǁreset_failures__mutmut_6
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_6(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("Reset failure tracking", )
+
+==== xǁServiceRegistryǁreset_failures__mutmut_7
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_7(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("XXReset failure trackingXX", extra={"service_name": name})
+
+==== xǁServiceRegistryǁreset_failures__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_8(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("reset failure tracking", extra={"service_name": name})
+
+==== xǁServiceRegistryǁreset_failures__mutmut_9
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_9(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("RESET FAILURE TRACKING", extra={"service_name": name})
+
+==== xǁServiceRegistryǁreset_failures__mutmut_10
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_10(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("Reset failure tracking", extra={"XXservice_nameXX": name})
+
+==== xǁServiceRegistryǁreset_failures__mutmut_11
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁreset_failures__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁreset_failures__mutmut_11(self, name: str) -> None:
+         """Reset failure tracking for a service.
+@@ -12,3 +12,3 @@
+                 service.reset_failures()
+-                logger.debug("Reset failure tracking", extra={"service_name": name})
++                logger.debug("Reset failure tracking", extra={"SERVICE_NAME": name})
+
+==== xǁServiceRegistryǁset_enabled__mutmut_4
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_4(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Set service enabled",
++                    None,
+                     extra={"service_name": name, "enabled": enabled},
+==== xǁServiceRegistryǁset_enabled__mutmut_5
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_5(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -13,3 +13,3 @@
+                     "Set service enabled",
+-                    extra={"service_name": name, "enabled": enabled},
++                    extra=None,
+                 )
+==== xǁServiceRegistryǁset_enabled__mutmut_7
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_7(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -13,4 +13,3 @@
+                     "Set service enabled",
+-                    extra={"service_name": name, "enabled": enabled},
+-                )
++                    )
+
+==== xǁServiceRegistryǁset_enabled__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_8(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Set service enabled",
++                    "XXSet service enabledXX",
+                     extra={"service_name": name, "enabled": enabled},
+==== xǁServiceRegistryǁset_enabled__mutmut_9
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_9(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Set service enabled",
++                    "set service enabled",
+                     extra={"service_name": name, "enabled": enabled},
+==== xǁServiceRegistryǁset_enabled__mutmut_10
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_10(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Set service enabled",
++                    "SET SERVICE ENABLED",
+                     extra={"service_name": name, "enabled": enabled},
+==== xǁServiceRegistryǁset_enabled__mutmut_11
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_11(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -13,3 +13,3 @@
+                     "Set service enabled",
+-                    extra={"service_name": name, "enabled": enabled},
++                    extra={"XXservice_nameXX": name, "enabled": enabled},
+                 )
+==== xǁServiceRegistryǁset_enabled__mutmut_12
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_12(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -13,3 +13,3 @@
+                     "Set service enabled",
+-                    extra={"service_name": name, "enabled": enabled},
++                    extra={"SERVICE_NAME": name, "enabled": enabled},
+                 )
+==== xǁServiceRegistryǁset_enabled__mutmut_13
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_13(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -13,3 +13,3 @@
+                     "Set service enabled",
+-                    extra={"service_name": name, "enabled": enabled},
++                    extra={"service_name": name, "XXenabledXX": enabled},
+                 )
+==== xǁServiceRegistryǁset_enabled__mutmut_14
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁset_enabled__mutmut_orig(self, name: str, enabled: bool) -> None:
++    def xǁServiceRegistryǁset_enabled__mutmut_14(self, name: str, enabled: bool) -> None:
+         """Set the enabled flag for a service.
+@@ -13,3 +13,3 @@
+                     "Set service enabled",
+-                    extra={"service_name": name, "enabled": enabled},
++                    extra={"service_name": name, "ENABLED": enabled},
+                 )
+==== xǁServiceRegistryǁunregister__mutmut_2
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_2(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug(None, extra={"service_name": name})
+
+==== xǁServiceRegistryǁunregister__mutmut_3
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_3(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("Unregistered service", extra=None)
+
+==== xǁServiceRegistryǁunregister__mutmut_5
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_5(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("Unregistered service", )
+
+==== xǁServiceRegistryǁunregister__mutmut_6
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_6(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("XXUnregistered serviceXX", extra={"service_name": name})
+
+==== xǁServiceRegistryǁunregister__mutmut_7
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_7(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("unregistered service", extra={"service_name": name})
+
+==== xǁServiceRegistryǁunregister__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_8(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("UNREGISTERED SERVICE", extra={"service_name": name})
+
+==== xǁServiceRegistryǁunregister__mutmut_9
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_9(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("Unregistered service", extra={"XXservice_nameXX": name})
+
+==== xǁServiceRegistryǁunregister__mutmut_10
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁunregister__mutmut_orig(self, name: str) -> None:
++    def xǁServiceRegistryǁunregister__mutmut_10(self, name: str) -> None:
+         """Unregister a service from the registry.
+@@ -11,3 +11,3 @@
+                 del self._services[name]
+-                logger.debug("Unregistered service", extra={"service_name": name})
++                logger.debug("Unregistered service", extra={"SERVICE_NAME": name})
+
+==== xǁServiceRegistryǁupdate_container_id__mutmut_4
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_4(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Updated container ID",
++                    None,
+                     extra={"service_name": name, "container_id": container_id},
+==== xǁServiceRegistryǁupdate_container_id__mutmut_5
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_5(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -13,3 +13,3 @@
+                     "Updated container ID",
+-                    extra={"service_name": name, "container_id": container_id},
++                    extra=None,
+                 )
+==== xǁServiceRegistryǁupdate_container_id__mutmut_7
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_7(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -13,4 +13,3 @@
+                     "Updated container ID",
+-                    extra={"service_name": name, "container_id": container_id},
+-                )
++                    )
+
+==== xǁServiceRegistryǁupdate_container_id__mutmut_8
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_8(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Updated container ID",
++                    "XXUpdated container IDXX",
+                     extra={"service_name": name, "container_id": container_id},
+==== xǁServiceRegistryǁupdate_container_id__mutmut_9
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_9(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Updated container ID",
++                    "updated container id",
+                     extra={"service_name": name, "container_id": container_id},
+==== xǁServiceRegistryǁupdate_container_id__mutmut_10
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_10(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -12,3 +12,3 @@
+                 logger.debug(
+-                    "Updated container ID",
++                    "UPDATED CONTAINER ID",
+                     extra={"service_name": name, "container_id": container_id},
+==== xǁServiceRegistryǁupdate_container_id__mutmut_11
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_11(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -13,3 +13,3 @@
+                     "Updated container ID",
+-                    extra={"service_name": name, "container_id": container_id},
++                    extra={"XXservice_nameXX": name, "container_id": container_id},
+                 )
+==== xǁServiceRegistryǁupdate_container_id__mutmut_12
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_12(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -13,3 +13,3 @@
+                     "Updated container ID",
+-                    extra={"service_name": name, "container_id": container_id},
++                    extra={"SERVICE_NAME": name, "container_id": container_id},
+                 )
+==== xǁServiceRegistryǁupdate_container_id__mutmut_13
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_13(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -13,3 +13,3 @@
+                     "Updated container ID",
+-                    extra={"service_name": name, "container_id": container_id},
++                    extra={"service_name": name, "XXcontainer_idXX": container_id},
+                 )
+==== xǁServiceRegistryǁupdate_container_id__mutmut_14
+---
++++
+@@ -1,2 +1,2 @@
+-    def xǁServiceRegistryǁupdate_container_id__mutmut_orig(self, name: str, container_id: str | None) -> None:
++    def xǁServiceRegistryǁupdate_container_id__mutmut_14(self, name: str, container_id: str | None) -> None:
+         """Update the container ID for a service.
+@@ -13,3 +13,3 @@
+                     "Updated container ID",
+-                    extra={"service_name": name, "container_id": container_id},
++                    extra={"service_name": name, "CONTAINER_ID": container_id},
+                 )
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_4
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_4(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -16,3 +16,3 @@
+                 logger.debug(
+-                    "Updated warmth state",
++                    None,
+                     extra={"service_name": name, "warmth_state": state},
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_5
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_5(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -17,3 +17,3 @@
+                     "Updated warmth state",
+-                    extra={"service_name": name, "warmth_state": state},
++                    extra=None,
+                 )
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_7
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_7(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -17,4 +17,3 @@
+                     "Updated warmth state",
+-                    extra={"service_name": name, "warmth_state": state},
+-                )
++                    )
+
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_8
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_8(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -16,3 +16,3 @@
+                 logger.debug(
+-                    "Updated warmth state",
++                    "XXUpdated warmth stateXX",
+                     extra={"service_name": name, "warmth_state": state},
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_9
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_9(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -16,3 +16,3 @@
+                 logger.debug(
+-                    "Updated warmth state",
++                    "updated warmth state",
+                     extra={"service_name": name, "warmth_state": state},
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_10
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_10(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -16,3 +16,3 @@
+                 logger.debug(
+-                    "Updated warmth state",
++                    "UPDATED WARMTH STATE",
+                     extra={"service_name": name, "warmth_state": state},
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_11
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_11(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -17,3 +17,3 @@
+                     "Updated warmth state",
+-                    extra={"service_name": name, "warmth_state": state},
++                    extra={"XXservice_nameXX": name, "warmth_state": state},
+                 )
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_12
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_12(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -17,3 +17,3 @@
+                     "Updated warmth state",
+-                    extra={"service_name": name, "warmth_state": state},
++                    extra={"SERVICE_NAME": name, "warmth_state": state},
+                 )
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_13
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_13(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -17,3 +17,3 @@
+                     "Updated warmth state",
+-                    extra={"service_name": name, "warmth_state": state},
++                    extra={"service_name": name, "XXwarmth_stateXX": state},
+                 )
+==== xǁServiceRegistryǁupdate_warmth_state__mutmut_14
+---
++++
+@@ -4,3 +4,3 @@
+
+-    def xǁServiceRegistryǁupdate_warmth_state__mutmut_orig(self, name: str, state: str) -> None:
++    def xǁServiceRegistryǁupdate_warmth_state__mutmut_14(self, name: str, state: str) -> None:
+         """Update a service's warmth state.
+@@ -17,3 +17,3 @@
+                     "Updated warmth state",
+-                    extra={"service_name": name, "warmth_state": state},
++                    extra={"service_name": name, "WARMTH_STATE": state},
+                 )

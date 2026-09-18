@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_102: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -113,7 +113,7 @@
+                     raise ValueError(f"Segmentation client error: HTTP {status_code}") from e
+
+         error_msg = f"Segmentation failed after {self._max_retries} attempts"
+-        span.set_attribute("error", True)
++        span.set_attribute(None, True)
+         span.set_attribute("error.message", error_msg)
+         if last_exception:
+             raise DetectorUnavailableError(

@@ -1,0 +1,10 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_50: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -69,5 +69,5 @@
+             {"0": self.action_results} if self.action_results else None
+         ),
+         # Depth context (Depth Anything V2)
+-        "depth_context": format_depth_context(self.depth_analysis),
++        "depth_context": format_depth_context(None),
+     }

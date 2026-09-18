@@ -1,0 +1,801 @@
+{
+  "spec": [
+    {
+      "name": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "LOG-DEBUG 'all detections below threshold' message -> None (multi)",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "LOG-DEBUG broadcast-success message/extra clobbered",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "broadcast 'id': alert.id or str(uuid4()) -> and \u2014 in production the broadcast id becomes a random uuid instead of alert.id",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "broadcast now_iso fallback (datetime.now(UTC).isoformat()) -> None / datetime.now(None) \u2014 fallback leg is dead in production (created_at always populated after refresh) but observable in the unit fixture; T1 fallback pin kills it",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "raise ValueError message clobbered (XX..XX) \u2014 pytest.raises(match=) substring still matches",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+      "cls": "LOW-VALUE"
+    },
+    {
+      "name": "auto_generated=True -> False in alert_metadata (single) \u2014 test asserts metadata keys but not this flag",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "auto_generated=True -> False in alert_metadata (multi) \u2014 same flag, multi path",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_build_dedup_key(..., rule) called with rule dropped (single) \u2014 AlertRule.dedup_key_template silently unused",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_build_dedup_key(..., rule) called with rule dropped (multi)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "dedup_key = <_build_dedup_key call> -> None (multi) \u2014 alert + cooldown keyed on None",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "cooldown_seconds = rule.cooldown_seconds if rule else ... short-circuited with 'and False' (single) \u2014 rule cooldown silently ignored",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "cooldown_seconds rule ternary short-circuited (multi)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_trigger_webhooks(alert, event) -> event=None (single) \u2014 camera_id/risk_score lost, swallowed by except",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_trigger_webhooks(alert, event) -> event=None (multi)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "session.add(alert) / session.refresh(alert) -> None (single) \u2014 mock session never type-checks the argument",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "session.add(alert) / session.refresh(alert) -> None (multi)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "Alert(channels=[]) -> None / kwarg dropped (single) \u2014 breaks the 'channels or []' contract downstream",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "Alert(rule_id=...) -> None / dropped / 'and False' (multi)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "multi valid_threats filter: t.confidence >= threshold -> > (detection exactly at threshold silently dropped)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes",
+      "cls": "EQUIVALENT"
+    },
+    {
+      "name": "highest_severity = get_threat_severity(highest_threat.threat_type, hint) -> hint dropped \u2014 unknown multi-threat mis-tiered",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "broadcast alert_data dict -> None (publishes {\"data\": null})",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "broadcast envelope dict -> None (publishes JSON null)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "broadcast envelope 'type' VALUE clobbered ('alert.created' -> XXalert.createdXX / ALERT.CREATED) \u2014 client never receives the right event type",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "broadcast created_at/updated_at ternary condition -> False: always now_iso fallback, real timestamps discarded",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "webhook_service = get_webhook_service() -> None \u2014 AttributeError swallowed, no webhooks fire",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered",
+      "cls": "TEST-GAP"
+    },
+    {
+      "name": "_broadcast_alert_created(alert, event, threat) -> event=None / threat=None (multi)",
+      "cls": "TEST-GAP"
+    }
+  ],
+  "assign": {
+    "process_threat_detection|10": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|11": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|13": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|14": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|15": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|16": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|17": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|18": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|19": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|43": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|44": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|46": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|47": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|48": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|49": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|50": "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None",
+    "process_threat_detection|83": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|84": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|86": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|87": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|88": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|89": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|90": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|91": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|92": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|93": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|94": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|95": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_threat_detection|96": "LOG-INFO 'created threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|93": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|94": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|96": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|97": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|98": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|99": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|100": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|101": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|102": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|103": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|104": "LOG-INFO 'created multi-threat alert' message/extra payload clobbered",
+    "process_multiple_threat_detections|5": "LOG-DEBUG 'all detections below threshold' message -> None (multi)",
+    "_broadcast_alert_created|48": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|49": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|50": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|51": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|52": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|53": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|54": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_broadcast_alert_created|55": "LOG-DEBUG broadcast-success message/extra clobbered",
+    "_trigger_webhooks|36": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|37": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|39": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|40": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|41": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|42": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|43": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "_trigger_webhooks|44": "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks",
+    "process_threat_detection|72": "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all",
+    "process_threat_detection|73": "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all",
+    "process_threat_detection|74": "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all",
+    "process_threat_detection|75": "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all",
+    "process_multiple_threat_detections|74": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|75": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|76": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|77": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|78": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|79": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|82": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|83": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|84": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|85": "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills",
+    "process_multiple_threat_detections|47": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+    "process_multiple_threat_detections|48": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+    "process_multiple_threat_detections|49": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+    "process_multiple_threat_detections|50": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+    "process_multiple_threat_detections|55": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+    "process_multiple_threat_detections|56": "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills",
+    "_broadcast_alert_created|5": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|6": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|9": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|10": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|11": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|12": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|13": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|14": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|15": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|16": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|17": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|18": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|19": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|20": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|23": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|24": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|27": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|28": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|29": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|30": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|31": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|32": "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)",
+    "_broadcast_alert_created|34": "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract",
+    "_broadcast_alert_created|35": "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract",
+    "_broadcast_alert_created|38": "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract",
+    "_broadcast_alert_created|39": "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract",
+    "_trigger_webhooks|3": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|4": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|5": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|6": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|7": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|8": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|9": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|10": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|11": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|12": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|13": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|14": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|15": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|16": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|18": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|19": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|22": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|23": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|24": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|25": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|26": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_trigger_webhooks|27": "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)",
+    "_broadcast_alert_created|7": "broadcast 'id': alert.id or str(uuid4()) -> and \u2014 in production the broadcast id becomes a random uuid instead of alert.id",
+    "_broadcast_alert_created|8": "broadcast 'id': alert.id or str(uuid4()) -> and \u2014 in production the broadcast id becomes a random uuid instead of alert.id",
+    "_broadcast_alert_created|2": "broadcast now_iso fallback (datetime.now(UTC).isoformat()) -> None / datetime.now(None) \u2014 fallback leg is dead in production (created_at always populated after refresh) but observable in the unit fixture; T1 fallback pin kills it",
+    "_broadcast_alert_created|3": "broadcast now_iso fallback (datetime.now(UTC).isoformat()) -> None / datetime.now(None) \u2014 fallback leg is dead in production (created_at always populated after refresh) but observable in the unit fixture; T1 fallback pin kills it",
+    "process_threat_detection|3": "raise ValueError message clobbered (XX..XX) \u2014 pytest.raises(match=) substring still matches",
+    "process_threat_detection|7": "raise ValueError message clobbered (XX..XX) \u2014 pytest.raises(match=) substring still matches",
+    "process_threat_detection|77": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_threat_detection|78": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_threat_detection|79": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_threat_detection|80": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_multiple_threat_detections|87": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_multiple_threat_detections|88": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_multiple_threat_detections|89": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_multiple_threat_detections|90": "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi",
+    "process_threat_detection|76": "auto_generated=True -> False in alert_metadata (single) \u2014 test asserts metadata keys but not this flag",
+    "process_multiple_threat_detections|86": "auto_generated=True -> False in alert_metadata (multi) \u2014 same flag, multi path",
+    "process_threat_detection|28": "_build_dedup_key(..., rule) called with rule dropped (single) \u2014 AlertRule.dedup_key_template silently unused",
+    "process_threat_detection|31": "_build_dedup_key(..., rule) called with rule dropped (single) \u2014 AlertRule.dedup_key_template silently unused",
+    "process_multiple_threat_detections|29": "_build_dedup_key(..., rule) called with rule dropped (multi)",
+    "process_multiple_threat_detections|32": "_build_dedup_key(..., rule) called with rule dropped (multi)",
+    "process_multiple_threat_detections|26": "dedup_key = <_build_dedup_key call> -> None (multi) \u2014 alert + cooldown keyed on None",
+    "process_threat_detection|33": "cooldown_seconds = rule.cooldown_seconds if rule else ... short-circuited with 'and False' (single) \u2014 rule cooldown silently ignored",
+    "process_multiple_threat_detections|34": "cooldown_seconds rule ternary short-circuited (multi)",
+    "process_threat_detection|36": "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter",
+    "process_threat_detection|38": "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter",
+    "process_threat_detection|41": "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter",
+    "process_multiple_threat_detections|36": "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely",
+    "process_multiple_threat_detections|37": "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely",
+    "process_multiple_threat_detections|39": "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely",
+    "process_multiple_threat_detections|42": "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely",
+    "process_threat_detection|104": "_trigger_webhooks(alert, event) -> event=None (single) \u2014 camera_id/risk_score lost, swallowed by except",
+    "process_multiple_threat_detections|112": "_trigger_webhooks(alert, event) -> event=None (multi)",
+    "process_threat_detection|81": "session.add(alert) / session.refresh(alert) -> None (single) \u2014 mock session never type-checks the argument",
+    "process_threat_detection|82": "session.add(alert) / session.refresh(alert) -> None (single) \u2014 mock session never type-checks the argument",
+    "process_multiple_threat_detections|91": "session.add(alert) / session.refresh(alert) -> None (multi)",
+    "process_multiple_threat_detections|92": "session.add(alert) / session.refresh(alert) -> None (multi)",
+    "process_threat_detection|57": "Alert(channels=[]) -> None / kwarg dropped (single) \u2014 breaks the 'channels or []' contract downstream",
+    "process_threat_detection|64": "Alert(channels=[]) -> None / kwarg dropped (single) \u2014 breaks the 'channels or []' contract downstream",
+    "process_threat_detection|53": "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost",
+    "process_threat_detection|60": "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost",
+    "process_threat_detection|66": "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost",
+    "process_multiple_threat_detections|59": "Alert(rule_id=...) -> None / dropped / 'and False' (multi)",
+    "process_multiple_threat_detections|66": "Alert(rule_id=...) -> None / dropped / 'and False' (multi)",
+    "process_multiple_threat_detections|72": "Alert(rule_id=...) -> None / dropped / 'and False' (multi)",
+    "process_multiple_threat_detections|58": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|61": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|62": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|63": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|65": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|68": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|69": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|70": "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields",
+    "process_multiple_threat_detections|3": "multi valid_threats filter: t.confidence >= threshold -> > (detection exactly at threshold silently dropped)",
+    "process_multiple_threat_detections|6": "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)",
+    "process_multiple_threat_detections|8": "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)",
+    "process_multiple_threat_detections|9": "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)",
+    "process_multiple_threat_detections|10": "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)",
+    "process_multiple_threat_detections|11": "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)",
+    "process_multiple_threat_detections|12": "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes",
+    "process_multiple_threat_detections|14": "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes",
+    "process_multiple_threat_detections|15": "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes",
+    "process_multiple_threat_detections|23": "highest_severity = get_threat_severity(highest_threat.threat_type, hint) -> hint dropped \u2014 unknown multi-threat mis-tiered",
+    "process_multiple_threat_detections|25": "highest_severity = get_threat_severity(highest_threat.threat_type, hint) -> hint dropped \u2014 unknown multi-threat mis-tiered",
+    "process_multiple_threat_detections|52": "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled",
+    "process_multiple_threat_detections|53": "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled",
+    "process_multiple_threat_detections|54": "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled",
+    "_broadcast_alert_created|4": "broadcast alert_data dict -> None (publishes {\"data\": null})",
+    "_broadcast_alert_created|33": "broadcast envelope dict -> None (publishes JSON null)",
+    "_broadcast_alert_created|36": "broadcast envelope 'type' VALUE clobbered ('alert.created' -> XXalert.createdXX / ALERT.CREATED) \u2014 client never receives the right event type",
+    "_broadcast_alert_created|37": "broadcast envelope 'type' VALUE clobbered ('alert.created' -> XXalert.createdXX / ALERT.CREATED) \u2014 client never receives the right event type",
+    "_broadcast_alert_created|21": "broadcast created_at/updated_at ternary condition -> False: always now_iso fallback, real timestamps discarded",
+    "_broadcast_alert_created|25": "broadcast created_at/updated_at ternary condition -> False: always now_iso fallback, real timestamps discarded",
+    "_broadcast_alert_created|40": "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)",
+    "_broadcast_alert_created|41": "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)",
+    "_broadcast_alert_created|42": "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)",
+    "_broadcast_alert_created|43": "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)",
+    "_broadcast_alert_created|44": "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)",
+    "_broadcast_alert_created|45": "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)",
+    "_broadcast_alert_created|46": "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)",
+    "_broadcast_alert_created|47": "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)",
+    "_trigger_webhooks|1": "webhook_service = get_webhook_service() -> None \u2014 AttributeError swallowed, no webhooks fire",
+    "_trigger_webhooks|2": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|28": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|29": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|30": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|31": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|32": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|33": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|34": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|35": "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None",
+    "_trigger_webhooks|17": "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered",
+    "_trigger_webhooks|20": "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered",
+    "_trigger_webhooks|21": "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered",
+    "process_multiple_threat_detections|106": "_broadcast_alert_created(alert, event, threat) -> event=None / threat=None (multi)",
+    "process_multiple_threat_detections|107": "_broadcast_alert_created(alert, event, threat) -> event=None / threat=None (multi)"
+  },
+  "counts": {
+    "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None": 16,
+    "LOG-INFO 'created threat alert' message/extra payload clobbered": 13,
+    "LOG-INFO 'created multi-threat alert' message/extra payload clobbered": 11,
+    "LOG-DEBUG 'all detections below threshold' message -> None (multi)": 1,
+    "LOG-DEBUG broadcast-success message/extra clobbered": 8,
+    "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks": 8,
+    "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all": 4,
+    "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills": 10,
+    "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills": 6,
+    "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)": 22,
+    "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract": 4,
+    "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)": 22,
+    "broadcast 'id': alert.id or str(uuid4()) -> and \u2014 in production the broadcast id becomes a random uuid instead of alert.id": 2,
+    "broadcast now_iso fallback (datetime.now(UTC).isoformat()) -> None / datetime.now(None) \u2014 fallback leg is dead in production (created_at always populated after refresh) but observable in the unit fixture; T1 fallback pin kills it": 2,
+    "raise ValueError message clobbered (XX..XX) \u2014 pytest.raises(match=) substring still matches": 2,
+    "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi": 8,
+    "auto_generated=True -> False in alert_metadata (single) \u2014 test asserts metadata keys but not this flag": 1,
+    "auto_generated=True -> False in alert_metadata (multi) \u2014 same flag, multi path": 1,
+    "_build_dedup_key(..., rule) called with rule dropped (single) \u2014 AlertRule.dedup_key_template silently unused": 2,
+    "_build_dedup_key(..., rule) called with rule dropped (multi)": 2,
+    "dedup_key = <_build_dedup_key call> -> None (multi) \u2014 alert + cooldown keyed on None": 1,
+    "cooldown_seconds = rule.cooldown_seconds if rule else ... short-circuited with 'and False' (single) \u2014 rule cooldown silently ignored": 1,
+    "cooldown_seconds rule ternary short-circuited (multi)": 1,
+    "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter": 3,
+    "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely": 4,
+    "_trigger_webhooks(alert, event) -> event=None (single) \u2014 camera_id/risk_score lost, swallowed by except": 1,
+    "_trigger_webhooks(alert, event) -> event=None (multi)": 1,
+    "session.add(alert) / session.refresh(alert) -> None (single) \u2014 mock session never type-checks the argument": 2,
+    "session.add(alert) / session.refresh(alert) -> None (multi)": 2,
+    "Alert(channels=[]) -> None / kwarg dropped (single) \u2014 breaks the 'channels or []' contract downstream": 2,
+    "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost": 3,
+    "Alert(rule_id=...) -> None / dropped / 'and False' (multi)": 3,
+    "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields": 8,
+    "multi valid_threats filter: t.confidence >= threshold -> > (detection exactly at threshold silently dropped)": 1,
+    "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)": 5,
+    "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes": 3,
+    "highest_severity = get_threat_severity(highest_threat.threat_type, hint) -> hint dropped \u2014 unknown multi-threat mis-tiered": 2,
+    "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled": 3,
+    "broadcast alert_data dict -> None (publishes {\"data\": null})": 1,
+    "broadcast envelope dict -> None (publishes JSON null)": 1,
+    "broadcast envelope 'type' VALUE clobbered ('alert.created' -> XXalert.createdXX / ALERT.CREATED) \u2014 client never receives the right event type": 2,
+    "broadcast created_at/updated_at ternary condition -> False: always now_iso fallback, real timestamps discarded": 2,
+    "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)": 3,
+    "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)": 5,
+    "webhook_service = get_webhook_service() -> None \u2014 AttributeError swallowed, no webhooks fire": 1,
+    "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None": 9,
+    "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered": 3,
+    "_broadcast_alert_created(alert, event, threat) -> event=None / threat=None (multi)": 2
+  },
+  "byclass": {
+    "EQUIVALENT": 60,
+    "LOW-VALUE": 76,
+    "TEST-GAP": 84
+  },
+  "examples": {
+    "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_10",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_11",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_13"
+    ],
+    "LOG-INFO 'created threat alert' message/extra payload clobbered": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_83",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_84",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_86"
+    ],
+    "LOG-INFO 'created multi-threat alert' message/extra payload clobbered": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_93",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_94",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_96"
+    ],
+    "LOG-DEBUG 'all detections below threshold' message -> None (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_5"
+    ],
+    "LOG-DEBUG broadcast-success message/extra clobbered": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_48",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_49",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_50"
+    ],
+    "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_36",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_37",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_39"
+    ],
+    "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_72",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_73",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_74"
+    ],
+    "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_74",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_75",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_76"
+    ],
+    "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_47",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_48",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_49"
+    ],
+    "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_5",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_6",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_9"
+    ],
+    "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_34",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_35",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_38"
+    ],
+    "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_3",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_4",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_5"
+    ],
+    "broadcast 'id': alert.id or str(uuid4()) -> and \u2014 in production the broadcast id becomes a random uuid instead of alert.id": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_7",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_8"
+    ],
+    "broadcast now_iso fallback (datetime.now(UTC).isoformat()) -> None / datetime.now(None) \u2014 fallback leg is dead in production (created_at always populated after refresh) but observable in the unit fixture; T1 fallback pin kills it": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_2",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_3"
+    ],
+    "raise ValueError message clobbered (XX..XX) \u2014 pytest.raises(match=) substring still matches": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_3",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_7"
+    ],
+    "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_77",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_78",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_79"
+    ],
+    "auto_generated=True -> False in alert_metadata (single) \u2014 test asserts metadata keys but not this flag": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_76"
+    ],
+    "auto_generated=True -> False in alert_metadata (multi) \u2014 same flag, multi path": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_86"
+    ],
+    "_build_dedup_key(..., rule) called with rule dropped (single) \u2014 AlertRule.dedup_key_template silently unused": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_28",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_31"
+    ],
+    "_build_dedup_key(..., rule) called with rule dropped (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_29",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_32"
+    ],
+    "dedup_key = <_build_dedup_key call> -> None (multi) \u2014 alert + cooldown keyed on None": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_26"
+    ],
+    "cooldown_seconds = rule.cooldown_seconds if rule else ... short-circuited with 'and False' (single) \u2014 rule cooldown silently ignored": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_33"
+    ],
+    "cooldown_seconds rule ternary short-circuited (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_34"
+    ],
+    "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_36",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_38",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_41"
+    ],
+    "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_36",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_37",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_39"
+    ],
+    "_trigger_webhooks(alert, event) -> event=None (single) \u2014 camera_id/risk_score lost, swallowed by except": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_104"
+    ],
+    "_trigger_webhooks(alert, event) -> event=None (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_112"
+    ],
+    "session.add(alert) / session.refresh(alert) -> None (single) \u2014 mock session never type-checks the argument": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_81",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_82"
+    ],
+    "session.add(alert) / session.refresh(alert) -> None (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_91",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_92"
+    ],
+    "Alert(channels=[]) -> None / kwarg dropped (single) \u2014 breaks the 'channels or []' contract downstream": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_57",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_64"
+    ],
+    "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_53",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_60",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_threat_detection__mutmut_66"
+    ],
+    "Alert(rule_id=...) -> None / dropped / 'and False' (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_59",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_66",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_72"
+    ],
+    "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_58",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_61",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_62"
+    ],
+    "multi valid_threats filter: t.confidence >= threshold -> > (detection exactly at threshold silently dropped)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_3"
+    ],
+    "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_6",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_8",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_9"
+    ],
+    "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_12",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_14",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_15"
+    ],
+    "highest_severity = get_threat_severity(highest_threat.threat_type, hint) -> hint dropped \u2014 unknown multi-threat mis-tiered": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_23",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_25"
+    ],
+    "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_52",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_53",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_54"
+    ],
+    "broadcast alert_data dict -> None (publishes {\"data\": null})": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_4"
+    ],
+    "broadcast envelope dict -> None (publishes JSON null)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_33"
+    ],
+    "broadcast envelope 'type' VALUE clobbered ('alert.created' -> XXalert.createdXX / ALERT.CREATED) \u2014 client never receives the right event type": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_36",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_37"
+    ],
+    "broadcast created_at/updated_at ternary condition -> False: always now_iso fallback, real timestamps discarded": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_21",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_25"
+    ],
+    "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_40",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_41",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_42"
+    ],
+    "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_43",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_44",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_broadcast_alert_created__mutmut_45"
+    ],
+    "webhook_service = get_webhook_service() -> None \u2014 AttributeError swallowed, no webhooks fire": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_1"
+    ],
+    "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_2",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_28",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_29"
+    ],
+    "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_17",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_20",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1_trigger_webhooks__mutmut_21"
+    ],
+    "_broadcast_alert_created(alert, event, threat) -> event=None / threat=None (multi)": [
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_106",
+      "backend.services.threat_monitor_service.x\u01c1ThreatMonitorService\u01c1process_multiple_threat_detections__mutmut_107"
+    ]
+  },
+  "lines": {
+    "LOG-DEBUG skip messages clobbered (single-threat low-confidence + in-cooldown branches) \u2014 both paths still return None": [
+      212, 214, 215, 216, 217, 234, 235, 236, 237, 251, 265, 268, 270
+    ],
+    "LOG-INFO 'created threat alert' message/extra payload clobbered": [
+      264, 265, 266, 267, 268, 269, 270
+    ],
+    "LOG-INFO 'created multi-threat alert' message/extra payload clobbered": [
+      370, 372, 373, 374, 375, 376
+    ],
+    "LOG-DEBUG 'all detections below threshold' message -> None (multi)": [313],
+    "LOG-DEBUG broadcast-success message/extra clobbered": [514, 515, 516, 517],
+    "LOG-WARNING failure-path message+extra clobbered in _trigger_webhooks": [563, 564],
+    "alert_metadata KEY renames (threat_detection_id/auto_generated) \u2014 whole dict is API-surfaced via schemas passthrough; one shape-pin kills all": [
+      253, 254
+    ],
+    "alert_metadata KEY renames (multi: threat_type/threat_confidence/threat_detection_id/total_threats/auto_generated) \u2014 same API passthrough; shape-pin kills": [
+      355, 356, 357, 359, 360
+    ],
+    "detected_threats entry KEY renames (confidence/severity/detection_id) \u2014 entries ride the API metadata passthrough; shape-pin kills": [
+      339, 340, 341
+    ],
+    "broadcast alert_data KEY renames (payload keys renamed, values intact \u2014 wire payload keys no in-repo consumer matches today; one shape-pin assertion kills all 22)": [
+      489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 517
+    ],
+    "broadcast envelope KEY renames (\"type\"/\"data\" keys) \u2014 envelope keys ARE the client dispatch contract": [
+      504, 505
+    ],
+    "webhook_data KEY renames (payload keys renamed, values intact \u2014 same shape-pin kills all 22)": [
+      540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550
+    ],
+    "broadcast 'id': alert.id or str(uuid4()) -> and \u2014 in production the broadcast id becomes a random uuid instead of alert.id": [
+      489
+    ],
+    "broadcast now_iso fallback (datetime.now(UTC).isoformat()) -> None / datetime.now(None) \u2014 fallback leg is dead in production (created_at always populated after refresh) but observable in the unit fixture; T1 fallback pin kills it": [
+      483
+    ],
+    "raise ValueError message clobbered (XX..XX) \u2014 pytest.raises(match=) substring still matches": [
+      205, 207
+    ],
+    "alert_metadata['source'] VALUE clobbered (XXsourceXX / SOURCE) \u2014 provenance tag, single + multi": [
+      255, 361
+    ],
+    "auto_generated=True -> False in alert_metadata (single) \u2014 test asserts metadata keys but not this flag": [
+      254
+    ],
+    "auto_generated=True -> False in alert_metadata (multi) \u2014 same flag, multi path": [360],
+    "_build_dedup_key(..., rule) called with rule dropped (single) \u2014 AlertRule.dedup_key_template silently unused": [
+      227
+    ],
+    "_build_dedup_key(..., rule) called with rule dropped (multi)": [326],
+    "dedup_key = <_build_dedup_key call> -> None (multi) \u2014 alert + cooldown keyed on None": [
+      326
+    ],
+    "cooldown_seconds = rule.cooldown_seconds if rule else ... short-circuited with 'and False' (single) \u2014 rule cooldown silently ignored": [
+      230
+    ],
+    "cooldown_seconds rule ternary short-circuited (multi)": [329],
+    "_check_cooldown(..., rule) called with rule dropped (single) \u2014 cooldown query loses its rule_id filter": [
+      231
+    ],
+    "_check_cooldown call -> None / args dropped (multi) \u2014 cooldown check skipped entirely": [
+      330
+    ],
+    "_trigger_webhooks(alert, event) -> event=None (single) \u2014 camera_id/risk_score lost, swallowed by except": [
+      278
+    ],
+    "_trigger_webhooks(alert, event) -> event=None (multi)": [384],
+    "session.add(alert) / session.refresh(alert) -> None (single) \u2014 mock session never type-checks the argument": [
+      259, 261
+    ],
+    "session.add(alert) / session.refresh(alert) -> None (multi)": [365, 367],
+    "Alert(channels=[]) -> None / kwarg dropped (single) \u2014 breaks the 'channels or []' contract downstream": [
+      249
+    ],
+    "Alert(rule_id=rule.id if rule else None) -> None / dropped / 'and False' (single) \u2014 rule linkage lost": [
+      245
+    ],
+    "Alert(rule_id=...) -> None / dropped / 'and False' (multi)": [349],
+    "Alert(event_id/status/dedup_key/channels) -> None or kwarg dropped (multi) \u2014 persisted alert loses identity fields": [
+      348, 351, 352, 353
+    ],
+    "multi valid_threats filter: t.confidence >= threshold -> > (detection exactly at threshold silently dropped)": [
+      309
+    ],
+    "multi severity_key(): hint dropped / severity=None / args swapped \u2014 highest-severity pick misranked or AttributeError (killable by hint-ranked fixture)": [
+      319, 320
+    ],
+    "multi SEVERITY_PRIORITY.get default arg mangled (0->None / 0->1 / positional drop) \u2014 every AlertSeverity member is a dict key, the default branch never executes": [
+      320
+    ],
+    "highest_severity = get_threat_severity(highest_threat.threat_type, hint) -> hint dropped \u2014 unknown multi-threat mis-tiered": [
+      323
+    ],
+    "detected_threats['severity']: get_threat_severity(t.threat_type, t.severity) -> hint dropped / call mangled": [
+      340
+    ],
+    "broadcast alert_data dict -> None (publishes {\"data\": null})": [488],
+    "broadcast envelope dict -> None (publishes JSON null)": [503],
+    "broadcast envelope 'type' VALUE clobbered ('alert.created' -> XXalert.createdXX / ALERT.CREATED) \u2014 client never receives the right event type": [
+      504
+    ],
+    "broadcast created_at/updated_at ternary condition -> False: always now_iso fallback, real timestamps discarded": [
+      495, 496
+    ],
+    "broadcast channel constant 'websocket:events' -> None / clobbered (publishes to wrong channel)": [
+      510
+    ],
+    "redis_client.publish args clobbered (None channel / None payload / json.dumps(None) / arg dropped)": [
+      511
+    ],
+    "webhook_service = get_webhook_service() -> None \u2014 AttributeError swallowed, no webhooks fire": [
+      538
+    ],
+    "trigger_webhooks_for_event call args clobbered (session/ALERT_FIRED/webhook_data/event_id -> None or dropped); webhook_data dict -> None": [
+      539, 554, 555, 556, 557
+    ],
+    "webhook_data 'channels': or [] -> and [] ; matched_conditions VALUE 'threat_detected' clobbered": [
+      546, 547
+    ],
+    "_broadcast_alert_created(alert, event, threat) -> event=None / threat=None (multi)": [381]
+  }
+}

@@ -1,0 +1,109 @@
+GREEN on original: PASS
+RED  x_analyze_pose#12                          killed_by=ap.lying
+RED  x_detect_fighting_stance#15                killed_by=fs.LH_only,fs.RH_only
+RED  x_detect_fighting_stance#33                killed_by=fs.LA_only,fs.RA_only
+live x_detect_fighting_stance#40
+RED  x_detect_fighting_stance#41                killed_by=fs.clamp15
+RED  x_detect_fighting_stance#47                killed_by=fs.clamp15,fs.exact_y_threshold
+RED  x_detect_fighting_stance#52                killed_by=fs.ratio_2_0
+RED  x_detect_fighting_stance#53                killed_by=fs.ratio_4_0
+RED  x_detect_fighting_stance#54                killed_by=fs.ratio_4_0,fs.ratio_4_5
+RED  x_detect_fighting_stance#56                killed_by=fs.exact_y_threshold
+RED  x_detect_fighting_stance#59                killed_by=fs.clamp15,fs.exact_y_threshold,fs.ratio_1_5,fs.ratio_2_0,fs.ratio_4_0,fs.ratio_4_5
+RED  x_detect_hands_raised#19                   killed_by=hd.LS_only,hd.LS_only_wrist_mid,hd.uneven_mean_false
+RED  x_detect_hands_raised#21                   killed_by=hd.LS_only,hd.LS_only_wrist_mid,hd.uneven_mean_false
+RED  x_detect_hands_raised#24                   killed_by=hd.LS_only,hd.LS_only_wrist_mid,hd.uneven_mean_false
+RED  x_detect_hands_raised#25                   killed_by=hd.LS_only,hd.LS_only_wrist_mid,hd.uneven_mean_false
+RED  x_detect_hands_raised#26                   killed_by=hd.RS_only,hd.uneven_mean_true
+RED  x_detect_hands_raised#28                   killed_by=hd.RS_only,hd.uneven_mean_true
+RED  x_detect_hands_raised#31                   killed_by=hd.RS_only,hd.uneven_mean_true
+RED  x_detect_hands_raised#32                   killed_by=hd.RS_only,hd.uneven_mean_true
+RED  x_detect_hands_raised#33                   killed_by=hd.LS_only,hd.LS_only_wrist_mid,hd.RS_only
+RED  x_detect_hands_raised#34                   killed_by=hd.LS_only,hd.LS_only_wrist_mid
+RED  x_detect_hands_raised#35                   killed_by=hd.RS_only
+RED  x_detect_hands_raised#37                   killed_by=hr.exactly_at_margin,hr.left_at_margin_right_raised,hr.right_at_margin_left_raised
+RED  x_detect_hands_raised#39                   killed_by=hd.LS_only_wrist_mid,hd.uneven_mean_true,hr.beyond_margin_by_one
+live x_detect_hands_raised#40
+live x_detect_hands_raised#42
+RED  x_detect_hands_raised#44                   killed_by=hd.LS_only_wrist_mid,hd.uneven_mean_true,hr.beyond_margin_by_one
+RED  x_detect_hands_raised#45                   killed_by=hd.uneven_mean_true,hr.beyond_margin_by_one
+RED  x_detect_hands_raised#49                   killed_by=hd.uneven_mean_true,hr.beyond_margin_by_one
+RED  x_detect_hands_raised#56                   killed_by=hd.LS_only_wrist_mid
+RED  x_detect_hands_raised#58                   killed_by=hr.beyond_margin_by_one
+RED  x_detect_hands_raised#60                   killed_by=hr.left_at_margin_right_raised
+RED  x_detect_hands_raised#61                   killed_by=hr.left_at_margin_right_raised,hr.right_raised_left_just_below
+RED  x_detect_hands_raised#63                   killed_by=hr.right_at_margin_left_raised
+RED  x_detect_hands_raised#64                   killed_by=hr.left_raised_right_just_below,hr.right_at_margin_left_raised
+RED  x_detect_lying_down#1                      killed_by=ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_y_dropped_shoulder
+RED  x_detect_lying_down#10                     killed_by=ly.cross_side_lying,ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#102                    killed_by=ly.den2_single_ankle_y
+RED  x_detect_lying_down#105                    killed_by=ly.den2_single_ankle_y,ly.den2_single_shoulder_x,ly.den2_single_shoulder_y,ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#109                    killed_by=ly.zero_vertical
+RED  x_detect_lying_down#110                    killed_by=ly.small_vertical_span
+RED  x_detect_lying_down#111                    killed_by=ly.ratio_between
+RED  x_detect_lying_down#112                    killed_by=ly.den2_single_shoulder_x,ly.ratio_between,ly.right_x_dropped_ankle
+RED  x_detect_lying_down#113                    killed_by=ly.ratio_2_2_5,ly.right_y_dropped_ankle,ly.right_y_dropped_shoulder
+RED  x_detect_lying_down#13                     killed_by=ly.cross_side_lying,ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#14                     killed_by=ly.cross_side_lying,ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#15                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_y_dropped_ankle
+RED  x_detect_lying_down#17                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_y_dropped_ankle
+RED  x_detect_lying_down#20                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_y_dropped_ankle
+RED  x_detect_lying_down#21                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_y_dropped_ankle
+RED  x_detect_lying_down#22                     killed_by=ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.small_vertical_span,ly.zero_vertical
+RED  x_detect_lying_down#24                     killed_by=ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.small_vertical_span,ly.zero_vertical
+RED  x_detect_lying_down#27                     killed_by=ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.small_vertical_span,ly.zero_vertical
+RED  x_detect_lying_down#28                     killed_by=ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.small_vertical_span,ly.zero_vertical
+RED  x_detect_lying_down#3                      killed_by=ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_y_dropped_shoulder
+RED  x_detect_lying_down#31                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_only_lying
+RED  x_detect_lying_down#33                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_only_lying
+live x_detect_lying_down#36
+RED  x_detect_lying_down#38                     killed_by=ly.ratio_between,ly.small_vertical_span,ly.zero_vertical
+RED  x_detect_lying_down#40                     killed_by=ly.den2_single_shoulder_y,ly.zero_vertical
+live x_detect_lying_down#41
+RED  x_detect_lying_down#42                     killed_by=ly.den2_single_ankle_y,ly.den2_single_shoulder_x,ly.den2_single_shoulder_y,ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+live x_detect_lying_down#43
+RED  x_detect_lying_down#44                     killed_by=ly.left_only_lying,ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_y_dropped_ankle,ly.small_vertical_span
+live x_detect_lying_down#45
+RED  x_detect_lying_down#46                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#47                     killed_by=ly.den2_single_shoulder_y,ly.zero_vertical
+RED  x_detect_lying_down#48                     killed_by=ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#49                     killed_by=ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#50                     killed_by=ly.ratio_2_2_5,ly.right_y_dropped_ankle,ly.small_vertical_span
+RED  x_detect_lying_down#51                     killed_by=ly.cross_side_lying,ly.offset_lying,ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_only_lying,ly.right_y_dropped_ankle,ly.right_y_dropped_shoulder,ly.smal
+RED  x_detect_lying_down#52                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#53                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#54                     killed_by=ly.zero_vertical
+RED  x_detect_lying_down#55                     killed_by=ly.den2_single_ankle_y,ly.den2_single_shoulder_x,ly.den2_single_shoulder_y,ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#56                     killed_by=ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#6                      killed_by=ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_y_dropped_shoulder
+RED  x_detect_lying_down#61                     killed_by=ly.den2_single_shoulder_x
+RED  x_detect_lying_down#62                     killed_by=ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_y_dropped_ankle,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#68                     killed_by=ly.den2_single_shoulder_y
+RED  x_detect_lying_down#7                      killed_by=ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_y_dropped_shoulder
+RED  x_detect_lying_down#70                     killed_by=ly.ratio_between,ly.zero_vertical
+RED  x_detect_lying_down#72                     killed_by=ly.zero_vertical
+RED  x_detect_lying_down#74                     killed_by=ly.cross_side_lying,ly.den2_single_ankle_y,ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_only_lying,ly.right_y_dropped_shoulder,ly.small_
+live x_detect_lying_down#75
+RED  x_detect_lying_down#76                     killed_by=ly.aligned_lying,ly.den2_single_ankle_y,ly.den2_single_shoulder_x,ly.den2_single_shoulder_y,ly.ratio_between,ly.right_y_dropped_ankle,ly.zero_vertical
+live x_detect_lying_down#77
+RED  x_detect_lying_down#78                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_x_dropped_ankle,ly.right_y_dropped_shoulder,ly.small_vertical_span
+live x_detect_lying_down#79
+RED  x_detect_lying_down#8                      killed_by=ly.cross_side_lying,ly.ratio_between,ly.right_only_lying,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#80                     killed_by=ly.zero_vertical
+RED  x_detect_lying_down#81                     killed_by=ly.cross_side_lying,ly.den2_single_ankle_y,ly.left_only_lying,ly.offset_lying,ly.ratio_2_2_5,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#82                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.ratio_above_1_5,ly.right_y_dropped_ankle,ly.right_y_dropped_shoulder,ly.zero_vertical
+RED  x_detect_lying_down#83                     killed_by=ly.ratio_between,ly.zero_vertical
+RED  x_detect_lying_down#84                     killed_by=ly.ratio_between,ly.right_x_dropped_ankle,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#85                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.right_only_lying,ly.right_y_dropped_ankle,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#86                     killed_by=ly.zero_vertical
+RED  x_detect_lying_down#87                     killed_by=ly.zero_vertical
+RED  x_detect_lying_down#88                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.right_only_lying,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_lying_down#89                     killed_by=ly.den2_single_shoulder_x,ly.den2_single_shoulder_y,ly.ratio_between,ly.right_y_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#90                     killed_by=ly.ratio_between,ly.right_x_dropped_ankle,ly.zero_vertical
+RED  x_detect_lying_down#95                     killed_by=ly.cross_side_lying,ly.left_only_lying,ly.right_only_lying
+RED  x_detect_lying_down#96                     killed_by=ly.offset_lying,ly.ratio_2_2_5,ly.right_x_dropped_ankle,ly.right_y_dropped_shoulder,ly.small_vertical_span
+RED  x_detect_security_alerts#15                killed_by=sa.lying_down
+RED  x_detect_security_alerts#16                killed_by=sa.lying_down
+
+killed 95 of draft-relevant mutants
+survivors NOT addressed by these drafts: 105

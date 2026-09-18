@@ -1,0 +1,12 @@
+# backend.services.detector_client.xǁDetectorClientǁwarmup__mutmut_47: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("yolo26", "cold")
++            set_model_warmth_state(None, "cold")
+             logger.warning("YOLO26 warmup failed - model not ready")
+             return False
+     finally:

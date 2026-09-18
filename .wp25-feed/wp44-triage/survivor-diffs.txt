@@ -1,0 +1,1414 @@
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_13 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_13: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -32,7 +32,7 @@
+     for event in timeline:
+         row = [
+             str(event.event_id),
+-            event.timestamp.isoformat() if event.timestamp else "",
++            event.timestamp.isoformat() if (event.timestamp) and False else "",
+             event.camera_name,
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_14 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_14: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -32,7 +32,7 @@
+     for event in timeline:
+         row = [
+             str(event.event_id),
+-            event.timestamp.isoformat() if event.timestamp else "",
++            event.timestamp.isoformat() if (event.timestamp) or True else "",
+             event.camera_name,
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_15 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_15: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -32,7 +32,7 @@
+     for event in timeline:
+         row = [
+             str(event.event_id),
+-            event.timestamp.isoformat() if event.timestamp else "",
++            event.timestamp.isoformat() if event.timestamp else "XXXX",
+             event.camera_name,
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_17 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_17: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -34,7 +34,7 @@
+             str(event.event_id),
+             event.timestamp.isoformat() if event.timestamp else "",
+             event.camera_name,
+-            event.summary or "",
++            event.summary or "XXXX",
+             str(event.risk_score) if event.risk_score is not None else "",
+             event.risk_level or "",
+             event.event_url or "",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_18 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_18: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+             event.timestamp.isoformat() if event.timestamp else "",
+             event.camera_name,
+             event.summary or "",
+-            str(event.risk_score) if event.risk_score is not None else "",
++            str(event.risk_score) if (event.risk_score is not None) and False else "",
+             event.risk_level or "",
+             event.event_url or "",
+         ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_19 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_19: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+             event.timestamp.isoformat() if event.timestamp else "",
+             event.camera_name,
+             event.summary or "",
+-            str(event.risk_score) if event.risk_score is not None else "",
++            str(event.risk_score) if (event.risk_score is not None) or True else "",
+             event.risk_level or "",
+             event.event_url or "",
+         ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_20 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_20: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+             event.timestamp.isoformat() if event.timestamp else "",
+             event.camera_name,
+             event.summary or "",
+-            str(event.risk_score) if event.risk_score is not None else "",
++            str(None) if event.risk_score is not None else "",
+             event.risk_level or "",
+             event.event_url or "",
+         ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_21 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_21: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+             event.timestamp.isoformat() if event.timestamp else "",
+             event.camera_name,
+             event.summary or "",
+-            str(event.risk_score) if event.risk_score is not None else "",
++            str(event.risk_score) if event.risk_score is None else "",
+             event.risk_level or "",
+             event.event_url or "",
+         ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_22 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_22: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+             event.timestamp.isoformat() if event.timestamp else "",
+             event.camera_name,
+             event.summary or "",
+-            str(event.risk_score) if event.risk_score is not None else "",
++            str(event.risk_score) if event.risk_score is not None else "XXXX",
+             event.risk_level or "",
+             event.event_url or "",
+         ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_23 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_23: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -36,7 +36,7 @@
+             event.camera_name,
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+-            event.risk_level or "",
++            event.risk_level and "",
+             event.event_url or "",
+         ]
+         writer.writerow(row)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_24 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_24: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -36,7 +36,7 @@
+             event.camera_name,
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+-            event.risk_level or "",
++            event.risk_level or "XXXX",
+             event.event_url or "",
+         ]
+         writer.writerow(row)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_25 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_25: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -37,7 +37,7 @@
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+             event.risk_level or "",
+-            event.event_url or "",
++            event.event_url and "",
+         ]
+         writer.writerow(row)
+
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_26 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_26: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -37,7 +37,7 @@
+             event.summary or "",
+             str(event.risk_score) if event.risk_score is not None else "",
+             event.risk_level or "",
+-            event.event_url or "",
++            event.event_url or "XXXX",
+         ]
+         writer.writerow(row)
+
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_8 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_csv__mutmut_8: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -14,7 +14,7 @@
+     timeline = self.build_timeline(events)
+
+     output = io.StringIO()
+-    writer = csv.writer(output, quoting=csv.QUOTE_ALL)
++    writer = csv.writer(output, )
+
+     # Write header
+     headers = [
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_16 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_16: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -19,7 +19,7 @@
+             "type": summary.summary_type,
+             "content": summary.content,
+             "event_count": summary.event_count,
+-            "window_start": summary.window_start.isoformat() if summary.window_start else None,
++            "window_start": summary.window_start.isoformat() if (summary.window_start) and False else None,
+             "window_end": summary.window_end.isoformat() if summary.window_end else None,
+             "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
+         },
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_17 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_17: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -19,7 +19,7 @@
+             "type": summary.summary_type,
+             "content": summary.content,
+             "event_count": summary.event_count,
+-            "window_start": summary.window_start.isoformat() if summary.window_start else None,
++            "window_start": summary.window_start.isoformat() if (summary.window_start) or True else None,
+             "window_end": summary.window_end.isoformat() if summary.window_end else None,
+             "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
+         },
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_20 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_20: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -20,7 +20,7 @@
+             "content": summary.content,
+             "event_count": summary.event_count,
+             "window_start": summary.window_start.isoformat() if summary.window_start else None,
+-            "window_end": summary.window_end.isoformat() if summary.window_end else None,
++            "window_end": summary.window_end.isoformat() if (summary.window_end) and False else None,
+             "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
+         },
+         "events": [
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_21 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_21: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -20,7 +20,7 @@
+             "content": summary.content,
+             "event_count": summary.event_count,
+             "window_start": summary.window_start.isoformat() if summary.window_start else None,
+-            "window_end": summary.window_end.isoformat() if summary.window_end else None,
++            "window_end": summary.window_end.isoformat() if (summary.window_end) or True else None,
+             "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
+         },
+         "events": [
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_24 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_24: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -21,7 +21,7 @@
+             "event_count": summary.event_count,
+             "window_start": summary.window_start.isoformat() if summary.window_start else None,
+             "window_end": summary.window_end.isoformat() if summary.window_end else None,
+-            "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
++            "generated_at": summary.generated_at.isoformat() if (summary.generated_at) and False else None,
+         },
+         "events": [
+             {
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_25 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_25: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -21,7 +21,7 @@
+             "event_count": summary.event_count,
+             "window_start": summary.window_start.isoformat() if summary.window_start else None,
+             "window_end": summary.window_end.isoformat() if summary.window_end else None,
+-            "generated_at": summary.generated_at.isoformat() if summary.generated_at else None,
++            "generated_at": summary.generated_at.isoformat() if (summary.generated_at) or True else None,
+         },
+         "events": [
+             {
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_32 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_32: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -26,7 +26,7 @@
+         "events": [
+             {
+                 "id": e.event_id,
+-                "timestamp": e.timestamp.isoformat() if e.timestamp else None,
++                "timestamp": e.timestamp.isoformat() if (e.timestamp) and False else None,
+                 "camera": e.camera_name,
+                 "summary": e.summary or "",
+                 "risk_score": e.risk_score,
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_33 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_33: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -26,7 +26,7 @@
+         "events": [
+             {
+                 "id": e.event_id,
+-                "timestamp": e.timestamp.isoformat() if e.timestamp else None,
++                "timestamp": e.timestamp.isoformat() if (e.timestamp) or True else None,
+                 "camera": e.camera_name,
+                 "summary": e.summary or "",
+                 "risk_score": e.risk_score,
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_39 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_39: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -28,7 +28,7 @@
+                 "id": e.event_id,
+                 "timestamp": e.timestamp.isoformat() if e.timestamp else None,
+                 "camera": e.camera_name,
+-                "summary": e.summary or "",
++                "summary": e.summary or "XXXX",
+                 "risk_score": e.risk_score,
+                 "risk_level": e.risk_level,
+                 "url": e.event_url,
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_44 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_44: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -31,7 +31,7 @@
+                 "summary": e.summary or "",
+                 "risk_score": e.risk_score,
+                 "risk_level": e.risk_level,
+-                "url": e.event_url,
++                "XXurlXX": e.event_url,
+             }
+             for e in timeline
+         ],
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_45 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_45: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -31,7 +31,7 @@
+                 "summary": e.summary or "",
+                 "risk_score": e.risk_score,
+                 "risk_level": e.risk_level,
+-                "url": e.event_url,
++                "URL": e.event_url,
+             }
+             for e in timeline
+         ],
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_48 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_48: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -36,7 +36,7 @@
+             for e in timeline
+         ],
+         "metadata": {
+-            "exported_at": datetime.now().isoformat(),
++            "XXexported_atXX": datetime.now().isoformat(),
+             "event_count": len(events),
+             "format": "json",
+             "version": "1.0",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_49 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_49: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -36,7 +36,7 @@
+             for e in timeline
+         ],
+         "metadata": {
+-            "exported_at": datetime.now().isoformat(),
++            "EXPORTED_AT": datetime.now().isoformat(),
+             "event_count": len(events),
+             "format": "json",
+             "version": "1.0",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_52 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_52: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -38,7 +38,7 @@
+         "metadata": {
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+-            "format": "json",
++            "XXformatXX": "json",
+             "version": "1.0",
+         },
+     }
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_53 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_53: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -38,7 +38,7 @@
+         "metadata": {
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+-            "format": "json",
++            "FORMAT": "json",
+             "version": "1.0",
+         },
+     }
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_54 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_54: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -38,7 +38,7 @@
+         "metadata": {
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+-            "format": "json",
++            "format": "XXjsonXX",
+             "version": "1.0",
+         },
+     }
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_55 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_55: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -38,7 +38,7 @@
+         "metadata": {
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+-            "format": "json",
++            "format": "JSON",
+             "version": "1.0",
+         },
+     }
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_56 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_56: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -39,7 +39,7 @@
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+             "format": "json",
+-            "version": "1.0",
++            "XXversionXX": "1.0",
+         },
+     }
+
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_57 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_57: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -39,7 +39,7 @@
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+             "format": "json",
+-            "version": "1.0",
++            "VERSION": "1.0",
+         },
+     }
+
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_58 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_58: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -39,7 +39,7 @@
+             "exported_at": datetime.now().isoformat(),
+             "event_count": len(events),
+             "format": "json",
+-            "version": "1.0",
++            "version": "XX1.0XX",
+         },
+     }
+
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_60 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_60: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,4 +43,4 @@
+         },
+     }
+
+-    return json.dumps(export_data, indent=2, ensure_ascii=False)
++    return json.dumps(export_data, indent=None, ensure_ascii=False)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_61 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_61: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,4 +43,4 @@
+         },
+     }
+
+-    return json.dumps(export_data, indent=2, ensure_ascii=False)
++    return json.dumps(export_data, indent=2, ensure_ascii=None)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_63 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_63: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,4 +43,4 @@
+         },
+     }
+
+-    return json.dumps(export_data, indent=2, ensure_ascii=False)
++    return json.dumps(export_data, ensure_ascii=False)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_64 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_64: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,4 +43,4 @@
+         },
+     }
+
+-    return json.dumps(export_data, indent=2, ensure_ascii=False)
++    return json.dumps(export_data, indent=2, )
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_65 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_65: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,4 +43,4 @@
+         },
+     }
+
+-    return json.dumps(export_data, indent=2, ensure_ascii=False)
++    return json.dumps(export_data, indent=3, ensure_ascii=False)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_66 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_json__mutmut_66: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,4 +43,4 @@
+         },
+     }
+
+-    return json.dumps(export_data, indent=2, ensure_ascii=False)
++    return json.dumps(export_data, indent=2, ensure_ascii=True)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_10 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_10: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -22,7 +22,7 @@
+     content_lines = [
+         "%PDF-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+-        "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
++        "2 0 obj << /type /pages /kids [3 0 r] /count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_11 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_11: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -22,7 +22,7 @@
+     content_lines = [
+         "%PDF-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+-        "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
++        "2 0 OBJ << /TYPE /PAGES /KIDS [3 0 R] /COUNT 1 >> ENDOBJ",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_12 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_12: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -23,7 +23,7 @@
+         "%PDF-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+-        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
++        "XX3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobjXX",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_13 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_13: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -23,7 +23,7 @@
+         "%PDF-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+-        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
++        "3 0 obj << /type /page /parent 2 0 r /mediabox [0 0 612 792] /contents 4 0 r >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_14 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_14: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -23,7 +23,7 @@
+         "%PDF-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+-        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
++        "3 0 OBJ << /TYPE /PAGE /PARENT 2 0 R /MEDIABOX [0 0 612 792] /CONTENTS 4 0 R >> ENDOBJ",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_15 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_15: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -24,7 +24,7 @@
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+-        "4 0 obj << /Length 500 >> stream",
++        "XX4 0 obj << /Length 500 >> streamXX",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_16 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_16: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -24,7 +24,7 @@
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+-        "4 0 obj << /Length 500 >> stream",
++        "4 0 obj << /length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_17 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_17: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -24,7 +24,7 @@
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+-        "4 0 obj << /Length 500 >> stream",
++        "4 0 OBJ << /LENGTH 500 >> STREAM",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_18 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_18: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -25,7 +25,7 @@
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+-        "BT /F1 12 Tf 50 750 Td",
++        "XXBT /F1 12 Tf 50 750 TdXX",
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_19 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_19: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -25,7 +25,7 @@
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+-        "BT /F1 12 Tf 50 750 Td",
++        "bt /f1 12 tf 50 750 td",
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_2 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_2: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -15,7 +15,7 @@
+         """
+     # Simple PDF generation using a basic format
+     # In production, use ReportLab or similar library
+-    timeline = self.build_timeline(events)
++    timeline = self.build_timeline(None)
+
+     # Build PDF content as a simple text document
+     # This is a minimal implementation - real PDF would use ReportLab
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_20 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_20: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -25,7 +25,7 @@
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+-        "BT /F1 12 Tf 50 750 Td",
++        "BT /F1 12 TF 50 750 TD",
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_21 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_21: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -26,7 +26,7 @@
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+-        "(Security Summary Report) Tj",
++        "XX(Security Summary Report) TjXX",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_22 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_22: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -26,7 +26,7 @@
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+-        "(Security Summary Report) Tj",
++        "(security summary report) tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_23 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_23: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -26,7 +26,7 @@
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+-        "(Security Summary Report) Tj",
++        "(SECURITY SUMMARY REPORT) TJ",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_24 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_24: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -27,7 +27,7 @@
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+-        "0 -20 Td",
++        "XX0 -20 TdXX",
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+         f"(Type: {summary.summary_type}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_25 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_25: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -27,7 +27,7 @@
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+-        "0 -20 Td",
++        "0 -20 td",
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+         f"(Type: {summary.summary_type}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_26 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_26: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -27,7 +27,7 @@
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+         "(Security Summary Report) Tj",
+-        "0 -20 Td",
++        "0 -20 TD",
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+         f"(Type: {summary.summary_type}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_27 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_27: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -29,7 +29,7 @@
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+-        "0 -15 Td",
++        "XX0 -15 TdXX",
+         f"(Type: {summary.summary_type}) Tj",
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_28 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_28: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -29,7 +29,7 @@
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+-        "0 -15 Td",
++        "0 -15 td",
+         f"(Type: {summary.summary_type}) Tj",
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_29 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_29: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -29,7 +29,7 @@
+         "(Security Summary Report) Tj",
+         "0 -20 Td",
+         f"(Summary ID: {summary.id}) Tj",
+-        "0 -15 Td",
++        "0 -15 TD",
+         f"(Type: {summary.summary_type}) Tj",
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_30 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_30: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -31,7 +31,7 @@
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+         f"(Type: {summary.summary_type}) Tj",
+-        "0 -15 Td",
++        "XX0 -15 TdXX",
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+         "(Content:) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_31 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_31: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -31,7 +31,7 @@
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+         f"(Type: {summary.summary_type}) Tj",
+-        "0 -15 Td",
++        "0 -15 td",
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+         "(Content:) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_32 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_32: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -31,7 +31,7 @@
+         f"(Summary ID: {summary.id}) Tj",
+         "0 -15 Td",
+         f"(Type: {summary.summary_type}) Tj",
+-        "0 -15 Td",
++        "0 -15 TD",
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+         "(Content:) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_33 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_33: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -33,7 +33,7 @@
+         f"(Type: {summary.summary_type}) Tj",
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+-        "0 -20 Td",
++        "XX0 -20 TdXX",
+         "(Content:) Tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_34 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_34: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -33,7 +33,7 @@
+         f"(Type: {summary.summary_type}) Tj",
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+-        "0 -20 Td",
++        "0 -20 td",
+         "(Content:) Tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_35 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_35: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -33,7 +33,7 @@
+         f"(Type: {summary.summary_type}) Tj",
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+-        "0 -20 Td",
++        "0 -20 TD",
+         "(Content:) Tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_36 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_36: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -34,7 +34,7 @@
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+-        "(Content:) Tj",
++        "XX(Content:) TjXX",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_37 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_37: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -34,7 +34,7 @@
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+-        "(Content:) Tj",
++        "(content:) tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_38 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_38: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -34,7 +34,7 @@
+         "0 -15 Td",
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+-        "(Content:) Tj",
++        "(CONTENT:) TJ",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_39 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_39: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+         "(Content:) Tj",
+-        "0 -15 Td",
++        "XX0 -15 TdXX",
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_4 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_4: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -20,7 +20,7 @@
+     # Build PDF content as a simple text document
+     # This is a minimal implementation - real PDF would use ReportLab
+     content_lines = [
+-        "%PDF-1.4",
++        "XX%PDF-1.4XX",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_40 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_40: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+         "(Content:) Tj",
+-        "0 -15 Td",
++        "0 -15 td",
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_41 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_41: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -35,7 +35,7 @@
+         f"(Events: {summary.event_count}) Tj",
+         "0 -20 Td",
+         "(Content:) Tj",
+-        "0 -15 Td",
++        "0 -15 TD",
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_42 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_42: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -36,7 +36,7 @@
+         "0 -20 Td",
+         "(Content:) Tj",
+         "0 -15 Td",
+-        f"({summary.content[:100]}...) Tj",
++        f"({summary.content[:101]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_43 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_43: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -37,7 +37,7 @@
+         "(Content:) Tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+-        "0 -25 Td",
++        "XX0 -25 TdXX",
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+         "xref",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_44 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_44: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -37,7 +37,7 @@
+         "(Content:) Tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+-        "0 -25 Td",
++        "0 -25 td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+         "xref",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_45 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_45: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -37,7 +37,7 @@
+         "(Content:) Tj",
+         "0 -15 Td",
+         f"({summary.content[:100]}...) Tj",
+-        "0 -25 Td",
++        "0 -25 TD",
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+         "xref",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_46 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_46: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -39,7 +39,7 @@
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+-        "ET endstream endobj",
++        "XXET endstream endobjXX",
+         "xref",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_47 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_47: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -39,7 +39,7 @@
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+-        "ET endstream endobj",
++        "et endstream endobj",
+         "xref",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_48 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_48: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -39,7 +39,7 @@
+         f"({summary.content[:100]}...) Tj",
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+-        "ET endstream endobj",
++        "ET ENDSTREAM ENDOBJ",
+         "xref",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_49 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_49: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -40,7 +40,7 @@
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+-        "xref",
++        "XXxrefXX",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+         "startxref",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_5 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_5: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -20,7 +20,7 @@
+     # Build PDF content as a simple text document
+     # This is a minimal implementation - real PDF would use ReportLab
+     content_lines = [
+-        "%PDF-1.4",
++        "%pdf-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_50 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_50: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -40,7 +40,7 @@
+         "0 -25 Td",
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+-        "xref",
++        "XREF",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+         "startxref",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_51 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_51: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -41,7 +41,7 @@
+         f"(Timeline Events: {len(timeline)}) Tj",
+         "ET endstream endobj",
+         "xref",
+-        "0 5",
++        "XX0 5XX",
+         "trailer << /Size 5 /Root 1 0 R >>",
+         "startxref",
+         "0",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_52 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_52: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -42,7 +42,7 @@
+         "ET endstream endobj",
+         "xref",
+         "0 5",
+-        "trailer << /Size 5 /Root 1 0 R >>",
++        "XXtrailer << /Size 5 /Root 1 0 R >>XX",
+         "startxref",
+         "0",
+         "%%EOF",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_53 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_53: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -42,7 +42,7 @@
+         "ET endstream endobj",
+         "xref",
+         "0 5",
+-        "trailer << /Size 5 /Root 1 0 R >>",
++        "trailer << /size 5 /root 1 0 r >>",
+         "startxref",
+         "0",
+         "%%EOF",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_54 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_54: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -42,7 +42,7 @@
+         "ET endstream endobj",
+         "xref",
+         "0 5",
+-        "trailer << /Size 5 /Root 1 0 R >>",
++        "TRAILER << /SIZE 5 /ROOT 1 0 R >>",
+         "startxref",
+         "0",
+         "%%EOF",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_55 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_55: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,7 +43,7 @@
+         "xref",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+-        "startxref",
++        "XXstartxrefXX",
+         "0",
+         "%%EOF",
+     ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_56 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_56: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -43,7 +43,7 @@
+         "xref",
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+-        "startxref",
++        "STARTXREF",
+         "0",
+         "%%EOF",
+     ]
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_57 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_57: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -44,7 +44,7 @@
+         "0 5",
+         "trailer << /Size 5 /Root 1 0 R >>",
+         "startxref",
+-        "0",
++        "XX0XX",
+         "%%EOF",
+     ]
+
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_58 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_58: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -45,7 +45,7 @@
+         "trailer << /Size 5 /Root 1 0 R >>",
+         "startxref",
+         "0",
+-        "%%EOF",
++        "XX%%EOFXX",
+     ]
+
+     pdf_content = "\n".join(content_lines)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_59 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_59: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -45,7 +45,7 @@
+         "trailer << /Size 5 /Root 1 0 R >>",
+         "startxref",
+         "0",
+-        "%%EOF",
++        "%%eof",
+     ]
+
+     pdf_content = "\n".join(content_lines)
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_6 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_6: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -21,7 +21,7 @@
+     # This is a minimal implementation - real PDF would use ReportLab
+     content_lines = [
+         "%PDF-1.4",
+-        "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
++        "XX1 0 obj << /Type /Catalog /Pages 2 0 R >> endobjXX",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_62 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_62: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -48,5 +48,5 @@
+         "%%EOF",
+     ]
+
+-    pdf_content = "\n".join(content_lines)
++    pdf_content = "XX\nXX".join(content_lines)
+     return pdf_content.encode("utf-8")
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_65 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_65: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -49,4 +49,4 @@
+     ]
+
+     pdf_content = "\n".join(content_lines)
+-    return pdf_content.encode("utf-8")
++    return pdf_content.encode("UTF-8")
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_7 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_7: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -21,7 +21,7 @@
+     # This is a minimal implementation - real PDF would use ReportLab
+     content_lines = [
+         "%PDF-1.4",
+-        "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
++        "1 0 obj << /type /catalog /pages 2 0 r >> endobj",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_8 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_8: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -21,7 +21,7 @@
+     # This is a minimal implementation - real PDF would use ReportLab
+     content_lines = [
+         "%PDF-1.4",
+-        "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
++        "1 0 OBJ << /TYPE /CATALOG /PAGES 2 0 R >> ENDOBJ",
+         "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+==== backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_9 ====
+# backend.services.summary_detail_service.xǁSummaryDetailServiceǁexport_pdf__mutmut_9: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -22,7 +22,7 @@
+     content_lines = [
+         "%PDF-1.4",
+         "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+-        "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
++        "XX2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobjXX",
+         "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj",
+         "4 0 obj << /Length 500 >> stream",
+         "BT /F1 12 Tf 50 750 Td",
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_10 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_10: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -4,7 +4,7 @@
+         "event_id": self.event_id,
+         "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+         "camera_name": self.camera_name,
+-        "summary": self.summary or "",
++        "SUMMARY": self.summary or "",
+         "risk_score": self.risk_score,
+         "risk_level": self.risk_level,
+         "event_url": self.event_url,
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_11 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_11: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -4,7 +4,7 @@
+         "event_id": self.event_id,
+         "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+         "camera_name": self.camera_name,
+-        "summary": self.summary or "",
++        "summary": self.summary and "",
+         "risk_score": self.risk_score,
+         "risk_level": self.risk_level,
+         "event_url": self.event_url,
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_12 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_12: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -4,7 +4,7 @@
+         "event_id": self.event_id,
+         "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+         "camera_name": self.camera_name,
+-        "summary": self.summary or "",
++        "summary": self.summary or "XXXX",
+         "risk_score": self.risk_score,
+         "risk_level": self.risk_level,
+         "event_url": self.event_url,
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_13 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_13: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -5,7 +5,7 @@
+         "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+         "camera_name": self.camera_name,
+         "summary": self.summary or "",
+-        "risk_score": self.risk_score,
++        "XXrisk_scoreXX": self.risk_score,
+         "risk_level": self.risk_level,
+         "event_url": self.event_url,
+     }
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_14 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_14: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -5,7 +5,7 @@
+         "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+         "camera_name": self.camera_name,
+         "summary": self.summary or "",
+-        "risk_score": self.risk_score,
++        "RISK_SCORE": self.risk_score,
+         "risk_level": self.risk_level,
+         "event_url": self.event_url,
+     }
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_15 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_15: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -6,6 +6,6 @@
+         "camera_name": self.camera_name,
+         "summary": self.summary or "",
+         "risk_score": self.risk_score,
+-        "risk_level": self.risk_level,
++        "XXrisk_levelXX": self.risk_level,
+         "event_url": self.event_url,
+     }
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_16 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_16: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -6,6 +6,6 @@
+         "camera_name": self.camera_name,
+         "summary": self.summary or "",
+         "risk_score": self.risk_score,
+-        "risk_level": self.risk_level,
++        "RISK_LEVEL": self.risk_level,
+         "event_url": self.event_url,
+     }
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_17 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_17: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -7,5 +7,5 @@
+         "summary": self.summary or "",
+         "risk_score": self.risk_score,
+         "risk_level": self.risk_level,
+-        "event_url": self.event_url,
++        "XXevent_urlXX": self.event_url,
+     }
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_18 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_18: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -7,5 +7,5 @@
+         "summary": self.summary or "",
+         "risk_score": self.risk_score,
+         "risk_level": self.risk_level,
+-        "event_url": self.event_url,
++        "EVENT_URL": self.event_url,
+     }
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_5 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_5: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -2,7 +2,7 @@
+     """Convert to dictionary for API response or export."""
+     return {
+         "event_id": self.event_id,
+-        "timestamp": self.timestamp.isoformat() if self.timestamp else None,
++        "timestamp": self.timestamp.isoformat() if (self.timestamp) and False else None,
+         "camera_name": self.camera_name,
+         "summary": self.summary or "",
+         "risk_score": self.risk_score,
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_6 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_6: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -2,7 +2,7 @@
+     """Convert to dictionary for API response or export."""
+     return {
+         "event_id": self.event_id,
+-        "timestamp": self.timestamp.isoformat() if self.timestamp else None,
++        "timestamp": self.timestamp.isoformat() if (self.timestamp) or True else None,
+         "camera_name": self.camera_name,
+         "summary": self.summary or "",
+         "risk_score": self.risk_score,
+==== backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_9 ====
+# backend.services.summary_detail_service.xǁTimelineEventǁto_dict__mutmut_9: survived
+--- backend/services/summary_detail_service.py
++++ backend/services/summary_detail_service.py
+@@ -4,7 +4,7 @@
+         "event_id": self.event_id,
+         "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+         "camera_name": self.camera_name,
+-        "summary": self.summary or "",
++        "XXsummaryXX": self.summary or "",
+         "risk_score": self.risk_score,
+         "risk_level": self.risk_level,
+         "event_url": self.event_url,

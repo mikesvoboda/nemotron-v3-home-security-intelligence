@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_20: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -26,7 +26,7 @@
+             flags.append(
+                 {
+                     "type": "suspicious_attire",
+-                    "description": f"Person {det_id}: {clothing.top_category}",
++                    "DESCRIPTION": f"Person {det_id}: {clothing.top_category}",
+                     "severity": "alert",
+                 }
+             )

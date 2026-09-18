@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_prompt_context__mutmut_3: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -25,7 +25,7 @@
+
+     return {
+         # Violence analysis
+-        "violence_context": format_violence_context(self.violence_detection),
++        "violence_context": format_violence_context(None),
+         # Weather context
+         "weather_context": format_weather_context(self.weather_classification),
+         # Image quality

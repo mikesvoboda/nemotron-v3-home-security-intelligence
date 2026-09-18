@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_93: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -76,7 +76,7 @@
+             )
+
+     # Suspicious action flag
+-    if self.has_suspicious_action and self.action_results:
++    if self.has_suspicious_action or self.action_results:
+         detected_action = self.action_results.get("detected_action", "unknown")
+         confidence = self.action_results.get("confidence", 0.0)
+         risk_weight = self.action_risk_weight

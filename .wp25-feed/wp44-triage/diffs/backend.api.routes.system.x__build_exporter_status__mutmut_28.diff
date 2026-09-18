@@ -1,0 +1,11 @@
+# backend.api.routes.system.x__build_exporter_status__mutmut_28: survived
+--- backend/api/routes/system.py
++++ backend/api/routes/system.py
+@@ -15,7 +15,7 @@
+             t
+             for t in targets
+             if exporter_name.replace("-", "_") in t.get("job", "").lower()
+-            or exporter_name.replace("-", "") in t.get("instance", "").lower()
++            or exporter_name.replace("-", "") in t.get(None, "").lower()
+             or exporter_name in t.get("instance", "").lower()
+         ]

@@ -1,0 +1,11 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_88: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -71,7 +71,7 @@
+                 {
+                     "type": "suspicious_pose",
+                     "description": f"Person {det_id}: {pose.pose_class} ({pose.pose_confidence:.0%} confidence)",
+-                    "severity": "alert" if pose.pose_class == "crouching" else "warning",
++                    "severity": "alert" if pose.pose_class != "crouching" else "warning",
+                 }
+             )

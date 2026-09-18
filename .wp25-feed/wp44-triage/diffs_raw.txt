@@ -1,0 +1,1637 @@
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_100
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_100: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+-        "node exporter": "Node Exporter",
++        "node exporter": "XXNode ExporterXX",
+         "cadvisor": "cAdvisor",
+     }
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_101
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_101: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+-        "node exporter": "Node Exporter",
++        "node exporter": "node exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_102
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_102: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+-        "node exporter": "Node Exporter",
++        "node exporter": "NODE EXPORTER",
+         "cadvisor": "cAdvisor",
+     }
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_103
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_103: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+-        "cadvisor": "cAdvisor",
++        "XXcadvisorXX": "cAdvisor",
+     }
+
+     for key, value in special_cases.items():
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_104
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_104: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+-        "cadvisor": "cAdvisor",
++        "CADVISOR": "cAdvisor",
+     }
+
+     for key, value in special_cases.items():
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_105
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_105: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+-        "cadvisor": "cAdvisor",
++        "cadvisor": "XXcAdvisorXX",
+     }
+
+     for key, value in special_cases.items():
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_106
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_106: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+-        "cadvisor": "cAdvisor",
++        "cadvisor": "cadvisor",
+     }
+
+     for key, value in special_cases.items():
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_107
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_107: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+-        "cadvisor": "cAdvisor",
++        "cadvisor": "CADVISOR",
+     }
+
+     for key, value in special_cases.items():
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_16
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_16: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -13,7 +13,7 @@
+         display = display[3:]
+
+     # Replace hyphens with spaces and title case
+-    display = display.replace("-", " ").replace("_", " ")
++    display = display.replace("XX-XX", " ").replace("_", " ")
+
+     # Handle special cases
+     special_cases = {
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_17
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_17: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -13,7 +13,7 @@
+         display = display[3:]
+
+     # Replace hyphens with spaces and title case
+-    display = display.replace("-", " ").replace("_", " ")
++    display = display.replace("-", "XX XX").replace("_", " ")
+
+     # Handle special cases
+     special_cases = {
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_18
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_18: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -13,7 +13,7 @@
+         display = display[3:]
+
+     # Replace hyphens with spaces and title case
+-    display = display.replace("-", " ").replace("_", " ")
++    display = display.replace("-", " ").replace("XX_XX", " ")
+
+     # Handle special cases
+     special_cases = {
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_19
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_19: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -13,7 +13,7 @@
+         display = display[3:]
+
+     # Replace hyphens with spaces and title case
+-    display = display.replace("-", " ").replace("_", " ")
++    display = display.replace("-", " ").replace("_", "XX XX")
+
+     # Handle special cases
+     special_cases = {
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_34
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_34: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+         "yolo26": "YOLO26",
+         "llm": "LLM (Nemotron)",
+         "clip": "CLIP",
+-        "florence": "Florence-2",
++        "XXflorenceXX": "Florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_35
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_35: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+         "yolo26": "YOLO26",
+         "llm": "LLM (Nemotron)",
+         "clip": "CLIP",
+-        "florence": "Florence-2",
++        "FLORENCE": "Florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_36
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_36: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+         "yolo26": "YOLO26",
+         "llm": "LLM (Nemotron)",
+         "clip": "CLIP",
+-        "florence": "Florence-2",
++        "florence": "XXFlorence-2XX",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_37
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_37: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+         "yolo26": "YOLO26",
+         "llm": "LLM (Nemotron)",
+         "clip": "CLIP",
+-        "florence": "Florence-2",
++        "florence": "florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_38
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_38: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+         "yolo26": "YOLO26",
+         "llm": "LLM (Nemotron)",
+         "clip": "CLIP",
+-        "florence": "Florence-2",
++        "florence": "FLORENCE-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_44
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_44: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -22,7 +22,7 @@
+         "clip": "CLIP",
+         "florence": "Florence-2",
+         "postgres": "PostgreSQL",
+-        "redis": "Redis",
++        "XXredisXX": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_45
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_45: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -22,7 +22,7 @@
+         "clip": "CLIP",
+         "florence": "Florence-2",
+         "postgres": "PostgreSQL",
+-        "redis": "Redis",
++        "REDIS": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_49
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_49: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         "florence": "Florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+-        "go2rtc": "go2rtc",
++        "XXgo2rtcXX": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_50
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_50: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         "florence": "Florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+-        "go2rtc": "go2rtc",
++        "GO2RTC": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_51
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_51: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         "florence": "Florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+-        "go2rtc": "go2rtc",
++        "go2rtc": "XXgo2rtcXX",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_52
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_52: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         "florence": "Florence-2",
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+-        "go2rtc": "go2rtc",
++        "go2rtc": "GO2RTC",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_53
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_53: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+-        "grafana": "Grafana",
++        "XXgrafanaXX": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_54
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_54: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+-        "grafana": "Grafana",
++        "GRAFANA": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_55
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_55: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+-        "grafana": "Grafana",
++        "grafana": "XXGrafanaXX",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_56
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_56: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+-        "grafana": "Grafana",
++        "grafana": "grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_57
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_57: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         "postgres": "PostgreSQL",
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+-        "grafana": "Grafana",
++        "grafana": "GRAFANA",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_58
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_58: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -25,7 +25,7 @@
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+-        "prometheus": "Prometheus",
++        "XXprometheusXX": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_59
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_59: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -25,7 +25,7 @@
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+-        "prometheus": "Prometheus",
++        "PROMETHEUS": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_60
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_60: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -25,7 +25,7 @@
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+-        "prometheus": "Prometheus",
++        "prometheus": "XXPrometheusXX",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_61
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_61: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -25,7 +25,7 @@
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+-        "prometheus": "Prometheus",
++        "prometheus": "prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_62
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_62: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -25,7 +25,7 @@
+         "redis": "Redis",
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+-        "prometheus": "Prometheus",
++        "prometheus": "PROMETHEUS",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_63
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_63: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -26,7 +26,7 @@
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+-        "loki": "Loki",
++        "XXlokiXX": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_64
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_64: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -26,7 +26,7 @@
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+-        "loki": "Loki",
++        "LOKI": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_65
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_65: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -26,7 +26,7 @@
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+-        "loki": "Loki",
++        "loki": "XXLokiXX",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_66
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_66: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -26,7 +26,7 @@
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+-        "loki": "Loki",
++        "loki": "loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_67
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_67: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -26,7 +26,7 @@
+         "go2rtc": "go2rtc",
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+-        "loki": "Loki",
++        "loki": "LOKI",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_68
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_68: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -27,7 +27,7 @@
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+-        "jaeger": "Jaeger",
++        "XXjaegerXX": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_69
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_69: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -27,7 +27,7 @@
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+-        "jaeger": "Jaeger",
++        "JAEGER": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_70
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_70: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -27,7 +27,7 @@
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+-        "jaeger": "Jaeger",
++        "jaeger": "XXJaegerXX",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_71
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_71: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -27,7 +27,7 @@
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+-        "jaeger": "Jaeger",
++        "jaeger": "jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_72
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_72: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -27,7 +27,7 @@
+         "grafana": "Grafana",
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+-        "jaeger": "Jaeger",
++        "jaeger": "JAEGER",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_73
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_73: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -28,7 +28,7 @@
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+-        "alertmanager": "Alertmanager",
++        "XXalertmanagerXX": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_74
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_74: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -28,7 +28,7 @@
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+-        "alertmanager": "Alertmanager",
++        "ALERTMANAGER": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_75
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_75: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -28,7 +28,7 @@
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+-        "alertmanager": "Alertmanager",
++        "alertmanager": "XXAlertmanagerXX",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_76
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_76: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -28,7 +28,7 @@
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+-        "alertmanager": "Alertmanager",
++        "alertmanager": "alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_77
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_77: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -28,7 +28,7 @@
+         "prometheus": "Prometheus",
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+-        "alertmanager": "Alertmanager",
++        "alertmanager": "ALERTMANAGER",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_78
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_78: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -29,7 +29,7 @@
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+-        "pyroscope": "Pyroscope",
++        "XXpyroscopeXX": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_79
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_79: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -29,7 +29,7 @@
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+-        "pyroscope": "Pyroscope",
++        "PYROSCOPE": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_80
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_80: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -29,7 +29,7 @@
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+-        "pyroscope": "Pyroscope",
++        "pyroscope": "XXPyroscopeXX",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_81
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_81: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -29,7 +29,7 @@
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+-        "pyroscope": "Pyroscope",
++        "pyroscope": "pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_82
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_82: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -29,7 +29,7 @@
+         "loki": "Loki",
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+-        "pyroscope": "Pyroscope",
++        "pyroscope": "PYROSCOPE",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_83
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_83: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -30,7 +30,7 @@
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+-        "alloy": "Grafana Alloy",
++        "XXalloyXX": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_84
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_84: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -30,7 +30,7 @@
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+-        "alloy": "Grafana Alloy",
++        "ALLOY": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_85
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_85: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -30,7 +30,7 @@
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+-        "alloy": "Grafana Alloy",
++        "alloy": "XXGrafana AlloyXX",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_86
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_86: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -30,7 +30,7 @@
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+-        "alloy": "Grafana Alloy",
++        "alloy": "grafana alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_87
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_87: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -30,7 +30,7 @@
+         "jaeger": "Jaeger",
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+-        "alloy": "Grafana Alloy",
++        "alloy": "GRAFANA ALLOY",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_88
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_88: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -31,7 +31,7 @@
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+-        "elasticsearch": "Elasticsearch",
++        "XXelasticsearchXX": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_89
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_89: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -31,7 +31,7 @@
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+-        "elasticsearch": "Elasticsearch",
++        "ELASTICSEARCH": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_90
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_90: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -31,7 +31,7 @@
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+-        "elasticsearch": "Elasticsearch",
++        "elasticsearch": "XXElasticsearchXX",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_91
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_91: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -31,7 +31,7 @@
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+-        "elasticsearch": "Elasticsearch",
++        "elasticsearch": "elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_92
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_92: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -31,7 +31,7 @@
+         "alertmanager": "Alertmanager",
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+-        "elasticsearch": "Elasticsearch",
++        "elasticsearch": "ELASTICSEARCH",
+         "dcgm exporter": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_93
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_93: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -32,7 +32,7 @@
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+-        "dcgm exporter": "DCGM Exporter",
++        "XXdcgm exporterXX": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_94
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_94: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -32,7 +32,7 @@
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+-        "dcgm exporter": "DCGM Exporter",
++        "DCGM EXPORTER": "DCGM Exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_95
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_95: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -32,7 +32,7 @@
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+-        "dcgm exporter": "DCGM Exporter",
++        "dcgm exporter": "XXDCGM ExporterXX",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_96
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_96: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -32,7 +32,7 @@
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+-        "dcgm exporter": "DCGM Exporter",
++        "dcgm exporter": "dcgm exporter",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_97
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_97: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -32,7 +32,7 @@
+         "pyroscope": "Pyroscope",
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+-        "dcgm exporter": "DCGM Exporter",
++        "dcgm exporter": "DCGM EXPORTER",
+         "node exporter": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_98
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_98: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+-        "node exporter": "Node Exporter",
++        "XXnode exporterXX": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_99
+# backend.services.compose_parser.xǁComposeParserǁ_format_display_name__mutmut_99: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         "alloy": "Grafana Alloy",
+         "elasticsearch": "Elasticsearch",
+         "dcgm exporter": "DCGM Exporter",
+-        "node exporter": "Node Exporter",
++        "NODE EXPORTER": "Node Exporter",
+         "cadvisor": "cAdvisor",
+     }
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_get_category__mutmut_9
+# backend.services.compose_parser.xǁComposeParserǁ_get_category__mutmut_9: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -13,7 +13,7 @@
+             ServiceCategory enum value.
+         """
+     # Check label first
+-    category_label = labels.get("orchestrator.category", "").upper()
++    category_label = labels.get("orchestrator.category", "XXXX").upper()
+     if category_label:
+         try:
+             return ServiceCategory[category_label]
+
+### backend.services.compose_parser.xǁComposeParserǁ_labels_list_to_dict__mutmut_11
+# backend.services.compose_parser.xǁComposeParserǁ_labels_list_to_dict__mutmut_11: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -16,6 +16,6 @@
+     result: dict[str, str] = {}
+     for label in labels:
+         if "=" in label:
+-            key, value = label.split("=", 1)
++            key, value = label.split("=", 2)
+             result[key] = value
+     return result
+
+### backend.services.compose_parser.xǁComposeParserǁ_labels_list_to_dict__mutmut_8
+# backend.services.compose_parser.xǁComposeParserǁ_labels_list_to_dict__mutmut_8: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -16,6 +16,6 @@
+     result: dict[str, str] = {}
+     for label in labels:
+         if "=" in label:
+-            key, value = label.split("=", 1)
++            key, value = label.split("=", )
+             result[key] = value
+     return result
+
+### backend.services.compose_parser.xǁComposeParserǁ_labels_list_to_dict__mutmut_9
+# backend.services.compose_parser.xǁComposeParserǁ_labels_list_to_dict__mutmut_9: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -16,6 +16,6 @@
+     result: dict[str, str] = {}
+     for label in labels:
+         if "=" in label:
+-            key, value = label.split("=", 1)
++            key, value = label.rsplit("=", 1)
+             result[key] = value
+     return result
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_21
+# backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_21: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+     match = re.match(r"(\d+)([smh])?", duration)
+     if match:
+         value = int(match.group(1))
+-        unit = match.group(2) or "s"
++        unit = match.group(2) or "XXsXX"
+         if unit == "m":
+             return value * 60
+         elif unit == "h":
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_22
+# backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_22: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+     match = re.match(r"(\d+)([smh])?", duration)
+     if match:
+         value = int(match.group(1))
+-        unit = match.group(2) or "s"
++        unit = match.group(2) or "S"
+         if unit == "m":
+             return value * 60
+         elif unit == "h":
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_29
+# backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_29: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         unit = match.group(2) or "s"
+         if unit == "m":
+             return value * 60
+-        elif unit == "h":
++        elif unit == "XXhXX":
+             return value * 3600
+         else:
+             return value
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_30
+# backend.services.compose_parser.xǁComposeParserǁ_parse_duration__mutmut_30: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         unit = match.group(2) or "s"
+         if unit == "m":
+             return value * 60
+-        elif unit == "h":
++        elif unit == "H":
+             return value * 3600
+         else:
+             return value
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_1
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_1: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -11,7 +11,7 @@
+             Tuple of (health_endpoint, health_cmd, port).
+             Only one of health_endpoint or health_cmd will be set.
+         """
+-    if healthcheck.get("disable"):
++    if healthcheck.get(None):
+         return None, None, None
+
+     test = healthcheck.get("test")
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_12
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_12: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -21,7 +21,7 @@
+     # Convert test to string for parsing
+     if isinstance(test, list):
+         # Skip CMD or CMD-SHELL prefix
+-        if test and test[0] in ("CMD", "CMD-SHELL"):
++        if test and test[0] in ("XXCMDXX", "CMD-SHELL"):
+             test = test[1:]
+         test_str = " ".join(str(t) for t in test)
+     else:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_13
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_13: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -21,7 +21,7 @@
+     # Convert test to string for parsing
+     if isinstance(test, list):
+         # Skip CMD or CMD-SHELL prefix
+-        if test and test[0] in ("CMD", "CMD-SHELL"):
++        if test and test[0] in ("cmd", "CMD-SHELL"):
+             test = test[1:]
+         test_str = " ".join(str(t) for t in test)
+     else:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_2
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_2: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -11,7 +11,7 @@
+             Tuple of (health_endpoint, health_cmd, port).
+             Only one of health_endpoint or health_cmd will be set.
+         """
+-    if healthcheck.get("disable"):
++    if healthcheck.get("XXdisableXX"):
+         return None, None, None
+
+     test = healthcheck.get("test")
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_20
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_20: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -23,7 +23,7 @@
+         # Skip CMD or CMD-SHELL prefix
+         if test and test[0] in ("CMD", "CMD-SHELL"):
+             test = test[1:]
+-        test_str = " ".join(str(t) for t in test)
++        test_str = "XX XX".join(str(t) for t in test)
+     else:
+         test_str = str(test)
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_24
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_24: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -31,7 +31,7 @@
+     for pattern in self._http_patterns:
+         match = pattern.search(test_str)
+         if match:
+-            port = int(match.group(1))
++            port = None
+             # Group 2 is the endpoint path, default to /health if not captured
+             endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
+             return endpoint, None, port
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_3
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_3: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -11,7 +11,7 @@
+             Tuple of (health_endpoint, health_cmd, port).
+             Only one of health_endpoint or health_cmd will be set.
+         """
+-    if healthcheck.get("disable"):
++    if healthcheck.get("DISABLE"):
+         return None, None, None
+
+     test = healthcheck.get("test")
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_30
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_30: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         if match:
+             port = int(match.group(1))
+             # Group 2 is the endpoint path, default to /health if not captured
+-            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
++            endpoint = match.group(2) if (match.lastindex and match.lastindex >= 2) or True else "/health"
+             return endpoint, None, port
+
+     # If no HTTP endpoint found, use the command as health_cmd
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_33
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_33: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         if match:
+             port = int(match.group(1))
+             # Group 2 is the endpoint path, default to /health if not captured
+-            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
++            endpoint = match.group(2) if match.lastindex or match.lastindex >= 2 else "/health"
+             return endpoint, None, port
+
+     # If no HTTP endpoint found, use the command as health_cmd
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_36
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_36: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         if match:
+             port = int(match.group(1))
+             # Group 2 is the endpoint path, default to /health if not captured
+-            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
++            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "XX/healthXX"
+             return endpoint, None, port
+
+     # If no HTTP endpoint found, use the command as health_cmd
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_37
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_37: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -33,7 +33,7 @@
+         if match:
+             port = int(match.group(1))
+             # Group 2 is the endpoint path, default to /health if not captured
+-            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/health"
++            endpoint = match.group(2) if match.lastindex and match.lastindex >= 2 else "/HEALTH"
+             return endpoint, None, port
+
+     # If no HTTP endpoint found, use the command as health_cmd
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_40
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_40: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -39,7 +39,7 @@
+     # If no HTTP endpoint found, use the command as health_cmd
+     # Clean up common prefixes
+     health_cmd = test_str.strip()
+-    if health_cmd.startswith("sh -c"):
++    if health_cmd.startswith("XXsh -cXX"):
+         health_cmd = health_cmd[6:].strip().strip("'\"")
+
+     # Extract port from common command patterns
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_41
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_41: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -39,7 +39,7 @@
+     # If no HTTP endpoint found, use the command as health_cmd
+     # Clean up common prefixes
+     health_cmd = test_str.strip()
+-    if health_cmd.startswith("sh -c"):
++    if health_cmd.startswith("SH -C"):
+         health_cmd = health_cmd[6:].strip().strip("'\"")
+
+     # Extract port from common command patterns
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_42
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_42: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -43,7 +43,7 @@
+         health_cmd = health_cmd[6:].strip().strip("'\"")
+
+     # Extract port from common command patterns
+-    cmd_port: int | None = None
++    cmd_port: int | None = ""
+     port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
+     if port_match:
+         cmd_port = int(port_match.group(1) or port_match.group(2))
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_43
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_43: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -44,7 +44,7 @@
+
+     # Extract port from common command patterns
+     cmd_port: int | None = None
+-    port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
++    port_match = None
+     if port_match:
+         cmd_port = int(port_match.group(1) or port_match.group(2))
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_48
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_48: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -44,7 +44,7 @@
+
+     # Extract port from common command patterns
+     cmd_port: int | None = None
+-    port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
++    port_match = re.search(r"XX-p\s+(\d+)|:(\d+)XX", health_cmd)
+     if port_match:
+         cmd_port = int(port_match.group(1) or port_match.group(2))
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_49
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_49: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -44,7 +44,7 @@
+
+     # Extract port from common command patterns
+     cmd_port: int | None = None
+-    port_match = re.search(r"-p\s+(\d+)|:(\d+)", health_cmd)
++    port_match = re.search(r"-P\s+(\d+)|:(\d+)", health_cmd)
+     if port_match:
+         cmd_port = int(port_match.group(1) or port_match.group(2))
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_9
+# backend.services.compose_parser.xǁComposeParserǁ_parse_healthcheck__mutmut_9: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -21,7 +21,7 @@
+     # Convert test to string for parsing
+     if isinstance(test, list):
+         # Skip CMD or CMD-SHELL prefix
+-        if test and test[0] in ("CMD", "CMD-SHELL"):
++        if test or test[0] in ("CMD", "CMD-SHELL"):
+             test = test[1:]
+         test_str = " ".join(str(t) for t in test)
+     else:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_16
+# backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_16: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         parts = port_str.split(":")
+         if len(parts) >= 2:
+             # Last part is container port
+-            container_port = parts[-1].split("/")[0]  # Remove /tcp, /udp
++            container_port = parts[-1].split(None)[0]  # Remove /tcp, /udp
+             try:
+                 return int(container_port)
+             except ValueError:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_17
+# backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_17: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         parts = port_str.split(":")
+         if len(parts) >= 2:
+             # Last part is container port
+-            container_port = parts[-1].split("/")[0]  # Remove /tcp, /udp
++            container_port = parts[+1].split("/")[0]  # Remove /tcp, /udp
+             try:
+                 return int(container_port)
+             except ValueError:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_18
+# backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_18: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         parts = port_str.split(":")
+         if len(parts) >= 2:
+             # Last part is container port
+-            container_port = parts[-1].split("/")[0]  # Remove /tcp, /udp
++            container_port = parts[-2].split("/")[0]  # Remove /tcp, /udp
+             try:
+                 return int(container_port)
+             except ValueError:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_19
+# backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_19: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -24,7 +24,7 @@
+         parts = port_str.split(":")
+         if len(parts) >= 2:
+             # Last part is container port
+-            container_port = parts[-1].split("/")[0]  # Remove /tcp, /udp
++            container_port = parts[-1].split("XX/XX")[0]  # Remove /tcp, /udp
+             try:
+                 return int(container_port)
+             except ValueError:
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_3
+# backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_3: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -17,7 +17,7 @@
+         return health_port
+
+     # Parse ports section
+-    ports = service_def.get("ports", [])
++    ports = service_def.get("ports", None)
+     for port_def in ports:
+         port_str = str(port_def)
+         # Handle formats: "8080:8080", "127.0.0.1:8080:8080", "8080"
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_5
+# backend.services.compose_parser.xǁComposeParserǁ_parse_port__mutmut_5: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -17,7 +17,7 @@
+         return health_port
+
+     # Parse ports section
+-    ports = service_def.get("ports", [])
++    ports = service_def.get("ports", )
+     for port_def in ports:
+         port_str = str(port_def)
+         # Handle formats: "8080:8080", "127.0.0.1:8080:8080", "8080"
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_16
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_16: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+     category = self._get_category(name, labels)
+
+     # Get category defaults
+-    defaults = CATEGORY_DEFAULTS.get(category, CATEGORY_DEFAULTS[ServiceCategory.AI])
++    defaults = CATEGORY_DEFAULTS.get(None, CATEGORY_DEFAULTS[ServiceCategory.AI])
+
+     # Parse healthcheck
+     healthcheck = service_def.get("healthcheck", {})
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_17
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_17: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+     category = self._get_category(name, labels)
+
+     # Get category defaults
+-    defaults = CATEGORY_DEFAULTS.get(category, CATEGORY_DEFAULTS[ServiceCategory.AI])
++    defaults = CATEGORY_DEFAULTS.get(category, None)
+
+     # Parse healthcheck
+     healthcheck = service_def.get("healthcheck", {})
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_19
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_19: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -20,7 +20,7 @@
+     category = self._get_category(name, labels)
+
+     # Get category defaults
+-    defaults = CATEGORY_DEFAULTS.get(category, CATEGORY_DEFAULTS[ServiceCategory.AI])
++    defaults = CATEGORY_DEFAULTS.get(category, )
+
+     # Parse healthcheck
+     healthcheck = service_def.get("healthcheck", {})
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_31
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_31: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -27,7 +27,7 @@
+     health_endpoint, health_cmd, health_port = self._parse_healthcheck(healthcheck)
+
+     # Parse port from ports section or healthcheck
+-    port = self._parse_port(service_def, health_port)
++    port = self._parse_port(service_def, None)
+
+     # Get display name
+     display_name = labels.get("orchestrator.display_name", self._format_display_name(name))
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_46
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_46: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+
+     # Get startup grace period (from label, healthcheck start_period, or default)
+     startup_grace = self._parse_duration(
+-        labels.get("orchestrator.startup_grace_period")
++        labels.get(None)
+         or healthcheck.get("start_period")
+         or str(defaults["startup_grace_period"])
+     )
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_47
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_47: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+
+     # Get startup grace period (from label, healthcheck start_period, or default)
+     startup_grace = self._parse_duration(
+-        labels.get("orchestrator.startup_grace_period")
++        labels.get("XXorchestrator.startup_grace_periodXX")
+         or healthcheck.get("start_period")
+         or str(defaults["startup_grace_period"])
+     )
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_48
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_48: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -34,7 +34,7 @@
+
+     # Get startup grace period (from label, healthcheck start_period, or default)
+     startup_grace = self._parse_duration(
+-        labels.get("orchestrator.startup_grace_period")
++        labels.get("ORCHESTRATOR.STARTUP_GRACE_PERIOD")
+         or healthcheck.get("start_period")
+         or str(defaults["startup_grace_period"])
+     )
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_52
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_52: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -36,7 +36,7 @@
+     startup_grace = self._parse_duration(
+         labels.get("orchestrator.startup_grace_period")
+         or healthcheck.get("start_period")
+-        or str(defaults["startup_grace_period"])
++        or str(None)
+     )
+
+     # Get max failures (from label, healthcheck retries, or default)
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_58
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_58: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -41,8 +41,7 @@
+
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+-        labels.get("orchestrator.max_failures")
+-        or healthcheck.get("retries")
++        labels.get("orchestrator.max_failures") and healthcheck.get("retries")
+         or defaults["max_failures"]
+     )
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_59
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_59: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -41,7 +41,7 @@
+
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+-        labels.get("orchestrator.max_failures")
++        labels.get(None)
+         or healthcheck.get("retries")
+         or defaults["max_failures"]
+     )
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_60
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_60: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -41,7 +41,7 @@
+
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+-        labels.get("orchestrator.max_failures")
++        labels.get("XXorchestrator.max_failuresXX")
+         or healthcheck.get("retries")
+         or defaults["max_failures"]
+     )
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_61
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_61: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -41,7 +41,7 @@
+
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+-        labels.get("orchestrator.max_failures")
++        labels.get("ORCHESTRATOR.MAX_FAILURES")
+         or healthcheck.get("retries")
+         or defaults["max_failures"]
+     )
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_62
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_62: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -42,7 +42,7 @@
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+         labels.get("orchestrator.max_failures")
+-        or healthcheck.get("retries")
++        or healthcheck.get(None)
+         or defaults["max_failures"]
+     )
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_63
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_63: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -42,7 +42,7 @@
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+         labels.get("orchestrator.max_failures")
+-        or healthcheck.get("retries")
++        or healthcheck.get("XXretriesXX")
+         or defaults["max_failures"]
+     )
+
+
+### backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_64
+# backend.services.compose_parser.xǁComposeParserǁ_parse_service__mutmut_64: survived
+--- backend/services/compose_parser.py
++++ backend/services/compose_parser.py
+@@ -42,7 +42,7 @@
+     # Get max failures (from label, healthcheck retries, or default)
+     max_failures = int(
+         labels.get("orchestrator.max_failures")
+-        or healthcheck.get("retries")
++        or healthcheck.get("RETRIES")
+         or defaults["max_failures"]
+     )
+
+
+DONE 117

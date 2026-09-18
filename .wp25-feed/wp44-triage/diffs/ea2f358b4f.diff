@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_31: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -37,7 +37,7 @@
+             flags.append(
+                 {
+                     "type": "face_covered",
+-                    "description": f"Person {det_id}: Face obscured by hat/sunglasses/scarf",
++                    "DESCRIPTION": f"Person {det_id}: Face obscured by hat/sunglasses/scarf",
+                     "severity": "alert",
+                 }
+             )

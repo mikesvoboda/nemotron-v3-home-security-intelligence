@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁget_stream_info__mutmut_40: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -22,7 +22,7 @@
+             "length": info.get("length", 0),
+             "radix_tree_keys": info.get("radix-tree-keys", 0),
+             "radix_tree_nodes": info.get("radix-tree-nodes", 0),
+-            "groups": info.get("groups", 0),
++            "groups": info.get("groups", ),
+             "last_entry_id": info.get("last-generated-id", ""),
+             "first_entry_id": info.get("first-entry", [""])[0]
+             if info.get("first-entry")

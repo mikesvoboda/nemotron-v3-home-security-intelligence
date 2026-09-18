@@ -1,0 +1,35 @@
+**C1-fmt-dropcontent** (13): _format_discord_payload__mutmut_11, _format_discord_payload__mutmut_15, _format_discord_payload__mutmut_16, _format_discord_payload__mutmut_17, _format_discord_payload__mutmut_18, _format_discord_payload__mutmut_20, _format_discord_payload__mutmut_22, _format_discord_payload__mutmut_23, _format_discord_payload__mutmut_25, _format_teams_payload__mutmut_11, _format_teams_payload__mutmut_15, _format_teams_payload__mutmut_16, _format_teams_payload__mutmut_18
+
+**C2-slack-blockkit** (12): _format_slack_payload__mutmut_24, _format_slack_payload__mutmut_25, _format_slack_payload__mutmut_26, _format_slack_payload__mutmut_27, _format_slack_payload__mutmut_28, _format_slack_payload__mutmut_29, _format_slack_payload__mutmut_30, _format_slack_payload__mutmut_31, _format_slack_payload__mutmut_32, _format_slack_payload__mutmut_33, _format_slack_payload__mutmut_34, _format_slack_payload__mutmut_35
+
+**C3-fmt-rendering** (19): _format_discord_payload__mutmut_26, _format_discord_payload__mutmut_27, _format_discord_payload__mutmut_32, _format_discord_payload__mutmut_33, _format_discord_payload__mutmut_34, _format_discord_payload__mutmut_35, _format_discord_payload__mutmut_36, _format_discord_payload__mutmut_37, _format_discord_payload__mutmut_38, _format_discord_payload__mutmut_39, _format_discord_payload__mutmut_50, _format_discord_payload__mutmut_51, _format_teams_payload__mutmut_19, _format_teams_payload__mutmut_20, _format_teams_payload__mutmut_25, _format_teams_payload__mutmut_26, _format_teams_payload__mutmut_27, _format_teams_payload__mutmut_28, _format_teams_payload__mutmut_29
+
+**C4-teams-protocol** (11): _format_teams_payload__mutmut_35, _format_teams_payload__mutmut_36, _format_teams_payload__mutmut_37, _format_teams_payload__mutmut_38, _format_teams_payload__mutmut_39, _format_teams_payload__mutmut_40, _format_teams_payload__mutmut_41, _format_teams_payload__mutmut_42, _format_teams_payload__mutmut_43, _format_teams_payload__mutmut_44, _format_teams_payload__mutmut_45
+
+**C5-fmt-caps** (2): _format_discord_payload__mutmut_54, _format_teams_payload__mutmut_58
+
+**C6-fmt-deaddefaults** (20): _format_discord_payload__mutmut_3, _format_discord_payload__mutmut_5, _format_discord_payload__mutmut_8, _format_discord_payload__mutmut_9, _format_discord_payload__mutmut_12, _format_discord_payload__mutmut_14, _format_discord_payload__mutmut_19, _format_discord_payload__mutmut_21, _format_slack_payload__mutmut_3, _format_slack_payload__mutmut_5, _format_slack_payload__mutmut_8, _format_slack_payload__mutmut_9, _format_slack_payload__mutmut_12, _format_slack_payload__mutmut_14, _format_teams_payload__mutmut_3, _format_teams_payload__mutmut_5, _format_teams_payload__mutmut_8, _format_teams_payload__mutmut_9, _format_teams_payload__mutmut_12, _format_teams_payload__mutmut_14
+
+**H1-health-stmt-none** (14): get_health_summary__mutmut_2, get_health_summary__mutmut_4, get_health_summary__mutmut_9, get_health_summary__mutmut_12, get_health_summary__mutmut_23, get_health_summary__mutmut_26, get_health_summary__mutmut_32, get_health_summary__mutmut_35, get_health_summary__mutmut_46, get_health_summary__mutmut_49, get_health_summary__mutmut_60, get_health_summary__mutmut_62, get_health_summary__mutmut_63, get_health_summary__mutmut_71
+
+**H2-health-enabled** (3): get_health_summary__mutmut_10, get_health_summary__mutmut_13, get_health_summary__mutmut_14
+
+**H3-health-cutoff** (2): get_health_summary__mutmut_19, get_health_summary__mutmut_21
+
+**H4-health-preds** (22): get_health_summary__mutmut_24, get_health_summary__mutmut_27, get_health_summary__mutmut_33, get_health_summary__mutmut_36, get_health_summary__mutmut_37, get_health_summary__mutmut_38, get_health_summary__mutmut_39, get_health_summary__mutmut_40, get_health_summary__mutmut_41, get_health_summary__mutmut_47, get_health_summary__mutmut_50, get_health_summary__mutmut_51, get_health_summary__mutmut_52, get_health_summary__mutmut_53, get_health_summary__mutmut_54, get_health_summary__mutmut_55, get_health_summary__mutmut_61, get_health_summary__mutmut_64, get_health_summary__mutmut_65, get_health_summary__mutmut_66, get_health_summary__mutmut_67, get_health_summary__mutmut_68
+
+**H5-or-zero-to-one** (6): get_deliveries__mutmut_9, get_health_summary__mutmut_7, get_health_summary__mutmut_17, get_health_summary__mutmut_30, get_health_summary__mutmut_44, get_health_summary__mutmut_58
+
+**H6-health-thresholds** (5): get_health_summary__mutmut_77, get_health_summary__mutmut_80, get_health_summary__mutmut_82, get_health_summary__mutmut_85, get_health_summary__mutmut_87
+
+**H7-health-avgguard** (1): get_health_summary__mutmut_107
+
+**D1-deliveries-query** (11): get_deliveries__mutmut_2, get_deliveries__mutmut_3, get_deliveries__mutmut_5, get_deliveries__mutmut_6, get_deliveries__mutmut_11, get_deliveries__mutmut_12, get_deliveries__mutmut_13, get_deliveries__mutmut_14, get_deliveries__mutmut_15, get_deliveries__mutmut_16, get_deliveries__mutmut_17
+
+**D2-getdelivery-query** (4): get_delivery__mutmut_2, get_delivery__mutmut_3, get_delivery__mutmut_4, get_delivery__mutmut_5
+
+**W1-list-query** (7): list_webhooks__mutmut_2, list_webhooks__mutmut_4, list_webhooks__mutmut_5, list_webhooks__mutmut_6, list_webhooks__mutmut_7, list_webhooks__mutmut_8, list_webhooks__mutmut_10
+
+**W2-delete-lookup** (1): delete_webhook__mutmut_3
+
+**W3-delete-log** (5): delete_webhook__mutmut_9, delete_webhook__mutmut_10, delete_webhook__mutmut_12, delete_webhook__mutmut_13, delete_webhook__mutmut_14

@@ -1,0 +1,13 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁmove_to_dlq__mutmut_27: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -36,8 +36,7 @@
+             self._dlq_key,
+             dlq_fields,
+             maxlen=self._maxlen,
+-            approximate=DEFAULT_STREAM_APPROXIMATE,
+-        )
++            )
+     )
+
+     # Acknowledge the original message

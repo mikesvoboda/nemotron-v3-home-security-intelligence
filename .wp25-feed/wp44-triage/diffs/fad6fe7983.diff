@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_149: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -100,7 +100,7 @@
+         if condition in ("foggy", "snowy"):
+             flags.append(
+                 {
+-                    "type": "weather_low_visibility",
++                    "type": "XXweather_low_visibilityXX",
+                     "description": f"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility",
+                     "severity": "info",
+                 }

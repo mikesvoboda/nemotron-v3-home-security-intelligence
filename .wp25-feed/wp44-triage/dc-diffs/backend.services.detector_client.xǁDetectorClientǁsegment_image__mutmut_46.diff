@@ -1,0 +1,11 @@
+# backend.services.detector_client.xǁDetectorClientǁsegment_image__mutmut_46: survived
+--- backend/services/detector_client.py
++++ backend/services/detector_client.py
+@@ -59,7 +59,6 @@
+                         files = {"file": (image_name, image_data, "image/jpeg")}
+                         response = await self._http_client.post(
+                             f"{self._detector_url}/segment",
+-                            files=files,
+                             headers=self._get_auth_headers(),
+                         )
+                         response.raise_for_status()

@@ -1,0 +1,542 @@
+=== x_create_websocket_broadcast_callback__mutmut_10
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_10() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"XXevent_typeXX": event_type, "job_id": data.get("data", {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_11
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_11() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"EVENT_TYPE": event_type, "job_id": data.get("data", {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_12
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_12() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "XXjob_idXX": data.get("data", {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_13
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_13() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "JOB_ID": data.get("data", {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_14
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_14() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("data", {}).get(None)},
+=== x_create_websocket_broadcast_callback__mutmut_15
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_15() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get(None, {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_16
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_16() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("data", None).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_18
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_18() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("data", ).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_19
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_19() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("XXdataXX", {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_2
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_2() -> BroadcastCallback:
+-        await broadcaster._send_to_local_clients(data)
++        await broadcaster._send_to_local_clients(None)
+=== x_create_websocket_broadcast_callback__mutmut_20
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_20() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("DATA", {}).get("job_id")},
+=== x_create_websocket_broadcast_callback__mutmut_21
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_21() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("data", {}).get("XXjob_idXX")},
+=== x_create_websocket_broadcast_callback__mutmut_22
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_22() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra={"event_type": event_type, "job_id": data.get("data", {}).get("JOB_ID")},
+=== x_create_websocket_broadcast_callback__mutmut_3
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_3() -> BroadcastCallback:
+-            "Broadcast job event via WebSocket",
++            None,
+=== x_create_websocket_broadcast_callback__mutmut_4
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_4() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
++            extra=None,
+=== x_create_websocket_broadcast_callback__mutmut_6
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_6() -> BroadcastCallback:
+-            extra={"event_type": event_type, "job_id": data.get("data", {}).get("job_id")},
+-        )
++            )
+=== x_create_websocket_broadcast_callback__mutmut_7
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_7() -> BroadcastCallback:
+-            "Broadcast job event via WebSocket",
++            "XXBroadcast job event via WebSocketXX",
+=== x_create_websocket_broadcast_callback__mutmut_8
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_8() -> BroadcastCallback:
+-            "Broadcast job event via WebSocket",
++            "broadcast job event via websocket",
+=== x_create_websocket_broadcast_callback__mutmut_9
+-def x_create_websocket_broadcast_callback__mutmut_orig() -> BroadcastCallback:
++def x_create_websocket_broadcast_callback__mutmut_9() -> BroadcastCallback:
+-            "Broadcast job event via WebSocket",
++            "BROADCAST JOB EVENT VIA WEBSOCKET",
+=== x_init_job_tracker_websocket__mutmut_10
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_10(redis_client: RedisClient | None = None) -> JobTracker:
+-    if redis_client is not None and tracker._redis_client is None:
++    if redis_client is not None or tracker._redis_client is None:
+=== x_init_job_tracker_websocket__mutmut_11
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_11(redis_client: RedisClient | None = None) -> JobTracker:
+-    if redis_client is not None and tracker._redis_client is None:
++    if redis_client is None and tracker._redis_client is None:
+=== x_init_job_tracker_websocket__mutmut_12
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_12(redis_client: RedisClient | None = None) -> JobTracker:
+-    if redis_client is not None and tracker._redis_client is None:
++    if redis_client is not None and tracker._redis_client is not None:
+=== x_init_job_tracker_websocket__mutmut_2
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_2(redis_client: RedisClient | None = None) -> JobTracker:
+-    tracker = get_job_tracker(redis_client=redis_client)
++    tracker = get_job_tracker(redis_client=None)
+=== x_init_job_tracker_websocket__mutmut_6
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_6(redis_client: RedisClient | None = None) -> JobTracker:
+-        logger.info("Job tracker initialized with WebSocket broadcasting")
++        logger.info(None)
+=== x_init_job_tracker_websocket__mutmut_7
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_7(redis_client: RedisClient | None = None) -> JobTracker:
+-        logger.info("Job tracker initialized with WebSocket broadcasting")
++        logger.info("XXJob tracker initialized with WebSocket broadcastingXX")
+=== x_init_job_tracker_websocket__mutmut_8
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_8(redis_client: RedisClient | None = None) -> JobTracker:
+-        logger.info("Job tracker initialized with WebSocket broadcasting")
++        logger.info("job tracker initialized with websocket broadcasting")
+=== x_init_job_tracker_websocket__mutmut_9
+-async def x_init_job_tracker_websocket__mutmut_orig(redis_client: RedisClient | None = None) -> JobTracker:
++async def x_init_job_tracker_websocket__mutmut_9(redis_client: RedisClient | None = None) -> JobTracker:
+-        logger.info("Job tracker initialized with WebSocket broadcasting")
++        logger.info("JOB TRACKER INITIALIZED WITH WEBSOCKET BROADCASTING")
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_11
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_11(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("Cleaned up completed jobs", )
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_12
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_12(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("XXCleaned up completed jobsXX", extra={"count": len(to_remove)})
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_13
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_13(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("cleaned up completed jobs", extra={"count": len(to_remove)})
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_14
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_14(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("CLEANED UP COMPLETED JOBS", extra={"count": len(to_remove)})
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_15
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_15(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("Cleaned up completed jobs", extra={"XXcountXX": len(to_remove)})
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_16
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_16(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("Cleaned up completed jobs", extra={"COUNT": len(to_remove)})
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_5
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_5(self) -> int:
+-            self._last_broadcast_progress.pop(job_id, None)
++            self._last_broadcast_progress.pop(None, None)
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_7
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_7(self) -> int:
+-            self._last_broadcast_progress.pop(job_id, None)
++            self._last_broadcast_progress.pop(job_id, )
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_8
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_8(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info(None, extra={"count": len(to_remove)})
+=== xǁJobTrackerǁcleanup_completed_jobs__mutmut_9
+-    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_orig(self) -> int:
++    def xǁJobTrackerǁcleanup_completed_jobs__mutmut_9(self) -> int:
+-            logger.info("Cleaned up completed jobs", extra={"count": len(to_remove)})
++            logger.info("Cleaned up completed jobs", extra=None)
+=== xǁJobTrackerǁget_job_from_redis__mutmut_12
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_12(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_13
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_13(self, job_id: str) -> JobInfo | None:
+-                    message=data.get("message"),
++                    message=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_14
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_14(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_15
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_15(self, job_id: str) -> JobInfo | None:
+-                    started_at=data.get("started_at"),
++                    started_at=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_16
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_16(self, job_id: str) -> JobInfo | None:
+-                    completed_at=data.get("completed_at"),
++                    completed_at=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_17
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_17(self, job_id: str) -> JobInfo | None:
+-                    result=data.get("result"),
++                    result=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_18
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_18(self, job_id: str) -> JobInfo | None:
+-                    error=data.get("error"),
++                    error=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_22
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_22(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_23
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_23(self, job_id: str) -> JobInfo | None:
+-                    message=data.get("message"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_24
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_24(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_25
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_25(self, job_id: str) -> JobInfo | None:
+-                    started_at=data.get("started_at"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_26
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_26(self, job_id: str) -> JobInfo | None:
+-                    completed_at=data.get("completed_at"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_27
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_27(self, job_id: str) -> JobInfo | None:
+-                    result=data.get("result"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_28
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_28(self, job_id: str) -> JobInfo | None:
+-                    error=data.get("error"),
+-                )
++                    )
+=== xǁJobTrackerǁget_job_from_redis__mutmut_29
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_29(self, job_id: str) -> JobInfo | None:
+-                    job_id=data.get("job_id", job_id),
++                    job_id=data.get(None, job_id),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_30
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_30(self, job_id: str) -> JobInfo | None:
+-                    job_id=data.get("job_id", job_id),
++                    job_id=data.get("job_id", None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_32
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_32(self, job_id: str) -> JobInfo | None:
+-                    job_id=data.get("job_id", job_id),
++                    job_id=data.get("job_id", ),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_33
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_33(self, job_id: str) -> JobInfo | None:
+-                    job_id=data.get("job_id", job_id),
++                    job_id=data.get("XXjob_idXX", job_id),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_34
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_34(self, job_id: str) -> JobInfo | None:
+-                    job_id=data.get("job_id", job_id),
++                    job_id=data.get("JOB_ID", job_id),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_36
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_36(self, job_id: str) -> JobInfo | None:
+-                    job_type=data.get("job_type", "unknown"),
++                    job_type=data.get("job_type", None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_38
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_38(self, job_id: str) -> JobInfo | None:
+-                    job_type=data.get("job_type", "unknown"),
++                    job_type=data.get("job_type", ),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_41
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_41(self, job_id: str) -> JobInfo | None:
+-                    job_type=data.get("job_type", "unknown"),
++                    job_type=data.get("job_type", "XXunknownXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_42
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_42(self, job_id: str) -> JobInfo | None:
+-                    job_type=data.get("job_type", "unknown"),
++                    job_type=data.get("job_type", "UNKNOWN"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_45
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_45(self, job_id: str) -> JobInfo | None:
+-                    status=JobStatus(data.get("status", "pending")),
++                    status=JobStatus(data.get("status", None)),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_47
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_47(self, job_id: str) -> JobInfo | None:
+-                    status=JobStatus(data.get("status", "pending")),
++                    status=JobStatus(data.get("status", )),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_50
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_50(self, job_id: str) -> JobInfo | None:
+-                    status=JobStatus(data.get("status", "pending")),
++                    status=JobStatus(data.get("status", "XXpendingXX")),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_51
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_51(self, job_id: str) -> JobInfo | None:
+-                    status=JobStatus(data.get("status", "pending")),
++                    status=JobStatus(data.get("status", "PENDING")),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_52
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_52(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get(None, 0),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_53
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_53(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get("progress", None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_54
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_54(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get(0),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_55
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_55(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get("progress", ),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_56
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_56(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get("XXprogressXX", 0),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_57
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_57(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get("PROGRESS", 0),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_58
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_58(self, job_id: str) -> JobInfo | None:
+-                    progress=data.get("progress", 0),
++                    progress=data.get("progress", 1),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_59
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_59(self, job_id: str) -> JobInfo | None:
+-                    message=data.get("message"),
++                    message=data.get(None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_60
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_60(self, job_id: str) -> JobInfo | None:
+-                    message=data.get("message"),
++                    message=data.get("XXmessageXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_61
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_61(self, job_id: str) -> JobInfo | None:
+-                    message=data.get("message"),
++                    message=data.get("MESSAGE"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_62
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_62(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get(None, ""),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_63
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_63(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get("created_at", None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_64
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_64(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get(""),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_65
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_65(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get("created_at", ),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_66
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_66(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get("XXcreated_atXX", ""),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_67
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_67(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get("CREATED_AT", ""),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_68
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_68(self, job_id: str) -> JobInfo | None:
+-                    created_at=data.get("created_at", ""),
++                    created_at=data.get("created_at", "XXXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_69
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_69(self, job_id: str) -> JobInfo | None:
+-                    started_at=data.get("started_at"),
++                    started_at=data.get(None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_7
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_7(self, job_id: str) -> JobInfo | None:
+-            if data is not None and isinstance(data, dict):
++            if data is not None or isinstance(data, dict):
+=== xǁJobTrackerǁget_job_from_redis__mutmut_70
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_70(self, job_id: str) -> JobInfo | None:
+-                    started_at=data.get("started_at"),
++                    started_at=data.get("XXstarted_atXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_71
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_71(self, job_id: str) -> JobInfo | None:
+-                    started_at=data.get("started_at"),
++                    started_at=data.get("STARTED_AT"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_72
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_72(self, job_id: str) -> JobInfo | None:
+-                    completed_at=data.get("completed_at"),
++                    completed_at=data.get(None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_73
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_73(self, job_id: str) -> JobInfo | None:
+-                    completed_at=data.get("completed_at"),
++                    completed_at=data.get("XXcompleted_atXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_74
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_74(self, job_id: str) -> JobInfo | None:
+-                    completed_at=data.get("completed_at"),
++                    completed_at=data.get("COMPLETED_AT"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_75
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_75(self, job_id: str) -> JobInfo | None:
+-                    result=data.get("result"),
++                    result=data.get(None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_76
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_76(self, job_id: str) -> JobInfo | None:
+-                    result=data.get("result"),
++                    result=data.get("XXresultXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_77
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_77(self, job_id: str) -> JobInfo | None:
+-                    result=data.get("result"),
++                    result=data.get("RESULT"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_78
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_78(self, job_id: str) -> JobInfo | None:
+-                    error=data.get("error"),
++                    error=data.get(None),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_79
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_79(self, job_id: str) -> JobInfo | None:
+-                    error=data.get("error"),
++                    error=data.get("XXerrorXX"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_80
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_80(self, job_id: str) -> JobInfo | None:
+-                    error=data.get("error"),
++                    error=data.get("ERROR"),
+=== xǁJobTrackerǁget_job_from_redis__mutmut_81
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_81(self, job_id: str) -> JobInfo | None:
+-                "Failed to get job from Redis",
++                None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_82
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_82(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
++                extra=None,
+=== xǁJobTrackerǁget_job_from_redis__mutmut_84
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_84(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
+-            )
++                )
+=== xǁJobTrackerǁget_job_from_redis__mutmut_85
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_85(self, job_id: str) -> JobInfo | None:
+-                "Failed to get job from Redis",
++                "XXFailed to get job from RedisXX",
+=== xǁJobTrackerǁget_job_from_redis__mutmut_86
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_86(self, job_id: str) -> JobInfo | None:
+-                "Failed to get job from Redis",
++                "failed to get job from redis",
+=== xǁJobTrackerǁget_job_from_redis__mutmut_87
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_87(self, job_id: str) -> JobInfo | None:
+-                "Failed to get job from Redis",
++                "FAILED TO GET JOB FROM REDIS",
+=== xǁJobTrackerǁget_job_from_redis__mutmut_88
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_88(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
++                extra={"XXjob_idXX": job_id, "error": str(e)},
+=== xǁJobTrackerǁget_job_from_redis__mutmut_89
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_89(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
++                extra={"JOB_ID": job_id, "error": str(e)},
+=== xǁJobTrackerǁget_job_from_redis__mutmut_90
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_90(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
++                extra={"job_id": job_id, "XXerrorXX": str(e)},
+=== xǁJobTrackerǁget_job_from_redis__mutmut_91
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_91(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
++                extra={"job_id": job_id, "ERROR": str(e)},
+=== xǁJobTrackerǁget_job_from_redis__mutmut_92
+-    async def xǁJobTrackerǁget_job_from_redis__mutmut_orig(self, job_id: str) -> JobInfo | None:
++    async def xǁJobTrackerǁget_job_from_redis__mutmut_92(self, job_id: str) -> JobInfo | None:
+-                extra={"job_id": job_id, "error": str(e)},
++                extra={"job_id": job_id, "error": str(None)},
+=== xǁJobTrackerǁset_redis_client__mutmut_2
+-    def xǁJobTrackerǁset_redis_client__mutmut_orig(self, redis_client: RedisClient) -> None:
++    def xǁJobTrackerǁset_redis_client__mutmut_2(self, redis_client: RedisClient) -> None:
+-        logger.info("Job tracker Redis client configured")
++        logger.info(None)
+=== xǁJobTrackerǁset_redis_client__mutmut_3
+-    def xǁJobTrackerǁset_redis_client__mutmut_orig(self, redis_client: RedisClient) -> None:
++    def xǁJobTrackerǁset_redis_client__mutmut_3(self, redis_client: RedisClient) -> None:
+-        logger.info("Job tracker Redis client configured")
++        logger.info("XXJob tracker Redis client configuredXX")
+=== xǁJobTrackerǁset_redis_client__mutmut_4
+-    def xǁJobTrackerǁset_redis_client__mutmut_orig(self, redis_client: RedisClient) -> None:
++    def xǁJobTrackerǁset_redis_client__mutmut_4(self, redis_client: RedisClient) -> None:
+-        logger.info("Job tracker Redis client configured")
++        logger.info("job tracker redis client configured")
+=== xǁJobTrackerǁset_redis_client__mutmut_5
+-    def xǁJobTrackerǁset_redis_client__mutmut_orig(self, redis_client: RedisClient) -> None:
++    def xǁJobTrackerǁset_redis_client__mutmut_5(self, redis_client: RedisClient) -> None:
+-        logger.info("Job tracker Redis client configured")
++        logger.info("JOB TRACKER REDIS CLIENT CONFIGURED")

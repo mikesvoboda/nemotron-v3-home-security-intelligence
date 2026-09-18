@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁAnalysisStreamServiceǁ_ensure_consumer_group__mutmut_4: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -14,7 +14,7 @@
+             await self._redis._client.xgroup_create(
+                 self._stream_key,
+                 self._consumer_group,
+-                id="0",
++                id=None,
+                 mkstream=True,
+             )
+             logger.info(

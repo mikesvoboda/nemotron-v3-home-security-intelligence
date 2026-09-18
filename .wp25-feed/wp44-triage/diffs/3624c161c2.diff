@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁto_dict__mutmut_86: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -71,7 +71,7 @@
+                 "similarity": match.similarity,
+                 "match_type": match.match_type,
+                 "member_role": getattr(match, "member_role", None),
+-                "schedule_status": getattr(match, "schedule_status", None),
++                "XXschedule_statusXX": getattr(match, "schedule_status", None),
+             }
+             for det_id, match in self.person_household_matches.items()
+         },

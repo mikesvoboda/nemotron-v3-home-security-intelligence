@@ -1,0 +1,13 @@
+KEY: backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entity_full_history__mutmut_8
+# backend.services.hybrid_entity_storage.xǁHybridEntityStorageǁget_entity_full_history__mutmut_8: survived
+--- backend/services/hybrid_entity_storage.py
++++ backend/services/hybrid_entity_storage.py
+@@ -25,8 +25,7 @@
+         logger.debug(
+             "Retrieved entity %s with %d detections",
+             entity_id,
+-            entity.detection_count,
+-        )
++            )
+     else:
+         logger.debug("Entity %s not found", entity_id)

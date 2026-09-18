@@ -1,0 +1,1598 @@
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_10
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_10: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -9,7 +9,7 @@
+     n = len(text)
+     while i < n:
+         if text[i] != "{":
+-            i += 1
++            i += 2
+             continue
+         depth = 0
+         in_string = False
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_11
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_11: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -10,7 +10,7 @@
+     while i < n:
+         if text[i] != "{":
+             i += 1
+-            continue
++            break
+         depth = 0
+         in_string = False
+         j = i
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_13
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_13: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -11,7 +11,7 @@
+         if text[i] != "{":
+             i += 1
+             continue
+-        depth = 0
++        depth = 1
+         in_string = False
+         j = i
+         found_end = False
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_14
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_14: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -12,7 +12,7 @@
+             i += 1
+             continue
+         depth = 0
+-        in_string = False
++        in_string = None
+         j = i
+         found_end = False
+         while j < n:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_15
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_15: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -12,7 +12,7 @@
+             i += 1
+             continue
+         depth = 0
+-        in_string = False
++        in_string = True
+         j = i
+         found_end = False
+         while j < n:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_17
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_17: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -14,7 +14,7 @@
+         depth = 0
+         in_string = False
+         j = i
+-        found_end = False
++        found_end = None
+         while j < n:
+             c = text[j]
+             if in_string:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_20
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_20: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -16,7 +16,7 @@
+         j = i
+         found_end = False
+         while j < n:
+-            c = text[j]
++            c = None
+             if in_string:
+                 if c == "\\" and j + 1 < n:
+                     j += 2
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_21
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_21: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+         while j < n:
+             c = text[j]
+             if in_string:
+-                if c == "\\" and j + 1 < n:
++                if c == "\\" or j + 1 < n:
+                     j += 2
+                     continue
+                 if c == '"':
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_22
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_22: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+         while j < n:
+             c = text[j]
+             if in_string:
+-                if c == "\\" and j + 1 < n:
++                if c != "\\" and j + 1 < n:
+                     j += 2
+                     continue
+                 if c == '"':
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_23
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_23: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+         while j < n:
+             c = text[j]
+             if in_string:
+-                if c == "\\" and j + 1 < n:
++                if c == "XX\\XX" and j + 1 < n:
+                     j += 2
+                     continue
+                 if c == '"':
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_24
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_24: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+         while j < n:
+             c = text[j]
+             if in_string:
+-                if c == "\\" and j + 1 < n:
++                if c == "\\" and j - 1 < n:
+                     j += 2
+                     continue
+                 if c == '"':
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_25
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_25: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+         while j < n:
+             c = text[j]
+             if in_string:
+-                if c == "\\" and j + 1 < n:
++                if c == "\\" and j + 2 < n:
+                     j += 2
+                     continue
+                 if c == '"':
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_26
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_26: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+         while j < n:
+             c = text[j]
+             if in_string:
+-                if c == "\\" and j + 1 < n:
++                if c == "\\" and j + 1 <= n:
+                     j += 2
+                     continue
+                 if c == '"':
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_27
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_27: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -21,7 +21,7 @@
+                 if c == "\\" and j + 1 < n:
+                     j += 2
+                     continue
+-                if c == '"':
++                if c != '"':
+                     in_string = False
+             elif c == '"':
+                 in_string = True
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_28
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_28: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -21,7 +21,7 @@
+                 if c == "\\" and j + 1 < n:
+                     j += 2
+                     continue
+-                if c == '"':
++                if c == 'XX"XX':
+                     in_string = False
+             elif c == '"':
+                 in_string = True
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_29
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_29: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -22,7 +22,7 @@
+                     j += 2
+                     continue
+                 if c == '"':
+-                    in_string = False
++                    in_string = None
+             elif c == '"':
+                 in_string = True
+             elif c == "{":
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_3
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_3: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -5,7 +5,7 @@
+     depth and correctly skips braces inside JSON string literals.
+     """
+     results: list[str] = []
+-    i = 0
++    i = 1
+     n = len(text)
+     while i < n:
+         if text[i] != "{":
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_30
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_30: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -22,7 +22,7 @@
+                     j += 2
+                     continue
+                 if c == '"':
+-                    in_string = False
++                    in_string = True
+             elif c == '"':
+                 in_string = True
+             elif c == "{":
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_31
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_31: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+                     continue
+                 if c == '"':
+                     in_string = False
+-            elif c == '"':
++            elif c != '"':
+                 in_string = True
+             elif c == "{":
+                 depth += 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_32
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_32: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+                     continue
+                 if c == '"':
+                     in_string = False
+-            elif c == '"':
++            elif c == 'XX"XX':
+                 in_string = True
+             elif c == "{":
+                 depth += 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_33
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_33: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -24,7 +24,7 @@
+                 if c == '"':
+                     in_string = False
+             elif c == '"':
+-                in_string = True
++                in_string = None
+             elif c == "{":
+                 depth += 1
+             elif c == "}":
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_34
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_34: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -24,7 +24,7 @@
+                 if c == '"':
+                     in_string = False
+             elif c == '"':
+-                in_string = True
++                in_string = False
+             elif c == "{":
+                 depth += 1
+             elif c == "}":
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_35
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_35: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -25,7 +25,7 @@
+                     in_string = False
+             elif c == '"':
+                 in_string = True
+-            elif c == "{":
++            elif c != "{":
+                 depth += 1
+             elif c == "}":
+                 depth -= 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_36
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_36: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -25,7 +25,7 @@
+                     in_string = False
+             elif c == '"':
+                 in_string = True
+-            elif c == "{":
++            elif c == "XX{XX":
+                 depth += 1
+             elif c == "}":
+                 depth -= 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_37
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_37: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+             elif c == '"':
+                 in_string = True
+             elif c == "{":
+-                depth += 1
++                depth = 1
+             elif c == "}":
+                 depth -= 1
+                 if depth == 0:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_38
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_38: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+             elif c == '"':
+                 in_string = True
+             elif c == "{":
+-                depth += 1
++                depth -= 1
+             elif c == "}":
+                 depth -= 1
+                 if depth == 0:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_39
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_39: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+             elif c == '"':
+                 in_string = True
+             elif c == "{":
+-                depth += 1
++                depth += 2
+             elif c == "}":
+                 depth -= 1
+                 if depth == 0:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_40
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_40: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -27,7 +27,7 @@
+                 in_string = True
+             elif c == "{":
+                 depth += 1
+-            elif c == "}":
++            elif c != "}":
+                 depth -= 1
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_41
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_41: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -27,7 +27,7 @@
+                 in_string = True
+             elif c == "{":
+                 depth += 1
+-            elif c == "}":
++            elif c == "XX}XX":
+                 depth -= 1
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_42
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_42: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -28,7 +28,7 @@
+             elif c == "{":
+                 depth += 1
+             elif c == "}":
+-                depth -= 1
++                depth = 1
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+                     found_end = True
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_43
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_43: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -28,7 +28,7 @@
+             elif c == "{":
+                 depth += 1
+             elif c == "}":
+-                depth -= 1
++                depth += 1
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+                     found_end = True
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_44
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_44: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -28,7 +28,7 @@
+             elif c == "{":
+                 depth += 1
+             elif c == "}":
+-                depth -= 1
++                depth -= 2
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+                     found_end = True
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_45
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_45: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -29,7 +29,7 @@
+                 depth += 1
+             elif c == "}":
+                 depth -= 1
+-                if depth == 0:
++                if depth != 0:
+                     results.append(text[i : j + 1])
+                     found_end = True
+                     i = j + 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_46
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_46: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -29,7 +29,7 @@
+                 depth += 1
+             elif c == "}":
+                 depth -= 1
+-                if depth == 0:
++                if depth == 1:
+                     results.append(text[i : j + 1])
+                     found_end = True
+                     i = j + 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_48
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_48: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -30,7 +30,7 @@
+             elif c == "}":
+                 depth -= 1
+                 if depth == 0:
+-                    results.append(text[i : j + 1])
++                    results.append(text[i : j - 1])
+                     found_end = True
+                     i = j + 1
+                     break
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_49
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_49: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -30,7 +30,7 @@
+             elif c == "}":
+                 depth -= 1
+                 if depth == 0:
+-                    results.append(text[i : j + 1])
++                    results.append(text[i : j + 2])
+                     found_end = True
+                     i = j + 1
+                     break
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_50
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_50: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -31,7 +31,7 @@
+                 depth -= 1
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+-                    found_end = True
++                    found_end = None
+                     i = j + 1
+                     break
+             j += 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_51
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_51: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -31,7 +31,7 @@
+                 depth -= 1
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+-                    found_end = True
++                    found_end = False
+                     i = j + 1
+                     break
+             j += 1
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_53
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_53: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -32,7 +32,7 @@
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+                     found_end = True
+-                    i = j + 1
++                    i = j - 1
+                     break
+             j += 1
+         if not found_end:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_54
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_54: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -32,7 +32,7 @@
+                 if depth == 0:
+                     results.append(text[i : j + 1])
+                     found_end = True
+-                    i = j + 1
++                    i = j + 2
+                     break
+             j += 1
+         if not found_end:
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_58
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_58: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -34,7 +34,7 @@
+                     found_end = True
+                     i = j + 1
+                     break
+-            j += 1
++            j += 2
+         if not found_end:
+             break
+     return results
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_6
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_6: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -8,7 +8,7 @@
+     i = 0
+     n = len(text)
+     while i < n:
+-        if text[i] != "{":
++        if text[i] == "{":
+             i += 1
+             continue
+         depth = 0
+@@@KEY: backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_7
+# backend.services.nemotron_analyzer.x__extract_json_objects__mutmut_7: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -8,7 +8,7 @@
+     i = 0
+     n = len(text)
+     while i < n:
+-        if text[i] != "{":
++        if text[i] != "XX{XX":
+             i += 1
+             continue
+         depth = 0
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_11
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_11: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,6 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_12
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_12: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -62,8 +62,7 @@
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+             extra={"batch_id": batch_id, "error": str(e)},
+-            exc_info=True,
+-        )
++            )
+         # Return a failed tracking result instead of None
+         return EnrichmentTrackingResult(
+             status=EnrichmentStatus.FAILED,
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_13
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_13: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -60,7 +60,7 @@
+
+     except Exception as e:
+         logger.warning(
+-            "Enrichment pipeline failed, continuing without enrichment",
++            "XXEnrichment pipeline failed, continuing without enrichmentXX",
+             extra={"batch_id": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_14
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_14: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -60,7 +60,7 @@
+
+     except Exception as e:
+         logger.warning(
+-            "Enrichment pipeline failed, continuing without enrichment",
++            "enrichment pipeline failed, continuing without enrichment",
+             extra={"batch_id": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_15
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_15: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -60,7 +60,7 @@
+
+     except Exception as e:
+         logger.warning(
+-            "Enrichment pipeline failed, continuing without enrichment",
++            "ENRICHMENT PIPELINE FAILED, CONTINUING WITHOUT ENRICHMENT",
+             extra={"batch_id": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_16
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_16: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,7 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
++            extra={"XXbatch_idXX": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_17
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_17: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,7 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
++            extra={"BATCH_ID": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_18
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_18: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,7 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
++            extra={"batch_id": batch_id, "XXerrorXX": str(e)},
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_19
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_19: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,7 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
++            extra={"batch_id": batch_id, "ERROR": str(e)},
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_20
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_20: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,7 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
++            extra={"batch_id": batch_id, "error": str(None)},
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_21
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_21: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -62,7 +62,7 @@
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+             extra={"batch_id": batch_id, "error": str(e)},
+-            exc_info=True,
++            exc_info=False,
+         )
+         # Return a failed tracking result instead of None
+         return EnrichmentTrackingResult(
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_23
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_23: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -67,7 +67,7 @@
+         # Return a failed tracking result instead of None
+         return EnrichmentTrackingResult(
+             status=EnrichmentStatus.FAILED,
+-            successful_models=[],
++            successful_models=None,
+             failed_models=["all"],
+             errors={"all": str(e)},
+             data=None,
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_27
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_27: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -67,7 +67,6 @@
+         # Return a failed tracking result instead of None
+         return EnrichmentTrackingResult(
+             status=EnrichmentStatus.FAILED,
+-            successful_models=[],
+             failed_models=["all"],
+             errors={"all": str(e)},
+             data=None,
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_3
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_3: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+         return None
+
+     try:
+-        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
++        tracking_result = await self._run_enrichment_pipeline(None, camera_id=camera_id)
+
+         if tracking_result:
+             # Log partial failures if any models failed
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_30
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_30: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -70,5 +70,4 @@
+             successful_models=[],
+             failed_models=["all"],
+             errors={"all": str(e)},
+-            data=None,
+-        )
++            )
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_4
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_4: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+         return None
+
+     try:
+-        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
++        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=None)
+
+         if tracking_result:
+             # Log partial failures if any models failed
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_5
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_5: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+         return None
+
+     try:
+-        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
++        tracking_result = await self._run_enrichment_pipeline(camera_id=camera_id)
+
+         if tracking_result:
+             # Log partial failures if any models failed
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_6
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_6: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+         return None
+
+     try:
+-        tracking_result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
++        tracking_result = await self._run_enrichment_pipeline(detections, )
+
+         if tracking_result:
+             # Log partial failures if any models failed
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_7
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_7: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -60,7 +60,7 @@
+
+     except Exception as e:
+         logger.warning(
+-            "Enrichment pipeline failed, continuing without enrichment",
++            None,
+             extra={"batch_id": batch_id, "error": str(e)},
+             exc_info=True,
+         )
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_8
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_8: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -61,7 +61,7 @@
+     except Exception as e:
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+-            extra={"batch_id": batch_id, "error": str(e)},
++            extra=None,
+             exc_info=True,
+         )
+         # Return a failed tracking result instead of None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_9
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁ_get_enrichment_result__mutmut_9: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -62,7 +62,7 @@
+         logger.warning(
+             "Enrichment pipeline failed, continuing without enrichment",
+             extra={"batch_id": batch_id, "error": str(e)},
+-            exc_info=True,
++            exc_info=None,
+         )
+         # Return a failed tracking result instead of None
+         return EnrichmentTrackingResult(
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_1
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_1: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -22,7 +22,7 @@
+     )
+
+     async for update in streaming_analyze(
+-        analyzer=self,
++        analyzer=None,
+         batch_id=batch_id,
+         camera_id=camera_id,
+         detection_ids=detection_ids,
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_2
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_2: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     async for update in streaming_analyze(
+         analyzer=self,
+-        batch_id=batch_id,
++        batch_id=None,
+         camera_id=camera_id,
+         detection_ids=detection_ids,
+     ):
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_3
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_3: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -24,7 +24,7 @@
+     async for update in streaming_analyze(
+         analyzer=self,
+         batch_id=batch_id,
+-        camera_id=camera_id,
++        camera_id=None,
+         detection_ids=detection_ids,
+     ):
+         yield update
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_4
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_4: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -25,6 +25,6 @@
+         analyzer=self,
+         batch_id=batch_id,
+         camera_id=camera_id,
+-        detection_ids=detection_ids,
++        detection_ids=None,
+     ):
+         yield update
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_7
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_7: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -24,7 +24,6 @@
+     async for update in streaming_analyze(
+         analyzer=self,
+         batch_id=batch_id,
+-        camera_id=camera_id,
+         detection_ids=detection_ids,
+     ):
+         yield update
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_8
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch_streaming__mutmut_8: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -25,6 +25,5 @@
+         analyzer=self,
+         batch_id=batch_id,
+         camera_id=camera_id,
+-        detection_ids=detection_ids,
+-    ):
++        ):
+         yield update
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_16
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_16: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -19,7 +19,7 @@
+         }
+
+     seconds_ago = time.monotonic() - self._last_inference_time
+-    is_cold = seconds_ago > self._cold_start_threshold
++    is_cold = None
+     return {
+         "state": "cold" if is_cold else "warm",
+         "last_inference_seconds_ago": seconds_ago,
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_17
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_17: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -19,7 +19,7 @@
+         }
+
+     seconds_ago = time.monotonic() - self._last_inference_time
+-    is_cold = seconds_ago > self._cold_start_threshold
++    is_cold = seconds_ago >= self._cold_start_threshold
+     return {
+         "state": "cold" if is_cold else "warm",
+         "last_inference_seconds_ago": seconds_ago,
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_20
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_20: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -21,6 +21,6 @@
+     seconds_ago = time.monotonic() - self._last_inference_time
+     is_cold = seconds_ago > self._cold_start_threshold
+     return {
+-        "state": "cold" if is_cold else "warm",
++        "state": "cold" if (is_cold) and False else "warm",
+         "last_inference_seconds_ago": seconds_ago,
+     }
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_22
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_22: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -21,6 +21,6 @@
+     seconds_ago = time.monotonic() - self._last_inference_time
+     is_cold = seconds_ago > self._cold_start_threshold
+     return {
+-        "state": "cold" if is_cold else "warm",
++        "state": "XXcoldXX" if is_cold else "warm",
+         "last_inference_seconds_ago": seconds_ago,
+     }
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_23
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁget_warmth_state__mutmut_23: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -21,6 +21,6 @@
+     seconds_ago = time.monotonic() - self._last_inference_time
+     is_cold = seconds_ago > self._cold_start_threshold
+     return {
+-        "state": "cold" if is_cold else "warm",
++        "state": "COLD" if is_cold else "warm",
+         "last_inference_seconds_ago": seconds_ago,
+     }
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁrecord_rollout_feedback__mutmut_3
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁrecord_rollout_feedback__mutmut_3: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -16,7 +16,7 @@
+
+     from backend.config.prompt_ab_rollout import ExperimentGroup
+
+-    group = self._rollout_manager.get_group_for_camera(camera_id)
++    group = self._rollout_manager.get_group_for_camera(None)
+     if group == ExperimentGroup.CONTROL:
+         self._rollout_manager.record_control_feedback(is_false_positive)
+     else:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_10
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_10: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     was_cold = self.is_cold()
+     self._is_warming = True
+-    set_model_warmth_state("nemotron", "warming")
++    set_model_warmth_state(None, "warming")
+
+     try:
+         logger.info("Starting Nemotron model warmup...")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_11
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_11: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     was_cold = self.is_cold()
+     self._is_warming = True
+-    set_model_warmth_state("nemotron", "warming")
++    set_model_warmth_state("nemotron", None)
+
+     try:
+         logger.info("Starting Nemotron model warmup...")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_14
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_14: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     was_cold = self.is_cold()
+     self._is_warming = True
+-    set_model_warmth_state("nemotron", "warming")
++    set_model_warmth_state("XXnemotronXX", "warming")
+
+     try:
+         logger.info("Starting Nemotron model warmup...")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_15
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_15: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     was_cold = self.is_cold()
+     self._is_warming = True
+-    set_model_warmth_state("nemotron", "warming")
++    set_model_warmth_state("NEMOTRON", "warming")
+
+     try:
+         logger.info("Starting Nemotron model warmup...")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_16
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_16: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     was_cold = self.is_cold()
+     self._is_warming = True
+-    set_model_warmth_state("nemotron", "warming")
++    set_model_warmth_state("nemotron", "XXwarmingXX")
+
+     try:
+         logger.info("Starting Nemotron model warmup...")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_17
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_17: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -23,7 +23,7 @@
+
+     was_cold = self.is_cold()
+     self._is_warming = True
+-    set_model_warmth_state("nemotron", "warming")
++    set_model_warmth_state("nemotron", "WARMING")
+
+     try:
+         logger.info("Starting Nemotron model warmup...")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_18
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_18: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+     set_model_warmth_state("nemotron", "warming")
+
+     try:
+-        logger.info("Starting Nemotron model warmup...")
++        logger.info(None)
+         start_time = time.monotonic()
+
+         result = await self.model_readiness_probe()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_19
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_19: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+     set_model_warmth_state("nemotron", "warming")
+
+     try:
+-        logger.info("Starting Nemotron model warmup...")
++        logger.info("XXStarting Nemotron model warmup...XX")
+         start_time = time.monotonic()
+
+         result = await self.model_readiness_probe()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_2
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_2: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+     )
+
+     if not self._warmup_enabled:
+-        logger.debug("Nemotron warmup disabled by configuration")
++        logger.debug(None)
+         return True
+
+     was_cold = self.is_cold()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_20
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_20: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+     set_model_warmth_state("nemotron", "warming")
+
+     try:
+-        logger.info("Starting Nemotron model warmup...")
++        logger.info("starting nemotron model warmup...")
+         start_time = time.monotonic()
+
+         result = await self.model_readiness_probe()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_21
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_21: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -26,7 +26,7 @@
+     set_model_warmth_state("nemotron", "warming")
+
+     try:
+-        logger.info("Starting Nemotron model warmup...")
++        logger.info("STARTING NEMOTRON MODEL WARMUP...")
+         start_time = time.monotonic()
+
+         result = await self.model_readiness_probe()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_25
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_25: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -31,7 +31,7 @@
+
+         result = await self.model_readiness_probe()
+
+-        duration = time.monotonic() - start_time
++        duration = time.monotonic() + start_time
+         observe_model_warmup_duration("nemotron", duration)
+
+         if result:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_26
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_26: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -32,7 +32,7 @@
+         result = await self.model_readiness_probe()
+
+         duration = time.monotonic() - start_time
+-        observe_model_warmup_duration("nemotron", duration)
++        observe_model_warmup_duration(None, duration)
+
+         if result:
+             self._track_inference()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_3
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_3: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+     )
+
+     if not self._warmup_enabled:
+-        logger.debug("Nemotron warmup disabled by configuration")
++        logger.debug("XXNemotron warmup disabled by configurationXX")
+         return True
+
+     was_cold = self.is_cold()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_30
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_30: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -32,7 +32,7 @@
+         result = await self.model_readiness_probe()
+
+         duration = time.monotonic() - start_time
+-        observe_model_warmup_duration("nemotron", duration)
++        observe_model_warmup_duration("XXnemotronXX", duration)
+
+         if result:
+             self._track_inference()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_31
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_31: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -32,7 +32,7 @@
+         result = await self.model_readiness_probe()
+
+         duration = time.monotonic() - start_time
+-        observe_model_warmup_duration("nemotron", duration)
++        observe_model_warmup_duration("NEMOTRON", duration)
+
+         if result:
+             self._track_inference()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_32
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_32: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -37,7 +37,7 @@
+         if result:
+             self._track_inference()
+             if was_cold:
+-                record_model_cold_start("nemotron")
++                record_model_cold_start(None)
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_33
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_33: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -37,7 +37,7 @@
+         if result:
+             self._track_inference()
+             if was_cold:
+-                record_model_cold_start("nemotron")
++                record_model_cold_start("XXnemotronXX")
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_34
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_34: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -37,7 +37,7 @@
+         if result:
+             self._track_inference()
+             if was_cold:
+-                record_model_cold_start("nemotron")
++                record_model_cold_start("NEMOTRON")
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_35
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_35: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -38,7 +38,7 @@
+             self._track_inference()
+             if was_cold:
+                 record_model_cold_start("nemotron")
+-            set_model_warmth_state("nemotron", "warm")
++            set_model_warmth_state(None, "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+                 extra={"duration": duration, "was_cold": was_cold},
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_36
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_36: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -38,7 +38,7 @@
+             self._track_inference()
+             if was_cold:
+                 record_model_cold_start("nemotron")
+-            set_model_warmth_state("nemotron", "warm")
++            set_model_warmth_state("nemotron", None)
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+                 extra={"duration": duration, "was_cold": was_cold},
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_39
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_39: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -38,7 +38,7 @@
+             self._track_inference()
+             if was_cold:
+                 record_model_cold_start("nemotron")
+-            set_model_warmth_state("nemotron", "warm")
++            set_model_warmth_state("XXnemotronXX", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+                 extra={"duration": duration, "was_cold": was_cold},
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_4
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_4: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+     )
+
+     if not self._warmup_enabled:
+-        logger.debug("Nemotron warmup disabled by configuration")
++        logger.debug("nemotron warmup disabled by configuration")
+         return True
+
+     was_cold = self.is_cold()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_40
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_40: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -38,7 +38,7 @@
+             self._track_inference()
+             if was_cold:
+                 record_model_cold_start("nemotron")
+-            set_model_warmth_state("nemotron", "warm")
++            set_model_warmth_state("NEMOTRON", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+                 extra={"duration": duration, "was_cold": was_cold},
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_41
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_41: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -38,7 +38,7 @@
+             self._track_inference()
+             if was_cold:
+                 record_model_cold_start("nemotron")
+-            set_model_warmth_state("nemotron", "warm")
++            set_model_warmth_state("nemotron", "XXwarmXX")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+                 extra={"duration": duration, "was_cold": was_cold},
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_42
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_42: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -38,7 +38,7 @@
+             self._track_inference()
+             if was_cold:
+                 record_model_cold_start("nemotron")
+-            set_model_warmth_state("nemotron", "warm")
++            set_model_warmth_state("nemotron", "WARM")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+                 extra={"duration": duration, "was_cold": was_cold},
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_43
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_43: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -40,7 +40,7 @@
+                 record_model_cold_start("nemotron")
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+-                f"Nemotron warmup completed in {duration:.2f}s",
++                None,
+                 extra={"duration": duration, "was_cold": was_cold},
+             )
+             return True
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_44
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_44: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -41,7 +41,7 @@
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+-                extra={"duration": duration, "was_cold": was_cold},
++                extra=None,
+             )
+             return True
+         else:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_46
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_46: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -41,8 +41,7 @@
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+-                extra={"duration": duration, "was_cold": was_cold},
+-            )
++                )
+             return True
+         else:
+             set_model_warmth_state("nemotron", "cold")
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_47
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_47: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -41,7 +41,7 @@
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+-                extra={"duration": duration, "was_cold": was_cold},
++                extra={"XXdurationXX": duration, "was_cold": was_cold},
+             )
+             return True
+         else:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_48
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_48: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -41,7 +41,7 @@
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+-                extra={"duration": duration, "was_cold": was_cold},
++                extra={"DURATION": duration, "was_cold": was_cold},
+             )
+             return True
+         else:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_49
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_49: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -41,7 +41,7 @@
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+-                extra={"duration": duration, "was_cold": was_cold},
++                extra={"duration": duration, "XXwas_coldXX": was_cold},
+             )
+             return True
+         else:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_5
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_5: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -18,7 +18,7 @@
+     )
+
+     if not self._warmup_enabled:
+-        logger.debug("Nemotron warmup disabled by configuration")
++        logger.debug("NEMOTRON WARMUP DISABLED BY CONFIGURATION")
+         return True
+
+     was_cold = self.is_cold()
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_50
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_50: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -41,7 +41,7 @@
+             set_model_warmth_state("nemotron", "warm")
+             logger.info(
+                 f"Nemotron warmup completed in {duration:.2f}s",
+-                extra={"duration": duration, "was_cold": was_cold},
++                extra={"duration": duration, "WAS_COLD": was_cold},
+             )
+             return True
+         else:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_52
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_52: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("nemotron", "cold")
++            set_model_warmth_state(None, "cold")
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_53
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_53: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("nemotron", "cold")
++            set_model_warmth_state("nemotron", None)
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_56
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_56: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("nemotron", "cold")
++            set_model_warmth_state("XXnemotronXX", "cold")
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_57
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_57: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("nemotron", "cold")
++            set_model_warmth_state("NEMOTRON", "cold")
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_58
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_58: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("nemotron", "cold")
++            set_model_warmth_state("nemotron", "XXcoldXX")
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_59
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_59: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -45,7 +45,7 @@
+             )
+             return True
+         else:
+-            set_model_warmth_state("nemotron", "cold")
++            set_model_warmth_state("nemotron", "COLD")
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_60
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_60: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -46,7 +46,7 @@
+             return True
+         else:
+             set_model_warmth_state("nemotron", "cold")
+-            logger.warning("Nemotron warmup failed - model not ready")
++            logger.warning(None)
+             return False
+     finally:
+         self._is_warming = False
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_61
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_61: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -46,7 +46,7 @@
+             return True
+         else:
+             set_model_warmth_state("nemotron", "cold")
+-            logger.warning("Nemotron warmup failed - model not ready")
++            logger.warning("XXNemotron warmup failed - model not readyXX")
+             return False
+     finally:
+         self._is_warming = False
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_62
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_62: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -46,7 +46,7 @@
+             return True
+         else:
+             set_model_warmth_state("nemotron", "cold")
+-            logger.warning("Nemotron warmup failed - model not ready")
++            logger.warning("nemotron warmup failed - model not ready")
+             return False
+     finally:
+         self._is_warming = False
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_63
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_63: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -46,7 +46,7 @@
+             return True
+         else:
+             set_model_warmth_state("nemotron", "cold")
+-            logger.warning("Nemotron warmup failed - model not ready")
++            logger.warning("NEMOTRON WARMUP FAILED - MODEL NOT READY")
+             return False
+     finally:
+         self._is_warming = False
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_65
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_65: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -49,4 +49,4 @@
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+-        self._is_warming = False
++        self._is_warming = None
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_66
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_66: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -49,4 +49,4 @@
+             logger.warning("Nemotron warmup failed - model not ready")
+             return False
+     finally:
+-        self._is_warming = False
++        self._is_warming = True
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_7
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_7: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -21,7 +21,7 @@
+         logger.debug("Nemotron warmup disabled by configuration")
+         return True
+
+-    was_cold = self.is_cold()
++    was_cold = None
+     self._is_warming = True
+     set_model_warmth_state("nemotron", "warming")
+
+@@@KEY: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_8
+# backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁwarmup__mutmut_8: survived
+--- backend/services/nemotron_analyzer.py
++++ backend/services/nemotron_analyzer.py
+@@ -22,7 +22,7 @@
+         return True
+
+     was_cold = self.is_cold()
+-    self._is_warming = True
++    self._is_warming = None
+     set_model_warmth_state("nemotron", "warming")
+
+     try:

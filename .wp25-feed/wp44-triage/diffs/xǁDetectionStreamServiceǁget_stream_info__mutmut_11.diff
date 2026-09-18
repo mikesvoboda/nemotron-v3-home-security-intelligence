@@ -1,0 +1,12 @@
+# backend.services.redis_streams.xǁDetectionStreamServiceǁget_stream_info__mutmut_11: survived
+--- backend/services/redis_streams.py
++++ backend/services/redis_streams.py
+@@ -19,7 +19,7 @@
+     try:
+         info = await self._redis._client.xinfo_stream(self._stream_key)
+         return {
+-            "length": info.get("length", 0),
++            "length": info.get("length", None),
+             "radix_tree_keys": info.get("radix-tree-keys", 0),
+             "radix_tree_nodes": info.get("radix-tree-nodes", 0),
+             "groups": info.get("groups", 0),

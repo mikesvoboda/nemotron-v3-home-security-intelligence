@@ -1,0 +1,12 @@
+# backend.services.enrichment_pipeline.xǁEnrichmentResultǁget_summary_flags__mutmut_69: survived
+--- backend/services/enrichment_pipeline.py
++++ backend/services/enrichment_pipeline.py
+@@ -64,7 +64,7 @@
+         )
+
+     # Suspicious pose flags
+-    suspicious_poses = {"crouching", "running", "lying"}
++    suspicious_poses = {"crouching", "running", "XXlyingXX"}
+     for det_id, pose in self.pose_results.items():
+         if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:
+             flags.append(
