@@ -19,7 +19,9 @@ from the arbiter /tmp/wp25/final-score.json.
 """
 
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -72,9 +74,17 @@ def main() -> None:
 
     while queue or procs:
         if PAUSE.exists():
-            print("PAUSED (pause file present); terminating workers", flush=True)
+            print("PAUSED (pause file present); killing worker process groups", flush=True)
+            # workers spawn pytest children; terminate() alone reparents them to
+            # init and they keep burning CPU (observed: 23 xdist strays survived
+            # a pause and contended validate.sh). Workers start their own
+            # session (start_new_session below) -> killpg reaches the whole tree.
+
             for _, (p, _) in procs.items():
-                p.terminate()
+                try:
+                    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                except ProcessLookupError, PermissionError:
+                    p.terminate()
             for _, (p, _) in procs.items():
                 p.wait()
             procs.clear()
@@ -101,6 +111,7 @@ def main() -> None:
                 cwd=REPO,
                 stdout=logf,
                 stderr=subprocess.STDOUT,
+                start_new_session=True,  # own process group so PAUSE killpg is total
             )
             procs[mod] = (p, out)
             print(f"START {mod} -> {tf} ({out.name})", flush=True)
