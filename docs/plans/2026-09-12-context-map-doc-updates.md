@@ -6350,3 +6350,83 @@ gen-ai-contract --check green.
 feat/wp7-ai-contract; ci.yml triggers only on main). The draft PR for the
 phase was opened at WP8.1 commit time (PRs need >=1 commit; the plan's
 "at START of each phase" is honored to the first landable commit).
+
+## WP8.2 LANDED `48dd01c5` — deterministic FakeProvider: 38 ops, schema-driven, byte-identical (2026-09-19)
+
+Plan P WP8.2 on feat/wp8-ai-protocol. The plan's Done-when — "two
+identical requests to the FakeProvider produce byte-identical responses" —
+is asserted literally (`r1.content == r2.content`, all 38 ops, not
+equal-JSON), and the mechanism makes it structural: every response is
+`create_response_bytes(value generated from sha256(op_id|path|profile))`
+through ONE `sort_keys` serializer. No wall-clock, no `id()`, no set
+iteration, no global counter — there is no channel for a difference to
+enter. Digest stability across app rebuilds is also pinned (a hash-seeded
+dict order under pytest-randomly would leak through otherwise).
+
+**Design choices worth remembering:**
+
+- Routes are mounted FROM the generated registry (`app.add_route(op.path,
+…, methods=[op.method])` per `OPERATIONS` entry): a registry rename
+  moves the fake's surface with it — the fake cannot drift to a surface
+  that no longer exists. 31 ops are WALKED from their committed WP7.2
+  JSON-Schema snapshots (the snapshot IS the generator input — schema-driven
+  literally); every generated value from either path is then
+  jsonschema-validated against its snapshot, so the fake cannot violate the
+  contract without reddening the suite.
+- The 7 GEN_GAPS ops (3 bare-`dict` yolo26 routes + the 4 heavy-server ops)
+  were closed IN THE GENERATOR, never by hand-editing snapshots: the
+  bare-dict routes get a truthful `additionalProperties: true` snapshot
+  annotated `x-deployed-keys` with the WP7.4-pinned shape; the heavy-server
+  ops get `server_model_schema()`, which AST-extracts the pydantic class
+  text from `ai/enrichment/model.py` and execs it in a BaseModel-only
+  namespace (same family as the LLM ops' transcribed schemas for
+  un-importable `model_hf.py`). All 38 ops now have committed response
+  snapshots (was 31/38). The walker output for a bare dict would be
+  `{"alpha", "bravo"}` filler, so these 7 route to literal
+  deployed-shape generators instead — validated the same way.
+- Vocabulary as DATA + AST mirror: the fake carries the 9
+  `SECURITY_CLASSES` and the 80-name gateway table as literals (the
+  no-`ai.*`-at-runtime package rule forbids importing the sources), and
+  the suite AST-pins both copies against `ai/yolo26/model.py` and
+  `ai/gateway/adapters/yolo26.py` — a rename upstream reddens HERE, not
+  silently in a fake. The plan text's "81" resolves: 80-name adapter table
+  - the adapter's synthetic `class_{id}` fallback (adapters/yolo26.py:186).
+    The fake mirrors the adapter exactly.
+- Profiles: DEFAULT "gateway" — the DEPLOYED provider is the UNFILTERED
+  adapter (WP7.3 Tier A) — and `X-Fake-Profile: security` switches to the
+  filtered 9. `/fake/profiles/classes` exposes both tables as data so
+  WP8.3's conformance assertions need no import of the fake's consts. The
+  divergence (9 vs 80) is the point; the fake expresses both.
+- `fake_provider_ops()` satisfies the WP8.1 Protocol through
+  `register_provider(ProviderId.FAKE, …)` — the SAME conformance
+  mechanism every live provider passes; each callable drives its own route
+  through `httpx.ASGITransport` (in-process, no socket, no respx — the
+  fake IS the app).
+
+**MEASURE:** 89 fake tests; contracts+generator 311 passed (default
+addopts, pytest-randomly active, 5s timeout); full fake pass 38/38 ops in
+0.074s vs the 5s per-test budget (the budget is asserted in
+`test_wp82_wall_clock_budget`, printed as `WP8.2 MEASURE`); +7 response
+snapshots, +1 request snapshot (`object_distance`, `minItems=4` — the
+golden emitter's array branch was fixed to honor `minItems`), +16 golden
+snapshot/example pairs; generator `--check` green, 134 files.
+
+**Hook traps recorded:** semgrep `dangerous-eval` fired on the generator's
+`exec()` — the WORKING suppression is a bare `# nosemgrep: dangerous-eval`
+on the flagged line (a trailing ` - reason` after the id does NOT
+suppress; the reason belongs in a preceding comment). And
+conventional-pre-commit rejects a body file with no subject line — always
+include the `feat(scope): …` header in `-F` bodies.
+
+**Environment incidents this window (PARK notes, not fixes):**
+(a) killed `uv run` tiers leave orphaned pytest trees that contended and
+OOM-killed each other (dmesg: xdist worker at ~84GB anon-rss) — a future
+WP could bound tier memory or kill orphans; PARKED. (b) A tier killed
+mid-uv-sync destroyed `.venv` (host-interpreter symlink; virtiofs
+`unlink` races blocked the rebuild until `.venv/CACHEDIR.TAG` was
+pre-created). A PATH-first shim at `~/.local/bin/uv` now forces
+`--no-sync` on `uv run` so tier runs never touch `.venv` again. (c) The
+pre-push Fast Tier selects WORKING-TREE paths, including untracked red
+test files — never push while any selectable test is red; commit green
+first. (d) The Fast Tier budget is 900s and concurrent tier runs all
+blow it — push SOLO, `ps`-verify no orphan pytest first.
