@@ -1269,3 +1269,17 @@ scene_change_service(33), entities(28), go2rtc_client(27),
 service_provider_matcher(26), job_state_service(16), prompt_auto_tuner(16),
 event_service(7). All drafts UNVERIFIED until authored + green-under-original
 + strict census re-probe (lane currently busy with routes/system 638).
+
+## WAVE 65 KILL FOLD 2026-09-19 (all 8 dossier modules drafted→proved→committed)
+
+Batch commits on feat/wp44-closeout (STRICT censuses, records in
+.wp25-feed/wp44-kills/): job_state 16/42 → 121/147; entities 29/39 → 120/130;
+scene_change 37/39 → 86/88; matcher 26/39 → 113/126; tuner 16/38 → 95/117;
+go2rtc 30/40(v2) → 91/101; media 33/41(v2) → 210/218; evs 27/42(v2) → 87/102.
+Plus routes/system wave-2 payload-contract batch: 210/503 open → 1606/1899
+(84.6%). Every residual classified in its record (EQUIVALENT/LOW-VALUE,
+diff-verified). Draft-omission v1→v2 fixes: go2rtc unregister_9, media serve_4,
+evs hard/restore fetch + soft_21 (see records' census notes; v1 JSONLs under
+/tmp/wp25/wp44-kills/pre-*/). L entry: "WP4.4 RECORD 2026-09-19 — wave-65
+closeout". Next: dispatch the next 8-module dossier wave (~33 band modules
+remain untouched).

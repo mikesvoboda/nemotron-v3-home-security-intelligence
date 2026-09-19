@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_16: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -23,7 +23,7 @@
+         raise HTTPException(
+             status_code=status.HTTP_404_NOT_FOUND,
+             detail=MediaErrorResponse(
+-                error="Detection not found",
++                error="XXDetection not foundXX",
+                 path=f"detections/{detection_id}",
+             ).model_dump(),
+         )

@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_41: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -42,7 +42,7 @@
+     # Resolve paths
+     settings = get_settings()
+     base_path = Path(settings.foscam_base_path)
+-    data_path = Path(__file__).parent.parent.parent.parent / "data" / "cameras"
++    data_path = Path(__file__).parent.parent.parent.parent / "data" / "XXcamerasXX"
+ 
+     # Try alternate path first (NEM-2662) for host-to-container path translation
+     # This handles cases where file_path uses host paths like /export/foscam/...

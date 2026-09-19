@@ -1,0 +1,9 @@
+# backend.services.auth_service.x_hash_api_key__mutmut_4: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -12,4 +12,4 @@
+     Returns:
+         SHA256 hex digest of the API key.
+     """
+-    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
++    return hashlib.sha256(api_key.encode("UTF-8")).hexdigest()

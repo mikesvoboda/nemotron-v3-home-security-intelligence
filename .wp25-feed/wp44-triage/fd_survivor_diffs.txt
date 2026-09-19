@@ -1,0 +1,647 @@
+==== backend.services.face_detector.x__crop_bbox_with_padding__mutmut_14
+# backend.services.face_detector.x__crop_bbox_with_padding__mutmut_14: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -20,7 +20,7 @@
+     pad_w = int(w * padding)
+     pad_h = int(h * padding)
+ 
+-    x1 = max(0, x - pad_w)
++    x1 = max(1, x - pad_w)
+     y1 = max(0, y - pad_h)
+     x2 = min(img_w, x + w + pad_w)
+     y2 = min(img_h, y + h + pad_h)
+==== backend.services.face_detector.x__crop_bbox_with_padding__mutmut_21
+# backend.services.face_detector.x__crop_bbox_with_padding__mutmut_21: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -21,7 +21,7 @@
+     pad_h = int(h * padding)
+ 
+     x1 = max(0, x - pad_w)
+-    y1 = max(0, y - pad_h)
++    y1 = max(1, y - pad_h)
+     x2 = min(img_w, x + w + pad_w)
+     y2 = min(img_h, y + h + pad_h)
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_6
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_6: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -22,7 +22,7 @@
+     img_w, img_h = image_size
+ 
+     # Calculate the actual crop region (with padding applied)
+-    pad_w = int(orig_w * padding)
++    pad_w = int(orig_w / padding)
+     pad_h = int(orig_h * padding)
+ 
+     crop_x1 = max(0, orig_x - pad_w)
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_9
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_9: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -23,7 +23,7 @@
+ 
+     # Calculate the actual crop region (with padding applied)
+     pad_w = int(orig_w * padding)
+-    pad_h = int(orig_h * padding)
++    pad_h = int(orig_h / padding)
+ 
+     crop_x1 = max(0, orig_x - pad_w)
+     crop_y1 = max(0, orig_y - pad_h)
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_15
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_15: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -25,7 +25,7 @@
+     pad_w = int(orig_w * padding)
+     pad_h = int(orig_h * padding)
+ 
+-    crop_x1 = max(0, orig_x - pad_w)
++    crop_x1 = max(1, orig_x - pad_w)
+     crop_y1 = max(0, orig_y - pad_h)
+ 
+     # Convert normalized coordinates to absolute in crop space
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_16
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_16: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -25,7 +25,7 @@
+     pad_w = int(orig_w * padding)
+     pad_h = int(orig_h * padding)
+ 
+-    crop_x1 = max(0, orig_x - pad_w)
++    crop_x1 = max(0, orig_x + pad_w)
+     crop_y1 = max(0, orig_y - pad_h)
+ 
+     # Convert normalized coordinates to absolute in crop space
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_22
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_22: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -26,7 +26,7 @@
+     pad_h = int(orig_h * padding)
+ 
+     crop_x1 = max(0, orig_x - pad_w)
+-    crop_y1 = max(0, orig_y - pad_h)
++    crop_y1 = max(1, orig_y - pad_h)
+ 
+     # Convert normalized coordinates to absolute in crop space
+     x1_crop = crop_bbox_normalized[0] * crop_w
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_23
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_23: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -26,7 +26,7 @@
+     pad_h = int(orig_h * padding)
+ 
+     crop_x1 = max(0, orig_x - pad_w)
+-    crop_y1 = max(0, orig_y - pad_h)
++    crop_y1 = max(0, orig_y + pad_h)
+ 
+     # Convert normalized coordinates to absolute in crop space
+     x1_crop = crop_bbox_normalized[0] * crop_w
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_25
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_25: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -29,7 +29,7 @@
+     crop_y1 = max(0, orig_y - pad_h)
+ 
+     # Convert normalized coordinates to absolute in crop space
+-    x1_crop = crop_bbox_normalized[0] * crop_w
++    x1_crop = crop_bbox_normalized[0] / crop_w
+     y1_crop = crop_bbox_normalized[1] * crop_h
+     x2_crop = crop_bbox_normalized[2] * crop_w
+     y2_crop = crop_bbox_normalized[3] * crop_h
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_26
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_26: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -29,7 +29,7 @@
+     crop_y1 = max(0, orig_y - pad_h)
+ 
+     # Convert normalized coordinates to absolute in crop space
+-    x1_crop = crop_bbox_normalized[0] * crop_w
++    x1_crop = crop_bbox_normalized[1] * crop_w
+     y1_crop = crop_bbox_normalized[1] * crop_h
+     x2_crop = crop_bbox_normalized[2] * crop_w
+     y2_crop = crop_bbox_normalized[3] * crop_h
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_28
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_28: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -30,7 +30,7 @@
+ 
+     # Convert normalized coordinates to absolute in crop space
+     x1_crop = crop_bbox_normalized[0] * crop_w
+-    y1_crop = crop_bbox_normalized[1] * crop_h
++    y1_crop = crop_bbox_normalized[1] / crop_h
+     x2_crop = crop_bbox_normalized[2] * crop_w
+     y2_crop = crop_bbox_normalized[3] * crop_h
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_32
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_32: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -31,7 +31,7 @@
+     # Convert normalized coordinates to absolute in crop space
+     x1_crop = crop_bbox_normalized[0] * crop_w
+     y1_crop = crop_bbox_normalized[1] * crop_h
+-    x2_crop = crop_bbox_normalized[2] * crop_w
++    x2_crop = crop_bbox_normalized[3] * crop_w
+     y2_crop = crop_bbox_normalized[3] * crop_h
+ 
+     # Convert to original image coordinates
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_49
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_49: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -41,7 +41,7 @@
+     y2_orig = crop_y1 + y2_crop
+ 
+     # Clamp to image bounds
+-    x1_orig = max(0, min(img_w, x1_orig))
++    x1_orig = max(1, min(img_w, x1_orig))
+     y1_orig = max(0, min(img_h, y1_orig))
+     x2_orig = max(0, min(img_w, x2_orig))
+     y2_orig = max(0, min(img_h, y2_orig))
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_59
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_59: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -42,7 +42,7 @@
+ 
+     # Clamp to image bounds
+     x1_orig = max(0, min(img_w, x1_orig))
+-    y1_orig = max(0, min(img_h, y1_orig))
++    y1_orig = max(1, min(img_h, y1_orig))
+     x2_orig = max(0, min(img_w, x2_orig))
+     y2_orig = max(0, min(img_h, y2_orig))
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_69
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_69: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -43,7 +43,7 @@
+     # Clamp to image bounds
+     x1_orig = max(0, min(img_w, x1_orig))
+     y1_orig = max(0, min(img_h, y1_orig))
+-    x2_orig = max(0, min(img_w, x2_orig))
++    x2_orig = max(1, min(img_w, x2_orig))
+     y2_orig = max(0, min(img_h, y2_orig))
+ 
+     return (x1_orig, y1_orig, x2_orig, y2_orig)
+==== backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_79
+# backend.services.face_detector.x__convert_crop_bbox_to_original__mutmut_79: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -44,6 +44,6 @@
+     x1_orig = max(0, min(img_w, x1_orig))
+     y1_orig = max(0, min(img_h, y1_orig))
+     x2_orig = max(0, min(img_w, x2_orig))
+-    y2_orig = max(0, min(img_h, y2_orig))
++    y2_orig = max(1, min(img_h, y2_orig))
+ 
+     return (x1_orig, y1_orig, x2_orig, y2_orig)
+==== backend.services.face_detector.x__load_image_sync__mutmut_1
+# backend.services.face_detector.x__load_image_sync__mutmut_1: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -10,4 +10,4 @@
+     Returns:
+         PIL Image in RGB format
+     """
+-    return Image.open(path).convert("RGB")
++    return Image.open(path).convert(None)
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_2
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_2: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(None, verbose=False, conf=confidence_threshold)
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_3
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_3: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(image_crop, verbose=None, conf=confidence_threshold)
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_4
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_4: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(image_crop, verbose=False, conf=None)
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_5
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_5: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(verbose=False, conf=confidence_threshold)
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_6
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_6: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(image_crop, conf=confidence_threshold)
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_7
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_7: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(image_crop, verbose=False, )
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_8
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_8: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -15,7 +15,7 @@
+     """
+     try:
+         # Run inference
+-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
++        predictions = model.predict(image_crop, verbose=True, conf=confidence_threshold)
+ 
+         results = []
+         if predictions and len(predictions) > 0:
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_10
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_10: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -18,7 +18,7 @@
+         predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
+ 
+         results = []
+-        if predictions and len(predictions) > 0:
++        if predictions or len(predictions) > 0:
+             for pred in predictions[0].boxes:
+                 # Get normalized bounding box (xyxyn format)
+                 bbox_norm = pred.xyxyn[0].tolist()
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_11
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_11: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -18,7 +18,7 @@
+         predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)
+ 
+         results = []
+-        if predictions and len(predictions) > 0:
++        if predictions and len(predictions) >= 0:
+             for pred in predictions[0].boxes:
+                 # Get normalized bounding box (xyxyn format)
+                 bbox_norm = pred.xyxyn[0].tolist()
+==== backend.services.face_detector.x__run_face_detection_sync__mutmut_20
+# backend.services.face_detector.x__run_face_detection_sync__mutmut_20: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -27,5 +27,5 @@
+ 
+         return results
+     except Exception as e:
+-        logger.warning(f"Face detection inference failed: {e}")
++        logger.warning(None)
+         return []
+==== backend.services.face_detector.x_detect_faces__mutmut_1
+# backend.services.face_detector.x_detect_faces__mutmut_1: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -2,7 +2,7 @@
+     model: Any,
+     person_detections: list[PersonDetection],
+     images: dict[str, PILImage] | None = None,
+-    confidence_threshold: float = 0.3,
++    confidence_threshold: float = 1.3,
+     head_ratio: float = HEAD_REGION_RATIO,
+     padding: float = 0.2,
+     camera_id: str | None = None,
+==== backend.services.face_detector.x_detect_faces__mutmut_2
+# backend.services.face_detector.x_detect_faces__mutmut_2: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -4,7 +4,7 @@
+     images: dict[str, PILImage] | None = None,
+     confidence_threshold: float = 0.3,
+     head_ratio: float = HEAD_REGION_RATIO,
+-    padding: float = 0.2,
++    padding: float = 1.2,
+     camera_id: str | None = None,
+ ) -> list[FaceDetection]:
+     """Detect faces in person regions.
+==== backend.services.face_detector.x_detect_faces__mutmut_5
+# backend.services.face_detector.x_detect_faces__mutmut_5: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -31,7 +31,7 @@
+         return []
+ 
+     if model is None:
+-        logger.warning("No face detection model provided, skipping")
++        logger.warning(None)
+         return []
+ 
+     results: list[FaceDetection] = []
+==== backend.services.face_detector.x_detect_faces__mutmut_6
+# backend.services.face_detector.x_detect_faces__mutmut_6: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -31,7 +31,7 @@
+         return []
+ 
+     if model is None:
+-        logger.warning("No face detection model provided, skipping")
++        logger.warning("XXNo face detection model provided, skippingXX")
+         return []
+ 
+     results: list[FaceDetection] = []
+==== backend.services.face_detector.x_detect_faces__mutmut_7
+# backend.services.face_detector.x_detect_faces__mutmut_7: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -31,7 +31,7 @@
+         return []
+ 
+     if model is None:
+-        logger.warning("No face detection model provided, skipping")
++        logger.warning("no face detection model provided, skipping")
+         return []
+ 
+     results: list[FaceDetection] = []
+==== backend.services.face_detector.x_detect_faces__mutmut_8
+# backend.services.face_detector.x_detect_faces__mutmut_8: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -31,7 +31,7 @@
+         return []
+ 
+     if model is None:
+-        logger.warning("No face detection model provided, skipping")
++        logger.warning("NO FACE DETECTION MODEL PROVIDED, SKIPPING")
+         return []
+ 
+     results: list[FaceDetection] = []
+==== backend.services.face_detector.x_detect_faces__mutmut_11
+# backend.services.face_detector.x_detect_faces__mutmut_11: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -35,7 +35,7 @@
+         return []
+ 
+     results: list[FaceDetection] = []
+-    loaded_images: dict[str, PILImage] = images.copy() if images else {}
++    loaded_images: dict[str, PILImage] = images.copy() if (images) and False else {}
+     effective_camera_id = camera_id or "unknown"
+ 
+     for detection in person_detections:
+==== backend.services.face_detector.x_detect_faces__mutmut_22
+# backend.services.face_detector.x_detect_faces__mutmut_22: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -45,7 +45,7 @@
+             if file_path not in loaded_images:
+                 path = Path(file_path)
+                 if not path.exists():
+-                    logger.warning(f"Image not found for face detection: {file_path}")
++                    logger.warning(None)
+                     continue
+                 # Load image synchronously - this is a fast operation for cached filesystems
+                 # and image loading is already performed before entering the detection loop
+==== backend.services.face_detector.x_detect_faces__mutmut_23
+# backend.services.face_detector.x_detect_faces__mutmut_23: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -46,7 +46,7 @@
+                 path = Path(file_path)
+                 if not path.exists():
+                     logger.warning(f"Image not found for face detection: {file_path}")
+-                    continue
++                    break
+                 # Load image synchronously - this is a fast operation for cached filesystems
+                 # and image loading is already performed before entering the detection loop
+                 # when the caller provides pre-loaded images. For uncached file loading,
+==== backend.services.face_detector.x_detect_faces__mutmut_33
+# backend.services.face_detector.x_detect_faces__mutmut_33: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -63,7 +63,7 @@
+                 detection.bbox_width,
+                 detection.bbox_height,
+             )
+-            head_bbox = _get_head_region(person_bbox, head_ratio)
++            head_bbox = _get_head_region(person_bbox, )
+ 
+             # Crop head region with padding
+             crop = _crop_bbox_with_padding(image, head_bbox, padding)
+==== backend.services.face_detector.x_detect_faces__mutmut_40
+# backend.services.face_detector.x_detect_faces__mutmut_40: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -66,7 +66,7 @@
+             head_bbox = _get_head_region(person_bbox, head_ratio)
+ 
+             # Crop head region with padding
+-            crop = _crop_bbox_with_padding(image, head_bbox, padding)
++            crop = _crop_bbox_with_padding(image, head_bbox, )
+             crop_size = crop.size
+ 
+             # Run inference in thread pool with timing for metrics (NEM-4143)
+==== backend.services.face_detector.x_detect_faces__mutmut_46
+# backend.services.face_detector.x_detect_faces__mutmut_46: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -74,7 +74,7 @@
+             face_results = await asyncio.to_thread(
+                 _run_face_detection_sync,
+                 model,
+-                crop,
++                None,
+                 confidence_threshold,
+             )
+             inference_duration = time.perf_counter() - start_time
+==== backend.services.face_detector.x_detect_faces__mutmut_47
+# backend.services.face_detector.x_detect_faces__mutmut_47: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -75,7 +75,7 @@
+                 _run_face_detection_sync,
+                 model,
+                 crop,
+-                confidence_threshold,
++                None,
+             )
+             inference_duration = time.perf_counter() - start_time
+==== backend.services.face_detector.x_detect_faces__mutmut_50
+# backend.services.face_detector.x_detect_faces__mutmut_50: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -74,7 +74,6 @@
+             face_results = await asyncio.to_thread(
+                 _run_face_detection_sync,
+                 model,
+-                crop,
+                 confidence_threshold,
+             )
+             inference_duration = time.perf_counter() - start_time
+==== backend.services.face_detector.x_detect_faces__mutmut_51
+# backend.services.face_detector.x_detect_faces__mutmut_51: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -75,8 +75,7 @@
+                 _run_face_detection_sync,
+                 model,
+                 crop,
+-                confidence_threshold,
+-            )
++                )
+             inference_duration = time.perf_counter() - start_time
+ 
+             # Record embedding/inference duration metric
+==== backend.services.face_detector.x_detect_faces__mutmut_53
+# backend.services.face_detector.x_detect_faces__mutmut_53: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -77,7 +77,7 @@
+                 crop,
+                 confidence_threshold,
+             )
+-            inference_duration = time.perf_counter() - start_time
++            inference_duration = time.perf_counter() + start_time
+ 
+             # Record embedding/inference duration metric
+             observe_face_embedding_duration(effective_camera_id, inference_duration)
+==== backend.services.face_detector.x_detect_faces__mutmut_58
+# backend.services.face_detector.x_detect_faces__mutmut_58: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -84,13 +84,7 @@
+ 
+             # Convert results to FaceDetection objects and record metrics
+             for bbox_norm, conf in face_results:
+-                original_bbox = _convert_crop_bbox_to_original(
+-                    bbox_norm,
+-                    head_bbox,
+-                    crop_size,
+-                    (img_w, img_h),
+-                    padding,
+-                )
++                original_bbox = None
+                 results.append(
+                     FaceDetection(
+                         bbox=original_bbox,
+==== backend.services.face_detector.x_detect_faces__mutmut_68
+# backend.services.face_detector.x_detect_faces__mutmut_68: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -89,8 +89,7 @@
+                     head_bbox,
+                     crop_size,
+                     (img_w, img_h),
+-                    padding,
+-                )
++                    )
+                 results.append(
+                     FaceDetection(
+                         bbox=original_bbox,
+==== backend.services.face_detector.x_detect_faces__mutmut_70
+# backend.services.face_detector.x_detect_faces__mutmut_70: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -93,7 +93,7 @@
+                 )
+                 results.append(
+                     FaceDetection(
+-                        bbox=original_bbox,
++                        bbox=None,
+                         confidence=conf,
+                         person_detection_id=detection.id,
+                     )
+==== backend.services.face_detector.x_detect_faces__mutmut_86
+# backend.services.face_detector.x_detect_faces__mutmut_86: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -107,8 +107,7 @@
+                 observe_face_recognition_confidence(effective_camera_id, conf)
+ 
+             logger.debug(
+-                f"Detected {len(face_results)} faces in person detection "
+-                f"{detection.id} from {file_path} (took {inference_duration * 1000:.1f}ms)"
++                None
+             )
+ 
+         except Exception as e:
+==== backend.services.face_detector.x_detect_faces__mutmut_87
+# backend.services.face_detector.x_detect_faces__mutmut_87: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -108,7 +108,7 @@
+ 
+             logger.debug(
+                 f"Detected {len(face_results)} faces in person detection "
+-                f"{detection.id} from {file_path} (took {inference_duration * 1000:.1f}ms)"
++                f"{detection.id} from {file_path} (took {inference_duration / 1000:.1f}ms)"
+             )
+ 
+         except Exception as e:
+==== backend.services.face_detector.x_detect_faces__mutmut_88
+# backend.services.face_detector.x_detect_faces__mutmut_88: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -108,7 +108,7 @@
+ 
+             logger.debug(
+                 f"Detected {len(face_results)} faces in person detection "
+-                f"{detection.id} from {file_path} (took {inference_duration * 1000:.1f}ms)"
++                f"{detection.id} from {file_path} (took {inference_duration * 1001:.1f}ms)"
+             )
+ 
+         except Exception as e:
+==== backend.services.face_detector.x_detect_faces__mutmut_89
+# backend.services.face_detector.x_detect_faces__mutmut_89: survived
+--- backend/services/face_detector.py
++++ backend/services/face_detector.py
+@@ -119,6 +119,6 @@
+             continue
+ 
+     logger.info(
+-        f"Face detection complete: {len(results)} faces found in {len(person_detections)} persons"
++        None
+     )
+     return results

@@ -1,0 +1,10 @@
+# backend.services.auth_service.x_create_refresh_token__mutmut_24: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -29,5 +29,5 @@
+     }
+     # HS256 is acceptable for single-user local deployment (no distributed secrets)
+     # nosemgrep: jwt-weak-algorithm  # noqa: ERA001
+-    token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)
++    token: str = jwt.encode(payload, _get_jwt_secret(), )
+     return token

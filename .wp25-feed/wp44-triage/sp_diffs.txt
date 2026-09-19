@@ -1,0 +1,574 @@
+=== backend.services.summary_parser.x__determine_severity__mutmut_10
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", "XXXX").lower() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_11
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get(None)]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_12
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("XXrisk_levelXX")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_13
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("RISK_LEVEL")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_19
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -19,7 +19,7 @@
+ 
+     if "critical" in risk_levels:
+         return "critical"
+-    if "high" in risk_levels:
++    if "XXhighXX" in risk_levels:
+         return "high"
+ 
+     # Fall back to risk score
+=== backend.services.summary_parser.x__determine_severity__mutmut_20
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -19,7 +19,7 @@
+ 
+     if "critical" in risk_levels:
+         return "critical"
+-    if "high" in risk_levels:
++    if "HIGH" in risk_levels:
+         return "high"
+ 
+     # Fall back to risk score
+=== backend.services.summary_parser.x__determine_severity__mutmut_3
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", "").upper() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_4
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get(None, "").lower() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_5
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", None).lower() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_7
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("risk_level", ).lower() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_8
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("XXrisk_levelXX", "").lower() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__determine_severity__mutmut_9
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -15,7 +15,7 @@
+         return None
+ 
+     # Check for critical or high risk levels in events
+-    risk_levels = [e.get("risk_level", "").lower() for e in events if e.get("risk_level")]
++    risk_levels = [e.get("RISK_LEVEL", "").lower() for e in events if e.get("risk_level")]
+ 
+     if "critical" in risk_levels:
+         return "critical"
+=== backend.services.summary_parser.x__extract_camera_context__mutmut_12
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -20,7 +20,7 @@
+     if match:
+         context = match.group(1).strip()
+         # Limit length and clean up
+-        if len(context) > 50:
++        if len(context) >= 50:
+             context = context[:47] + "..."
+         return context
+ 
+=== backend.services.summary_parser.x__extract_camera_context__mutmut_13
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -20,7 +20,7 @@
+     if match:
+         context = match.group(1).strip()
+         # Limit length and clean up
+-        if len(context) > 50:
++        if len(context) > 51:
+             context = context[:47] + "..."
+         return context
+ 
+=== backend.services.summary_parser.x__extract_camera_context__mutmut_16
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -21,7 +21,7 @@
+         context = match.group(1).strip()
+         # Limit length and clean up
+         if len(context) > 50:
+-            context = context[:47] + "..."
++            context = context[:48] + "..."
+         return context
+ 
+     return ""
+=== backend.services.summary_parser.x__extract_camera_context__mutmut_17
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -21,7 +21,7 @@
+         context = match.group(1).strip()
+         # Limit length and clean up
+         if len(context) > 50:
+-            context = context[:47] + "..."
++            context = context[:47] + "XX...XX"
+         return context
+ 
+     return ""
+=== backend.services.summary_parser.x__extract_camera_context__mutmut_18
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -24,4 +24,4 @@
+             context = context[:47] + "..."
+         return context
+ 
+-    return ""
++    return "XXXX"
+=== backend.services.summary_parser.x__extract_camera_context__mutmut_5
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -13,8 +13,7 @@
+     # Find the camera mention and get surrounding text
+     pattern = re.compile(
+         rf"(?:at\s+)?{re.escape(camera)}[:\s]+([^.!?]+)",
+-        re.IGNORECASE,
+-    )
++        )
+ 
+     match = pattern.search(content)
+     if match:
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_14
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -29,7 +29,7 @@
+ 
+         bullet_points.append(
+             BulletPoint(
+-                icon="camera",
++                icon="XXcameraXX",
+                 text=f"Activity at {camera}" + (f": {camera_context}" if camera_context else ""),
+                 severity=severity,
+             )
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_15
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -29,7 +29,7 @@
+ 
+         bullet_points.append(
+             BulletPoint(
+-                icon="camera",
++                icon="CAMERA",
+                 text=f"Activity at {camera}" + (f": {camera_context}" if camera_context else ""),
+                 severity=severity,
+             )
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_18
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -30,7 +30,7 @@
+         bullet_points.append(
+             BulletPoint(
+                 icon="camera",
+-                text=f"Activity at {camera}" + (f": {camera_context}" if camera_context else ""),
++                text=f"Activity at {camera}" + (f": {camera_context}" if (camera_context) or True else ""),
+                 severity=severity,
+             )
+         )
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_19
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -30,7 +30,7 @@
+         bullet_points.append(
+             BulletPoint(
+                 icon="camera",
+-                text=f"Activity at {camera}" + (f": {camera_context}" if camera_context else ""),
++                text=f"Activity at {camera}" + (f": {camera_context}" if camera_context else "XXXX"),
+                 severity=severity,
+             )
+         )
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_31
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -45,7 +45,7 @@
+                 BulletPoint(
+                     icon=icon,
+                     text=f"{pattern.capitalize()} behavior detected",
+-                    severity=severity,
++                    severity=None,
+                 )
+             )
+ 
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_34
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -45,8 +45,7 @@
+                 BulletPoint(
+                     icon=icon,
+                     text=f"{pattern.capitalize()} behavior detected",
+-                    severity=severity,
+-                )
++                    )
+             )
+ 
+     # Add weather condition bullet point if notable
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_35
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -50,7 +50,7 @@
+             )
+ 
+     # Add weather condition bullet point if notable
+-    if weather_conditions and not bullet_points:
++    if weather_conditions or not bullet_points:
+         # Only add weather if there are no other bullet points
+         conditions_text = ", ".join(weather_conditions)
+         bullet_points.append(
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_37
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -52,7 +52,7 @@
+     # Add weather condition bullet point if notable
+     if weather_conditions and not bullet_points:
+         # Only add weather if there are no other bullet points
+-        conditions_text = ", ".join(weather_conditions)
++        conditions_text = None
+         bullet_points.append(
+             BulletPoint(
+                 icon="cloud",
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_39
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -52,7 +52,7 @@
+     # Add weather condition bullet point if notable
+     if weather_conditions and not bullet_points:
+         # Only add weather if there are no other bullet points
+-        conditions_text = ", ".join(weather_conditions)
++        conditions_text = "XX, XX".join(weather_conditions)
+         bullet_points.append(
+             BulletPoint(
+                 icon="cloud",
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_42
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -56,7 +56,7 @@
+         bullet_points.append(
+             BulletPoint(
+                 icon="cloud",
+-                text=f"Activity during {conditions_text} conditions",
++                text=None,
+                 severity=None,  # Weather is informational
+             )
+         )
+=== backend.services.summary_parser.x__generate_bullet_points__mutmut_45
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -57,8 +57,7 @@
+             BulletPoint(
+                 icon="cloud",
+                 text=f"Activity during {conditions_text} conditions",
+-                severity=None,  # Weather is informational
+-            )
++                )
+         )
+ 
+     return bullet_points
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_14
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -11,7 +11,7 @@
+         "loitering": "alert-circle",
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+-        "suspicious behavior": "alert-triangle",
++        "XXsuspicious behaviorXX": "alert-triangle",
+         "unusual activity": "alert-circle",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_15
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -11,7 +11,7 @@
+         "loitering": "alert-circle",
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+-        "suspicious behavior": "alert-triangle",
++        "SUSPICIOUS BEHAVIOR": "alert-triangle",
+         "unusual activity": "alert-circle",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_16
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -11,7 +11,7 @@
+         "loitering": "alert-circle",
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+-        "suspicious behavior": "alert-triangle",
++        "suspicious behavior": "XXalert-triangleXX",
+         "unusual activity": "alert-circle",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_17
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -11,7 +11,7 @@
+         "loitering": "alert-circle",
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+-        "suspicious behavior": "alert-triangle",
++        "suspicious behavior": "ALERT-TRIANGLE",
+         "unusual activity": "alert-circle",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_18
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -12,7 +12,7 @@
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+         "suspicious behavior": "alert-triangle",
+-        "unusual activity": "alert-circle",
++        "XXunusual activityXX": "alert-circle",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+         "prowling": "eye",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_19
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -12,7 +12,7 @@
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+         "suspicious behavior": "alert-triangle",
+-        "unusual activity": "alert-circle",
++        "UNUSUAL ACTIVITY": "alert-circle",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+         "prowling": "eye",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_2
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -8,7 +8,7 @@
+         Icon identifier string.
+     """
+     pattern_icons = {
+-        "loitering": "alert-circle",
++        "XXloiteringXX": "alert-circle",
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+         "suspicious behavior": "alert-triangle",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_20
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -12,7 +12,7 @@
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+         "suspicious behavior": "alert-triangle",
+-        "unusual activity": "alert-circle",
++        "unusual activity": "XXalert-circleXX",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+         "prowling": "eye",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_21
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -12,7 +12,7 @@
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+         "suspicious behavior": "alert-triangle",
+-        "unusual activity": "alert-circle",
++        "unusual activity": "ALERT-CIRCLE",
+         "unauthorized access": "shield-alert",
+         "trespassing": "shield-x",
+         "prowling": "eye",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_3
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -8,7 +8,7 @@
+         Icon identifier string.
+     """
+     pattern_icons = {
+-        "loitering": "alert-circle",
++        "LOITERING": "alert-circle",
+         "obscured face": "alert-triangle",
+         "rapid movement": "zap",
+         "suspicious behavior": "alert-triangle",
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_35
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -18,4 +18,4 @@
+         "prowling": "eye",
+     }
+ 
+-    return pattern_icons.get(pattern.lower(), "alert-circle")
++    return pattern_icons.get(pattern.lower(), None)
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_37
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -18,4 +18,4 @@
+         "prowling": "eye",
+     }
+ 
+-    return pattern_icons.get(pattern.lower(), "alert-circle")
++    return pattern_icons.get(pattern.lower(), )
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_39
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -18,4 +18,4 @@
+         "prowling": "eye",
+     }
+ 
+-    return pattern_icons.get(pattern.lower(), "alert-circle")
++    return pattern_icons.get(pattern.lower(), "XXalert-circleXX")
+=== backend.services.summary_parser.x__get_pattern_icon__mutmut_40
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -18,4 +18,4 @@
+         "prowling": "eye",
+     }
+ 
+-    return pattern_icons.get(pattern.lower(), "alert-circle")
++    return pattern_icons.get(pattern.lower(), "ALERT-CIRCLE")
+=== backend.services.summary_parser.x__severity_from_score__mutmut_10
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -13,6 +13,6 @@
+         return "critical"
+     if score >= 60:
+         return "high"
+-    if score >= 40:
++    if score > 40:
+         return "medium"
+     return "low"
+=== backend.services.summary_parser.x__severity_from_score__mutmut_11
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -13,6 +13,6 @@
+         return "critical"
+     if score >= 60:
+         return "high"
+-    if score >= 40:
++    if score >= 41:
+         return "medium"
+     return "low"
+=== backend.services.summary_parser.x__severity_from_score__mutmut_2
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -9,7 +9,7 @@
+     """
+     if score is None:
+         return None
+-    if score >= 80:
++    if score > 80:
+         return "critical"
+     if score >= 60:
+         return "high"
+=== backend.services.summary_parser.x__severity_from_score__mutmut_3
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -9,7 +9,7 @@
+     """
+     if score is None:
+         return None
+-    if score >= 80:
++    if score >= 81:
+         return "critical"
+     if score >= 60:
+         return "high"
+=== backend.services.summary_parser.x__severity_from_score__mutmut_6
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -11,7 +11,7 @@
+         return None
+     if score >= 80:
+         return "critical"
+-    if score >= 60:
++    if score > 60:
+         return "high"
+     if score >= 40:
+         return "medium"
+=== backend.services.summary_parser.x__severity_from_score__mutmut_7
+--- backend/services/summary_parser.py
++++ backend/services/summary_parser.py
+@@ -11,7 +11,7 @@
+         return None
+     if score >= 80:
+         return "critical"
+-    if score >= 60:
++    if score >= 61:
+         return "high"
+     if score >= 40:
+         return "medium"
