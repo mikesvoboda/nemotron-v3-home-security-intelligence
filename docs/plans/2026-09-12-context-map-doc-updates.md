@@ -7374,3 +7374,66 @@ AFTER-MERGE NOTE: origin/main advanced twice during the A7.2 window
 auto-rebase hit the squash-merge trap (memory: push-auto-rebase-
 squash-merge-trap) — resolved by MERGE `f6f96ebc` (no force-push; ledger L
 keep-both conflict: both sides had appended), push follows.
+
+## A7.3 (WP6-A) LANDED `fb3a797b` — yolo26 image ships contract.py; model.py imports the leaf; CI image-smoke job is the licence (2026-09-20)
+
+ADDENDUM 2 A7.3 approved WP6-A gated on all three parts shipping together, and
+the plan's paragraph is the whole argument: "Without it the only thing proving
+the COPY is reading the Dockerfile, and a mistake surfaces on the GPU host
+rather than in a PR." Executed exactly as written:
+
+1. `ai/yolo26/Dockerfile` — `COPY --chown=1000:1000 ai/yolo26/contract.py .`
+   into the flat `/app` COPY list (A7.3 licenses this Dockerfile edit; the
+   general owner-review rule stands for every other one).
+2. `ai/yolo26/model.py` — span 607-932 replaced by the seam import:
+   2,092 → 1,792 lines. AST census of the span first: exactly the seven seam
+   symbols (+ two nested `EnhancedDetection` methods) and the
+   `python_dataclass` / `Enum` imports only they used; nothing else lived in
+   the span. The plan's section-1 rule (never edit an import statement a
+   service Dockerfile COPYs flat) is honored the way it was designed: the
+   existing `_here_dir` sys.path shim (WP6.3) resolves bare `contract` in the
+   repo, and the new COPY resolves it in-container.
+3. ci.yml `ai-yolo26-image-smoke` — builds the real Dockerfile on
+   ubuntu-latest (retry ×2 like `build-backend`; free-disk-space like
+   deploy.yml's AI builders; no nvcr login — deploy.yml proves anonymous pull)
+   then `docker run --rm -i` imports `model` INSIDE the image and asserts
+   full identity `model.X is contract.X` for all seven symbols + the
+   resurrection ratchet (`class ConfidenceQuality` absent from the shipped
+   source). podman can't build in this sandbox, so this job IS the proof.
+   Wiring: new `detect-changes` filter key `ai_yolo26` over the image's whole
+   flat COPY surface (any `ai/yolo26/**` or the four flat `ai/*.py`), direct
+   ci-gate need + `check_job` line (WP0.6 invariant —
+   `test_ci_job_graph.py` green, 37 jobs / gate reaches 31).
+
+The dual-module subtlety the repo-side guard had to respect:
+`ai/conftest.py` canonicalizes flat `model` to `ai.yolo26.model`, whose
+`from contract import` rebinds to the BARE `contract` module — a different
+sys.modules object than `ai.yolo26.contract`. So repo-side full `is` identity
+is unreachable (the WP9.1 parity class already documents why `is` "can never
+hold" for the old duplicated classes); the repo-side guard is `__module__ ==
+"contract"` + same-file identity via the bare name, and the container-side
+job asserts true identity where exactly one `contract` module exists.
+
+TDD: `TestContractSeam` (ai/yolo26/tests/test_model.py) red first — 2 failed
+/ 1 passed pre-swap (the two identity legs), 3 passed post. Post-swap full
+file: 149 passed / 2 failed, both failures PROVEN pre-existing at `dfa4e7a8`
+via git-stash rerun (GPU/model-file env tests, not the seam).
+`test_prompts.py` 473 passed. Parity checker rc=0 with the golden untouched
+("registry ops: 37 divergences detected: 21" — the checker has no
+contract.py term; A7.3's "guards any duplicated contract.py" line in WP9.1
+describes the test_prompts parity class, now a trivially-green ratchet).
+`gen-ai-contract --check` rc=0, ratchet-check rc=0, suppression-census
+byte-identical rc=0, ai/ collection gate rc=0 (1,748 collected).
+
+Per A7.3's retirement order — "The parity test stays until (3) is green,
+then retires with the duplication" — `TestDetectionContractParity` STAYS in
+this PR (its docstring now states the interim ratchet reading + retirement
+trigger: the first GREEN `ai-yolo26-image-smoke` run on this branch deletes
+the class in a follow-up commit). The duplication it guarded is already gone;
+the class now reddens only if someone re-inlines.
+
+Residual risk recorded, not hidden: the image build has never run anywhere
+(this sandbox cannot, and CI has never built this Dockerfile on a PR —
+deploy.yml builds it only post-merge). If the NVIDIA base pull or a uv layer
+misbehaves on the runner, the new job goes red and blocks ci-gate by design;
+the fix would then be the job's own retry/disk knobs, NOT removing the gate.
