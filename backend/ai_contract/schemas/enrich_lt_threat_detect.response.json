@@ -1,0 +1,28 @@
+{
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "is_threat": {
+      "title": "Is Threat",
+      "type": "boolean"
+    },
+    "max_confidence": {
+      "default": 0.0,
+      "title": "Max Confidence",
+      "type": "number"
+    },
+    "threats_detected": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Threats Detected",
+      "type": "array"
+    }
+  },
+  "required": ["is_threat", "inference_time_ms"],
+  "title": "ThreatResponse",
+  "type": "object"
+}

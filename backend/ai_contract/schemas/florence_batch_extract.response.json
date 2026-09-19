@@ -1,0 +1,55 @@
+{
+  "$defs": {
+    "BatchExtractResultItem": {
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "inference_time_ms": {
+          "title": "Inference Time Ms",
+          "type": "number"
+        },
+        "prompt_used": {
+          "title": "Prompt Used",
+          "type": "string"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": ["result", "prompt_used", "inference_time_ms"],
+      "title": "BatchExtractResultItem",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/BatchExtractResultItem"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "total_inference_time_ms": {
+      "title": "Total Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["results", "total_inference_time_ms", "batch_size"],
+  "title": "BatchExtractResponse",
+  "type": "object"
+}

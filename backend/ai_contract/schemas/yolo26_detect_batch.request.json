@@ -1,0 +1,6 @@
+{
+  "contentEncoding": "binary",
+  "description": "multipart file upload (UploadFile), no JSON body",
+  "title": "multipart-form-data",
+  "type": "string"
+}

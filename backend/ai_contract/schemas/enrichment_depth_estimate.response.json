@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "depth_map_base64": {
+      "title": "Depth Map Base64",
+      "type": "string"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "max_depth": {
+      "title": "Max Depth",
+      "type": "number"
+    },
+    "mean_depth": {
+      "title": "Mean Depth",
+      "type": "number"
+    },
+    "min_depth": {
+      "title": "Min Depth",
+      "type": "number"
+    }
+  },
+  "required": ["depth_map_base64", "min_depth", "max_depth", "mean_depth", "inference_time_ms"],
+  "title": "DepthEstimateResponse",
+  "type": "object"
+}

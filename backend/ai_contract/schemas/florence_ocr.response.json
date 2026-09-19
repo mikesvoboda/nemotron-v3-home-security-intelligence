@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": ["text", "inference_time_ms"],
+  "title": "OCRResponse",
+  "type": "object"
+}

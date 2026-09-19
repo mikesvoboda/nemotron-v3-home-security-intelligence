@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "embedding": {
+      "description": "768-dimensional CLIP embedding",
+      "items": {
+        "type": "number"
+      },
+      "title": "Embedding",
+      "type": "array"
+    },
+    "inference_time_ms": {
+      "description": "Inference time in milliseconds",
+      "title": "Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["embedding", "inference_time_ms"],
+  "title": "EmbedResponse",
+  "type": "object"
+}

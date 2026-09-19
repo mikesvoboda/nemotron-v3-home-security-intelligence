@@ -1,0 +1,12 @@
+{
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "tokens_predicted": {
+      "type": "integer"
+    }
+  },
+  "title": "LlmCompletionResponse",
+  "type": "object"
+}

@@ -1330,6 +1330,12 @@ jobs:
       - name: Check OpenAPI spec is current
         run: uv run python scripts/generate-openapi.py --check
 
+      # WP7.1: the AI-tier contract registry (backend/ai_contract) is
+      # generated from the deployed gateway adapters + client map + LLM wire;
+      # a surface moved without regeneration goes red here, naming the file.
+      - name: Check AI contract registry is current
+        run: uv run python scripts/gen-ai-contract.py --check
+
       - name: Validate API type contract consistency
         run: ./scripts/validate-api-types.sh --verbose
 

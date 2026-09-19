@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "ensemble_metadata": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ensemble Metadata"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "scores": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Scores",
+      "type": "object"
+    },
+    "top_label": {
+      "title": "Top Label",
+      "type": "string"
+    }
+  },
+  "required": ["scores", "top_label", "inference_time_ms"],
+  "title": "ClassifyResponse",
+  "type": "object"
+}

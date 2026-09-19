@@ -1,0 +1,20 @@
+{
+  "description": "Wire shape assembled independently at 7 backend sites (nemotron_analyzer.py:465,1046,3978; summary_generator.py:440; nemotron_streaming.py:99; prompt_service.py:938; pipeline_quality_audit_service.py:391; evaluation/harness.py:549). Consolidation is a recorded WP7.1 follow-on (decision: follow-on).",
+  "properties": {
+    "n_predict": {
+      "type": "integer"
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "stream": {
+      "type": "boolean"
+    },
+    "temperature": {
+      "type": "number"
+    }
+  },
+  "required": ["prompt"],
+  "title": "LlmCompletionRequest",
+  "type": "object"
+}

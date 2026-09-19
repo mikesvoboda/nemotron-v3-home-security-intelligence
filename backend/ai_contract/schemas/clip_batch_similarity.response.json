@@ -1,0 +1,18 @@
+{
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "similarities": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Similarities",
+      "type": "object"
+    }
+  },
+  "required": ["similarities", "inference_time_ms"],
+  "title": "BatchSimilarityResponse",
+  "type": "object"
+}

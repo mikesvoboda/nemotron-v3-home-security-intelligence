@@ -1,0 +1,37 @@
+{
+  "properties": {
+    "breed": {
+      "title": "Breed",
+      "type": "string"
+    },
+    "cat_score": {
+      "default": 0.0,
+      "title": "Cat Score",
+      "type": "number"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "dog_score": {
+      "default": 0.0,
+      "title": "Dog Score",
+      "type": "number"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "is_household_pet": {
+      "title": "Is Household Pet",
+      "type": "boolean"
+    },
+    "pet_type": {
+      "title": "Pet Type",
+      "type": "string"
+    }
+  },
+  "required": ["pet_type", "breed", "confidence", "is_household_pet", "inference_time_ms"],
+  "title": "PetResponse",
+  "type": "object"
+}
