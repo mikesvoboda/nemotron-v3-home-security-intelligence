@@ -5379,3 +5379,45 @@ pool) is an owner decision with this row evidence. redis-pubsub flake
 (test_redis_pubsub.py:610) has not returned in attempts 2-4.
 Detector (.new-stable.py) structurally dead (needs survived≥100; run6 terminal)
 — waves are self-staged; band after wave-67 = 25 modules / 256 survivors.
+
+## WP5.0 PRE-FLIGHT — FOUR PROBES (2026-09-19, swap-readiness plan P, Phase 5 start)
+
+P = docs/superpowers/plans/2026-09-19-swap-readiness-72h.md. Plan P was UNTRACKED
+in the worktree when this run started; PR #6557 (merged as b301a217) landed it
+tracked on main while this run began. The untracked copy was byte-identical
+(cmp verified) so it was removed and the tracked version adopted. Consequence:
+main's P is prettier-DIRTY (one continuation-line indent under the WP6.2 DECIDE
+bullet; the 4-space continuation renders as a code block). The pre-push prettier
+hook therefore fails any branch that carries b301a217. Fixed forward here as a
+format-only commit; no plan text altered.
+
+(a) pre-commit — GREEN. pre-commit 4.6.2 present in .venv (validate.sh evicts
+it — see memory uv-sync-evicts-pre-commit; reinstalled). `pre-commit install` + pre-push hook-type succeed; hook envs build; `pre-commit run
+    trailing-whitespace` passes. hadolint present. First commits of this run
+landed through the real hooks with zero skips.
+
+(b) repo-root .env — ABSENT HERE, 0/8 phantoms. No .env exists in this sandbox
+(only .env.example); the phantom mechanism (env_file=".env" picking up
+host-root config) cannot fire. test_websocket_auth.py + test_config_validation.py
+integration files: 50 passed. Verdict: neutralization NOT needed in this
+sandbox; the phantoms are host-environment-specific. If they recur on a
+host with a root .env, P's option (i) (wrapper script) is the licensed fix.
+
+(c) Postgres durability — ALREADY TUNED. The P reference measurement reproduces
+exactly: repositories+models integration = 220 passed in 9.59s wall (~1m20
+user CPU) — matches the "9.01s tuned" figure, NOT the 178.33s untuned one.
+Host Postgres is already fsync/tmpfs-tuned. Integration tier runs at the
+tuned rate; no rebudgeting needed.
+
+(d) CI round trip — PROVEN. GitHub API 200; gh CLI works; pushes land (with the
+one-shot GH_TOKEN credential helper — proxy injection inert, see memory
+github-push-one-shot-helper). PR #6556 CI runs observed and read this hour.
+
+BASELINES at run start: suppression census 94/.../322 (pytest_skip_imperative 94
+— the #6556 blocker, fixed to 93 in 0d901657); integration subset 220p 9.59s;
+frontend actuals (from P) 80.00/74.61/78.44/80.93 vs thresholds 83/77/81/84.
+
+RULING-ADJACENT NOTE (not parked — no decision needed): PR #6556's other two
+CI reds (Test Performance Audit: 2 rotating over-threshold rows; a CI-Gate
+fail at 5s) are the flaky-runner class per owner ruling 488a7ff9's successor
+clause — STOP-AND-ASK already recorded for rerun-chasing; not this run's work.
