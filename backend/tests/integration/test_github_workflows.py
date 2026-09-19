@@ -568,6 +568,99 @@ class TestIntegrationCoverageMergeWiring:
         )
 
 
+class TestFrontendCoverageMergeWiring:
+    """WP5.2: frontend shards must COMPUTE coverage and one job must really merge.
+
+    Before this fix the shards ran `npx vitest run` with no --coverage (the
+    comment at the run step said per-shard thresholds fail at ~6% each —
+    right about per-shard thresholds, wrong as a conclusion), and
+    frontend-coverage-merge was download -> find -> Codecov with no istanbul
+    merge and no threshold step. Worse, all 8 shards wrote the same
+    frontend/coverage/coverage-final.json and merge-multiple: true flattened
+    them, so even had --coverage existed, one shard would have survived.
+
+    R-FEFLOOR (ADDENDUM A3, parked): measured actuals 80.00/74.61/78.44/80.93
+    vs thresholds 83/77/81/84. This job REPORTS the four numbers; it must not
+    enforce — lowering thresholds and widening coverage.exclude are both
+    prohibited, and enforcement stays the owner's call.
+    """
+
+    SHARD_RUN_STEP = "Run tests (shard ${{ matrix.shard }}/8)"
+    MERGE_STEP = "Merge frontend coverage"
+    REPORT_STEP = "Report frontend coverage (R-FEFLOOR: not enforced)"
+
+    def _shard_run_steps(self, workflow: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            s
+            for s in workflow["jobs"]["frontend-tests"]["steps"]
+            if str(s.get("name", "")).startswith("Run tests (shard")
+        ]
+
+    def test_every_shard_runs_with_coverage_thresholds_zeroed(self, workflows_dir: Path) -> None:
+        ci = load_workflow(workflows_dir / "ci.yml")
+        runs = self._shard_run_steps(ci)
+        assert len(runs) == 1, f"expected one shard run step, found {len(runs)}"
+        script = runs[0]["run"]
+        assert "--coverage" in script, "frontend shard must collect coverage (WP5.2)"
+        # Vitest has no "disable thresholds" switch; per-shard runs must zero
+        # every metric or each shard fails its own 83/77/81/84 gate at ~12%.
+        for metric in ("statements", "branches", "functions", "lines"):
+            assert f"--coverage.thresholds.{metric}=0" in script, (
+                f"shard run must zero the {metric} threshold (per-shard ~1/8 of "
+                "total coverage cannot pass a whole-suite threshold)"
+            )
+
+    def test_shard_coverage_output_is_shard_unique(self, workflows_dir: Path) -> None:
+        """8 shards x identical filenames + merge-multiple == silent collision.
+
+        coverage-final.json from all 8 shards lands on one path; exactly one
+        survives. The per-shard reportsDirectory is the only lever that keeps
+        the artifacts distinguishable through download-artifact flattening.
+        """
+        ci = load_workflow(workflows_dir / "ci.yml")
+        script = self._shard_run_steps(ci)[0]["run"]
+        assert "--coverage.reportsDirectory" in script, (
+            "shards must write coverage to distinct directories or 8 identical "
+            "coverage-final.json files collide under merge-multiple: true"
+        )
+        assert "shard-${{ matrix.shard }}" in script or "shard-$SHARD" in script, (
+            "the coverage output path must be parameterized by matrix.shard"
+        )
+
+    def test_upload_covers_the_shard_coverage_dir(self, workflows_dir: Path) -> None:
+        ci = load_workflow(workflows_dir / "ci.yml")
+        upload = _step(ci, "frontend-tests", "Upload coverage artifact")
+        path = str(upload["with"]["path"])
+        assert "coverage" in path, path
+        # Load-bearing coupling, same class as the backend .dat glob pins: the
+        # uploaded path must be the (parent of the) directory the run writes.
+        assert "shard" in str(upload["with"]["name"]), "artifact name must stay shard-unique"
+
+    def test_merge_job_merges_and_reports(self, workflows_dir: Path) -> None:
+        ci = load_workflow(workflows_dir / "ci.yml")
+        merge = _step(ci, "frontend-coverage-merge", self.MERGE_STEP)
+        assert "merge-shard-coverage" in merge["run"], (
+            "frontend-coverage-merge must run the istanbul merge script over the "
+            "downloaded coverage-final.json files — today it only find|head's them"
+        )
+        report = _step(ci, "frontend-coverage-merge", self.REPORT_STEP)
+        assert "GITHUB_STEP_SUMMARY" in report["run"], (
+            "the merged four metrics must be written to the step summary"
+        )
+        assert "process.exit" not in report["run"], (
+            "the reporting step must not enforce (R-FEFLOOR parked) — no gate "
+            "flips without the owner"
+        )
+
+    def test_merge_script_unit_test_runs_before_merge(self, workflows_dir: Path) -> None:
+        """The merger itself is tested (node --test) on CI, before it is trusted."""
+        ci = load_workflow(workflows_dir / "ci.yml")
+        merge = _step(ci, "frontend-coverage-merge", self.MERGE_STEP)
+        assert "node --test" in merge["run"], (
+            "merge script must run its unit check in-job before producing numbers"
+        )
+
+
 class TestYamlBestPractices:
     """Test YAML best practices."""
 
