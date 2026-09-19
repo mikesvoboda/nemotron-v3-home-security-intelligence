@@ -226,6 +226,15 @@ SLOW_TEST_PATTERNS = [
     r"test_worker_supervisor.*TestCircuitBreaker.*test_circuit_opens_after_max_restarts",
     # Detection properties roundtrip tests - Hypothesis generation overhead
     r"test_detection.*TestDetectionProperties.*test_required_fields_roundtrip",
+    # User-calibration properties - same cause as TestDetectionProperties above.
+    # The class holds four @given roundtrips at max_examples=50-100; the cost is
+    # Hypothesis's per-example bookkeeping, not the model construction under
+    # test. Observed 2026-09-19 straddling the 4.0s unit budget with a DIFFERENT
+    # member each run (test_valid_threshold_ordering 4.66s on #6569,
+    # test_decay_factor_roundtrip 5.01s on #6567), so pinning individual names
+    # would just move the failure to a sibling. Listed at the class level; all
+    # examples are still generated, no assertion is weakened.
+    r"test_user_calibration.*TestUserCalibrationProperties.*",
     # Hypothesis vehicle detection format tests - generation overhead
     r"test_hypothesis_strategies.*test_example_vehicle_detection_format",
     # WP0.5 (2026-09-16 owner ruling "gate at raised thresholds"): the honest
