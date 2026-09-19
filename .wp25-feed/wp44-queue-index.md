@@ -1295,3 +1295,17 @@ calibration(38), batch_fetch(36), session_service(35), scene_change_detector(34)
 alertmanager(34), file_cleanup_service(33), baseline_config(33), admin(30).
 Swap-in note: zero_dce_loader(31) skipped — INTEGRATION-only tests, out of the
 unit carve-out (wave-64 record); admin.py takes the slot. Ordered by survivors.
+
+## WAVE 66 DOSSIER FOLD 2026-09-19 (8-module wave complete; band recount 273, not 268)
+
+wf_fe5e8d9a-a12 (8 agents, 608k tokens, 13.5 min): dossiers + 40 drafted
+skeletons for admin(30), alertmanager(34), file_cleanup_service(33),
+session_service(35), batch_fetch(36), baseline_config(33),
+scene_change_detector(34), calibration(38). Journal-tallied partition:
+**172 TEST-GAP / 25 LOW-VALUE / 76 EQUIVALENT = 273 survivors** (dispatch
+entry's 268 was a sum slip; per-module partitions each reconcile to the
+arbiter survivor counts exactly). Untouched band after this wave: 33 modules.
+Authoring order by TEST-GAP: admin(30), alertmanager(27), file_cleanup(25),
+session(22), batch_fetch(19), baseline_config(18), scene_change_detector(16),
+calibration(15). All drafts UNVERIFIED until authored + green-under-original
++ strict census re-probe (lane free: run6 terminal, no tier live).
