@@ -6288,3 +6288,65 @@ green, they parse, and each carries the same silent no-clamping behavior.
 Per the plan, this WP's scope was the two files that feed
 detector_client.py coverage; the wider drain belongs behind the contract
 suite as WP8 work, not as a fixture sweep. No floor moved, nothing omitted.
+
+## WP8.1 LANDED `f3a9b444` — AIProvider declared over the registry; AIServiceProtocol removed (2026-09-19)
+
+Plan P WP8.1 on feat/wp8-ai-protocol (stacked on #6562). The Done-when -
+"adding a provider that omits a declared operation fails a test AT IMPORT
+TIME, naming the operation" - is mechanized: `import backend.ai_contract`
+runs the provider registrations, and each registration is verified against
+the generated registry. End-to-end proof executed here: stubbing
+`_bound_or_reject` to simulate WP7.3 deleting the client method behind
+yolo26_detect raises ProviderContractError naming exactly that op at
+import; the clean import registers 4 providers.
+
+**Design choices worth remembering:**
+
+- Signature conformance is inspect.signature-based, NOT presence-based (the
+  plan's explicit lesson from the rot). What's enforceable on CLIENT-BOUND
+  callables (the gateway ops ARE client methods with real per-op
+  signatures): coroutine function, signature resolves, no POSITIONAL_ONLY
+  parameters. The positional-only rule is the live one - WP8.3/WP8.4 drive
+  payload fields as keyword args, so a refactor adding `/` would silently
+  un-drive the suite; registration catches it. The uniform fn(payload)
+  shape belongs to the FakeProvider (WP8.2), not to client bindings -
+  pinning fn(payload) on DetectorClient.detect_objects(image_path,
+  camera_id, session, ...) would have been fiction of the same species as
+  the protocol being removed.
+- Union slots: per_model_server is a column spanning EVERY per-model app.
+  register_provider defaults to exact equality with the slot column;
+  subset providers inside a union (llamacpp-serve: 2 ops of the column's 36) pass their own `required` set, derived from registry evidence
+  (per_model_server True AND ai/nemotron in evidence - exactly
+  llm_completion + llm_chat_completion; llm_slots correctly lands outside,
+  matrix-marked False there). The derivation self-checks >=2 ops.
+- 5 ops have client_methods=[] (the WP7.3 candidates kept as deployed
+  surface, plus the light trio): registration gives them a NOT-WIRED
+  sentinel - it
+  raises NotImplementedError with a pointer to the FakeProvider.
+  Registration still counts them; no live path claims them. Fabricating a
+  callable here would repeat the sin being deleted.
+- DECIDE executed: AIServiceProtocol + AIServiceWithLifecycle REMOVED, not
+  repaired. Census (2026-09-19, grep + AST): zero implementers (of the
+  three docstring-named ones DetectorClient/NemotronAnalyzer had 1 of 3
+  members - health_check - and EnrichmentClient 0 of 3), zero consumers
+  outside the re-export. `backend/core/protocols.py` keeps a See-Also
+  pointing AI typing at backend/ai_contract. The ratchet test is an AST
+  scan (precedent: \_public_client_methods) proving nothing in backend/
+  BINDS either name - docstrings may remember, code may not. One census
+  trap: an earlier grep -l run listed backend/services/batch_coordinator.py
+  as a holder; the file does not exist (the same phantom family as the WP7.3
+  workflow fabrication - always `test -f` before believing a file list).
+
+**MEASURE:** 38 operations declared (generated registry, untouched); 4
+providers registered: gateway 31 ops, gateway_light 5, per_model_http 36
+(deployed=False, matrix-declared), llamacpp_llm 2; 29 registry-bound
+client methods verified async + signature-resolvable; 6 rejection classes
+tested (missing, sync, positional-only, invented id, slot-unavailable,
+extra-op). TDD: red-first via ImportError on PROVIDER_SLOT, 13 tests green
+after; contract suite 184 passed; ruff/mypy clean;
+gen-ai-contract --check green.
+
+**Gate-adjacent note:** Phase-8 CI truth stays stacked-PR-blind (base is
+feat/wp7-ai-contract; ci.yml triggers only on main). The draft PR for the
+phase was opened at WP8.1 commit time (PRs need >=1 commit; the plan's
+"at START of each phase" is honored to the first landable commit).
