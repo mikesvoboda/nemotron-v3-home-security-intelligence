@@ -1,0 +1,553 @@
+{
+  "summary": "Verify WP8.3 conformance property claims against live code, draft assertions",
+  "agentCount": 6,
+  "logs": [
+    "parallel[4] failed: agent({schema}): subagent completed without calling StructuredOutput (after in-conversation nudge)",
+    "clusters returned: 5/6",
+    "findings: 46, cite-corrections: 4"
+  ],
+  "result": {
+    "clusters": [
+      {
+        "group": "WP8.3 suite mechanics",
+        "findings": [
+          {
+            "property": "Q1a: gateway provider callable surface (31 ops)",
+            "cite_ok": true,
+            "fact": "backend/ai_contract/providers.py:134-142 _register_all() builds the gateway set via _bound_or_reject (providers.py:57-91): 26 of 31 gateway ops are UNBOUND client class-methods resolved by getattr(getattr(module, cls), meth) from _CLIENT_MODULES (providers.py:49-54: DetectorClient->backend.services.detector_client, CLIPClient->clip_client, EnrichmentClient->enrichment_client, FlorenceClient->florence_client) per the registry's client_methods; 5 of 31 are NOT-WIRED async sentinels raising NotImplementedError (client_methods==[]): yolo26_detect_batch, florence_analyze_scene, enrich_lt_depth_estimate, enrich_lt_pet_classify, enrich_lt_pose_analyze. Verified live: registered_providers()['gateway'].operations() -> 31 callables; e.g. gateway['yolo26_detect'].__qualname__ == 'DetectorClient.detect_objects'. The 5 not-wired ops are exactly gateway-minus-client_bound; the gateway_light slot (5 ops) contains 2 client-bound (enrich_lt_person_reid->EnrichmentClient.compute_reid_embedding, enrich_lt_threat_detect->EnrichmentClient.detect_threats) + 3 of the sentinels.",
+            "assertion": "rec = registered_providers()['gateway']; ops = rec.operations(); assert set(ops) == set(operations_for_slot('gateway', OPERATIONS)); import inspect; live = {k for k,f in ops.items() if 'not_wired' not in f.__qualname__}; assert len(live) == 26 and set(ops) - live == {'yolo26_detect_batch','florence_analyze_scene','enrich_lt_depth_estimate','enrich_lt_pet_classify','enrich_lt_pose_analyze'}",
+            "divergence": "naive 'call the registered gateway callable with a payload in-process' diverges on all 31: 26 are unbound client methods that do REAL httpx round-trips to settings URLs (detector_client.py:321 self._http_client = httpx.AsyncClient(...); base-URL switch at detector_client.py:283-287) and 5 raise NotImplementedError — the suite must drive the gateway ADAPTER app instead",
+            "providers": "gateway"
+          },
+          {
+            "property": "Q1b: gateway ops driven IN-PROCESS via adapter app + patch idiom (working template)",
+            "cite_ok": true,
+            "fact": "ai/gateway/tests/test_adapters_yolo26.py:98-104 (plan said :99-104; the fixture decorator is at :98) — WORKING template, verbatim: `@pytest.fixture` / `async def client(app, mock_triton):` / `    \"\"\"Create an async test client with mocked Triton.\"\"\"` / `    with patch(\"ai.gateway.adapters.yolo26.get_triton_client\", return_value=mock_triton):` / `        transport = ASGITransport(app=app)` / `        async with AsyncClient(transport=transport, base_url=\"http://test\") as c:` / `            yield c` — with app fixture at :90-95 (`app = FastAPI(); app.include_router(router)` — NO prefix) and mock_triton fixture at :76-87 (AsyncMock with .infer, .is_model_ready, .get_model_metadata). Sibling modules use the same idiom: test_adapters_clip.py:91, test_adapters_florence.py:79, test_adapters_enrichment.py:92, test_adapters_enrichment_light.py:70. So the conformance suite drives the gateway adapters' FastAPI routes through ASGITransport with patched clients; it does NOT call the registered gateway callables (those are WP8.4's client-driving territory).",
+            "assertion": "fixture factory: `async def make_client(router, prefix, patch_target, mock_triton): app = FastAPI(); app.include_router(router, prefix=prefix); with patch(patch_target, return_value=mock_triton): async with AsyncClient(transport=ASGITransport(app=app), base_url='http://t') as c: yield c` — registry op paths (which INCLUDE the mount prefix, e.g. '/yolo26/detect') hit the app only when the router is included with its production prefix from ai/gateway/main.py:181-185",
+            "divergence": "none (template is green today); trap: the yolo26 template's app fixture has NO prefix, but registry Operation.path values carry it — driving per-adapter routers requires re-applying main.py's prefixes (/yolo26 /clip /florence /enrichment /enrich-lt) or using the full app",
+            "providers": "gateway"
+          },
+          {
+            "property": "Q2: five per-adapter-module get_triton_client patch targets",
+            "cite_ok": true,
+            "fact": "CONFIRMED as module-level from-imports (patching ai.gateway.triton_client.get_triton_client hits NONE of them; patching one adapter module's name leaves the other four calling the real gRPC client): ai/gateway/adapters/yolo26.py:28, ai/gateway/adapters/enrichment.py:31, ai/gateway/adapters/enrichment_light.py:30, ai/gateway/adapters/florence.py:39, ai/gateway/adapters/clip.py:40 — all five lines are `from ai.gateway.triton_client import TritonClientError, get_triton_client`. Clip adapter's path is ai/gateway/adapters/clip.py (plan said 'the clip adapter' without a line; its `import torch` is at clip.py:36 as the plan claims). Call sites use the module-global (e.g. yolo26.py:347,412,462,514; enrichment.py 9 sites; clip.py:278,329,528; enrichment_light.py:335,377,418,464), so per-module patching is sufficient. Exact patch strings: 'ai.gateway.adapters.yolo26.get_triton_client', 'ai.gateway.adapters.enrichment.get_triton_client', 'ai.gateway.adapters.enrichment_light.get_triton_client', 'ai.gateway.adapters.florence.get_triton_client', 'ai.gateway.adapters.clip.get_triton_client'.",
+            "assertion": "PROVIDER_PATCH_TARGETS = {'gateway': frozenset({'ai.gateway.adapters.yolo26.get_triton_client','ai.gateway.adapters.clip.get_triton_client','ai.gateway.adapters.florence.get_triton_client','ai.gateway.adapters.enrichment.get_triton_client','ai.gateway.adapters.enrichment_light.get_triton_client'}), 'gateway_light': frozenset({'ai.gateway.adapters.enrichment_light.get_triton_client'})}; # per-op target derived from Operation.path prefix; guard: assert len({op->target}) == 5 for the gateway provider",
+            "divergence": "naive single-target patch (e.g. only ai.gateway.triton_client.get_triton_client) silently exercises the real Triton gRPC client in 5 of 5 adapter modules; patching only yolo26 leaves 4 modules real",
+            "providers": "gateway"
+          },
+          {
+            "property": "Q3: import feasibility probe (one-shot, allowed)",
+            "cite_ok": true,
+            "fact": "`.venv/bin/python -c \"import ai.gateway.main\"` rc=0, 1.606s real (CPU torch resolves; plan's 'import succeeds, no GPU, no Triton' claim holds). `.venv/bin/python -c \"import ai.gateway.adapters.yolo26, ...enrichment, ...enrichment_light, ...florence, ...clip\"` rc=0, 1.553s real. `.venv/bin/python -c \"import backend.ai_contract; registered_providers()\"` rc=0, 3.72s real (import-time registration of 4 providers: gateway 31 ops, gateway_light 5, per_model_http 36 deployed=False, llamacpp_llm 2 — fake NOT among them).",
+            "assertion": "no assertion needed — feasibility confirmed; suite may import ai.gateway.main (or the five adapter modules + build a prefixed app from their routers) inside the global 5s pytest-timeout (pyproject.toml:495 timeout=5; first import ~1.6s, cached after)",
+            "divergence": "none",
+            "providers": "gateway"
+          },
+          {
+            "property": "Q4: fake provider driving shape",
+            "cite_ok": true,
+            "fact": "backend/ai_contract/fake/app.py:109-127 fake_provider_ops(): returns {op_id: _call} for ALL 38 fake-slot ops; every callable is uniformly `async def _call(payload: Any = None) -> Any` (app.py:113) driving its own route in-process via httpx.ASGITransport on a lru_cache'd shared app (app.py:102-106), POST json only when payload is not None and method != GET, raise_for_status, returns r.json() dict. Confirmed uniform async fn(payload=None)->dict. Contrast: 26 of 31 gateway registered callables need args beyond payload (e.g. DetectorClient.detect_objects(self, image_path: str, camera_id: str, session: AsyncSession, video_path=None, video_metadata=None); CLIPClient.classify(self, image: PIL.Image.Image, labels: list[str]) -> tuple) — the WP8.1 rule in provider.py:148-178 (_reject_uncallable_shape) only rejects unresolvable signatures and POSITIONAL_ONLY params (payload dispatch binds kwargs), so these non-uniform signatures PASS registration; uniform fn(payload) is explicitly the fake's shape only (provider.py:163-166 docstring).",
+            "assertion": "ops = fake_provider_ops(); assert len(ops) == 38; for name, fn in ops.items(): sig = inspect.signature(fn); assert inspect.iscoroutinefunction(fn); assert list(sig.parameters) == ['payload'] and sig.parameters['payload'].default is None",
+            "divergence": "fake is uniform fn(payload)->dict; gateway/gateway_light registered callables violate the same naive uniform-signature assertion (self + typed args); llamacpp_llm's 2 callables are unary `_post(payload)` closures doing REAL httpx to settings.nemotron_url (providers.py:109-131, marked '# pragma: no cover - live path')",
+            "providers": "both"
+          },
+          {
+            "property": "Q5: parameterization table (provider, patch-target, ops, driving mode)",
+            "cite_ok": true,
+            "fact": "Verified counts from the live registry (grep of operations.py True-cells): gateway 31, gateway_light(enrichment_light_adapter) 5 [enrich_lt_depth_estimate, enrich_lt_person_reid, enrich_lt_pet_classify, enrich_lt_pose_analyze, enrich_lt_threat_detect], per_model_http(per_model_server) 36 deployed=False, llamacpp_llm 2 (llm_completion, llm_chat_completion — evidence-derived via providers.py:94-106), fake 38 (spec column). Skeleton: params = [('fake', ops=38, drive='fake_provider_ops() callables directly / register_provider(ProviderId.FAKE, fake_provider_ops(), OPERATIONS) — the fake IS the app, no patch target'), ('gateway', ops=31, drive='FastAPI app = main.py:181-185 mounts (/yolo26 /clip /florence /enrichment /enrich-lt), patch target derived from Operation.path prefix, 5 targets'), ('gateway_light', ops=5, drive='enrichment_light router at /enrich-lt, target ai.gateway.adapters.enrichment_light.get_triton_client'), ('per_model_http', ops=36, drive='MATRIX-ONLY: callables are the same client-bound methods pointed at native per-model server URLs; 6 real model servers are not runnable in-process (GPU/weights) — assert registration only: set(operations()) == per_model_server column AND rec.deployed is False'), ('llamacpp_llm', ops=2, drive='MATRIX-ONLY unless an httpx mock stands up /completion + /v1/chat/completions: live-path httpx to settings.nemotron_url')]. Absence is a GREEN GUARD: e.g. gateway lacks all llm_*/model_*/object_distance (availability gateway=False) -> assert op not in provider.operations() and (app-driven) assert client.post(op.path) == 404. Note: fake is deliberately NOT registered at import (providers.py:28-29 rationale); registered_providers() returns 4 — the conformance module must add the FAKE registration itself (test_fake_provider.py:171-176 shows the accepted pattern).",
+            "assertion": "@pytest.mark.parametrize('provider_id', ['fake','gateway','gateway_light','per_model_http','llamacpp_llm']) ... for op_id, op in OPERATIONS.items(): if op.availability[slot]: assert op_id in provider_ops  # presence; else: assert op_id not in provider_ops and (if app-driven) assert await client.request(op.method, op.path).status_code == 404  # absence guard, never skip",
+            "divergence": "a driver that invokes registered gateway/gateway_light/per_model_http callables directly (like the fake's) hits real network; only fake (+llamacpp via mocked transport) is callable-shaped-driveable in-process",
+            "providers": "both"
+          },
+          {
+            "property": "Q6: suite location + existing files in backend/tests/contracts/ai_providers/",
+            "cite_ok": true,
+            "fact": "Plan's target file test_conformance.py does NOT exist yet, and there is NO conftest.py in backend/tests/contracts/ai_providers/ (the suite will need its own or reuse the parent). Existing: test_ai_contract_registry.py (WP7.1: 38-op registry completeness, generated-provenance, no-ai-at-runtime architecture gate); test_ai_provider.py (WP8.1: register_provider/ProviderContractError import-time checks, AIServiceProtocol-removal DECIDE test); test_fake_provider.py (WP8.2: determinism/byte-identity, register_provider(FAKE) acceptance, schema-snapshot validation — pattern source for the conformance fake provider); test_schema_snapshots.py (WP7.2: golden shape snapshots + example payloads; golden/snapshots/*.snapshot.json + golden/payloads/*.example.json = 44 payload examples, the reference request bodies the conformance suite should send); golden/README.md. Parent backend/tests/contracts/conftest.py provides anyio_backend fixture, DATABASE_URL/REDIS_URL/API_KEYS env defaults, and imports mock_db_session/mock_redis_client from backend/tests/conftest.py. Global pytest config: pyproject.toml:492 asyncio_mode='auto', :494 addopts '-n 8 --dist=worksteal -v --strict-markers --tb=short -p randomly -m not gpu', :495 timeout=5 (signal method) — app-driven gateway tests with AsyncMock triton must stay under 5s.",
+            "assertion": "file layout: backend/tests/contracts/ai_providers/test_conformance.py + conftest.py exporting PROVIDERS_PARAMS (the (provider_id, slot, ops, patch-targets, transport-factory) table) and the make_client fixture copied from ai/gateway/tests/test_adapters_yolo26.py:98-104",
+            "divergence": "none",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "Operation dataclass fields (matrix-drive surface)",
+            "cite_ok": true,
+            "fact": "backend/ai_contract/provider.py:43-52 — @dataclass(frozen=True) class Operation with EXACTLY these fields in order: id: str, method: str, path: str, availability: dict[str, bool], client_methods: list[str] ('ClassName.method' strings), evidence: str. Matrix slot keys (provider.py:40 MATRIX_SLOTS): 'gateway', 'enrichment_light_adapter', 'per_model_server', 'fake'; ProviderId->slot map PROVIDER_SLOT at provider.py:137-143 (GATEWAY_LIGHT->'enrichment_light_adapter'; BOTH PER_MODEL_HTTP and LLAMACPP_LLM->'per_model_server' — the union-slot rule). operations_for_slot (provider.py:61-67) raises KeyError on unknown slot. The registry's evidence cite 'ai/gateway/main.py:181-185' still holds: mounts verified at ai/gateway/main.py:181-185.",
+            "assertion": "op = OPERATIONS[op_id]; assert set(op.availability) == set(MATRIX_SLOTS); drive HTTP as client.request(op.method, op.path, json=payload) — path already carries the adapter mount prefix; derive the patch target as 'ai.gateway.adapters.' + {'/yolo26':'yolo26','/clip':'clip','/florence':'florence','/enrichment':'enrichment','/enrich-lt':'enrichment_light'}[longest-prefix(op.path)] + '.get_triton_client'",
+            "divergence": "none",
+            "providers": "matrix-only"
+          }
+        ],
+        "notes": "Verified live (allowed one-shot probes only; no pytest run). Key numbers: gateway=31 ops (26 client-bound + 5 not-wired sentinels), gateway_light=5 (2 bound + 3 sentinels), per_model_http=36 deployed=False, llamacpp_llm=2, fake=38 — fake NOT registered at import; registered_providers() has 4 entries. Plan cite corrections: yolo26 template fixture is :98-104 not :99-104 (contents match); clip patch target line is ai/gateway/adapters/clip.py:40 (plan gave no line) and its torch import is indeed clip.py:36; all four other plan-pinned get_triton_client lines (yolo26:28, enrichment:31, enrichment_light:30, florence:39) are exact. Import timings: ai.gateway.main 1.606s rc=0; five adapters 1.553s rc=0; backend.ai_contract+registration 3.720s rc=0 — all inside the global 5s pytest-timeout even cold. Prefix trap for the suite: Operation.path includes the mount prefix, but the yolo26 template app fixture includes the router WITHOUT prefix — reuse main.py:181-185 prefixes when driving per-adapter routers, or use the full ai.gateway.main app."
+      },
+      {
+        "group": "GEOMETRY AND ENCODING",
+        "findings": [
+          {
+            "property": "G1a yolo26 server bbox: dict-of-INTS {x,y,width,height}, absolute px, from xyxy via int() truncation",
+            "cite_ok": true,
+            "fact": "ai/yolo26/model.py:1399 unpacks `x1,y1,x2,y2 = box.xyxy[0].tolist()`; :1406-1409 emit `\"bbox\": {\"x\": int(x1), \"y\": int(y1), \"width\": int(x2-x1), \"height\": int(y2-y1)}`. Plan cite :1413 drifted ~4-7 lines (the dict literal spans 1403-1411); fact holds.",
+            "assertion": "def test_g1a_yolo_bbox_dict_of_ints(yolo26_detect_response):\n    for det in yolo26_detect_response[\"detections\"]:\n        b = det[\"bbox\"]\n        assert set(b) == {\"x\", \"y\", \"width\", \"height\"}\n        assert all(type(v) is int for v in b.values())          # ints, not floats\n        assert b[\"x\"] >= 0 and b[\"y\"] >= 0                      # top-left origin, abs px\n        assert b[\"x\"] + b[\"width\"] <= yolo26_detect_response[\"image_width\"]  # in-frame\n        assert int(-0.7) == -1 or True  # truncation semantics pinned server-side by AST:",
+            "divergence": "Gateway adapter diverges (see G1b): round() vs int() differ by 1px on any fractional coord >= .5. Fake emits pure ints so it is truncation-indistinguishable; a naive fake==gateway value-equality pin fails only on fractional xyxy inputs. Both sides are 'shipped-correct'; conformance must feed integral xyxy to the gateway or pin int-vs-round per side.",
+            "providers": "both"
+          },
+          {
+            "property": "G1b gateway yolo adapter uses round() (trunc-vs-round divergence between two shipped paths)",
+            "cite_ok": true,
+            "fact": "ai/gateway/adapters/yolo26.py:204-207 (_postprocess_post_nms, def at :164) emit `\"bbox\": {\"x\": round(bx1), \"y\": round(by1), \"width\": round(box_w), \"height\": round(box_h)}`; identical block at :321-324 (_postprocess_pre_nms, def at :215). Plan cite :199 drifted to 204. Post-NMS input rows are [x1,y1,x2,y2,conf,cls] in 640-space (docstring :171), reverse-letterboxed with clamps (:193-196).",
+            "assertion": "def test_g1b_gateway_rounds(monkeypatch):\n    import numpy as np\n    from ai.gateway.adapters.yolo26 import _postprocess_post_nms\n    preds = np.array([[10.6, 20.4, 110.5, 60.9, 0.9, 0.0]])  # 640x640 image => scale=1, pad=0\n    d = _postprocess_post_nms(preds, 640, 640, 0.25)[0]\n    assert d[\"bbox\"] == {\"x\": 11, \"y\": 20, \"width\": 100, \"height\": 41}   # round(): 10.6->11, 110.5->110(odd), 60.9-20.4=40.5->40 or 41 per banker's rounding — pin actual: width=round(100.0)... exact values: x=round(10.6)=11, y=round(20.4)=20, w=round(110.5-20.4... use x2-x1)\n    # same xyxy through ai/yolo26/model.py expression semantics: int(10.6)==10 != round(10.6)==11",
+            "divergence": "Gateway (round) vs yolo26-server path (int truncate): ±1px on fractional coords. Fake emits only ints so it agrees with both on integral inputs — the naive cross-provider equality assertion holds ONLY if the patched triton canned xyxy is integral; a fractional fixture legitimately splits the providers.",
+            "providers": "gateway (vs fake only on fractional input)"
+          },
+          {
+            "property": "G2 Florence bbox: LIST [x1,y1,x2,y2] floats — opposite convention, same pipeline; bare list ambiguous repo-wide",
+            "cite_ok": true,
+            "fact": "ai/florence/model.py:207 (class Detection, def :203) `bbox: list[float] = Field(..., description=\"Bounding box as [x1, y1, x2, y2]\")`; same shape at :222, :236; backend/services/florence_client.py:59-64 dataclass Detection.bbox `list[float]  # [x1,y1,x2,y2]`. Ambiguity corpus: 189 matches of `\"bbox\": [...]` bare-list fixtures across backend/ai/frontend test corpora (plan said ~180 — close). Committed contract schema backend/ai_contract/schemas/florence_detect.response.json constrains bbox only as array-of-number with NO minItems/maxItems — a 4-vs-8 swap passes schema validation.",
+            "assertion": "def test_g2_florence_bbox_list4():\n    for det in florence_detect_response[\"detections\"]:\n        b = det[\"bbox\"]\n        assert isinstance(b, list) and len(b) == 4\n        assert all(isinstance(v, float) for v in b)   # list-of-floats, NOT dict-of-ints (G1 shape)\n        assert b[0] < b[2] and b[1] < b[3]            # xyxy TL->BR\nimport json\ndef test_g2_ambiguity_is_structural():\n    s = json.load(open(\"backend/ai_contract/schemas/florence_detect.response.json\"))\n    assert \"minItems\" not in s[\"$defs\"][\"Detection\"][\"properties\"][\"bbox\"]  # contract cannot catch 4/8 or xyxy/xywh swaps",
+            "divergence": "none — fake (_florence_bbox arity 4, generators.py:178-201) and gateway/server both ship 4-float xyxy lists; the risk is the consumer side (detector_client.py:1336 re-reads such lists as xywh, see G5 note).",
+            "providers": "both"
+          },
+          {
+            "property": "G3 Florence OCR regions return EIGHT floats (quad corners flattened from quad_boxes) at model.py:190 and :1101",
+            "cite_ok": true,
+            "fact": "ai/florence/model.py:186 class OCRRegion; :189-192 bbox Field description \"[x1,y1,x2,y2,x3,y3,x4,y4] (quadrilateral corners)\" (plan cite :190 lands inside the Field call). Flatten at :1101-1105: `bbox = quad_boxes[i]...; if bbox and isinstance(bbox[0], list): bbox = [coord for point in bbox for coord in point]` then OCRRegion(text=..., bbox=...). Second flatten site :1263-1267 (analyze_scene). Consumer mirror: florence_client.py:52-56 OCRRegion.bbox `list[float]  # [x1..y4] quadrilateral`; scene_ocr_service.py:551-553 folds 8->4 via min/max. Contract schema florence_ocr_with_regions.response.json again has NO length constraint.",
+            "assertion": "def test_g3_ocr_quad_is_8_floats(florence_ocr_with_regions_response):\n    for r in florence_ocr_with_regions_response[\"regions\"]:\n        b = r[\"bbox\"]\n        assert isinstance(b, list) and len(b) == 8 and all(isinstance(v, float) for v in b)\n        # axis-aligned quad from fake/server: xs=b[0::2], ys=b[1::2] must reproduce the rect\n        assert {b[0], b[2], b[4], b[6]} == {b[0], b[6]} and {b[1], b[3], b[5], b[7]} == {b[1], b[3]}  # 8-coord, NOT bare 4\ndef test_g3_flatten_semantics():\n    from ai.florence.model import OCRRegion\n    nested = [[1.0,2.0],[3.0,2.0],[3.0,4.0],[1.0,4.0]]\n    flat = [c for pt in nested for c in pt]\n    assert OCRRegion(text=\"x\", bbox=flat).bbox == flat and len(flat) == 8",
+            "divergence": "none — fake override _OVERRIDES[(\"florence_ocr_with_regions\",\"bbox\")]=(\"florence_bbox\",8) at generators.py:261 plus qualified (\"florence_analyze_scene\",\"OCRRegion.bbox\")->8 at :266; server emits 8 via flatten. Both shipped-correct; the 4-float CaptionedRegion.bbox under the SAME property name on analyze_scene (:265 fallback) is the in-op ambiguity the qualified-key override exists to handle.",
+            "providers": "both"
+          },
+          {
+            "property": "G4 FOURTH spelling: {x1,y1,x2,y2} DICTS — 'find representative sites'; '~30 literals in enrichment' count claim",
+            "cite_ok": true,
+            "fact": "Spelling exists. Representative non-test sites: backend/services/enrichment_client.py:3161-3166 (unified-enrichment payload `\"bbox\": {\"x1\": bbox[0], ...}`); backend/services/enrichment_pipeline.py:583-591 (BoundingBox.to_dict, class BoundingBox :564-568 x1/y1/x2/y2 floats); backend/services/florence_client.py:92 (as_dict); backend/services/yolo_world_loader.py:448-453; backend/api/schemas/plate_read.py:21+29; backend/models/smoke_fire_result.py:187; backend/services/vehicle_damage_loader.py:82. COUNT CLAIM FALSE: `\"x1\":` dict-literal grep totals 57 across ALL py (incl. tests) — only 7 outside tests; ai/ (incl. ai/enrichment) has ZERO `\"x1\":` literals; enrichment_client.py has exactly ONE. 34 of the 57 sit in one file, backend/tests/unit/services/test_package_tracking_service.py. '~30 enrichment literals' is ~4x overstated and misattributed.",
+            "assertion": "def test_g4_x1y1x2y2_dict_shape():\n    from backend.services.enrichment_pipeline import BoundingBox\n    d = BoundingBox(x1=10, y1=20, x2=30, y2=40, confidence=0.9).to_dict()\n    assert list(d) == [\"x1\", \"y1\", \"x2\", \"y2\", \"confidence\"]\n    assert d[\"x2\"] - d[\"x1\"] == 20  # keys are corners, not x/y/w/h\nimport subprocess, pathlib\ndef test_g4_spelling_is_rare_not_30():\n    out = subprocess.run([\"grep\",\"-rn\",'\"x1\":',\"backend\",\"ai\",\"--include=*.py\"], capture_output=True, text=True).stdout\n    nontest = [l for l in out.splitlines() if \"/test\" not in l]\n    assert len(out.splitlines()) == 57 and len(nontest) == 7   # pins the true corpus size (update on drift)",
+            "divergence": "matrix-only — no registered provider op RETURNS an x1-dict bbox (fake yolo ops emit x/y/width/height dicts; florence ops emit lists). The x1-spelling is request-side/backend-internal, so a provider response-shape matrix never exercises it; a naive 'all bboxes are dict-or-list of 4' provider assertion will not catch fourth-spelling rot.",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "G5 bbox_validation.py:7 docstring asserts FALSE global invariant; xywh box (100,150,300,400) passes and silently means 200x250",
+            "cite_ok": true,
+            "fact": "backend/services/bbox_validation.py:7 literally says 'All bounding boxes in this system use the format (x1, y1, x2, y2)' — FALSE globally: yolo server/gateway ship {x,y,width,height} int dicts (G1), Detection DB stores x/y/w/h ints (G6), and detector_client.py:1336-1340 re-reads any bare 4-elem list/tuple as (x,y,w,h). Check logic permits the misread: is_valid_bbox (:121-157) tests only x2>x1, y2>y1, finite, sign — (100,150,300,400) passes; validate_bbox (:160, called at :182 try) same checks + optional strict bounds which 640x480 passes; clamp_bbox_to_image (:258) returns it unchanged, reinterpreting w=300,h=400 as x2=300,y2=400 → 200x250. Cited callers EXIST: reid_service.py:482 `if not is_valid_bbox(bbox_float, allow_negative=True):` (in generate_embedding, def :430) and enrichment_client.py:1965 `if not is_valid_bbox(bbox, allow_negative=True):` (in estimate_object_distance, def :1913). NUANCE: current direct callers feed xyxy (household.py:541-548 builds (x, y, x+w, y+h); enrichment_pipeline.py:5768 det.bbox.to_int_tuple()), so 'callers pass yolo-style boxes unprotected' is directionally right (validator cannot enforce convention) but the live convention-mismatch producers are face_detector.py:299-303 (builds a raw (x,y,w,h) tuple, consumed as xywh at :89-103) and detector_client.py:1336-1340 (misreads florence xyxy lists as xywh).",
+            "assertion": "def test_g5_validator_is_convention_blind():\n    from backend.services.bbox_validation import is_valid_bbox, validate_bbox, clamp_bbox_to_image\n    xywh = (100.0, 150.0, 300.0, 400.0)   # yolo-style x=100 y=150 w=300 h=400 fed as 4-tuple\n    assert is_valid_bbox(xywh, allow_negative=True) is True\n    validate_bbox(xywh, image_width=640, image_height=480, strict_bounds=True)  # no raise\n    assert clamp_bbox_to_image(xywh, 640, 480) == xywh\n    assert (xywh[2]-xywh[0], xywh[3]-xywh[1]) == (200, 250)  # silent xywh->xyxy reinterpretation\n    assert 'All bounding boxes in this system use the format (x1, y1, x2, y2)' in \\n        __import__('backend.services.bbox_validation', fromlist=['x']).__doc__  # the false invariant, pinned so its removal is a deliberate act\ndef test_g5_call_sites_exist():\n    src = pathlib.Path('backend/services/bbox_validation.py').read_text().splitlines()\n    assert src[6].strip().startswith('All bounding boxes')\n    assert 'is_valid_bbox(bbox_float, allow_negative=True)' in pathlib.Path('backend/services/reid_service.py').read_text()\n    assert 'is_valid_bbox(bbox, allow_negative=True)' in pathlib.Path('backend/services/enrichment_client.py').read_text()",
+            "divergence": "neither provider violates it — FakeProvider and gateway both emit schema-valid shapes; the false invariant is a backend-infrastructure property. The conformance suite can still drive it: feed the fake's florence 4-float xyxy lists and the gateway's yolo xywh dicts through the validator and pin that ONLY the dict spelling carries the w/h convention (validator accepts both tuples identically).",
+            "providers": "both (as validator inputs)"
+          },
+          {
+            "property": "G6 normalized [0,1] floats truncate to 0 in Integer DB columns with no error",
+            "cite_ok": true,
+            "fact": "Column types CONFIRMED Integer, but the plan's line drifted: backend/models/detection.py:55 is `confidence ... Float`; the bbox columns are bbox_x/bbox_y/bbox_width/bbox_height `Mapped[int|None] = mapped_column(Integer, nullable=True)` at :56-59 (class Detection :29, table :43). Truncation to 0 happens at the app boundary before the DB: detector_client.py:1333-1336 `bbox_x=int(bbox[\"x\"]); ... bbox_width=int(bbox[\"width\"])` — int(0.87)==0. Downstream guard: detector_client.py:1380-1388 silently SKIPS any detection with bbox_width<1 or bbox_height<1 (logger.warning, record-and-continue, no exception) — so a fully-normalized provider box vanishes or lands as zeros with no error anywhere. DB-level note: PG float8->int4 assignment rounds (0.87->1) and SQLite INTEGER-affinity keeps a non-lossless REAL; the repo's actual truncation path is the explicit int().",
+            "assertion": "def test_g6_integer_columns_swallow_normalized_floats():\n    from backend.models.detection import Detection\n    cols = {c.name: str(c.type) for c in Detection.__table__.columns}\n    assert cols[\"bbox_x\"] == cols[\"bbox_width\"] == \"INTEGER\"      # NOT Float — line 56/58, not 55\n    normalized = {\"x\": 0.87, \"y\": 0.42, \"width\": 0.31, \"height\": 0.19}  # [0,1] provider bug\n    coerced = {k: int(v) for k, v in normalized.items()}          # detector_client.py:1333-1336 semantics\n    assert coerced == {\"x\": 0, \"y\": 0, \"width\": 0, \"height\": 0}   # silent collapse\n    d = Detection(camera_id=\"c\", file_path=\"/f\", bbox_x=coerced[\"x\"], bbox_width=coerced[\"width\"])\n    # no type/range validation fires: SQLAlchemy accepts; Integer column never errors on 0",
+            "divergence": "matrix-only in practice — FakeProvider emits absolute-pixel in-frame ints (_yolo_bbox_dict, generators.py:215-229) and the gateway adapter clamps+rounds to absolute px before emission, so no registered provider currently emits normalized floats; the conformance value is a NEGATIVE property: a hypothetical [0,1]-emitting provider is undetectable at this layer (no raise, no range check; detection silently skipped at detector_client.py:1380).",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "G7 FlorenceClient.detect does ZERO validation of bbox arity/dtype/convention; Florence score DEFAULTS to 1.0 when absent",
+            "cite_ok": true,
+            "fact": "backend/services/florence_client.py: async def detect at :1054; response parse at :1100-1106: `Detection(label=d.get(\"label\",\"\"), bbox=d.get(\"bbox\",[]), score=d.get(\"score\",1.0))` — plan cite :1101 hits the comprehension (drift +/−3). Zero validation: Detection is a plain slots dataclass (:59-64, score default 1.0 at :63) — no length check, no dtype coercion (a bbox of strings passes), no xyxy ordering, no clamping; missing bbox becomes []. Server side: ai/florence/model.py:208 `score: float = Field(default=1.0, ...)` (Detection class :203), and the /detect endpoint hard-codes `Detection(label=label, bbox=bbox, score=1.0)` at :1150 because 'Florence-2 OD doesn't return scores' — omitted confidence becomes MAX confidence. SecurityObjects path hard-codes confidence=1.0 at :1350-1354 (field default :237-239). Schema florence_detect.response.json: score has default 1.0 and is NOT in required (only label, bbox).",
+            "assertion": "async def test_g7_client_accepts_anything_and_scores_absent_as_max(httpx_mock patched to return):\n    body = {\"detections\": [{\"label\": \"person\"}, {\"label\": \"car\", \"bbox\": [\"a\", \"b\"], \"score\": 42}]}\n    dets = await FlorenceClient(base_url=...).detect(PIL.Image.new(\"RGB\", (8, 8)))\n    assert dets[0].bbox == [] and dets[0].score == 1.0     # absent bbox/score silently accepted\n    assert dets[1].bbox == [\"a\", \"b\"]                       # dtype NEVER validated — string coords survive\n    assert dets[1].score == 42                              # no [0,1] clamp on this dataclass (contrast SecurityObjectDetection ge/le at ai/florence/model.py:237-239)\ndef test_g7_score_semantic():\n    from ai.florence.model import Detection as SrvDet\n    assert SrvDet(label=\"x\", bbox=[0.0,0.0,1.0,1.0]).score == 1.0  # omitted confidence == max confidence",
+            "divergence": "gateway/server violates a naive 'score reflects model confidence' property far harder than fake: the real Florence OD path ships score≡1.0 for EVERY detection (model.py:1150, :1350-1354) while FakeProvider's schema-walker emits varied floats for the optional score — so a cross-provider assertion 'scores ∈ (0,1) and not constant' is provider-split (fake passes, gateway-adapter/server side legitimately ships the 1.0 degeneracy as its shipped-correct truth). Shape assertions (bbox list-of-floats) both sides pass.",
+            "providers": "both"
+          }
+        ],
+        "notes": "Corrections to plan citations: G1 int() truncation is ai/yolo26/model.py:1406-1409 (xyxy unpack :1399; plan's :1413 ≈ end of dict literal); gateway round() is ai/gateway/adapters/yolo26.py:204-207 (pre_nms twin :321-324; plan's :199 is the confidence-clamp block). G6 line 55 is the confidence Float column; bbox Integer columns are :56-59. G7 client line :1101 → the parse block is :1100-1106. All cited SYMBOLS verified present; no claim was false at the mechanism level except: (a) G4's \"~30 enrichment dict literals\" — actual totals are 57 repo-wide in .py incl. tests, 7 outside tests, 0 anywhere under ai/ (34 of 57 in backend/tests/unit/services/test_package_tracking_service.py); (b) G5's \"callers pass yolo-style boxes unprotected\" — call sites reid_service.py:482 and enrichment_client.py:1965 exist verbatim and the validator is provably convention-blind, but current direct callers feed xyxy; the live convention-mismatch producers are face_detector.py:299-303 (xywh tuple) and detector_client.py:1336-1340 (coerces bare 4-elem lists — i.e. florence xyxy — to (x,y,w,h)). Ambiguity corpus: 189 `\"bbox\": [...]` bare-list fixtures (plan's ~180). Structural finding for the conformance suite: NO committed contract schema constrains bbox length (no minItems/maxItems in florence_detect, florence_ocr_with_regions, etc.) — the 4-vs-8-arity and xyxy-vs-xywh hazards are code-behavior properties, not schema-checkable; the fake encodes them via _OVERRIDES (generators.py:255-266, incl. the qualified \"OCRRegion.bbox\" key at :266 that lets one op carry two bbox definitions). Sandbox curiosity affecting G5: bbox_validation.py:156 `except TypeError, ValueError:` (unparenthesized) COMPILES on this .venv Python 3.14.2 (PEP 758 revived the form) and AST-normalizes to (TypeError, ValueError) — it would be a SyntaxError on ≤3.13, so any version-skew test matrix will diverge on this file's importability, not just semantics. Assertion drivability confirmed: fake shapes are _yolo_bbox_dict (dict-of-int, in-frame, generators.py:215) and _florence_bbox arity 4/8 (:178); gateway pin path is ai/gateway/adapters/yolo26.py._postprocess_post_nms/_postprocess_pre_nms directly (pure functions over np rows) — patching get_triton_client (:347) only needed for the HTTP /detect route; a 640x640 input image makes letterbox scale=1/pad=0 for exact expected values."
+      },
+      {
+        "group": "VOCABULARY",
+        "findings": [
+          {
+            "property": "V1a — SECURITY_CLASSES (9) on native server path",
+            "cite_ok": true,
+            "fact": "ai/yolo26/model.py:151 SECURITY_CLASSES = {person,car,truck,dog,cat,bird,bicycle,motorcycle,bus} (exactly 9); native server filters at ai/yolo26/model.py:1384 (`if class_name is None or class_name not in SECURITY_CLASSES: continue`) inside the detect postprocess, keyed off the 9-entry COCO id->name map at :154.",
+            "assertion": "sec = ai.yolo26.model.SECURITY_CLASSES; assert sec == {'person','car','truck','dog','cat','bird','bicycle','motorcycle','bus'}; assert len(sec) == 9",
+            "divergence": "none (fake pins this: backend/ai_contract/fake/generators.py:43 copies the same 9 as frozenset; fake 'security' profile == these 9, app.py:50)",
+            "providers": "both"
+          },
+          {
+            "property": "V1b — gateway adapter returns ALL 80 COCO classes unfiltered",
+            "cite_ok": true,
+            "fact": "ai/gateway/adapters/yolo26.py:42 COCO_CLASSES: list[str] has exactly 80 names (verified by AST-free count; includes backpack/handbag/suitcase at COCO indices and 71 non-security names); both postprocess paths emit `\"class\": cls_name` at :201 and :318 with fallback f\"class_{cls_id}\" beyond index 79; the file contains zero references to SECURITY/filter. Gateway keeps everything above its single flat CONFIDENCE_THRESHOLD=0.25 (:46). So TODAY: server path filters to 9, gateway path does not — Tier A divergence confirmed.",
+            "assertion": "resp = await provider.detect(img); assert {d['class'] for d in resp['detections']} <= SECURITY_CLASSES  # naive uniform property",
+            "divergence": "gateway — returns classes outside the 9-set (e.g. 'chair', 'toaster'); fake 'security' profile passes, fake 'gateway' profile (generators.py:50, 80-tuple) would too if exercised",
+            "providers": "both"
+          },
+          {
+            "property": "V1c — ai/triton/client.py filter site is real but the module is orphaned",
+            "cite_ok": true,
+            "fact": "ai/triton/client.py:230 TritonClient.SECURITY_CLASSES frozenset (same 9) with filters at :692 and :752 — claim holds. BUT repo-wide grep finds no production consumer of ai.triton: the gateway talks Triton via ai/gateway/triton_client.py (a different class with NO class filtering), imported by ai/gateway/adapters/*.py. Only references to ai/triton outside its own package are its docstring (:30) and ai/AGENTS.md:486.",
+            "assertion": "from ai.triton import TritonClient; assert TritonClient.SECURITY_CLASSES == frozenset(SECURITY_CLASSES_9)  # pin as data, but do NOT treat as the live gateway filter",
+            "divergence": "none for the symbol; misleading if the suite assumes ai/triton is the gateway's filter — the live gateway path (gateway/triton_client + adapters/yolo26.py) filters nothing",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "V2a — server-side per-class confidence table",
+            "cite_ok": true,
+            "fact": "ai/yolo26/model.py:173 _DEFAULT_CLASS_CONFIDENCE_THRESHOLDS: person 0.45, car/truck/bus 0.70, motorcycle 0.65, bicycle 0.65, dog/cat/bird 0.55; env override YOLO26_CLASS_THRESHOLDS merged at :197; applied server-side at :1392-1396 (`confidence < class_threshold: continue`).",
+            "assertion": "from ai.yolo26.model import _DEFAULT_CLASS_CONFIDENCE_THRESHOLDS as T; assert T == {'person':0.45,'car':0.70,'truck':0.70,'bus':0.70,'motorcycle':0.65,'bicycle':0.65,'dog':0.55,'cat':0.55,'bird':0.55}",
+            "divergence": "none (server-path constant; gateway adapter has NO table — single 0.25 floor at ai/gateway/adapters/yolo26.py:46, applied at :179)",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "V2b — backend per-class table strictly lower, applied a second time downstream",
+            "cite_ok": true,
+            "fact": "backend/core/config.py:1694 detection_class_thresholds (plan's ~:1694 is exact): person 0.40, car/truck 0.50, bus 0.55, motorcycle/bicycle 0.50, dog/cat/bird 0.45, plus backpack/handbag/suitcase 0.50; fallback detection_confidence_threshold=0.40 at :1681. Consumed at backend/services/detector_client.py:295 and applied at :1314 (`effective_threshold = self._class_thresholds.get(object_class, self._confidence_threshold)`). All 9 shared values are strictly LOWER than the server table, so the two tables in series are effectively server-table-gates-everything on the native path.",
+            "assertion": "from backend.core.config import settings as s; srv = _DEFAULT_CLASS_CONFIDENCE_THRESHOLDS; assert all(s.detection_class_thresholds[k] < srv[k] for k in srv)",
+            "divergence": "gateway — its 0.25 floor lets e.g. car@0.55 through, which the server table would have dropped; backend table then passes it (<0.70 never applied), so identical input yields different detection sets per provider",
+            "providers": "both"
+          },
+          {
+            "property": "V2c — never-fire claim for backpack/handbag/suitcase",
+            "cite_ok": true,
+            "fact": "Under the SHIPPED default (use_ai_gateway=False, backend/core/config.py:1315) the native server drops backpack/handbag/suitcase at model.py:1384 before they can reach backend, so detector_client.py:1314 never sees them — never-fire is TRUE today. It is not structurally true: the gateway adapter maps class ids 24/26/28 to those names and returns them, so with use_ai_gateway=True (+ai_gateway_url, detector_client.py:283-285) the three backend entries become live. The plan's 'can never fire' holds only for the native path.",
+            "assertion": "assert set(s.detection_class_thresholds) - SECURITY_CLASSES == {'backpack','handbag','suitcase'}; assert not settings.use_ai_gateway  # dead-entry property only while gateway off",
+            "divergence": "gateway — reanimates the three 'dead' entries; fake security profile reproduces never-fire, so a naive 'these thresholds never fire' assertion passes on fake and is false for the gateway provider",
+            "providers": "gateway"
+          },
+          {
+            "property": "V3 — three names for one concept (class / label / type→class_name)",
+            "cite_ok": true,
+            "fact": "yolo: key 'class' (gateway adapter ai/gateway/adapters/yolo26.py:201,:318; consumer backend/services/detector_client.py:1309 `detection_data.get('class','unknown')`; triton Detection field class_name). florence: field `label` — ai/florence/model.py:206 (Detection) and :235 (SecurityObjectDetection). enrichment threat at backend/services/enrichment_pipeline.py:3890 — plan's ~:3890 is EXACT: `threat_class = t.get('type', t.get('class_name', 'unknown'))`. Bonus: :5188 in the SAME file does the REVERSE precedence `t.get('class_name', t.get('type', 'unknown'))` — an entry whose dict has both keys resolves to different values on the two paths.",
+            "assertion": "assert set(d.keys()) & {'class','label','type'} == {'class'} for every provider detection  # canonical-key property; and pin both enrichment precedences as a documented split: t3890 == t.get('type',...) vs t5188 == t.get('class_name',...)",
+            "divergence": "gateway/florence-family — 'label'-keyed payloads fail the canonical-'class' assertion the fake (which emits 'class') always passes",
+            "providers": "both"
+          },
+          {
+            "property": "V4 — 'detections' key-existence routes to malformed_response (plan's :1419 cite is WRONG)",
+            "cite_ok": false,
+            "fact": "Cited ~:1419 is the Detection-model bbox write region. TRUE site: backend/services/detector_client.py:1276 `if 'detections' not in result:` -> warning + record_pipeline_error('malformed_response') at :1281 + return [], inside async def detect_objects (:1116-:1566). Also: only KEY PRESENCE is checked — there is no isinstance(result['detections'], list) guard; the loop at :1307 iterates whatever is there and non-dict items die silently in the per-item try/except (no metric). Gateway adapter always emits the key on success (:375) and answers triton junk with HTTPException 503 (:381-383), which trips client retry/server-error metrics (:806), NOT malformed_response. Fake always emits it (generators.py:404,420).",
+            "assertion": "resp = json.loads(await provider.detect(img)); assert 'detections' in resp and isinstance(resp['detections'], list); # consumer-side: monkeypatch record_pipeline_error, feed response without 'detections' key, assert called_once_with('malformed_response')",
+            "divergence": "gateway — under triton failure it violates neither assertion path (503 before the key check), so a naive 'any provider response lacking detections increments malformed_response' is false for gateway error shapes; list-type assertion is unenforced by the consumer today for both providers",
+            "providers": "both"
+          },
+          {
+            "property": "V5 — no class allowlist gates the DB write; unknown classes flow through raw",
+            "cite_ok": true,
+            "fact": "DB write is `object_type=detection_data.get('class')` at backend/services/detector_client.py:1409 with NO validation; backend/models/detection.py:54 object_type is plain `String, nullable=True` — no enum/CHECK. The only allowlist, KNOWN_OBJECT_CLASSES (backend/core/sanitization.py:245, includes backpack/handbag/suitcase), is used solely for Prometheus labels via sanitize_object_class (:436 -> backend/core/metrics.py:1386), mapping unknowns to 'other' in METRICS ONLY. detection_class_thresholds is a threshold map, not an allowlist — unknown classes fall back to the 0.40 default (:1681) and are still stored.",
+            "assertion": "det = await client.detect_objects(...); assert all(d.object_type in KNOWN_OBJECT_CLASSES for d in det)  # naive containment property",
+            "divergence": "gateway — its unfiltered 80-class stream (e.g. 'traffic light' is in KNOWN but 'class_81' fallback and any non-COCO name are not; class_{id} names land in the DB verbatim) violates containment; fake security profile passes trivially",
+            "providers": "gateway"
+          }
+        ],
+        "notes": "Method: grep/AST only, no pytest/heavy processes. Verified counts programmatically: gateway COCO_CLASSES len==80 with the 9 security names as subset (71 extras). Line drift summary vs plan: V4 detector_client cite ~:1419 is wrong (true: 1276/1281, enclosing detect_objects :1116); config ~:1694 and enrichment ~:3890 are EXACT. Biggest suite-relevant traps: (1) ai/triton/client.py:230 is real-but-orphaned — the live gateway Triton path is ai/gateway/triton_client.py with zero class filtering; (2) two confidence tables are in series on the native path and backend's are all strictly lower, so the server table is the effective gate — with the gateway provider (flat 0.25 floor) the backend table becomes the effective gate and the three 'dead' entries revive; (3) enrichment_pipeline.py:3890 vs :5188 disagree on type/class_name precedence; (4) the malformed_response check tests key presence only, never list-ness, and gateway error shapes bypass it entirely via HTTP 503. Relevant files (absolute): /agents/agent-nemo2/workspace/ai/yolo26/model.py, /agents/agent-nemo2/workspace/ai/triton/client.py, /agents/agent-nemo2/workspace/ai/gateway/adapters/yolo26.py, /agents/agent-nemo2/workspace/ai/gateway/triton_client.py, /agents/agent-nemo2/workspace/backend/core/config.py, /agents/agent-nemo2/workspace/backend/services/detector_client.py, /agents/agent-nemo2/workspace/backend/services/enrichment_pipeline.py, /agents/agent-nemo2/workspace/backend/core/sanitization.py, /agents/agent-nemo2/workspace/backend/models/detection.py, /agents/agent-nemo2/workspace/ai/florence/model.py, /agents/agent-nemo2/workspace/backend/ai_contract/fake/generators.py, /agents/agent-nemo2/workspace/backend/ai_contract/fake/app.py."
+      },
+      {
+        "group": "numeric-invariants",
+        "findings": [
+          {
+            "property": "N1a: CLIP embeddings 768-dim, L2-normalized, epsilon-guarded",
+            "cite_ok": true,
+            "fact": "ai/clip/model.py:801-804 — epsilon=1e-8, image_features / (torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon) inside extract_embedding (def at :762); EMBEDDING_DIMENSION=768 at :227. Re-normalize w/ epsilon also at :855-859 in compute_anomaly_score. Gateway path normalizes via ai/gateway/utils.py:172-184 l2_normalize (NO epsilon — returns the RAW vector when norm<1e-12) called at ai/gateway/adapters/clip.py:297, text-side epsilon at :200,:353-355.",
+            "assertion": "for op in embedding_ops: e = resp['embedding']; assert len(e)==768; n=math.sqrt(sum(x*x for x in e)); assert abs(n-1.0) < 1e-5  # NOT 1e-9: ai/clip divides by (norm+1e-8) so norm=1-~1e-8; gateway degenerate zero-vector path returns raw (norm!=1)",
+            "divergence": "fake: OK — _unit_embedding at backend/ai_contract/fake/generators.py:173-177, override ('unit_embedding',768) for clip_embed at :242 (exact unit norm). gateway: OK except norm<1e-12 early-return at ai/gateway/utils.py:182-183 emits unnormalized vector. Legacy CLIP server: norm is 1-1e-8-ish, fails any abs-tol < 1e-8 assertion.",
+            "providers": "both"
+          },
+          {
+            "property": "N1b: fixed-dim test literals are non-unit-norm and mislabeled; zero unit-norm assertions in backend/tests",
+            "cite_ok": true,
+            "fact": "backend/tests/integration/test_enrichment_pipeline.py:384 `test_embedding = [0.1] * 768  # Normalized CLIP embedding` (true L2 norm = 0.1*sqrt(768) = 2.771). Spot sites: test_vision_extraction_pipeline.py:877 and :922 ([0.1]*768), test_scene_baseline.py:181 ([0.1]*EMBEDDING_DIMENSION), test_enrichment_models.py:502 ([0.1]*512). Plan's count 87 under-counts: 145 literal lines match '\\[0.1\\] \\*' across backend/tests; 125 lines mention 768. Zero unit-norm assertions: every np.linalg.norm hit in backend/tests normalizes a fixture before use (test_osnet_loader.py:71 etc.); none asserts norm(literal)==1.",
+            "assertion": "v=[0.1]*768; assert abs(math.sqrt(sum(x*x for x in v))-1.0) > 1.0  # anti-pin: documents that the repo's canonical 'Normalized CLIP embedding' literal has norm 2.771, so any provider property 'embeddings are unit-norm' contradicts every existing fixture",
+            "divergence": "none (property is about test literals, not providers — but it licenses FakeProvider's unit-norm output diverging from every legacy fixture: mock-vs-real numeric mismatch)",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "N2a: /classify scores = softmax over requested labels, sum 1.0, top_label member (CLIP server)",
+            "cite_ok": true,
+            "fact": "ai/clip/model.py classify() def :875; torch.softmax(logits_per_image, dim=-1) at :919; scores=dict(zip(labels,...)) :925; top_label=labels[argmax] :928. Ensemble variant softmax at :1043.",
+            "assertion": "s = resp['scores']; assert set(s)==set(labels); assert sum(s.values())==pytest.approx(1.0, abs=1e-5); assert resp['top_label'] in labels",
+            "divergence": "fake: VIOLATES BOTH — clip_classify is not in _LITERAL_OPS (backend/ai_contract/fake/generators.py:490-498 lists the 7 literal ops; clip_classify absent), so it is WALKED from backend/ai_contract/schemas/clip_classify.response.json; the free-form-object branch at generators.py:347-352 emits scores={'alpha':U(0.1,0.9),'bravo':U(0.1,0.9)} (sum 0.2-1.8, keys not from request) and top_label='top_label_NNN' from the generic string generator (:340) — not a member of scores. gateway: sum==1.0 EXACT fails — round(probs,6) at ai/gateway/adapters/clip.py:429 makes sum off by up to n_labels*5e-7.",
+            "providers": "both"
+          },
+          {
+            "property": "N2b: gateway swaps CLIP ViT-L for SigLIP-2 at 768 dims (sum-to-1 provider-fragile)",
+            "cite_ok": true,
+            "fact": "ai/triton/model_repository/clip/config.pbtxt:1-2 'SigLIP 2 Base ... Replaces CLIP ViT-L/14', output dims [768] at :22-25; clip_text/config.pbtxt:1-5 (SigLIP-2 text, 768 out, max_length=64). BUT the gateway /classify never touches SigLIP's sigmoid head: it does its own dot + manual softmax exp_sims/(exp_sims.sum()+1e-8) at ai/gateway/adapters/clip.py:423-427. The legacy server ai/clip/model.py still loads CLIPModel/ViT-L (:622,:654,:1251 default /models/clip-vit-l). The sigmoid-independence fragility is prospective (a provider surfacing SigLIP head scores directly), not current code.",
+            "assertion": "assert sum(resp['scores'].values())==pytest.approx(1.0, abs=1e-4)  # passes gateway (manual softmax despite SigLIP) and clip server; do NOT assert ==1.0 exactly (round6 at adapters/clip.py:429); fake fails at any tol (see N2a)",
+            "divergence": "fake (free-form walk); gateway only under exact-equality; both models' own score semantics agree today because both softmax",
+            "providers": "both"
+          },
+          {
+            "property": "N3: anomaly_score ge=0/le=1 and similarity [-1,1] pydantic constraints; cosine assumption",
+            "cite_ok": true,
+            "fact": "Legacy server ai/clip/model.py:359-361 anomaly_score ge=0.0 le=1.0; :362-364 similarity_to_baseline ge=-1.0 le=1.0; value is clamped max(0.0,min(1.0,1-sim)) at :869 with inputs re-normalized at :855-859. Backend schema backend/api/schemas/baseline.py:225-228 anomaly_score ge=0.0. GAP: the GATEWAY adapter's response models have NO constraints — AnomalyScoreResponse.similarity/anomaly_score and SimilarityResponse.similarity are bare float Field at ai/gateway/adapters/clip.py:236-253, and its _cosine_similarity (:303-311, float32 dot) can exceed 1.0 or return 0.0-for-zero-vectors without schema enforcement. reid similarity constrained to NON-negative ge=0.0 le=1.0 (backend/api/schemas/reid.py:91) even though cosine is [-1,1].",
+            "assertion": "a=resp['anomaly_score']; assert 0.0 <= a <= 1.0; sim=resp['similarity']; assert -1.0 <= sim <= 1.0  # naive range pin; fake passes trivially (generic number walker emits U(0.1,0.9) at generators.py:335, never negative); a float32 dot >1.0 would 500 the legacy server (pydantic) but sail through the gateway",
+            "divergence": "constraint asymmetry gateway(none) vs clip-server(ge/le); fake's number generator masks any out-of-range bug (always in [0.1,0.9])",
+            "providers": "both"
+          },
+          {
+            "property": "N4: risk_score int [0,100] at three layers with different strictness; 0.5 silently truncates to 0",
+            "cite_ok": true,
+            "fact": "Path in plan WRONG: backend/models/llm_response.py does not exist — file is backend/api/schemas/llm_response.py. (1) guided_json: RISK_ANALYSIS_JSON_SCHEMA at llm_response.py:34, risk_score {'type':'integer','minimum':0,'maximum':100} at :37-42 (rejects non-int schema-side via NIM). (2) pydantic LLMRiskResponse field int ge=0 le=100 at :393-397 + BEFORE-validator coerce_risk_score at :434-460: float→int(v) TRUNCATES, str→int(float(v)); ge/le runs after so out-of-range still raises. (3) Postgres CheckConstraint ck_events_risk_score_range 'risk_score IS NULL OR (risk_score >= 0 AND risk_score <= 100)' at backend/models/event.py:241-243. RIVAL schema backend/api/schemas/llm.py:227 LLMRiskResponse has a DIFFERENT validator at :305-321 that CLAMPS (150→100, -10→0) instead of rejecting, plus model-validator rewrites risk_level from the coerced score (:371-415). Runtime-verified: LLMRiskResponse(risk_score=0.5)→0, '0.5'→0 on llm_response.py; llm.py 0.75/high→(0, LOW). A 0-1-float provider is silently stored as 0 everywhere below 1.0.",
+            "assertion": "assert LLMRiskResponse(risk_score=0.5, risk_level='low', summary='s', reasoning='r').risk_score == 0  # pin the truncation hazard (valid+stored+wrong); and pytest.raises(ValidationError): LLMRiskResponse(risk_score=150,...) but llm.py clamps 150→100 — the two schemas disagree on out-of-range",
+            "divergence": "conformance-suite side: any provider emitting 0-1 float risk passes guided schema? NO — guided schema says integer, so NIM would refuse; pydantic accepts+destroys. Fake llm ops come from chat-completion snapshots; the naive 'risk_score in [0,100] and !=0 for threat' assertion catches nothing on fake (integer ints 1-8 from generic int walker U[1,8] could be read as risk!)",
+            "providers": "both"
+          },
+          {
+            "property": "N5a: wrong-dim embeddings RAISE in scene_baseline",
+            "cite_ok": true,
+            "fact": "backend/services/scene_baseline.py:260-263 `if len(embedding) != EMBEDDING_DIMENSION(=768, :47): raise InvalidEmbeddingError` in store/normalizer path; second guard at :327-330. Exception class InvalidEmbeddingError at :75.",
+            "assertion": "with pytest.raises(InvalidEmbeddingError): baseline_service.store_embedding(cid, [0.1]*512)",
+            "divergence": "none (consumer-side behavior, matrix-only property)",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "N5b: reid_matcher 'DEFAULTS 512' — behavioral claim FALSE",
+            "cite_ok": false,
+            "fact": "backend/services/reid_matcher.py:57 DEFAULT_EMBEDDING_DIMENSION = 512 exists but is DEAD: grep across backend/ ai/ finds no consumer — store_embedding records whatever len it gets (:313 'dimension': len(embedding)), and _cosine_similarity (:244-255) SILENTLY returns 0.0 when len(vec1)!=len(vec2). So reid_matcher's actual failure mode for a dim mistake is silent-zero similarity, not 'defaulting to 512'. The plan's three-failure-modes claim becomes raise / dead-constant+silent-0.0 / pad — still three modes, but 'default' is wrong.",
+            "assertion": "assert ReIDMatcher._cosine_similarity([0.1]*512, [0.1]*768) == 0.0  # pins the SILENT dim-mismatch mode; also assert 'DEFAULT_EMBEDDING_DIMENSION' has no runtime consumer (anti-pin so a future default-on behavior redden this)",
+            "divergence": "none (consumer-side)",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "N5c: osnet_loader SILENTLY pads/truncates to 512",
+            "cite_ok": true,
+            "fact": "backend/services/osnet_loader.py:347-358 — if shape[0]!=OSNET_EMBEDDING_DIM(=512, :41): flatten()[:512] truncate then np.pad zero-pad; then L2-normalizes the mangled vector at :360-363 (padded+re-normalized = fake direction). Batch path duplicates at :446-453.",
+            "assertion": "assert OSNET_EMBEDDING_DIM == 512 and osnet pad/trunc code path mutates mismatched dims to exactly 512 with no exception (document via comment; not provider-exercisable in-process)",
+            "divergence": "fake: enrich_lt_person_reid pins embedding_dimension const 512 and unit_embedding 512 (fake/generators.py:243-244) — fake NEVER exercises the pad/truncate branch because it always returns exact 512",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "N5d: face identities 512-dim ArcFace",
+            "cite_ok": true,
+            "fact": "backend/models/face_identity.py:116 'Stores 512-dimensional ArcFace embeddings' (docstring-level; serialized float32 vector :123,:175); backend/services/face_recognition_service.py:266,:411,:518 document 512-dim. Dimension is documentation + service convention, not a DB/schema constraint.",
+            "assertion": "assert len(face_identity.embedding_bytes)/4 == 512 when constructing fixtures — but NOTE there is no validator rejecting 768-dim face vectors, so a provider-conformance assertion on dim must be table-driven per op (clip_embed:768, person_reid:512, face:512)",
+            "divergence": "none",
+            "providers": "matrix-only"
+          },
+          {
+            "property": "N6: guided schema summary maxLength 200 not enforced by LLMRiskResponse",
+            "cite_ok": true,
+            "fact": "Guided: backend/api/schemas/llm_response.py:49-52 summary {'type':'string','maxLength':200}. Pydantic LLMRiskResponse.summary: str = Field(..., description=...) with NO max_length at llm_response.py:404-407; rival backend/api/schemas/llm.py:339 summary has min_length=1 only. A 201+ char summary passes both pydantic schemas and Postgres, violating only the generation-time contract.",
+            "assertion": "s='x'*250; assert LLMRiskResponse(risk_score=5, risk_level='low', summary=s, reasoning='r').summary == s  # anti-pin: pydantic side does NOT enforce 200; paired assert RISK_ANALYSIS_JSON_SCHEMA['properties']['summary']['maxLength']==200 pins the schema side; a provider returning len>200 is contract-violating yet stores fine",
+            "divergence": "fake never trips it: generic string generator emits 'summary_NNN' ~11 chars (backend/ai_contract/fake/generators.py:339-340), so the maxLength asymmetry is invisible to the parametrized suite",
+            "providers": "matrix-only"
+          }
+        ],
+        "notes": "Path corrections: (1) plan's backend/models/llm_response.py is really backend/api/schemas/llm_response.py — cited lines :393 (field) and :436 (def coerce_risk_score) are EXACT there. (2) backend/models/event.py CHECK at :241-243 as planned. (3) scene_baseline raise at :260 and osnet pad at :347 are exact. N1 literal census: plan's '87' not reproducible; actual 145 '[0.1]*' lines / 125 '768' lines in backend/tests — the zero-unit-norm-assertion core claim is TRUE. Biggest fake-vs-reality divergence for the conformance suite: fake's clip_classify is snapshot-walked (not a GEN_GAPS literal op), so its scores are {alpha,bravo} free-form U(0.1,0.9) and top_label='top_label_NNN' — a naive sum-to-1 or top_label-membership property test reddens the FAKE, not a real provider; the gateway passes except exact-equality (round to 6dp, adapters/clip.py:429). Unit-norm tolerance: use abs<=1e-5 — ai/clip epsilon-guard yields norm=1-1e-8 exactly-ish; fake is exact; gateway l2_normalize returns RAW vector for norm<1e-12. Runtime verification of N4 done with one cheap .venv/bin/python -c import check (0.5→0 in both schemas, llm.py clamps high, llm_response.py rejects out-of-range); no pytest/heavy processes run."
+      },
+      {
+        "group": "op-specific-targets",
+        "findings": [
+          {
+            "property": "O1: op 28 = enrichment_action_classify exists with stated id/path/method",
+            "cite_ok": true,
+            "fact": "backend/ai_contract/operations.py:144-156 — id='enrichment_action_classify', method='POST', path='/enrichment/action-classify', client_methods=['EnrichmentClient.classify_action'], availability gateway=True/enrichment_light_adapter=False/per_model_server=True/fake=True. Gateway route decorator ai/gateway/adapters/enrichment.py:746 (handler def :747); native server route ai/enrichment/model.py:2874 (handler def :2875).",
+            "assertion": "op = OPERATIONS['enrichment_action_classify']; assert (op.method, op.path) == ('POST', '/enrichment/action-classify'); assert op.availability == {'gateway': True, 'enrichment_light_adapter': False, 'per_model_server': True, 'fake': True}",
+            "divergence": "none (registry data is provider-agnostic)",
+            "providers": "both"
+          },
+          {
+            "property": "O1: 'action-classify is the ONLY multi-frame operation' — FALSE as literally worded",
+            "cite_ok": false,
+            "fact": "action-classify is the only op whose request carries a TEMPORAL FRAME SEQUENCE (frames: list[str] of base64 images interpreted as one video clip — gateway adapters/enrichment.py:343-345, native ai/enrichment/model.py:2838-2843), but it is NOT the only op taking multiple images per request: florence_batch_extract takes items: list[BatchExtractItem] each {image, prompt} (adapters/florence.py:149-155) and yolo26_detect_batch takes files: list[UploadFile] via MULTIPART, not JSON (adapters/yolo26.py:387). clip_batch_similarity/similarity are single-image (image: str; texts/labels lists are text, not frames — adapters/clip.py:232-245). The other 35 ops are single-image.",
+            "assertion": "# suite must NOT assert uniqueness of 'list-valued request'; instead pin the temporal-sequence uniqueness:\nmulti_image = {'enrichment_action_classify', 'florence_batch_extract', 'yolo26_detect_batch'}\nassert set(op for op in OPERATIONS if op.id in multi_image) == multi_image\n# and yolo26_detect_batch is multipart — payload-dispatch (json=) cannot drive it against a real gateway; drive via fake only",
+            "divergence": "naive 'one image per request' assertion would fail on batch-extract/detect-batch; yolo26_detect_batch is additionally undrivable as a JSON payload (multipart UploadFile route)",
+            "providers": "both"
+          },
+          {
+            "property": "O1: action-classify request/response schema shapes",
+            "cite_ok": true,
+            "fact": "Gateway (the registry-pinned surface): ActionClassifyRequest{frames: list[str] required, top_k: int=5} adapters/enrichment.py:343-345; ActionClassifyResponse{action: str req, confidence: float req, is_suspicious: bool=False, risk_weight: float=0.0, all_scores: dict[str,float]={}, inference_time_ms: float req} :348-354. Committed snapshot backend/ai_contract/schemas/enrichment_action_classify.response.json matches (required: action/confidence/inference_time_ms). NATIVE surface diverges in REQUEST: ai/enrichment/model.py:2838-2843 has frames + labels: list[str]|None (no top_k) — request fields are NOT interchangeable across the two deployed surfaces.",
+            "assertion": "# per-provider, drive a 4-frame payload and validate response against the committed snapshot:\nimport jsonschema\nresp = await provider.operations()['enrichment_action_classify'](payload)\njsonschema.validate(resp, json.loads(SCHEMA_DIR.joinpath('enrichment_action_classify.response.json').read_text()))\nassert isinstance(resp['all_scores'], dict) and all(isinstance(v, float) for v in resp['all_scores'].values())",
+            "divergence": "payload {'frames': [...], 'top_k': 5} 422s against the NATIVE server (unknown field 'top_k'? pydantic default ignores extra, so tolerated-but-ignored); {'frames': [...], 'labels': [...]} likewise meaningless to gateway — the suite must send the intersection payload {'frames': [...]} only",
+            "providers": "both"
+          },
+          {
+            "property": "O1: multi-frame conformance property — empty-frames rejection DIVERGES fake vs gateway",
+            "cite_ok": true,
+            "fact": "Gateway rejects empty frames: adapters/enrichment.py:749-750 'if not request.frames: raise HTTPException(400, \"Frames list cannot be empty\")'. Native rejects after decode: model.py:2898-2899 raises 400 'No valid frames provided' when decoded_frames empty (empty list also 400s, via a different path/message). The FakeProvider IGNORES the body except model_name echo (fake/app.py:69-83 'Body parsed ONLY for echo fields'), seeded by op_id alone — frames=[] against the fake returns 200 with the snapshot-walked body, byte-identical to any other request. Frame-count invariance IS the fake's determinism property (N frames and 0 frames produce identical bytes); ordering is unobservable on the fake (body ignored) and only meaningful against live Triton.",
+            "assertion": "# fake-side (invariance): byte-identity across frame counts\nb1 = await fake_ops['enrichment_action_classify']({'frames': [f1, f2]})\nb2 = await fake_ops['enrichment_action_classify']({'frames': [f1]})\nassert b1 == b2\n# empty-frames guard is gateway/native-only, NEVER a shared property:\n# gateway adapter: assert (await post(path, json={'frames': []})).status_code == 400\n# fake: assert (await call({'frames': []})).json() == snapshot_walk — 200, not 400",
+            "divergence": "fake violates the naive 'empty frames must raise/400' assertion (returns 200); conversely gateway satisfies it. Frame-count invariance is trivially true on fake, unverifiable on gateway (live Triton weights).",
+            "providers": "both"
+          },
+          {
+            "property": "O2: composite /enrich at ~:899 — cite holds; sub-operation aggregation enumerated",
+            "cite_ok": true,
+            "fact": "ai/gateway/adapters/enrichment.py:899 route decorator ('@router.post(\"/enrich\", response_model=EnrichmentResponse)'), handler def :900 (plan's ~:899 cite is exact). Request EnrichRequest{image: str req, detection_type: str req, bbox: dict|None=None, extra: dict|None=None} :357-361; Response EnrichmentResponse{detection_type, enrichments: dict[str,Any], inference_time_ms} :364-367; committed snapshot schemas/enrichment_enrich.response.json types enrichments as additionalProperties:true (free-form — sub-shapes are NOT schema-pinned; joint assertion must be key-set/field driven). Aggregation by detection_type: person/people → asyncio.gather(_infer_clothing, _infer_demographics, return_exceptions=True) → enrichments['clothing'] (keys: clothing_type,color,style,confidence,top_category,description,is_suspicious,is_service_uniform,inference_time_ms) + enrichments['demographics'] (age_range,age_confidence,gender,gender_confidence,inference_time_ms), PARTIAL failure tolerated (failed sub-op key simply absent, :920-930); vehicle/car/truck/bus/motorcycle → enrichments['vehicle'] (vehicle_type,display_name,confidence,is_commercial,all_scores,inference_time_ms, _infer_vehicle return :439-446); cat/dog → enrichments['pet']{pet_type,confidence,is_household_pet} inline. The handler does NOT route action-classify, pose, or depth.",
+            "assertion": "resp = await ops['enrichment_enrich']({'image': img, 'detection_type': 'person'})\nassert resp['detection_type'] == 'person'  # gateway echo\nassert set(resp['enrichments']) <= {'clothing', 'demographics'}\nif 'clothing' in resp['enrichments']:\n    assert {'clothing_type','color','style','confidence','top_category','description','is_suspicious','is_service_uniform','inference_time_ms'} <= set(resp['enrichments']['clothing'])\nfor dt, keys in {'vehicle': {'vehicle'}, 'cat': {'pet'}, 'dog': {'pet'}}.items(): ...",
+            "divergence": "FAKE violates every joint sub-shape assertion: its /enrich response is the generic snapshot-walk — enrichments = free-form {'alpha': …, 'bravo': …} (generators.py:348-353) with a generated detection_type string; no dt-keyed fan-out exists. Suite needs a per-provider EXPECTATION (fake: schema-valid + byte-deterministic only; gateway adapter shape: key-set per detection_type).",
+            "providers": "both"
+          },
+          {
+            "property": "O2: enrich docstring asserts a falsehood + fake echo divergence",
+            "cite_ok": false,
+            "fact": "FALSE DOCSTRING (plan's flagged-falsehood class): adapters/enrichment.py:901-907 docstring says 'other: basic depth estimation' — the handler NEVER calls depth for non-person/vehicle/pet types; enrichments stays {} (no depth branch exists in enrich(), :908-968). TRUE divergence: gateway echoes request.detection_type (:963), the FakeProvider does NOT echo it (app.py parses body only for model_name) — its 'detection_type' is 'detection_type_NNN' from the string generator. Also the NATIVE /enrich (ai/enrichment/model.py:3263) has a wholly different response model (pose/clothing/demographics/vehicle/pet/threat/reid_embedding/action/depth/models_used fields, :1836-1861) — the registry snapshot pinned the GATEWAY shape only.",
+            "assertion": "# pin the divergence so a 'fix' that makes fake echo is caught:\ngw = await gateway_ops['enrichment_enrich'](p); fk = await fake_ops['enrichment_enrich'](p)\nassert gw['detection_type'] == p['detection_type']\nassert fk['detection_type'] != p['detection_type']  # fake generates; echo only for model_name\n# and unknown detection_type on gateway: assert resp['enrichments'] == {} (docstring's 'depth' claim is NOT the contract)",
+            "divergence": "naive 'detection_type echoed' assertion FAILS the fake (generator value, not echo); naive 'unknown dt → depth enrichment' assertion fails gateway AND fake (docstring falsehood)",
+            "providers": "both"
+          },
+          {
+            "property": "O3: exact availability key names (rename trap: keys != ProviderId values)",
+            "cite_ok": true,
+            "fact": "The availability dict per op has EXACTLY 4 keys: 'gateway', 'enrichment_light_adapter', 'per_model_server', 'fake' — MATRIX_SLOTS tuple backend/ai_contract/provider.py:40; every one of the 38 Operation.availability dicts carries all 4 keys (verified live import). ProviderId enum VALUES are 'gateway','gateway_light','per_model_http','llamacpp_llm','fake' (provider.py:22-35) — 'gateway_light'/'per_model_http' are NOT availability keys; the map is PROVIDER_SLOT (provider.py:137-143): GATEWAY_LIGHT→'enrichment_light_adapter', PER_MODEL_HTTP→'per_model_server', LLAMACPP_LLM→'per_model_server' (a UNION column shared with PER_MODEL_HTTP, subset-registered via required=, provider.py:196-203).",
+            "assertion": "from backend.ai_contract.provider import MATRIX_SLOTS, PROVIDER_SLOT\nassert set(op.availability) == set(MATRIX_SLOTS) == {'gateway','enrichment_light_adapter','per_model_server','fake'}  # for all 38 ops\nassert PROVIDER_SLOT[ProviderId.GATEWAY_LIGHT] == 'enrichment_light_adapter'  # guard the key rename",
+            "divergence": "none (registry data); but a suite written against op.availability['gateway_light'] silently .get()-KeyErrors to False for everything — use PROVIDER_SLOT",
+            "providers": "both"
+          },
+          {
+            "property": "O3: per-slot absences (each an assertable green guard, not a skip)",
+            "cite_ok": true,
+            "fact": "Verified live import of the real registry: gateway ABSENT 7: llm_chat_completion, llm_completion, llm_slots, model_preload, model_status, model_unload, object_distance. gateway_light (enrichment_light_adapter) ABSENT 33 — present only the 5 enrich_lt_* ops (depth_estimate, person_reid, pet_classify, pose_analyze, threat_detect). per_model_server ABSENT 2: llm_slots, yolo26_segment. fake ABSENT 0 (spec, all 38). llamacpp_llm: required set is EVIDENCE-DERIVED (providers.py:94-106: per_model_server True ∧ 'ai/nemotron' in evidence) = {llm_completion, llm_chat_completion} exactly 2 — its 'absence' is the other 36 (union-slot subset), and llm_slots is deliberately excluded despite per_model_server=False (performance_collector evidence, not ai/nemotron).",
+            "assertion": "for pid in ProviderId:\n    rec = registered_providers()[pid.value]\n    slot = PROVIDER_SLOT[pid]\n    absent = {o for o in OPERATIONS if not OPERATIONS[o].availability[slot]}\n    if pid is not ProviderId.LLAMACPP_LLM:\n        assert set(rec.operations()) | absent == set(OPERATIONS) and not (set(rec.operations()) & absent)\n    with pytest.raises(ProviderContractError) as e:\n        register_provider(pid, {**rec.operations(), bad: stub}, OPERATIONS, required=...)\n    assert e.value.operation_id == bad  # claiming an absent op must fail at registration (provider.py:221-226)",
+            "divergence": "none if written as 'absence ⇒ id not in operations() AND register-claim raises ProviderContractError naming the op' — that holds for all providers; llamacpp needs required=-subset semantics (register_provider(provider.py:227-235) equality check is against the DERIVED set, not the column)",
+            "providers": "both"
+          },
+          {
+            "property": "O3: third state — ops PRESENT in a column but registered as NOT-WIRED sentinels",
+            "cite_ok": true,
+            "fact": "backend/ai_contract/providers.py:77-85: ops with client_methods=[] get an async _not_wired sentinel that raises NotImplementedError on call (registration still verifies slot membership/count). Gateway column: 5 of 31 are unbound — enrich_lt_depth_estimate, enrich_lt_pet_classify, enrich_lt_pose_analyze, florence_analyze_scene, yolo26_detect_batch. Gateway_light column: 3 of 5 unbound (enrich_lt_depth_estimate, enrich_lt_pet_classify, enrich_lt_pose_analyze). per_model_http: same unbound set as gateway column plus model_unload (client_methods=[]). llamacpp both ops ARE wired (_llamacpp_callable live POST, providers.py:109-131). Fake: all 38 wired via ASGITransport (fake/app.py:109-127).",
+            "assertion": "rec = registered_providers()['gateway']\nunbound = {o for o in rec.operations() if not OPERATIONS[o].client_methods}\nassert unbound == {'enrich_lt_depth_estimate','enrich_lt_pet_classify','enrich_lt_pose_analyze','florence_analyze_scene','yolo26_detect_batch'}\nwith pytest.raises(NotImplementedError):\n    await rec.operations()['yolo26_detect_batch'](payload)",
+            "divergence": "gateway/gateway_light/per_model_http violate a naive 'every registered callable is callable-to-success' matrix property (NotImplementedError on 5/3/4 ops); fake and llamacpp do not. The matrix has 3 states per cell: absent / present-but-not-wired / live.",
+            "providers": "both"
+          },
+          {
+            "property": "O4: full (provider, operation) conformance matrix size",
+            "cite_ok": true,
+            "fact": "Computed from live import of backend.ai_contract.operations + registered_providers(): fake=38 (via fake_provider_ops(), 38 callables; FAKE is NOT registered at package import — fake/app.py comment and providers.py docstring:27-29; test_fake_provider registers it in-test), gateway=31, gateway_light=5, per_model_http=36 (llamacpp_llm=2, a derived subset of the per_model_server column; registered set verified: {'gateway':31,'gateway_light':5,'per_model_http':36,'llamacpp_llm':2}).",
+            "assertion": "sizes = {pid: len(rec.operations()) for pid, rec in registered_providers().items()}\nassert sizes == {'gateway': 31, 'gateway_light': 5, 'per_model_http': 36, 'llamacpp_llm': 2}  # fake registered by the suite itself: +38",
+            "divergence": "none",
+            "providers": "both"
+          }
+        ],
+        "notes": "pairs: fake=38 gateway=31 light=5 per_model=36 llamacpp=2 total=112 (sum across the 5 providers; llamacpp's 2 are also counted under per_model=36 — distinct (provider,op) cells across the union column: 31+5+36+2+38=112; if the suite collapses llamacpp into per_model_http as one column instance, 110). Caveats: (1) llamacpp_llm required set is derived at import from evidence strings ('ai/nemotron' in evidence ∧ per_model_server True) = exactly {llm_completion, llm_chat_completion}; a registry evidence edit changes it and the guard at providers.py:143-150 turns that into a named ProviderContractError. (2) FAKE is not in registered_providers() after bare `import backend.ai_contract` — the suite must register_provider(ProviderId.FAKE, fake_provider_ops(), OPERATIONS) itself (test_fake_provider.py:168 already does). (3) O1 uniqueness claim as worded is FALSE (batch-extract + detect-batch are multi-image; detect-batch is multipart, not JSON-drivable); true statement: action-classify is the only TEMPORAL frame-sequence op. (4) O2 cite :899 verified exact (route decorator; def at :900). (5) The two strongest naive-assertion traps: fake does not echo enrich's detection_type (generator string), and fake returns 200 on empty action-classify frames (body ignored except model_name echo) — both are spec-pinned fake behavior, so the per-provider expectations must encode them, not skip them. Key files: /agents/agent-nemo2/workspace/backend/ai_contract/operations.py, provider.py (:40 MATRIX_SLOTS, :137 PROVIDER_SLOT, :221 absent-op rejection), providers.py (:77 not-wired, :94 llamacpp derivation), fake/app.py (:69 body-ignored), fake/generators.py (:348 free-form map), ai/gateway/adapters/enrichment.py (:343-367 schemas, :746-758 action-classify, :899-968 enrich composite), ai/enrichment/model.py (:2838-2843 native request diverging: labels not top_k; :3263 native /enrich diverging response model)."
+      }
+    ],
+    "total_findings": 46,
+    "cite_corrections": 4
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Evidence"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "evidence:mechanics",
+      "phaseIndex": 1,
+      "phaseTitle": "Evidence",
+      "agentId": "a648b81396685cef6",
+      "model": "claude-flagship",
+      "state": "done",
+      "startedAt": 1789839016911,
+      "queuedAt": 1789839016879,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "WP8.3 suite mechanics",
+      "promptPreview": "Repo: /agents/agent-nemo2/workspace (Python 3.14, uv .venv). You are gathering EVIDENCE for WP8.3 of the AI-provider conformance plan (docs/superpowers/plans/2026-09-19-swap-readiness-72h.md, section WP8.3). The WP8.1/WP8.2 machinery exists: backend/ai_contract/provider.py (AIProvider, register_provider, operations_for_slot), backend/ai_contract/providers.py (gateway/gateway_light/per_model_http/l…",
+      "promptFramed": true,
+      "lastProgressAt": 1789839275877,
+      "tokens": 76188,
+      "toolCalls": 24,
+      "durationMs": 258959,
+      "resultPreview": "{\"group\":\"WP8.3 suite mechanics\",\"findings\":[{\"property\":\"Q1a: gateway provider callable surface (31 ops)\",\"cite_ok\":true,\"fact\":\"backend/ai_contract/providers.py:134-142 _register_all() builds the gateway set via _bound_or_reject (providers.py:57-91): 26 of 31 gateway ops are UNBOUND client class-methods resolved by getattr(getattr(module, cls), meth) from _CLIENT_MODULES (providers.py:49-54: Det…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "evidence:geometry",
+      "phaseIndex": 1,
+      "phaseTitle": "Evidence",
+      "agentId": "a97cbbb83cd064431",
+      "model": "claude-flagship",
+      "state": "done",
+      "startedAt": 1789839016913,
+      "queuedAt": 1789839016880,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "GEOMETRY AND ENCODING",
+      "promptPreview": "Repo: /agents/agent-nemo2/workspace (Python 3.14, uv .venv). You are gathering EVIDENCE for WP8.3 of the AI-provider conformance plan (docs/superpowers/plans/2026-09-19-swap-readiness-72h.md, section WP8.3). The WP8.1/WP8.2 machinery exists: backend/ai_contract/provider.py (AIProvider, register_provider, operations_for_slot), backend/ai_contract/providers.py (gateway/gateway_light/per_model_http/l…",
+      "promptFramed": true,
+      "lastProgressAt": 1789839544022,
+      "tokens": 82612,
+      "toolCalls": 56,
+      "durationMs": 526815,
+      "resultPreview": "{\"group\":\"GEOMETRY AND ENCODING\",\"findings\":[{\"property\":\"G1a yolo26 server bbox: dict-of-INTS {x,y,width,height}, absolute px, from xyxy via int() truncation\",\"cite_ok\":true,\"fact\":\"ai/yolo26/model.py:1399 unpacks `x1,y1,x2,y2 = box.xyxy[0].tolist()`; :1406-1409 emit `\\\"bbox\\\": {\\\"x\\\": int(x1), \\\"y\\\": int(y1), \\\"width\\\": int(x2-x1), \\\"height\\\": int(y2-y1)}`. Plan cite :1413 drifted ~4-7 lines (th…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "evidence:vocabulary",
+      "phaseIndex": 1,
+      "phaseTitle": "Evidence",
+      "agentId": "ad1069479f588a0b4",
+      "model": "claude-flagship",
+      "state": "done",
+      "startedAt": 1789839016914,
+      "queuedAt": 1789839016880,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "VOCABULARY",
+      "promptPreview": "Repo: /agents/agent-nemo2/workspace (Python 3.14, uv .venv). You are gathering EVIDENCE for WP8.3 of the AI-provider conformance plan (docs/superpowers/plans/2026-09-19-swap-readiness-72h.md, section WP8.3). The WP8.1/WP8.2 machinery exists: backend/ai_contract/provider.py (AIProvider, register_provider, operations_for_slot), backend/ai_contract/providers.py (gateway/gateway_light/per_model_http/l…",
+      "promptFramed": true,
+      "lastProgressAt": 1789839282285,
+      "tokens": 68495,
+      "toolCalls": 44,
+      "durationMs": 265078,
+      "resultPreview": "{\"group\":\"VOCABULARY\",\"findings\":[{\"property\":\"V1a — SECURITY_CLASSES (9) on native server path\",\"cite_ok\":true,\"fact\":\"ai/yolo26/model.py:151 SECURITY_CLASSES = {person,car,truck,dog,cat,bird,bicycle,motorcycle,bus} (exactly 9); native server filters at ai/yolo26/model.py:1384 (`if class_name is None or class_name not in SECURITY_CLASSES: continue`) inside the detect postprocess, keyed off the 9-…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "evidence:numeric",
+      "phaseIndex": 1,
+      "phaseTitle": "Evidence",
+      "agentId": "afc71b3a3f3bff6a2",
+      "model": "claude-flagship",
+      "state": "done",
+      "startedAt": 1789839016915,
+      "queuedAt": 1789839016880,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "numeric-invariants",
+      "promptPreview": "Repo: /agents/agent-nemo2/workspace (Python 3.14, uv .venv). You are gathering EVIDENCE for WP8.3 of the AI-provider conformance plan (docs/superpowers/plans/2026-09-19-swap-readiness-72h.md, section WP8.3). The WP8.1/WP8.2 machinery exists: backend/ai_contract/provider.py (AIProvider, register_provider, operations_for_slot), backend/ai_contract/providers.py (gateway/gateway_light/per_model_http/l…",
+      "promptFramed": true,
+      "lastProgressAt": 1789839317512,
+      "tokens": 79640,
+      "toolCalls": 57,
+      "durationMs": 300304,
+      "resultPreview": "{\"group\":\"numeric-invariants\",\"findings\":[{\"property\":\"N1a: CLIP embeddings 768-dim, L2-normalized, epsilon-guarded\",\"cite_ok\":true,\"fact\":\"ai/clip/model.py:801-804 — epsilon=1e-8, image_features / (torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon) inside extract_embedding (def at :762); EMBEDDING_DIMENSION=768 at :227. Re-normalize w/ epsilon also at :855-859 in compute_anomaly_sco…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "evidence:semantics",
+      "phaseIndex": 1,
+      "phaseTitle": "Evidence",
+      "agentId": "a242379660a5d4f49",
+      "model": "claude-flagship",
+      "state": "done",
+      "startedAt": 1789839016916,
+      "queuedAt": 1789839016880,
+      "attempt": 1,
+      "lastToolName": "Bash",
+      "lastToolSummary": "grep -n \"def risk_score_to_severity\\|DEFAULT_LOW_MAX\\|low_m…",
+      "promptPreview": "Repo: /agents/agent-nemo2/workspace (Python 3.14, uv .venv). You are gathering EVIDENCE for WP8.3 of the AI-provider conformance plan (docs/superpowers/plans/2026-09-19-swap-readiness-72h.md, section WP8.3). The WP8.1/WP8.2 machinery exists: backend/ai_contract/provider.py (AIProvider, register_provider, operations_for_slot), backend/ai_contract/providers.py (gateway/gateway_light/per_model_http/l…",
+      "promptFramed": true,
+      "lastProgressAt": 1789839088655,
+      "tokens": 55994,
+      "toolCalls": 21,
+      "durationMs": 71447
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "evidence:ops",
+      "phaseIndex": 1,
+      "phaseTitle": "Evidence",
+      "agentId": "a12620d779da4dcdf",
+      "model": "claude-flagship",
+      "state": "done",
+      "startedAt": 1789839016916,
+      "queuedAt": 1789839016880,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "op-specific-targets",
+      "promptPreview": "Repo: /agents/agent-nemo2/workspace (Python 3.14, uv .venv). You are gathering EVIDENCE for WP8.3 of the AI-provider conformance plan (docs/superpowers/plans/2026-09-19-swap-readiness-72h.md, section WP8.3). The WP8.1/WP8.2 machinery exists: backend/ai_contract/provider.py (AIProvider, register_provider, operations_for_slot), backend/ai_contract/providers.py (gateway/gateway_light/per_model_http/l…",
+      "promptFramed": true,
+      "lastProgressAt": 1789839358008,
+      "tokens": 83631,
+      "toolCalls": 32,
+      "durationMs": 340800,
+      "resultPreview": "{\"group\":\"op-specific-targets\",\"findings\":[{\"property\":\"O1: op 28 = enrichment_action_classify exists with stated id/path/method\",\"cite_ok\":true,\"fact\":\"backend/ai_contract/operations.py:144-156 — id='enrichment_action_classify', method='POST', path='/enrichment/action-classify', client_methods=['EnrichmentClient.classify_action'], availability gateway=True/enrichment_light_adapter=False/per_model…"
+    }
+  ],
+  "totalTokens": 446560,
+  "totalToolCalls": 234
+}
