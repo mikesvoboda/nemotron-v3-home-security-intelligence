@@ -1283,3 +1283,15 @@ evs hard/restore fetch + soft_21 (see records' census notes; v1 JSONLs under
 /tmp/wp25/wp44-kills/pre-*/). L entry: "WP4.4 RECORD 2026-09-19 — wave-65
 closeout". Next: dispatch the next 8-module dossier wave (~33 band modules
 remain untouched).
+
+## WAVE 66 DOSSIER DISPATCH 2026-09-19 (next-8 band modules triaged)
+
+Arbiter recount (post-wave-65 kill folds; dossiers = presence filter): untouched
+band = **41 modules / 740 survivors** (wave-65's "~33" estimate undercounted —
+band membership counts modules whose survivors fell but dossier-free; the fold
+meant "33 after zero_dce/fast_alpr exclusions", actual filter output is 41).
+Dispatched wf_fe5e8d9a-a12 (read-only, dossiers to /tmp/wp25/wp44-triage/):
+calibration(38), batch_fetch(36), session_service(35), scene_change_detector(34),
+alertmanager(34), file_cleanup_service(33), baseline_config(33), admin(30).
+Swap-in note: zero_dce_loader(31) skipped — INTEGRATION-only tests, out of the
+unit carve-out (wave-64 record); admin.py takes the slot. Ordered by survivors.
