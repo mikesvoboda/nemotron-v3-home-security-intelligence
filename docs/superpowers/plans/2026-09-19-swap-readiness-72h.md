@@ -1410,3 +1410,209 @@ against real coverage — and plan A3's "**do not lower a floor**" forbids the o
 
 Report-only stays in force meanwhile. This is a **deferral with a named precondition**, not a
 parked ruling: when the quarantine is repaired and re-measured, the decision is live again.
+
+---
+
+# WP10.1 — HANDOFF: close of the 72h swap-readiness run (2026-09-20)
+
+Written per WP10.1 so an owner returning cold knows the state, the numbers, and the decisions
+waiting on them. Ledger = L (`docs/plans/2026-09-12-context-map-doc-updates.md`), one `##` section
+per WP, tail-first. This section is the map; L is the evidence.
+
+## 1. What landed (commit → WP → PR), and where the stack sits
+
+Branches live stacked, one PR per phase. As of this writing `origin/main` = `55026883` —
+the owner **landed #6560 (Phase 6) as a squash mid-run**, and merged #6565 (Phase 8+9 tail)
+into #6562's head branch. Both owner actions re-triggered the pre-push auto-rebase trap
+below; all stack heads are now main-merged and current.
+
+| PR        | head branch (tip)                                                | content                                                                                                                                                                                                                                                                                    | CI state (plain)                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #6560     | **MERGED** (owner, squash `55026883`)                            | Phase 6: `054b78e3` WP6.1, `f3d74789` WP6.2, `d6f6a2ef` WP6.3, `cf985dc1` WP6.4, `f4602817` WP6.5                                                                                                                                                                                          | landed; **its main run `35475023071` completed SUCCESS with zero failed jobs** — the pre-merge reds (Test Performance Audit slow-runner — parked precedent L `WP0.5 follow-up`; Coverage Gate + its Summary — the inline-collection family, L `WP7.4 LANDED` CI-WATCH + §3.10) did not reproduce on main. All recorded history, no live blockage.                                                                        |
+| #6562     | `feat/wp7-ai-contract` (`c7c962ae`)                              | Phase 7: `f4e9584f` WP7.1 (38→37-op generated contract + drift gate), `ed4505ba` WP7.2 goldens, `251e515e` WP7.3 partial, `4e63bed1` WP7.4 fixtures — **plus** the owner's squash-merge of #6565 (Phase 8+9.1+9.2+5.6, `e6e75117`), the mypy fix `752bb7d2`, and the main-merge `c7c962ae` | **22+ pass / 0 fail, `MERGEABLE / BLOCKED` = review-gate only** (the merge to c7c962ae is what GitHub needed; Mypy red FIXED by `752bb7d2`, §1a; the earlier Coverage-Gate 6-failure red at `2914ee69` did not reproduce at `c7c962ae` — §1a(2)/§3.10).                                                                                                                                                                  |
+| #6565     | merged into `feat/wp7-ai-contract` at 21:07Z (squash `e6e75117`) | Phase 8: `f3a9b444` WP8.1, `48dd01c5` WP8.2, `14cb76b9` WP8.3 (+`41a48516` semantics), `76253321` WP8.4, `83b78b7b` WP8.5, `22b5dd2f` WP9.1, `8ff4d76d` WP9.2, `efb7cb6b` WP5.6                                                                                                            | ran no CI by construction (ci.yml fires only on push/PR **to main**); every gate ran locally (L WP8.x sections). Post-merge re-runs on #6562 are the §1a mypy + coverage story.                                                                                                                                                                                                                                          |
+| **#6570** | `feat/wp8-ai-protocol` (`1d2c5e11`)                              | the A7.x tail: `1a71232d` A7.1, `54e27f2f`+`21a364d0` A7.2 (contract **38→37**), `fb3a797b` A7.3/WP6-A, `17f34e56` mypy fix +`ba66e04a` ledger, merges `f6f96ebc`/`c4566f41`/`561fbd5a`/`1d2c5e11` (base re-anchor)                                                                        | **MERGEABLE / CLEAN** against its base (the base-re-anchor merge killed the last CONFLICTING state — tree proved byte-identical to pre-merge HEAD). Runs no CI by construction (base is a stacked branch). Locally: everything green, §2. **The `ai-yolo26-image-smoke` job this branch adds can only go green once this chain lands on main** — that first run retires the WP9.1 parity class (A7.3's ordered licence). |
+| #6553     | `fix/registry-drift-check`                                       | (older, pre-plan) suppression registry machine-minting                                                                                                                                                                                                                                     | **red — 2**: Test Coverage Gate + its Summary (branch is pre-#6559 coverage-instrument fixes; rebasing it onto current main is the fix, mechanical).                                                                                                                                                                                                                                                                     |
+
+**§1a — the two stack CI events of this segment, both resolved or attributed.**
+(1) _Mypy_: after the owner's #6565 squash re-ran checks on #6562, Backend Type Check went
+red — 6 errors in 3 `ai/` files (`mypy backend/ --ignore-missing-imports` now reaches them
+because Phase-8 conformance tests import the mounted gateway app; the WP0.6 invisibility
+class, not A7.3-introduced). Fixed annotation-only in `17f34e56`→cherry-pick `752bb7d2`:
+`cast()`s in the two gateway adapters, and in `ai/clip/model.py::_extract_features_tensor`
+an **import-free** isinstance-narrowing + TypeError (model.py import statements are frozen
+by the goal rules — the guard matches its documented Raises). Full loop rc=0 both tips
+(L `Mypy-red unblock LANDED`; logs `mypy-a7x-fixed2.log`/`mypy-wp7-tip.log`). (2)
+_Coverage Gate 6-failure red_ on #6562 at `2914ee69`: 1 of 6 names recoverable from the
+gate log (the rest xdist-truncated); the visible one passes alone locally; class =
+order-sensitive TaskGroup teardown under the gate's own randomized run. **Did not
+reproduce** at `c7c962ae` (same commit content + main-merge): Coverage Gate PASS. This is
+L's recorded inline-collection flake family verbatim (`## WP7.4 LANDED` CI-WATCH: "DIFFERENT
+tests each time … load-sensitive CI, not branch regressions"; gate subprocess carries no
+`--reruns` while the shards do) — hence §3.10's one-subprocess rerun-flag recommendation,
+NOT a suppression case: R-FLAKE stays at 0 entries (§3.8), nothing was xfailed or skipped.
+
+**Read order: #6562 (now carries Phase 7+8+9) → #6570.** #6560 is landed; #6553 is
+independent, oldest, needs a rebase; its red is its own staleness, not the plan's.
+#6570's base is #6562's head — after #6562 lands, retarget #6570 → main (contents
+identical either way).
+
+Squash-merge note for the owner: every merge into this stack re-triggers the pre-push
+auto-rebase trap (L `push-autorebase-squash-merge-trap`); the resolved pattern that worked
+five times: `git merge origin/main` (or the moved base) + conventional `chore(merge):`
+subject, never force-push (`f6f96ebc`, `c4566f41`, `561fbd5a`, `c7c962ae`, `1d2c5e11`). One A7.3-specific note: #6560's squash also re-committed `ai/yolo26/model.py`
+main-side (+304 lines: the `/track` endpoint, the WP6.3 `_here_dir` shim block, a
+`noqa: UP037` that sat INSIDE A7.3's deleted span — it dies with the inline copy it
+annotated; the surviving definition at `contract.py:256` is PEP-563 modern). `561fbd5a`
+rebuilt model.py = main's content with the seam swap re-applied, boundary-asserted,
+TestContractSeam green.
+
+## 2. MEASURE numbers (end-state, re-run this session at `c4566f41`, full local loop)
+
+| leg                                | result                                                                                                                                                                 |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| backend unit (`-n auto`)           | **27,423 passed / 122 skipped / 8 xfailed — 64.6s**, rc=0                                                                                                              |
+| backend integration (`-n0`, tuned) | **4,065 passed / 107 skipped / 2 xfailed — 11m21s**, rc=0                                                                                                              |
+| `ai/gateway` (CI's run step)       | **225 passed — 5.0s** (226 pre-A7.2; the −1 is analyze-scene exactly)                                                                                                  |
+| `ai/` collect gate                 | **1,748 nodes, 0 errors** (1,764 pre-A7.2, −16 deleted + new)                                                                                                          |
+| frontend + coverage                | see §2a below                                                                                                                                                          |
+| contract registry                  | **37 ops** (38→37 under A7.2); drift gate `gen-ai-contract --check` rc=0                                                                                               |
+| parity checker                     | rc=0, **37 ops / 21 divergences**, golden list unchanged (no churn)                                                                                                    |
+| suppression census                 | rc=0 **byte-identical** (all 13 categories, incl. `unspecced_patch: 322`)                                                                                              |
+| ratchet-check                      | rc=0 — **no floor moved, no allowlist widened, no omit added** (goal rule; every sub-floor number is recorded, never gated away)                                       |
+| mutation (WP4.3, main)             | first honest baseline **54.0%**, history in git, weekly schedule, feed frozen (L `WP4.3 close-out`)                                                                    |
+| conformance suite totals           | 422 conformance cases + 83 client legs + 23 db-vocabulary legs, **zero xfail/skip/deselect** anywhere in `backend/tests/contracts/ai_providers/` (directory 565 nodes) |
+| A7.2 deletions                     | 22 files / 1,927 prod+test lines removed, 25 cases removed (−18 florence, −7 segment), node-ID diffs verified exactly (L sections)                                     |
+| A7.3 seam                          | model.py **2,092→1,792** (−300 net); `TestContractSeam` 3/3 green post-swap, red 2/3 before                                                                            |
+
+**P vs WP5.0 baselines** (the plan's "end-state beside baseline" item): census 13 categories
+unchanged from the spec baseline (93 imperative held); frontend floors-vs-measured was
+80.00/74.61/78.44/80.93 vs 83/77/81/84 at WP5.0 → see §2a for this run's numbers; Postgres-tuned
+integration rate held (11m21s serial across 4,065 — same rate as WP5.0's 9.59s/220 probe
+extrapolation); CI round-trips: ~6 full pushes this window, 2 round trips lost to the squash-merge
+auto-rebase trap (both recovered same-hour via merge; MEASURE for WP9.3: jobs red on my pushes =
+0 — every red was the hook, not a gate).
+
+**§2a frontend leg** (completed this session, `bun run test -- run --coverage`, ~57 min):
+**779 test files passed / 3 skipped (782); 20,239 tests passed / 136 skipped (20,375)** —
+zero failures. Coverage: statements **79.97** / branches **74.61** / functions **78.44** /
+lines **80.93** vs thresholds 83/77/81/84 → vitest exits 1 on the threshold report alone.
+These are the SAME sub-floor numbers as the WP5.0 baseline (80.00/74.61/78.44/80.93) to
+within 0.03 — the 16 quarantined files (62 deterministic failures + 3 zero-byte suites,
+memory `vitest-midnight-flake-window` aside) are the whole gap, exactly as `R-FEFLOOR` (§3.7)
+records. PUBLISHED, NOT MOVED: no threshold touched, no quarantine widened; the deferral's
+named precondition (repair the quarantine, re-measure) remains the owner's to fund.
+
+## 3. Parked RULINGS — every one, with evidence and recommendation
+
+Owner-facing decisions, none decided on your behalf (PARK, DON'T GUESS). IDs are how L names them.
+
+1. **`WP8.4-pose-keypoint-shape`** — contract's pose-analyze emits keypoints without `name`;
+   `enrichment_client.py:2226` derefs `kp["name"]` and KeyErrors into a catch-all. Pinned as a
+   characterization (raised type + message). **Rec:** fix the SERVER shape (add `name`), not the
+   client default — the name is the payload's point.
+2. **`WP8.5-vocab-alignment`** — 7 illegal-vocabulary sites pinned as DATA (exact sets in L
+   `WP8.5 LANDED`): `POSTURE_LABELS`−DB={walking,running}; heavy `_classify_pose`={crawling,
+   reaching_up,running}; yolo26 `classify_pose`={fallen,reaching_up,aggressive};
+   `vitpose_loader`={lying,running}; 4 illegal age buckets; 9/12 `BY_NAME` threat rejects; 4/6
+   int-map rejects. **Rec:** normalize at the DB boundary (CHECK widening turns 180 fixtures red;
+   boundary mapping is one seam).
+3. **`WP6-B`** — `ai/enrichment-light` hyphen makes the dir unimportable as a package; its tests
+   self-manage `sys.modules["model"]`. Rename touches compose build contexts. **Rec:** rename to
+   `enrichment_light` in a dedicated owner PR (touching `docker-compose*.yml` +
+   `ai/gateway/main.py` mount path); everything else about the tier is healthy.
+4. **`WP6-C(a)`/`WP6-D` — OWNER-ONLY, unchanged by ADDENDUM 2** (A6/A7.2 explicitly left these):
+   C(a) = delete the 20-test flat `ai/yolo26/test_model.py` twin vs restore NEM-3912 coverage;
+   C(b) = private-name fix sketch (documented L `WP6.4`); D = retire the root `test_model.py`
+   twins once packages canonicalize. **Rec:** retire the twins (C(a), D) — the package-side files
+   are the canonical ones per `ai/conftest.py`'s authority map.
+5. **Three A7.2 carry-cost candidates stay parked** — `estimate_depth`,
+   `estimate_object_distance`, CLIP `similarity` client legs: each fails A6 condition 2 (shared
+   parametrized tables + registry claims + goldens; "do not stretch the clause"). Evidence per
+   candidate in L `A7.2 deletion 1/2`. **Rec:** when WP7.4-shape tables get per-op parametrization,
+   1 and 2 become A7.2-eligible; the CLIP one likely never will (the registry claims the pair).
+6. **`R-COVDENOM` — RECONCILED (A7.1, `1a71232d`)** — four declared numbers, one live gate:
+   executed absolute floor is **80 combined** (validate.sh + nightly); `fail_under=85` is the
+   diff-gate's relative baseline. Docs annotated; nothing moved.
+7. **`R-FEFLOOR` — DEFERRED with named precondition (A7.4)** — no frontend gate until the 16
+   quarantined files (62 deterministic failures + 3 zero-byte suites) are repaired and coverage
+   re-measured. Report-only meanwhile. This is a deferral, not a parked ruling: repairing the
+   quarantine re-arms the decision.
+8. **`R-FLAKE`** (suppression registry, 0 entries — flake_allowlist stays empty per WP1.3): no new
+   entries added or needed all run.
+9. **In-process tier (WP9.2)** — `await loader.run(frame)` has no fake/contract/golden; the
+   swap-readiness machinery cannot see in-process model behavior change. Scope declared in
+   `8ff4d76d`; the second-swap pricing is in L `WP9.2 LANDED`. **Rec:** treat as a separate
+   project (plan's words: "TWO known projects, not one"); do not bolt conformance onto it now.
+10. **Coverage-Gate inline-collection reds** (L `## WP7.4 LANDED` CI-WATCH paragraph +
+    precedent L `WP0.5 follow-up` slow-runner ruling) — `Test Coverage Gate` fails inside
+    its own full-unit subprocess (`scripts/check-test-coverage-gate.py:411`), a different
+    load-sensitive test each time; the shards carry the repo's `--reruns 2` convention, this
+    one subprocess does not. Seen on #6560 pre-merge (twice, different tests), again on
+    #6562 at `2914ee69` (6 failures, 1 name recoverable: correlation-id TaskGroup teardown;
+    green alone locally). No floor is involved — the gate reddens on collection rc, not on
+    coverage. **Rec:** the recorded fix — add the existing rerun-flag pair to that ONE
+    subprocess (parity with shards, moves no floor, gates nothing weaker); if the owner
+    prefers zero CI edits, rerun-failures is the status-quo answer. This is a RULING because
+    it edits a gate's invocation, which the no-line-moved rule reserves to the owner.
+
+## 4. Characterization-test set, by ruling id (full contents)
+
+Each row: what it pins, where, and the tripwire contract (a fix flips it red _by construction_ —
+rewrite to the ruling's shape, don't delete).
+
+- `WP8.4-pose-keypoint-shape` → `test_client_conformance.py::TestPoseKeypointShapeCharacterization`
+  (1 case): pose-analyze consumed-shape KeyError `"'name'"` escaping as
+  `EnrichmentUnavailableError`, type + message asserted.
+- `WP8.5-vocab-alignment` → `test_conformance_dbvocabulary.py` (7 legs, one per illegal site —
+  §3.2's list, each asserting the EXACT illegal set as data + the ruling id in the message).
+- Blind-spot characterization (no ruling id; pinned-as-data #9) →
+  `test_client_conformance.py`: reid rename `embedding_dimension`→`embedding_dim` is MASKED by the
+  client's `len()` fallback; leg renames the key and asserts the parse does NOT notice.
+- `/enrich` parse-to-empty characterization → same module: no responder emits any key
+  `_parse_unified_response` reads → all-empty `UnifiedEnrichmentResult` (only
+  `inference_time_ms`); asserted on both fake and gateway legs.
+- Tier-A client-side 404 asymmetry → same module: composed `/enrich-lt/object-distance` and
+  `{heavy}/models/status` 404 **through the client** while bare registry paths answer 200; both
+  sides pinned.
+- WP8.3 geometry characterizations → `test_conformance_geometry.py`: quad-corner REPEAT structure
+  (b[0]==b[6]…), xyxy→xywh `int()` truncation vs `round()` divergence (yolo server vs gateway),
+  bbox 4-conventions coexistence (dict-int xywh / list-xyxy float / 8-float quad / `{x1,y1,x2,y2}`
+  enrichment dicts), `FlorenceClient.detect` zero-validation + `score`-defaults-1.0,
+  normalized-to-Integer-column silent truncation.
+- WP5.4 skip-removal characterization → pins the deployed non-empty behavior replacing the removed
+  skip (L `WP5.4`).
+- A7.3 seam (forward-looking ratchet, not a ruling): `TestContractSeam` + the container-side
+  identity asserts inside `ai-yolo26-image-smoke`.
+
+## 5. The exact next WP, with its first red-first step
+
+**WP11 (this handoff names it; nothing in P remains):** make `ai-yolo26-image-smoke` go green and
+retire the parity class. First red-first step (it is red RIGHT NOW, by design, on any main-PR):
+retarget/land #6562 then #6570 so the job runs on main; if its first run reddens, the fix lives in
+the job's own knobs (retry/disk/timeout) — **not** in removing the gate (L `A7.3 LANDED` residual
+risk paragraph: the image has never been built anywhere; a base-pull or uv-layer problem on the
+runner is the known failure mode). When green: delete
+`backend/tests/unit/services/test_prompts.py::TestDetectionContractParity` in a follow-up commit
+(A7.3's retirement order), keeping `TestContractSeam`.
+
+Then, per P's overflow order (only after that): (a) properties enumerated in WP8.3 not yet
+asserted (none material — the §4 set covers the plan's list except the `bbox_validation.py:7`
+false-docstring fix, which is a doc edit + 2 caller hardenings at `reid_service.py:482` /
+`enrichment_client.py:1965`); (b) WP7.4 fixture-migration continuation (safely partial by design);
+(c) remaining `ai/` red triage (WP6.4's 60 parked non-gateway reds, classified in L). **Nothing
+else — do not invent work.**
+
+## 6. What this run proved, one paragraph
+
+The plan's thesis held end-to-end: there WAS an undeclared shipped AI abstraction (six clients,
+five servers, one gateway, zero declared interface, four bbox conventions, three class vocabularies
+for one concept). Built FROM the deployed surfaces: a 37-op generated contract with CI drift gate,
+an import-time `AIProvider` check that raises naming the operation, a deterministic FakeProvider
+(37 ops, byte-identical), 422+83+23 conformance cases with zero skips, a parity checker that
+reproduced all Tier A/B/C defects (21 divergences) automatically, two licensed carry-cost
+deletions executed red-first, and the last production duplication (contract.py) de-duplicated
+with a CI image-build job as its licence. Every number published, no line moved.
+
+**STOP.** (WP10.1 terminal condition — the list is exhausted; overflow items are named in §5 with
+their owners' decisions in §3.)
