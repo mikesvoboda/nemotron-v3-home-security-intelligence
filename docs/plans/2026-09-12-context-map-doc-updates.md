@@ -6846,3 +6846,91 @@ call are order-safe — `backend.*` never touches triton); mypy clean;
 semgrep hook configs 0 findings; WP4.2 ratchet rc=0 (bare mock
 constructors, no convertible patch sites); NO xfail / skip / importorskip /
 deselect anywhere (goal rule).
+
+## WP9.1 LANDED `22b5dd2f` — static cross-provider parity checker: 21 divergences, Tier-A D1–D6 reproduced, golden list wired to CI (2026-09-20)
+
+**What landed.** `scripts/check-ai-provider-parity.py` (1,382 lines) +
+`scripts/test_check_ai_provider_parity.py` (27 legs) +
+`.github/ai-parity-baseline.json` (21 golden ids) + a new collection-sanity
+CI step. The plan's thesis made executable: every Tier-A defect would have
+been caught automatically by this script, and it is how provider #4 is
+prevented from drifting silently. AST-only — `ast.parse` and nothing else:
+native servers pull torch, gateway adapters pull triton, so even the
+registry (`operations.py`) is parsed as literals. It reads the WP7.3
+availability matrix, the gateway adapters + `main.py` mount prefixes, the
+`ai/*/model.py` native surfaces, the six backend caller modules (which URLs
+they build, from which base, with which payload keys) and
+`docker-compose.prod.yml` as the DEPLOYED topology — the compose
+`ENRICHMENT_URL` rewrite is exactly what makes D1/D2 live. Seven detection
+rules, each firing only where the matrix does NOT declare the disagreement;
+matrix-declared splits (D4) report under `declared` and stay green (asserted
+never-gate).
+
+**MEASURE (plan bullet 4).** 21 divergences on the real tree, 0.51s runtime,
+zero false positives against the WP8.4 dossier ground truth: D1 → 5 SHAPE
+legs (gateway bbox `dict[str,float]` vs native `list[float]`, clients send
+the list ⇒ 422 at the deployed surface); D2 → 4 CLAIM-GW404
+(`model_status`/`model_preload`/`model_unload`/`object_distance` declare
+gateway:False yet callers hit gateway-prefixed URLs as deployed); D3 →
+CLAIM-PATH (caller builds `/models/{name}/unload`, the registry's canonical
+path is `POST /models/unload?model_name=`); D5 → TYPE-UNUSED
+`camera_type` (widened to str, handler never reads it); D6 → GUARD (the
+batch-size `field_validator` exists only on the undeployed native). The
+gate's own suite reproduces the Tier-A id set BY EQUALITY — a NEW id fails
+CI until adjudicated, a VANISHED one fails GOLDEN-LOST so fixes re-ratchet
+instead of rotting the baseline. Verified extras (10 KEY legs) are real
+provider drift reported, not suppressed — including the WP8.4 FINDING #9
+`embedding_dim` vs `embedding_dimension` rename, now caught statically
+rather than only by client tests. Harness: 27 legs, 27 passed 2.9s in-tree,
+synthetic provider-renames-a-key red fixtures included (plan bullet 2).
+
+**CI wiring (plan bullet 3: WP1.3's ratchet shape, no parallel machinery).**
+New "AI provider parity (golden divergence list)" step in collection-sanity
+mirroring the suppression-ratchet step (`--expect` the golden file); the
+gate's tests appended to "Run the anti-rot gates' own tests".
+`test_ci_job_graph.py` still OK (36 jobs, gate reaches 30); the suppression
+census output stayed byte-identical, so the CI seed literal did not move.
+Same same-commit doctrine as the suppression baseline: fixing a divergence
+means deleting its id from the golden file in the same commit; increases
+need the owner.
+
+**The rename-that-bit bug (WP8.4's report-diff discipline earning its
+keep).** Fixing the checker's 13 mypy errors (AST `Constant` narrowing ×7,
+`Served` constructed after the `op is None` narrow ×2, two variable-reuse
+renames), my `op`→`cop` rename left the post-`continue` D2 line reading the
+stale OUTER `op` — the next `--json` diff showed THREE `CLAIM-GW404` ids
+VANISHED (`model_preload`, `model_status`, `object_distance`) relative to
+the pre-typing report. Fixed the reference; the final report is
+byte-identical to pre-typing (3-way JSON compare). A rename motivated by a
+lint, outside any enforced gate, regressed the very detector the gate exists
+to run — every future edit to this file must carry the report-identity
+proof.
+
+**Draft deltas (serial-lane doctrine).** The UNVERIFIED draft's real-tree
+probe carried a machine-specific fallback path AND a `pytest.skip` when no
+root resolved — both removed per the no-skip goal rule; `REAL_ROOT` is
+`parents[1]` with a collection-time assert (a checkout without the registry
+fails loud, never silently skips six legs). The draft's
+`ruff-as-scripts.py` variant was DISCARDED: it ran ruff outside the repo
+config and its "fixes" dropped `zip(strict=True)` — a behavior change; the
+original passes repo ruff clean, format applied, report byte-identical.
+
+**mypy scope, recorded honestly.** `scripts/` is outside the enforced mypy
+(hook `files: ^backend/`, CI `uv run mypy backend/`). The checker
+nonetheless meets the sibling CHECKER standard (`check-mock-spec`,
+`ratchet-check`, `check-test-collection`: 0 errors standalone) — clean. The
+gate-TEST file carries 27 `no-untyped-def` standalone, matching the sibling
+gate-TEST standard (`test_check_mock_spec` + `test_ratchet_check`: 30
+errors standalone). Recorded, not gated; nothing widened.
+
+**Secret-scan integration (house routes only).** Seven divergence-id
+literals in the test tripped detect-secrets' base64-high-entropy heuristic
+— annotated inline with `# pragma: allowlist secret` (the house precedent,
+`backend/api/schemas/*`). The golden JSON has no comments to annotate, so
+its 7 hits went into `.secrets.baseline` via a SURGICAL merge (scan that one
+file, splice its entries, preserve key order — 51 lines added). A blind
+full regeneration was tried first and purged 1,793 pre-existing house
+entries; reverted, never committed. ruff/ruff-format clean both files;
+semgrep 0 findings; WP4.2 ratchet rc=0; the ruff hook's orphaned
+`import pytest` removal rode in with the commit (my skip-removal orphaned
+it).
