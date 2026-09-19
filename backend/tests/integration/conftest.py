@@ -200,6 +200,39 @@ async def get_table_deletion_order(engine) -> list[str]:
         if not tables:
             return None, None
 
+        # Drop PARTITION CHILDREN. `inspector.get_table_names()` returns every
+        # partition as its own table, and `detections` is partitioned by
+        # detected_at with a 12-month retention (backend/services/
+        # partition_manager.py) -- which is how 70 declared __tablename__s
+        # become the ~815 this file's cleanup comment cites. The teardown loop
+        # then issues one DELETE per partition, per test.
+        #
+        # `DELETE FROM <partitioned parent>` already removes rows from every
+        # partition, so deleting the children individually is redundant, not
+        # safer: identical rows removed, ~745 extra round-trips. Measured cost
+        # was a FIXED per-test teardown tax, which is why Test Performance
+        # Audit kept flagging a DIFFERENT test every run (2026-09-19: four
+        # distinct clusters -- lifecycle, entities, search/video,
+        # websocket-health) while the cause never moved.
+        #
+        # This changes NO isolation semantics and does not touch the
+        # DELETE-not-TRUNCATE choice that ledger R-T7-ENOSPC-RECUR forced
+        # (TRUNCATE's per-call relfilenode churn exhausted inodes); parents are
+        # still DELETEd, still under session_replication_role=replica.
+        partition_children = {
+            row[0]
+            for row in sync_conn.exec_driver_sql(
+                "SELECT c.relname FROM pg_class c JOIN pg_inherits i ON c.oid = i.inhrelid"
+            )
+        }
+        if partition_children:
+            tables -= partition_children
+            logger.info(
+                "clean_tables: excluded %d partition children, %d parent tables remain",
+                len(partition_children),
+                len(tables),
+            )
+
         # Build dependency graph from foreign key relationships
         dependencies = _build_dependency_graph(inspector, tables)
         return tables, dependencies
@@ -1094,13 +1127,19 @@ def cleanup_stale_advisory_locks():
 
 @pytest.fixture
 async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
-    """Truncate all tables between tests for fast, proper isolation.
+    """Clear all tables between tests for fast, proper isolation.
 
-    This fixture uses TRUNCATE ... CASCADE which is faster than DELETE because
-    it doesn't scan rows - it just removes all data at once.
+    Uses DELETE, not TRUNCATE. This docstring previously claimed the opposite
+    ("TRUNCATE ... which is faster than DELETE because it doesn't scan rows") --
+    that was already false when ledger R-T7-ENOSPC-RECUR switched the code below
+    to DELETE, and the performance claim is false too: on near-empty test tables
+    DELETE's row scan is free while TRUNCATE's per-call relfilenode allocation is
+    not. Measured 2026-09-19 (postgres:16-alpine, empty tables, 15 reps):
+    DELETE 0.188 ms/table vs TRUNCATE 1.875 ms/table -- TRUNCATE is 10.0x SLOWER.
 
     With database-per-worker isolation (each pytest-xdist worker gets its own
-    database), TRUNCATE is safe to use without AccessExclusiveLock deadlocks.
+    database) FK order is handled via session_replication_role=replica, so
+    CASCADE is unneeded either way.
 
     NOTE: This fixture is NOT autouse. Tests that need database cleanup should
     explicitly request `db_session` or `isolated_db_session` fixtures, which
@@ -1383,14 +1422,32 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                     for tbl in deletion_order:
                         try:
                             # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
-                            # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                            # Add per-table timeout to prevent hanging on large tables
+                            #
+                            # DELETE, not TRUNCATE -- the SAME remedy ledger
+                            # R-T7-ENOSPC-RECUR already applied to clean_tables
+                            # (see its comment ~line 1140). This path was missed:
+                            # TRUNCATE allocates a NEW relfilenode per call and
+                            # defers unlinking the old one to the next checkpoint,
+                            # which is what exhausted the 655K-inode /dev/vdd at
+                            # ~815 tables x every test x 18 worker DBs. So the
+                            # banned statement was still running here, before
+                            # EVERY client-using test.
+                            #
+                            # It is also the slower statement, contrary to the
+                            # comment this replaces. Measured 2026-09-19 on
+                            # postgres:16-alpine, empty tables, 15 reps:
+                            #   DELETE   0.188 ms/table
+                            #   TRUNCATE 1.875 ms/table   (10.0x slower)
+                            # -> at 815 tables: 0.15s vs 1.53s per sweep, on an
+                            # UNCONTENDED local db. These are near-empty test
+                            # tables, so DELETE's row scan is free while
+                            # TRUNCATE's relfilenode churn is not.
                             await asyncio.wait_for(
-                                session.execute(text(f"TRUNCATE TABLE {tbl} CASCADE")),  # nosemgrep
+                                session.execute(text(f"DELETE FROM {tbl}")),  # noqa: S608 nosemgrep
                                 timeout=5.0,
                             )
                         except TimeoutError:
-                            logger.warning(f"Truncate timed out for table {tbl}, skipping")
+                            logger.warning(f"Cleanup timed out for table {tbl}, skipping")
                         except Exception as e:
                             # Skip tables that don't exist - they may not be migrated yet
                             logger.debug(f"Skipping table {tbl}: {e}")
@@ -1450,9 +1507,12 @@ async def client(integration_db: str, mock_redis: AsyncMock):
     Use this fixture for testing API endpoints.
 
     Database Isolation Strategy:
-    - Pre-test cleanup: TRUNCATE all tables to start fresh
-    - Post-test cleanup: TRUNCATE all tables to prevent leakage
+    - Pre-test cleanup: DELETE from all tables to start fresh
+    - Post-test cleanup: DELETE from all tables to prevent leakage
     - This ensures tests can run repeatedly without data accumulation
+
+    Both sweeps use DELETE, never TRUNCATE (ledger R-T7-ENOSPC-RECUR), and skip
+    partition children since DELETE on a partitioned parent already clears them.
     """
     # Clean up any existing test data BEFORE the test runs
     await _cleanup_test_data()
