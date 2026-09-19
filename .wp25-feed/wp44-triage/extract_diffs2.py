@@ -1,51 +1,46 @@
-import re, difflib
+import json, re, difflib, collections, pickle
 
-src = open('/agents/agent-nemo2/workspace/mutants/backend/services/mqtt_client.py').read().splitlines()
+src = open('/agents/agent-nemo2/workspace/mutants/backend/services/container_discovery.py').read().splitlines()
 
-defpat = re.compile(r'^(\s*)(?:async\s+)?def\s+(x\S*?__mutmut_(orig|\d+))\s*\(')
+def_re = re.compile(r'^(\s*)(?:async )?def (x.+?__mutmut(?:_orig|_(\d+)))\(')
 defs = []
-for i, line in enumerate(src):
-    m = defpat.match(line)
+for i,l in enumerate(src):
+    m = def_re.match(l)
     if m:
-        defs.append((i, m.group(2), len(m.group(1))))
+        defs.append((len(m.group(1)), m.group(2), m.group(3), i))
 
-segs = {}
-for idx, (ln, name, indent) in enumerate(defs):
+blocks = {}
+orig_body = {}
+for idx,(indent,name,num,i) in enumerate(defs):
     end = len(src)
-    for j in range(ln+1, len(src)):
-        l = src[j]
-        if l.strip() == '':
-            continue
-        cur = len(l) - len(l.lstrip())
-        if cur <= indent:
-            end = j
+    for j in range(idx+1, len(defs)):
+        if defs[j][0] <= indent:
+            end = defs[j][3]
             break
-    segs[name] = src[ln:end]
+    body = src[i+1:end]
+    while body and (body[-1].strip()=='' or body[-1].strip().startswith('@')):
+        body.pop()
+    base = re.match(r'x(.+?)__mutmut', name).group(1)
+    if num is None:
+        orig_body[base] = body
+    else:
+        blocks[(base,int(num))] = body
 
-survivors = open('/tmp/wp25/wp44-triage/mqtt_client_survivors.txt').read().split()
-out = []
-for key in survivors:
-    vname = key.split('.', 3)[-1]
-    oname = re.sub(r'__mutmut_\d+$', '__mutmut_orig', vname)
-    v = segs.get(vname); o = segs.get(oname)
-    if v is None or o is None:
-        out.append(f'### {key}\n  MISSING v={v is not None} o={o is not None}')
+out = {}
+for (base,num), body in blocks.items():
+    ob = orig_body.get(base)
+    if ob is None:
         continue
-    # drop the def line difference, compare body only
-    ob = [l.strip() for l in o[1:]]
-    vb = [l.strip() for l in v[1:]]
-    sm = difflib.SequenceMatcher(None, ob, vb, autojunk=False)
-    parts = []
-    for tag, i1, i2, j1, j2 in sm.get_opcodes():
-        if tag == 'equal':
-            continue
-        olines = [l for l in ob[i1:i2]]
-        vlines = [l for l in vb[j1:j2]]
-        parts.append('- ' + ' | '.join(olines) if olines else '- (nothing)')
-        parts.append('+ ' + ' | '.join(vlines) if vlines else '+ (nothing)')
-    if not parts:
-        parts.append('  (identical to orig)')
-    out.append(f'### {key}\n' + '\n'.join(parts))
+    sm = difflib.SequenceMatcher(None, ob, body)
+    changes = []
+    for tag,i1,i2,j1,j2 in sm.get_opcodes():
+        if tag=='equal': continue
+        old = ' | '.join(x.strip() for x in ob[i1:i2])
+        new = ' | '.join(x.strip() for x in body[j1:j2])
+        changes.append((old,new))
+    out[(base,num)] = changes
 
-open('/tmp/wp25/wp44-triage/mqtt_client_diffs.txt','w').write('\n'.join(out) + '\n')
-print('wrote', len(out))
+json.dump({f'{b}__mutmut_{n}': c for (b,n),c in out.items()},
+          open('/tmp/wp25/wp44-triage/diffs.json','w'), indent=1)
+print('variants parsed:', len(out))
+print('per base:', collections.Counter(b for b,_ in out))

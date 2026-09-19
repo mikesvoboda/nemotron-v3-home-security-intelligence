@@ -1256,3 +1256,16 @@ remaining: **49 band modules needing the authoring round** (dossier -> real
 tests -> census proof), + orchestrator's 64 and system's 503 recorded
 survivors for the next drafting wave. The census lane is now the PROOF
 instrument for authoring waves, 6-8 workers, pause-respecting.
+
+## WAVE 65 DOSSIER FOLD 2026-09-19 (next-8 band modules triaged)
+
+Read-only triage workflow wf_cc4a7a6d-fab (8 agents, 617k tokens, 13 min):
+dossiers + drafted skeletons for job_state_service, event_service, media,
+go2rtc_client, service_provider_matcher, scene_change_service, entities,
+prompt_auto_tuner. Journal-tallied partition: **190 TEST-GAP / 48 LOW-VALUE /
+82 EQUIVALENT = 320 survivors** across 41 drafted tests. Untouched band after
+this wave: 41 modules. Authoring order by TEST-GAP: media(37),
+scene_change_service(33), entities(28), go2rtc_client(27),
+service_provider_matcher(26), job_state_service(16), prompt_auto_tuner(16),
+event_service(7). All drafts UNVERIFIED until authored + green-under-original
++ strict census re-probe (lane currently busy with routes/system 638).
