@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.models.event_audit import EventAudit
+from backend.services.prompt_auto_tuner import PromptAutoTuner
 
 # Mark all tests in this file as unit tests
 pytestmark = pytest.mark.unit
@@ -684,3 +685,191 @@ Analyze this event.<|im_end|>
         # Empty context should not modify the prompt
         assert result == sample_prompt
         assert "## AUTO-TUNING" not in result
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/prompt_auto_tuner.md, clusters C1-C3, C5-C7, C9)
+# =============================================================================
+
+
+class TestWp44PromptTunerGaps:
+    """Priority-filter fallbacks, session forwarding, and exact render contract."""
+
+    @pytest.mark.asyncio
+    async def test_forwards_session_to_audit_service(self, mock_db_session: AsyncMock) -> None:
+        """The caller's db session must be forwarded to get_recommendations.
+
+        Kills get_tuning_context mutmut_3 (session=None) / _5 (kwarg
+        dropped) — existing call-shape asserts cover `days` only.
+        """
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
+            mock_service = MagicMock()
+            mock_service.get_recommendations = AsyncMock(return_value=[])
+            mock_get_audit.return_value = mock_service
+
+            tuner = PromptAutoTuner()
+            await tuner.get_tuning_context(
+                session=mock_db_session,
+                camera_id="front_door",
+            )
+
+            call_kwargs = mock_service.get_recommendations.call_args.kwargs
+            assert call_kwargs.get("session") is mock_db_session
+
+    def test_invalid_min_priority_defaults_to_medium(self) -> None:
+        """Unrecognized min_priority falls back to medium filtering.
+
+        Kills _filter_by_priority mutmut_3/_5 (default 2 -> None, TypeError)
+        and _7 (default 3: silently re-tiers unknown values to high-only).
+        """
+        tuner = PromptAutoTuner()
+        recs = [
+            {"priority": "high", "category": "missing_context", "suggestion": "H"},
+            {"priority": "medium", "category": "missing_context", "suggestion": "M"},
+            {"priority": "low", "category": "missing_context", "suggestion": "L"},
+        ]
+
+        result = tuner._filter_by_priority(recs, "urgent")  # not in PRIORITY_LEVELS
+
+        # Default-to-medium: high and medium kept, low dropped
+        assert [r["suggestion"] for r in result] == ["H", "M"]
+
+    def test_unknown_item_priority_treated_as_low(self) -> None:
+        """A recommendation with an unrecognized priority string is level 1.
+
+        Kills _filter_by_priority mutmut_9/_11 (fallback None -> TypeError)
+        and _21 (fallback 2: unknowns leak past the medium filter).
+        """
+        tuner = PromptAutoTuner()
+        recs = [
+            {"priority": "urgent", "category": "missing_context", "suggestion": "U"},
+            {"priority": "low", "category": "missing_context", "suggestion": "L"},
+        ]
+
+        # Unknown "urgent" falls back to low (level 1): visible only at min_priority=low
+        assert [r["suggestion"] for r in tuner._filter_by_priority(recs, "low")] == ["U", "L"]
+        assert tuner._filter_by_priority(recs, "medium") == []
+
+    def test_missing_priority_key_treated_as_low(self) -> None:
+        """A recommendation dict without a 'priority' key defaults to low.
+
+        Kills _filter_by_priority mutmut_14/_16 (default "low" -> None:
+        None.lower() raises AttributeError and get_tuning_context collapses).
+        """
+        tuner = PromptAutoTuner()
+        recs = [{"category": "missing_context", "suggestion": "NOKEY"}]
+
+        assert [r["suggestion"] for r in tuner._filter_by_priority(recs, "low")] == ["NOKEY"]
+        assert tuner._filter_by_priority(recs, "medium") == []
+
+    @pytest.mark.asyncio
+    async def test_exact_rendered_block(self, mock_db_session: AsyncMock) -> None:
+        """The rendered context must match the documented format exactly.
+
+        Kills get_tuning_context mutmut_41/_45/_59 (XX-wrapped section
+        headers — substring `in` asserts cannot see the litter) and _73
+        ("\n".join -> "XX\nXX".join; no existing assert observes joining).
+        """
+        recommendations = [
+            {
+                "category": "missing_context",
+                "suggestion": "MC1",
+                "frequency": 9,
+                "priority": "high",
+            },
+            {
+                "category": "missing_context",
+                "suggestion": "MC2",
+                "frequency": 8,
+                "priority": "medium",
+            },
+            {
+                "category": "format_suggestions",
+                "suggestion": "FS1",
+                "frequency": 7,
+                "priority": "high",
+            },
+            {
+                "category": "format_suggestions",
+                "suggestion": "FS2",
+                "frequency": 6,
+                "priority": "medium",
+            },
+        ]
+
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
+            mock_service = MagicMock()
+            mock_service.get_recommendations = AsyncMock(return_value=recommendations)
+            mock_get_audit.return_value = mock_service
+
+            tuner = PromptAutoTuner()
+            context = await tuner.get_tuning_context(
+                session=mock_db_session,
+                camera_id="front_door",
+            )
+
+            assert context == "\n".join(
+                [
+                    "## AUTO-TUNING (From Historical Analysis)",
+                    "Previously helpful context that was missing:",
+                    "  - MC1",
+                    "  - MC2",
+                    "Known prompt clarity issues:",
+                    "  - FS1",
+                    "  - FS2",
+                ]
+            )
+
+    @pytest.mark.asyncio
+    async def test_slice_limits_with_eligible_items_only(self, mock_db_session: AsyncMock) -> None:
+        """Top-3/top-2 caps must hold when ALL items are priority-eligible.
+
+        The pre-existing limit tests' fixtures hide the boundary item behind
+        the medium filter before the slice runs. Kills get_tuning_context
+        mutmut_48 ([:3] -> [:4]) and _62 ([:2] -> [:3]).
+        """
+        recommendations = [
+            *[
+                {
+                    "category": "missing_context",
+                    "suggestion": f"MC{i}",
+                    "frequency": 20 - i,
+                    "priority": "high",
+                }
+                for i in range(4)
+            ],
+            *[
+                {
+                    "category": "format_suggestions",
+                    "suggestion": f"FS{i}",
+                    "frequency": 10 - i,
+                    "priority": "high",
+                }
+                for i in range(3)
+            ],
+        ]
+
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
+            mock_service = MagicMock()
+            mock_service.get_recommendations = AsyncMock(return_value=recommendations)
+            mock_get_audit.return_value = mock_service
+
+            tuner = PromptAutoTuner()
+            context = await tuner.get_tuning_context(
+                session=mock_db_session,
+                camera_id="front_door",
+            )
+
+            assert "MC0" in context
+            assert "MC2" in context
+            assert "MC3" not in context  # 4th missing_context must be cut by [:3]
+            assert "FS0" in context
+            assert "FS1" in context
+            assert "FS2" not in context  # 3rd format_suggestion must be cut by [:2]

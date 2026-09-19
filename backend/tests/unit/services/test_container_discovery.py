@@ -1026,3 +1026,120 @@ class TestDiscoveryImageStringEdgeCases:
         assert discovered[0].image == f"<untagged:{long_id[:12]}>"
         # postgres uses an exec health command — it must survive the ManagedService mapping
         assert discovered[0].health_cmd == "pg_isready -U security"
+
+
+class TestWP44DraftedGaps:
+    """Real-gap kill-tests from the 52-survivor triage dossier (WP4.4).
+
+    Every test here targets mutants that survived BECAUSE MagicMock fabricates
+    every attribute — the getattr-default branches had zero executions. Plain
+    SimpleNamespace containers are load-bearing, do not "simplify" to mocks.
+    """
+
+    @pytest.mark.parametrize("monitoring_enabled", [True, False])
+    def test_compose_fallback_honors_monitoring_flag_and_settings(
+        self, tmp_path, monitoring_enabled: bool
+    ) -> None:
+        """Compose-fallback must forward BOTH settings ports and the flag.
+
+        Kills __init__ mutants that drop the settings arg (ports silently
+        revert to defaults) or the include_monitoring arg / pass it as None
+        (falsy -> prometheus wrongly excluded even when monitoring is on).
+        """
+        missing = tmp_path / "nope-compose.yml"
+        settings = SimpleNamespace(monitoring_enabled=monitoring_enabled, **ALL_PORTS)
+        configs = build_configs_from_compose(missing, settings, monitoring_enabled)
+        assert configs["postgres"].port == 15432  # settings leg of the fallback
+        assert ("prometheus" in configs) is monitoring_enabled
+        # the service constructor must route through the same fallback
+        svc = ContainerDiscoveryService(MagicMock(), settings=settings, compose_file=missing)
+        assert ("prometheus" in svc._configs) is monitoring_enabled
+
+    def test_match_container_name_length_beats_lexicographic_order(
+        self, mock_docker_client: MagicMock
+    ) -> None:
+        """Length-priority must not silently become reverse-lexicographic.
+
+        The older prefers-longer test used a PREFIX pair (redis/redis-exporter)
+        where both sorts agree; this container matches 'postgres' (8) and
+        'redis' (5) as bare substrings — plain reverse() picks 'redis'.
+        """
+        service = ContainerDiscoveryService(mock_docker_client)
+        assert service.match_container_name("prod-redis-postgres-bridge-1") == "postgres"
+
+    @pytest.mark.asyncio
+    async def test_discover_image_object_without_tags_attribute_still_resolves(
+        self, mock_docker_client: MagicMock
+    ) -> None:
+        """An image object without .tags must fall back to [] -> <untagged:...>.
+
+        Kills the getattr-default-deleted mutant, which raises AttributeError
+        out of discover_all. MagicMock always fabricates .tags — never let it
+        stand in here.
+        """
+        container = SimpleNamespace(
+            name="security-postgres-1", id="pg-abcdef123456", image=SimpleNamespace()
+        )
+        mock_docker_client.list_containers = AsyncMock(return_value=[container])
+
+        discovery = ContainerDiscoveryService(mock_docker_client)
+        discovered = await discovery.discover_all()
+
+        assert discovered[0].image == "<untagged:pg-abcdef123>"
+
+    @pytest.mark.asyncio
+    async def test_container_without_image_falls_back_to_unknown(
+        self, mock_docker_client: MagicMock
+    ) -> None:
+        """A container lacking .image must resolve image='<unknown>', not crash."""
+        bare = SimpleNamespace(name="security-postgres-1", id="pg-abcdef123456")
+        mock_docker_client.list_containers = AsyncMock(return_value=[bare])
+
+        discovery = ContainerDiscoveryService(mock_docker_client)
+        discovered = await discovery.discover_all()
+
+        assert discovered[0].image == "<unknown>"
+        assert discovered[0].container_id == "pg-abcdef123456"
+
+    def test_idless_container_hits_defensive_id_defaults(
+        self, mock_docker_client: MagicMock
+    ) -> None:
+        """An id-less container must get container_id='' and '<untagged:unknown>'.
+
+        Direct _create_managed_service call BY DESIGN: discover_all's own
+        observability extras read container.id, so an id-less container is not
+        a discover_all-reachable state — these getattr defaults are only
+        reachable through the mapping helper itself.
+        """
+        discovery = ContainerDiscoveryService(mock_docker_client)
+        cfg = INFRASTRUCTURE_CONFIGS["postgres"]
+
+        no_id = SimpleNamespace(name="security-postgres-1", image=SimpleNamespace(tags=[]))
+        svc = discovery._create_managed_service(no_id, "postgres", cfg)
+        assert svc.container_id == ""
+        assert svc.image == "<untagged:unknown>"
+
+    @pytest.mark.asyncio
+    async def test_discover_all_debug_extra_dict_contract(
+        self, mock_docker_client: MagicMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The debug observability payload is part of the shipped contract.
+
+        Kills the D1 log-payload family: message -> None mutants render 'None'
+        (fail the name-substring filter) and UPPER/XX-wrapped/removed extra
+        keys fail the exact-value asserts.
+        """
+        container = SimpleNamespace(
+            name="security-postgres-1", id="pg-abcdef123456", image=SimpleNamespace(tags=["pg:17"])
+        )
+        mock_docker_client.list_containers = AsyncMock(return_value=[container])
+
+        discovery = ContainerDiscoveryService(mock_docker_client)
+        with caplog.at_level("DEBUG", logger="backend.services.container_discovery"):
+            await discovery.discover_all()
+
+        rec = next(r for r in caplog.records if "security-postgres-1" in r.getMessage())
+        assert rec.container_name == "security-postgres-1"
+        assert rec.service_name == "postgres"
+        assert rec.container_id == "pg-abcdef123456"
+        assert rec.category == "infrastructure"

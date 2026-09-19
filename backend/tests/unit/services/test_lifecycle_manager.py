@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from freezegun import freeze_time
 
 from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.lifecycle_manager import (
@@ -278,6 +279,32 @@ class TestLifecycleManagerCalculateBackoff:
         # base=10.0 * 2^1 = 20.0
         assert result == 20.0
 
+    def test_calculate_backoff_uses_service_max_not_library_default(
+        self, lifecycle_manager: LifecycleManager, monitoring_service: ManagedService
+    ) -> None:
+        """Cap must come from service.restart_backoff_max, never the 300.0 function default.
+
+        WP4.4 C1: dropping the ``max_backoff=service.restart_backoff_max`` keyword silently
+        reverts to the module default of 300.0. The existing cap tests assert exactly 300.0
+        or values below it, so they cannot see the difference. monitoring_service has
+        max=600.0, so the uncapped mutant returns 300.0 and this assertion fails.
+        """
+        # base=10.0 * 2**6 = 640.0, capped by the service's own 600.0 (NOT the 300.0 default).
+        monitoring_service.failure_count = 6
+        result = lifecycle_manager.calculate_backoff(monitoring_service)
+
+        assert result == 600.0
+
+    def test_calculate_backoff_cap_is_service_max_for_infrastructure(
+        self, lifecycle_manager: LifecycleManager, infrastructure_service: ManagedService
+    ) -> None:
+        """Second cap probe in the other direction: infrastructure max=60.0 vs default 300.0."""
+        # base=2.0 * 2**7 = 256.0 -> capped at the service's 60.0.
+        infrastructure_service.failure_count = 7
+        result = lifecycle_manager.calculate_backoff(infrastructure_service)
+
+        assert result == 60.0
+
 
 # =============================================================================
 # LifecycleManager.should_restart() Tests
@@ -338,6 +365,33 @@ class TestShouldRestart:
         """Test should_restart returns False for disabled service."""
         ai_service.enabled = False
         assert lifecycle_manager.should_restart(ai_service) is False
+
+    def test_should_restart_is_false_within_one_second_of_backoff_expiry(
+        self, lifecycle_manager: LifecycleManager, infrastructure_service: ManagedService
+    ) -> None:
+        """Backoff boundary is EXACT: 0.5s of backoff left means no restart.
+
+        WP4.4 C2: ``backoff_remaining(service) <= 0`` mutated to ``<= 1`` lets a service
+        restart a full second before its backoff elapses. Existing probes are coarse
+        (8s vs 5s, 160s vs 1s, 10s vs 30s) so the 0-1s band is never observed.
+        infrastructure_service (base=2.0) gives a small backoff so a sub-second offset
+        is reachable without fake clocks.
+        """
+        infrastructure_service.failure_count = 2
+        # Backoff = 2.0 * 2**2 = 8.0s. Fail 7.5s ago -> 0.5s still in backoff.
+        infrastructure_service.last_failure_at = datetime.now(UTC) - timedelta(milliseconds=7500)
+
+        assert lifecycle_manager.should_restart(infrastructure_service) is False
+
+    def test_should_restart_is_true_just_after_backoff_expiry(
+        self, lifecycle_manager: LifecycleManager, infrastructure_service: ManagedService
+    ) -> None:
+        """Mirror probe: 0.5s PAST expiry must allow the restart, pinning both sides."""
+        infrastructure_service.failure_count = 2
+        # Backoff 8.0s; 8.5s elapsed -> remaining 0.0.
+        infrastructure_service.last_failure_at = datetime.now(UTC) - timedelta(milliseconds=8500)
+
+        assert lifecycle_manager.should_restart(infrastructure_service) is True
 
 
 # =============================================================================
@@ -798,6 +852,110 @@ class TestHandleUnhealthy:
         mock_docker_client.stop_container.assert_not_called()
         mock_docker_client.start_container.assert_not_called()
 
+    @pytest.mark.asyncio
+    @freeze_time("2026-09-19T12:00:00+00:00")
+    async def test_handle_unhealthy_stamps_last_failure_at_after_restart_check(
+        self,
+        lifecycle_manager: LifecycleManager,
+        ai_service: ManagedService,
+        mock_registry: MagicMock,
+    ) -> None:
+        """handle_unhealthy must refresh last_failure_at (the ONLY failure memory).
+
+        WP4.4 C8: ``service.last_failure_at = datetime.now(UTC)`` mutated to ``= None``
+        erases the failure timestamp — every later should_restart() then takes the
+        ``last_failure_at is None`` early-return and the backoff ladder collapses into
+        an immediate-restart loop. No existing test asserted this field on this path:
+        every prior ``last_failure_at`` mention was SETUP. Clock pinned by freezegun
+        inside this test only (per-test freeze discipline).
+        """
+        ai_service.failure_count = 0
+        ai_service.last_failure_at = None
+        mock_registry.increment_failure.return_value = 1
+
+        await lifecycle_manager.handle_unhealthy(ai_service)
+
+        assert ai_service.last_failure_at == datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
+        assert ai_service.failure_count == 1
+
+    @pytest.mark.asyncio
+    async def test_handle_unhealthy_backoff_is_measured_from_the_new_failure(
+        self,
+        lifecycle_manager: LifecycleManager,
+        ai_service: ManagedService,
+        mock_registry: MagicMock,
+        mock_docker_client: AsyncMock,
+    ) -> None:
+        """Consequence probe: a second unhealthy call inside the backoff window must NOT restart.
+
+        If the stamp is dropped (mutant ``= None``) the second call sees no prior failure
+        and restarts again — kills C8 through the behavior the operator depends on.
+        """
+        ai_service.failure_count = 0
+        ai_service.last_failure_at = None
+        # First call: no prior failure -> restart allowed. Second call: failure_count is
+        # now 1 (backoff 5.0 * 2**1 = 10s) and the stamp is milliseconds old -> skipped.
+        mock_registry.increment_failure.side_effect = [1, 2]
+
+        await lifecycle_manager.handle_unhealthy(ai_service)
+        await lifecycle_manager.handle_unhealthy(ai_service)
+
+        assert ai_service.failure_count == 2
+        assert ai_service.last_failure_at is not None
+        mock_docker_client.stop_container.assert_called_once()
+        mock_docker_client.start_container.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_unhealthy_warns_exactly_at_max_failures_threshold(
+        self,
+        lifecycle_manager: LifecycleManager,
+        ai_service: ManagedService,
+        mock_registry: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """The max-failures warning fires ONCE, on the failure that reaches max_failures.
+
+        WP4.4 C3: ``if new_count == service.max_failures`` mutated to ``!=`` inverts the
+        threshold — the operator sees the "exceeded N failures" warning on every failure
+        except the one it describes, and stays silent at the moment it matters.
+        """
+        caplog.set_level("WARNING", logger="backend.services.lifecycle_manager")
+
+        ai_service.failure_count = ai_service.max_failures - 1  # 4
+        ai_service.last_failure_at = None
+        mock_registry.increment_failure.return_value = ai_service.max_failures  # 5
+
+        await lifecycle_manager.handle_unhealthy(ai_service)
+
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any("exceeded 5 failures" in m for m in warnings), caplog.text
+
+    @pytest.mark.asyncio
+    async def test_handle_unhealthy_does_not_warn_below_max_failures(
+        self,
+        lifecycle_manager: LifecycleManager,
+        ai_service: ManagedService,
+        mock_registry: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """One failure in (count 1 of 5) must NOT emit the max-failures warning.
+
+        Pair-probe for C3: the ``!=`` mutant warns here. Together the two tests pin the
+        ``==`` boundary, and the text assertion also kills C10 (message body -> None).
+        """
+        caplog.set_level("WARNING", logger="backend.services.lifecycle_manager")
+
+        ai_service.failure_count = 0
+        ai_service.last_failure_at = None
+        mock_registry.increment_failure.return_value = 1
+
+        await lifecycle_manager.handle_unhealthy(ai_service)
+
+        # can_restart is True here (no prior failure), so the backoff WARNING never
+        # fires; the only possible WARNING is the max-failures one.
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert not any("exceeded" in m for m in warnings), caplog.text
+
 
 # =============================================================================
 # LifecycleManager.handle_stopped() Tests
@@ -885,6 +1043,101 @@ class TestHandleMissing:
 
         # Container ID should be cleared in registry
         mock_registry.update_container_id.assert_called_once_with(ai_service.name, None)
+
+
+# =============================================================================
+# Registry Write Targeting Tests (WP4.4 C4 / C5 / C6 / C7)
+# =============================================================================
+
+
+class TestRegistryWritesTargetTheServiceName:
+    """The status/persist writes must carry the service NAME and the right STATUS enum.
+
+    WP4.4 C4/C5/C6/C7: start_service, stop_service and handle_missing write to the
+    shared registry, but nothing asserted the arguments of those writes on these
+    paths. ServiceRegistry.update_status/.persist_state look the service up by name
+    and silently no-op on a miss (orchestrator/registry.py:182, :339), so ``None``
+    in place of the name silently DROPS the write: the UI keeps showing a stale
+    status and Redis never learns the new state. Argument-removal mutants raise
+    TypeError, which start/stop swallow in their ``except Exception`` — so
+    ``result is True`` is asserted alongside (a strict runner kills on the raise).
+    """
+
+    @pytest.mark.asyncio
+    async def test_start_service_updates_status_by_name_with_starting(
+        self,
+        lifecycle_manager: LifecycleManager,
+        monitoring_service: ManagedService,
+        mock_registry: MagicMock,
+    ) -> None:
+        """start_service must call update_status(NAME, STARTING) — never (None, ...)."""
+        result = await lifecycle_manager.start_service(monitoring_service)
+
+        assert result is True
+        mock_registry.update_status.assert_called_once_with(
+            "grafana", ContainerServiceStatus.STARTING
+        )
+
+    @pytest.mark.asyncio
+    async def test_start_service_persists_state_by_name(
+        self,
+        lifecycle_manager: LifecycleManager,
+        monitoring_service: ManagedService,
+        mock_registry: MagicMock,
+    ) -> None:
+        """start_service must persist the named service, not persist_state(None)."""
+        result = await lifecycle_manager.start_service(monitoring_service)
+
+        assert result is True
+        mock_registry.persist_state.assert_awaited_once_with("grafana")
+
+    @pytest.mark.asyncio
+    async def test_stop_service_updates_status_by_name_with_stopped(
+        self,
+        lifecycle_manager: LifecycleManager,
+        monitoring_service: ManagedService,
+        mock_registry: MagicMock,
+    ) -> None:
+        """stop_service must call update_status(NAME, STOPPED)."""
+        result = await lifecycle_manager.stop_service(monitoring_service)
+
+        assert result is True
+        mock_registry.update_status.assert_called_once_with(
+            "grafana", ContainerServiceStatus.STOPPED
+        )
+
+    @pytest.mark.asyncio
+    async def test_stop_service_persists_state_by_name(
+        self,
+        lifecycle_manager: LifecycleManager,
+        monitoring_service: ManagedService,
+        mock_registry: MagicMock,
+    ) -> None:
+        """stop_service must persist the named service, not persist_state(None)."""
+        result = await lifecycle_manager.stop_service(monitoring_service)
+
+        assert result is True
+        mock_registry.persist_state.assert_awaited_once_with("grafana")
+
+    @pytest.mark.asyncio
+    async def test_handle_missing_persists_state_by_name(
+        self,
+        lifecycle_manager: LifecycleManager,
+        monitoring_service: ManagedService,
+        mock_registry: MagicMock,
+    ) -> None:
+        """handle_missing must persist the named service after clearing container_id.
+
+        update_status is asserted called-once so this cannot be satisfied by the
+        restart_via_compose branch, which carries a near-identical STARTING write.
+        """
+        await lifecycle_manager.handle_missing(monitoring_service)
+
+        mock_registry.update_status.assert_called_once_with(
+            "grafana", ContainerServiceStatus.NOT_FOUND
+        )
+        mock_registry.update_container_id.assert_called_once_with("grafana", None)
+        mock_registry.persist_state.assert_awaited_once_with("grafana")
 
 
 # =============================================================================

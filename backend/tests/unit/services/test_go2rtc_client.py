@@ -550,3 +550,193 @@ async def test_register_stream_error_message_format(go2rtc_client, sample_camera
         error_msg = str(exc_info.value)
         assert sample_camera_config["camera_id"] in error_msg
         assert "stream" in error_msg.lower()
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/go2rtc_client.md, clusters C1-C4, C12-C16)
+# =============================================================================
+
+
+def test_client_strips_trailing_slash_from_urls() -> None:
+    """__init__ URL normalization at attribute level (kills __init__ mutmut_1-8).
+
+    No existing test reads client.api_url / client.webrtc_url.
+    """
+    client = Go2RTCClient(api_url="http://localhost:1984/", webrtc_url="http://localhost:8555/")
+    assert client.api_url == "http://localhost:1984"
+    assert client.webrtc_url == "http://localhost:8555"
+
+    # decisive case: trailing slash must go, but 'X' must not be stripped
+    # (kills rstrip("XX/XX")); rstrip(None) keeps the trailing "/" (kills _2/_6)
+    client2 = Go2RTCClient(api_url="http://h/testX/", webrtc_url="http://h/testX/")
+    assert client2.api_url == "http://h/testX"
+    assert client2.webrtc_url == "http://h/testX"
+
+
+@pytest.mark.asyncio
+async def test_requests_use_configured_urls_and_timeout(go2rtc_client: Go2RTCClient) -> None:
+    """register/unregister/health must hit the documented endpoints with the
+    configured timeout (kills C2+C16: URL->None, timeout->None/kwarg-dropped).
+
+    URL is positional at the call sites, so under autospec it is
+    call_args.args[1]; timeout-dropped mutants die on KeyError.
+    """
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+        await go2rtc_client.health_check()
+        assert mock_get.call_args.args[1] == "http://localhost:1984/api/"
+        assert mock_get.call_args.kwargs["timeout"] == 2.0
+
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"stream_id": "s", "url": "http://u"}
+        mock_post.return_value = mock_response
+        await go2rtc_client.register_stream(
+            camera_id="front_door",
+            rtsp_url="rtsp://192.168.1.100:554/stream1",
+        )
+        assert mock_post.call_args.args[1] == "http://localhost:1984/api/streams"
+        assert mock_post.call_args.kwargs["timeout"] == 2.0
+
+    with patch("httpx.AsyncClient.delete", autospec=True) as mock_delete:
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_delete.return_value = mock_response
+        await go2rtc_client.unregister_stream("camera_test_1")
+        assert mock_delete.call_args.args[1] == "http://localhost:1984/api/streams/camera_test_1"
+        assert mock_delete.call_args.kwargs["timeout"] == 2.0
+
+
+@pytest.mark.asyncio
+async def test_register_stream_falls_back_to_generated_stream_id(
+    go2rtc_client: Go2RTCClient, sample_camera_config: dict
+) -> None:
+    """Fallback branch (response omits stream_id/url) must be well-formed.
+
+    Kills register_stream mutmut_37/_39/_45/_47 — every existing mock
+    supplies both keys so the data.get(...) fallbacks never execute.
+    """
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}  # go2rtc echoed nothing
+        mock_post.return_value = mock_response
+
+        result = await go2rtc_client.register_stream(
+            camera_id=sample_camera_config["camera_id"],
+            rtsp_url=sample_camera_config["rtsp_url"],
+        )
+
+        stream_id = result["stream_id"]
+        assert isinstance(stream_id, str)
+        assert stream_id.startswith("camera_front_door_")
+        suffix = stream_id[len("camera_front_door_") :]
+        assert len(suffix) == 12  # secrets.token_hex(6)
+        int(suffix, 16)  # suffix is hex (kills token_hex(7)/token_hex(None)/None)
+        assert result["webrtc_url"] == f"http://localhost:8555/api/ws?src={stream_id}"
+
+
+@pytest.mark.asyncio
+async def test_unregister_stream_warning_log_matches_status_whitelist(
+    go2rtc_client: Go2RTCClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Pin the (200, 204, 404) acceptance whitelist via warning presence.
+
+    Kills unregister_stream mutmut_6-9 (not-in->in, 200->201, 204->205,
+    404->405) — no existing test asserts the warning branch at all.
+    """
+    stream_id = "camera_test_12345"
+    with patch("httpx.AsyncClient.delete", autospec=True) as mock_delete:
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_delete.return_value = mock_response
+
+        with caplog.at_level("WARNING"):
+            # Error status: must warn, naming the stream (kills arg->None mutmut_11)
+            mock_response.status_code = 500
+            await go2rtc_client.unregister_stream(stream_id)
+            assert "Failed to unregister stream" in caplog.text
+            assert stream_id in caplog.text
+
+            # Success codes: must NOT warn (kills not-in->in, 200->201, 204->205)
+            caplog.clear()
+            mock_response.status_code = 200
+            await go2rtc_client.unregister_stream(stream_id)
+            mock_response.status_code = 204
+            await go2rtc_client.unregister_stream(stream_id)
+            # 404 (already-gone) is also on the acceptance whitelist —
+            # 404->405 flip would warn here (kills mutmut_9)
+            mock_response.status_code = 404
+            await go2rtc_client.unregister_stream(stream_id)
+            assert "Failed to unregister stream" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_register_stream_credential_matrix_sends_exact_source(
+    go2rtc_client: Go2RTCClient, sample_camera_config: dict
+) -> None:
+    """Exact-equality on the source kills urlparse(None) and the and->or gate.
+
+    Kills register_stream mutmut_5 (username or password) and _7
+    (urlparse(None) yields "b''://admin:test_password@b''b''" which passes  # pragma: allowlist secret
+    every substring assert the old tests made).
+    """
+    rtsp_url = sample_camera_config["rtsp_url"]
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"stream_id": "s", "url": "http://u"}
+        mock_post.return_value = mock_response
+
+        await go2rtc_client.register_stream(
+            camera_id=sample_camera_config["camera_id"],
+            rtsp_url=rtsp_url,
+            username="admin",
+            password="test_password",  # pragma: allowlist secret
+        )
+        assert mock_post.call_args.kwargs["json"]["source"] == (
+            "rtsp://admin:test_password@192.168.1.100:554/stream1"  # pragma: allowlist secret
+        )
+
+        # Only a username: must be treated as unauthenticated (and->or kills)
+        await go2rtc_client.register_stream(
+            camera_id=sample_camera_config["camera_id"], rtsp_url=rtsp_url, username="admin"
+        )
+        assert mock_post.call_args.kwargs["json"]["source"] == rtsp_url
+
+        # Only a password: same
+        await go2rtc_client.register_stream(
+            camera_id=sample_camera_config["camera_id"],
+            rtsp_url=rtsp_url,
+            password="test_password",  # pragma: allowlist secret
+        )
+        assert mock_post.call_args.kwargs["json"]["source"] == rtsp_url
+
+
+@pytest.mark.asyncio
+async def test_register_stream_rejects_malformed_rtsp_urls(go2rtc_client: Go2RTCClient) -> None:
+    r"""The space guard and host check get their first positive coverage.
+
+    Kills _validate_rtsp_url mutmut_5 (r"\s" -> "XX\sXX": guard disabled,
+    urlparse tolerates spaces) and _11 (or->and: netloc ':554' truthy +
+    hostname None wrongly accepted).
+    """
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
+        with pytest.raises(StreamRegistrationError) as exc_info:
+            await go2rtc_client.register_stream(
+                camera_id="front_door",
+                rtsp_url="rtsp://192.168.1.100:554/stream 1",  # embedded space
+            )
+        assert "spaces" in str(exc_info.value).lower()
+
+        with pytest.raises(StreamRegistrationError) as exc_info:
+            await go2rtc_client.register_stream(
+                camera_id="front_door",
+                rtsp_url="rtsp://:554/stream1",  # port but no host
+            )
+        assert "host" in str(exc_info.value).lower()
+
+        mock_post.assert_not_called()
