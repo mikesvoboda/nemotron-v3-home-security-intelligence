@@ -5251,3 +5251,23 @@ EQUIVALENT — pathlib join with absolute right operand returns the absolute
 path either way). Lesson: a dossier's EQUIVALENT ruling is only trustworthy if
 the drafted test observes the value at the mutated expression itself; default-
 fill equivalences break under constructor-recorder tests.
+
+## WP4.4 RECORD-CORRECTION 2026-09-19 — wave-65 closeout: system fold completes the wave (474 kills)
+
+The RECORD above left routes/system pending; it folded STRICT the same day:
+wave-2 payload-contract batch (9 tests: gpu-stats/database-health/
+redis-health/emit-health payloads exact-equality, ai-service healthy+no-url
+contracts, redis_full unknown-version default, parametrized
+get_model_display_name table, get_model_category unknown->other) killed **210
+of the 503 keys wave-1 left open** — all 638 previously-open keys re-probed
+(4 shards, rc in (1,3), -n 0, 0 no-verdicts; reconcile: final 293 survivors
+⊆ wave-1 ledger exactly). Module: 1606/1899 = **84.6%** (was 66.4%
+pre-WP4.4; 73.5% after wave-1). Wave-65 total: **474 new module kills across
+10 STRICT folds.** The WP4.2 autospec ratchet caught five unspecced patch sites
+in the system tests (get_pool_status ×2 async → autospec+return_value is
+behavior-identical for async defs; time.time side_effect ×1; get_health_event_emitter
+patch.object + get_websocket_emitter_sync ×2) — fixed before commit, green-proved;
+autospec conversions cannot flip a census kill verdict (a stricter mock adds
+kills, never masks an assert). Feed re-synced per HANDOFF §3.3 (nine >1 MB
+regenerable scratch diffs held out of the commit by the large-file gate; durable
+content lives in the committed records/ledgers).
