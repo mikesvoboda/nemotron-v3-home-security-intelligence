@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import base64
 import io
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -418,8 +418,13 @@ class TestGetTextEmbeddings:
         text_embs = np.random.randn(2, EMBEDDING_DIMENSION).astype(np.float32)
         mock_triton.infer.return_value = {"pooler_output": text_embs}
 
-        # Mock tokenizer to return dummy input_ids
-        mock_tok = AsyncMock()
+        # Mock tokenizer to return dummy input_ids. MagicMock, NOT AsyncMock
+        # (WP6.4): clip.py:336 calls the tokenizer SYNCHRONOUSLY (real HF
+        # tokenizers are sync callables); an AsyncMock here made
+        # tokens["input_ids"] subscript a coroutine, the adapter's
+        # except-Exception swallowed it, priority 1 was silently skipped, and
+        # the test graded a fallback path instead of the Triton path it names.
+        mock_tok = MagicMock()
         mock_tok_result = {"input_ids": np.zeros((2, 64), dtype=np.int64)}
         mock_tok.side_effect = lambda *a, **kw: mock_tok_result
 

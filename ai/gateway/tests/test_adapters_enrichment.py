@@ -410,8 +410,14 @@ class TestActionClassifyEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["actions"]) == 2
-        assert data["actions"][0]["action"] == "walking normally"
+        # Shipped contract (WP6.4 triage): /action-classify returns a SINGLE
+        # top-level action object (ActionClassifyResponse: action/confidence/
+        # is_suspicious/risk_weight/all_scores) — same shape as the legacy
+        # service (ai/enrichment/model.py) and the backend consumer
+        # (enrichment_client.py ActionClassificationResult). The plural
+        # "actions" list per-frame never existed anywhere.
+        assert data["action"] == "walking normally"
+        assert data["confidence"] == 0.85
 
     async def test_action_classify_empty_frames(self, client, mock_triton):
         """Empty frames list returns 400."""
@@ -616,10 +622,24 @@ class TestEnrichEndpoint:
             {"output": np.array([gender_logits])},  # demographics_gender
         ]
 
-        response = await client.post(
-            "/enrich",
-            json={"image": _make_b64_image(), "detection_type": "person"},
-        )
+        # Patch the clothing zero-shot text-encoder seam like the sibling
+        # tests in this file (275/311) do (WP6.4): unpatched, _infer_clothing
+        # loads FashionSigLIP weights from huggingface.co mid-test, blows the
+        # 5s marker timeout, and pytest-timeout's Failed — an
+        # OutcomeException, i.e. a BaseException, NOT an Exception — slips
+        # past enrich()'s isinstance(results[i], Exception) guards into the
+        # response body, surfacing as
+        # PydanticSerializationError: Unable to serialize unknown type:
+        # <class 'Failed'>. The real bug the red was hiding is the missing
+        # mock (network + slow in a unit test), not the endpoint.
+        with patch(
+            "ai.gateway.adapters.enrichment._ensure_clothing_text_embeddings",
+            return_value=None,
+        ):
+            response = await client.post(
+                "/enrich",
+                json={"image": _make_b64_image(), "detection_type": "person"},
+            )
 
         assert response.status_code == 200
         data = response.json()
