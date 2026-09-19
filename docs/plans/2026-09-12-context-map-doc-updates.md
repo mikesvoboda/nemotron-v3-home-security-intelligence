@@ -5435,3 +5435,51 @@ Per-subtree failures remaining after this commit: gateway 0, yolo26 24,
 ai/tests 16, enrichment 11, enrichment-light 9 (-1 order-volatile),
 triton 5, clip 0, florence 0. Done-when met: all classified in L, gateway
 green, no subtree red for an UNRECORDED reason.
+
+## WP6.5 LANDED `f4602817` — ai/ tier wired into CI: collect gate over the whole tier + gateway run step (2026-09-19)
+
+Plan P WP6.5. Red first: `TestAiTierWiring` (5 structural tests appended to
+`backend/tests/integration/test_github_workflows.py`) observed RED against
+unmodified ci.yml (5 failed, 0.80s), GREEN after the wiring (5 passed,
+0.73s). Three ci.yml edits: (1) `check-test-collection.py` now receives
+`ai` as a third root; (2) new `ai-tests` job — `needs: [detect-changes,
+build-backend-deps]`, the same `if` shape as every backend job (ai/\*\* is
+ALREADY inside the detect-changes `backend` paths filter — verified, no new
+output key invented), steps `pytest ai/ --collect-only` (import-error-
+visible: 1764 collected / 0 errors locally; rc=2 on any collection error)
+and `pytest ai/gateway` (226 passed / 0 failed, 4.78s, network-free, same
+xdist addopts CI uses); (3) ci-gate gains `ai-tests` in needs AND a
+`check_job "AI Tier Tests"` line — the WP0.6 invariant, pinned by both
+`scripts/test_ci_job_graph.py` (OK: 36 jobs, gate reaches 30) and
+`test_ai_job_converges_on_ci_gate`.
+
+DECIDE applied per-subtree — STAGED wiring, doctrine-respecting: the plan's
+full-tree `pytest ai/` RUN step is deliberately NOT wired yet because five
+subtrees carry WP6.4 ledger-classified parked reds (yolo26 24, ai/tests 16,
+enrichment 11, enrichment-light 9, triton 5); wiring them now would make
+the branch red for a RECORDED reason, which is noise that trains people to
+ignore CI. Each subtree joins the run list as it drains; from day one the
+whole tier is covered by the collect-only import gate (the WP6.2 failure
+class: triton shadow, flat-slot collisions) and by the collection checker —
+import/collect breakage in a parked-red subtree still turns CI red today.
+Recorded here; nothing quarantined, no floor moved.
+
+Checker sufficiency evidence for the record: `check-test-collection.py ai`
+is AST-only — measured rc=0 in 0.159s on a tree carrying 19 collection
+errors (it never imports). `pytest ai/ --collect-only` measured rc=2 on the
+same tree. The cheap gate is wired (plan text) and the sufficient gate is
+wired (plan intent).
+
+Done-when: DEFERRED-NO-CI — structural assertions green here; the
+deliberately-broken-test loop proven locally as the mechanism (broken
+import under ai/gateway/tests → collect step rc=2 → ai-tests red →
+check_job fails the gate; probe file deleted, tier restored to rc=0 in
+3.68s). The live-CI version rides PR #6560's run after the pending push;
+watch `ai-tests` + `CI Gate` on that PR.
+
+Residual (not wiring noise): CI torch install path for ai/ tests is
+`uv sync --extra dev` (pyproject pins CPU wheels via
+download.pytorch.org/whl/cpu) — first CI run of ai-tests is the real-world
+check that no ai/ test needs GPU beyond the `-m 'not gpu'` default filter;
+if a node hangs past the 15-min timeout, triage as a new WP6.4-class
+classification, do not extend the timeout.
