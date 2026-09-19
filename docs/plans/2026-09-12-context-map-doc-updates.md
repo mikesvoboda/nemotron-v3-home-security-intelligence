@@ -6430,3 +6430,97 @@ pre-push Fast Tier selects WORKING-TREE paths, including untracked red
 test files — never push while any selectable test is red; commit green
 first. (d) The Fast Tier budget is 900s and concurrent tier runs all
 blow it — push SOLO, `ps`-verify no orphan pytest first.
+
+## WP8.3 LANDED `14cb76b9` — conformance suite: 179 cases x 5 providers, discovery 11 reds (2026-09-19)
+
+Plan P WP8.3 on feat/wp8-ai-protocol (PR #6565). Four property modules —
+`backend/tests/contracts/ai_providers/test_conformance_{geometry,numeric,ops,
+vocabulary}.py` — every case parametrized over ALL registered providers. The
+plan's procedure was run literally: **discovery mode BEFORE any fix.
+First-run MEASURE: 11 failed / 411 passed** (422 cases across the four new
+modules plus WP8.2's three, 8.2s). This 11 is this plan's headline number —
+the count of real-or-predicted divergences the suite found on first contact
+with five "compliant" providers. Final state: **422 passed, 7.7s, zero
+xfail / zero skip / zero deselect anywhere** (goal rule); an absent op is
+asserted 404 + not-in-`operations()`, never skipped.
+
+**Disposition of the 11 — 1 provider fix, 10 suite bugs.** The dossier
+drafts are UNVERIFIED by construction (parallel-triage rule); discovery is
+what converts prediction to fact, and 10 of 11 reds were bugs in the
+drafts' own assertions, not providers:
+
+- **The provider fix (4 reds, the plan's headline property).**
+  `fake.clip_classify` ignored the request: it emitted scores over a fixed
+  vocabulary regardless of payload labels, sum 1.3106 — not a probability
+  distribution. The schema layer CANNOT catch this class of bug: the
+  snapshot's `scores` field is a free-form map, every value type-checks.
+  This is WP8.3's thesis in one line — snapshot conformance is not
+  semantic conformance. Fixed in the generator (`generators.
+_softmax_over_labels`): softmax over the payload labels exactly as the
+  deployed gateway does it (`ai/clip/model.py:919`,
+  `adapters/clip.py:427-430` — same 1e-8 epsilon, same round(.,6),
+  first-wins argmax); the seed derives from the labels, so WP8.2
+  byte-identity survives (probes re-ran after the change).
+- **Suite bugs (7 more reds), each now asserted correctly:** quad-box
+  corners TL,TR,BR,BL REPEAT coordinates (b[0]==b[6] etc. — a corner
+  repeat, not a set-collapse); an `x1` census that counted `ai/*/tests/`
+  fixtures — all 12 hits are test-side, production is zero, so the
+  dossier claim HOLDS once scoped right; canned Triton rows must be
+  (1,N,6) because the adapter strips the batch dim itself
+  (`preds = output[0]`, adapters/yolo26.py:153); a shared-mock poisoning —
+  the florence leg's side-effect reads `inputs["prompt"]`, the yolo leg
+  never sends one, so the canned return is restored between legs;
+  llamacpp union-slot guards ran column EQUALITY against a 2-op evidence
+  SUBSET when the provider's own docstring says subset (now a subset-claim
+  assertion); `SLOT_OF` lacked the in-test fake leg (PROVIDER_SLOT has
+  fake→fake, column 38); the orphan census counted the suite's own import
+  as a consumer — scoped to production.
+
+**Drivable-leg census** (what "x 5 providers" honestly means in this
+sandbox): fake — all 38 ops app-driven; gateway — app-driven through
+`ai.gateway.server`'s router with the five module-level
+`get_triton_client` targets patched per provider (the plan's five-target
+trap, verified live: one missed module = silent REAL gRPC attempt);
+gateway_light — matrix + light app; `per_model_http` and `llamacpp_llm` —
+MATRIX-GUARD ONLY: their registered callables are unbound httpx client
+methods, invocation needs live services (container ban; the matrix +
+vocabulary columns are still fully asserted for them). No leg fabricates a
+call it cannot verify.
+
+**Gate exposure folded in (the WP8.4 observation, early).** WP8.3 is the
+first backend test tree to import `ai.*`; the mypy pre-commit hook follows
+imports, surfacing 13 LATENT `ai/gateway` type errors CI had never seen
+(validate.sh/ci.yml run mypy whole-tree from `backend/`, which never
+reached ai/ until a backend test imported it). Fixed behavior-neutrally in
+5 files — bool() wraps (triton_client readiness), `Image.Image` binds
+(Pillow annotates `Image.open -> ImageFile`, a subclass),
+`Image.Resampling.BILINEAR` (is `Image.BILINEAR`, same value), erased
+`cast()`s. Dockerfile-safety checked per the goal rule: `ai/gateway/` is
+COPY'd as a directory, none of the five files flat-COPY'd, no `model.py`
+import touched. Proofs: mypy clean on the 5; `ai/gateway/tests` 226 passed
+unchanged; suite 422 still green.
+
+**Cite corrections asserted as DATA, not prose** (each verified against
+the tree by the drafting agents; the corrections are encoded in the
+assertions themselves): the plan's detector_client.py:1419 routing cite is
+wrong (real: :1276 key-presence check, no isinstance guard → :1281
+metric); the plan's "87 embedding literals" does not reproduce (145/125 by
+the two defensible counts) BUT the core claim is true — zero existing
+assertion checks unit norm, so N1a is the first; multi-IMAGE ops are a
+3-set (action-classify is the only TEMPORAL frame-sequence one); the
+plan's adapters/yolo26.py:199 cite is the confidence-clamp block, the emit
+block is :204-207/:321-324; the plan's detection.py:55 is the confidence
+Float column, the LLM-risk schema lives in backend/api/schemas/
+llm_response.py; /enrich partial-failure semantics (gather
+`return_exceptions` drops failed sub-op keys) pinned as a deployed-
+semantics characterization in the ops module.
+
+**Semantics cluster**: drafted in parallel (fifth sibling
+`test_conformance_semantics.py`, cross-field entailments); integration is
+serial-lane work — collect, discovery, red disposition, gates — landing as
+a follow-up commit on this branch. It is NOT counted in the 422.
+
+Coverage at this landing: 179 new cases (geometry 25, numeric 31, ops 89,
+vocabulary 34) on top of WP8.2's 243 (registry 7, ai_provider 12, fake 89,
+snapshot 135) = 422. Ratchet: no coverage line moved; mock-spec ratchet
+rc=0 (8 added patch sites converted to autospec, never licensed).
