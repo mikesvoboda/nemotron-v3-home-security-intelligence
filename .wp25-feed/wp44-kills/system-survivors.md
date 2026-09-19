@@ -1,6 +1,29 @@
-# routes/system.py surviving-mutant record (STRICT census 2026-09-18)
+# routes/system.py surviving-mutant record (STRICT census 2026-09-19, v3 — supersedes 2026-09-18)
 
-503 mutants survive WITH the 9-test WP4.4 batch synced into mutants/ and probed (full 638-key census, strict kill=rc in (1,3), -n 0). 135 killed by the batch. Projection: (1261+135)/1899 = 73.5% (was 66.4%). This record is the WP4.4 no-deletion gate: nothing in system.py is deleted or declared covered except against this file.
+1899 mutants; 1261 killed pre-WP4.4. Wave 1 (commit cdf32a4f, 9-test
+TestWp44WorkerStatusContract batch): 135 killed → 503 open (superseded record).
+Wave 2 (this batch, 9 tests across test_system_routes.py / test_health_full.py /
+test_system_models.py): **210 newly killed**, STRICT census (all 638 open keys
+re-probed with both batches synced into mutants/, kill = rc in (1,3), -n 0,
+4 shards, 0 no-verdicts; reconciled: final survivors ⊆ wave-1 ledger exactly).
+
+Kill map (newly-killed count by function; keys in /tmp/wp25/wp44-kills/system-newkills-v3.txt):
+- x_get_latest_gpu_stats 43 — test_get_latest_gpu_stats_full_payload_contract
+- _get_model_display_name 42 — test_get_model_display_name_exact_contract (parametrized)
+- check_database_health 38 — test_check_database_health_pool_metrics_exact
+- check_redis_health 31 — test_check_redis_health_details_payload_exact
+- _check_ai_service_health 25 — test_check_ai_service_health_{healthy,no_url}_payload_contract
+- _emit_health_status_changes 23 — test_emit_health_status_changes_payload_and_wiring
+- _get_model_category 4 — test_get_model_category_unknown_is_other
+- _check_redis_health_full 4 — test_check_redis_health_full_defaults_to_unknown_version
+
+Module total: (1261+135+210)/1899 = **1606 = 84.6%** (was 66.4% pre-WP4.4).
+293 survivors remain — listed below; they ARE the surviving-mutant record (the
+WP4.4 no-deletion gate: nothing in system.py is deleted or declared covered
+except against this file). The triage dossier (wave-2, 113 clusters / 638 keys)
+classifies this tail as pydantic-default kwarg removals (EQUIVALENT),
+message/error-text case flips (LOW-VALUE where substring asserts exist), and
+the worker-status/monitoring helper remainder.
 
 ```
 backend.api.routes.system.x__are_critical_pipeline_workers_healthy__mutmut_10
@@ -54,9 +77,6 @@ backend.api.routes.system.x__check_ai_health_with_timeout__mutmut_22
 backend.api.routes.system.x__check_ai_health_with_timeout__mutmut_27
 backend.api.routes.system.x__check_ai_health_with_timeout__mutmut_8
 backend.api.routes.system.x__check_ai_health_with_timeout__mutmut_9
-backend.api.routes.system.x__check_ai_service_health__mutmut_10
-backend.api.routes.system.x__check_ai_service_health__mutmut_100
-backend.api.routes.system.x__check_ai_service_health__mutmut_101
 backend.api.routes.system.x__check_ai_service_health__mutmut_105
 backend.api.routes.system.x__check_ai_service_health__mutmut_106
 backend.api.routes.system.x__check_ai_service_health__mutmut_109
@@ -66,18 +86,15 @@ backend.api.routes.system.x__check_ai_service_health__mutmut_114
 backend.api.routes.system.x__check_ai_service_health__mutmut_116
 backend.api.routes.system.x__check_ai_service_health__mutmut_117
 backend.api.routes.system.x__check_ai_service_health__mutmut_119
-backend.api.routes.system.x__check_ai_service_health__mutmut_12
 backend.api.routes.system.x__check_ai_service_health__mutmut_120
 backend.api.routes.system.x__check_ai_service_health__mutmut_121
 backend.api.routes.system.x__check_ai_service_health__mutmut_122
 backend.api.routes.system.x__check_ai_service_health__mutmut_123
 backend.api.routes.system.x__check_ai_service_health__mutmut_127
-backend.api.routes.system.x__check_ai_service_health__mutmut_13
 backend.api.routes.system.x__check_ai_service_health__mutmut_130
 backend.api.routes.system.x__check_ai_service_health__mutmut_134
 backend.api.routes.system.x__check_ai_service_health__mutmut_136
 backend.api.routes.system.x__check_ai_service_health__mutmut_137
-backend.api.routes.system.x__check_ai_service_health__mutmut_14
 backend.api.routes.system.x__check_ai_service_health__mutmut_141
 backend.api.routes.system.x__check_ai_service_health__mutmut_145
 backend.api.routes.system.x__check_ai_service_health__mutmut_148
@@ -88,36 +105,17 @@ backend.api.routes.system.x__check_ai_service_health__mutmut_155
 backend.api.routes.system.x__check_ai_service_health__mutmut_156
 backend.api.routes.system.x__check_ai_service_health__mutmut_16
 backend.api.routes.system.x__check_ai_service_health__mutmut_22
-backend.api.routes.system.x__check_ai_service_health__mutmut_27
-backend.api.routes.system.x__check_ai_service_health__mutmut_30
-backend.api.routes.system.x__check_ai_service_health__mutmut_34
 backend.api.routes.system.x__check_ai_service_health__mutmut_36
-backend.api.routes.system.x__check_ai_service_health__mutmut_37
-backend.api.routes.system.x__check_ai_service_health__mutmut_38
 backend.api.routes.system.x__check_ai_service_health__mutmut_39
 backend.api.routes.system.x__check_ai_service_health__mutmut_40
 backend.api.routes.system.x__check_ai_service_health__mutmut_41
-backend.api.routes.system.x__check_ai_service_health__mutmut_42
-backend.api.routes.system.x__check_ai_service_health__mutmut_46
 backend.api.routes.system.x__check_ai_service_health__mutmut_57
 backend.api.routes.system.x__check_ai_service_health__mutmut_60
 backend.api.routes.system.x__check_ai_service_health__mutmut_64
 backend.api.routes.system.x__check_ai_service_health__mutmut_67
 backend.api.routes.system.x__check_ai_service_health__mutmut_68
 backend.api.routes.system.x__check_ai_service_health__mutmut_71
-backend.api.routes.system.x__check_ai_service_health__mutmut_73
-backend.api.routes.system.x__check_ai_service_health__mutmut_75
-backend.api.routes.system.x__check_ai_service_health__mutmut_77
-backend.api.routes.system.x__check_ai_service_health__mutmut_78
-backend.api.routes.system.x__check_ai_service_health__mutmut_79
-backend.api.routes.system.x__check_ai_service_health__mutmut_86
-backend.api.routes.system.x__check_ai_service_health__mutmut_88
-backend.api.routes.system.x__check_ai_service_health__mutmut_93
 backend.api.routes.system.x__check_ai_service_health__mutmut_94
-backend.api.routes.system.x__check_ai_service_health__mutmut_95
-backend.api.routes.system.x__check_ai_service_health__mutmut_97
-backend.api.routes.system.x__check_ai_service_health__mutmut_98
-backend.api.routes.system.x__check_ai_service_health__mutmut_99
 backend.api.routes.system.x__check_db_health_with_timeout__mutmut_10
 backend.api.routes.system.x__check_db_health_with_timeout__mutmut_14
 backend.api.routes.system.x__check_db_health_with_timeout__mutmut_15
@@ -151,10 +149,6 @@ backend.api.routes.system.x__check_redis_health_full__mutmut_11
 backend.api.routes.system.x__check_redis_health_full__mutmut_12
 backend.api.routes.system.x__check_redis_health_full__mutmut_13
 backend.api.routes.system.x__check_redis_health_full__mutmut_24
-backend.api.routes.system.x__check_redis_health_full__mutmut_46
-backend.api.routes.system.x__check_redis_health_full__mutmut_48
-backend.api.routes.system.x__check_redis_health_full__mutmut_51
-backend.api.routes.system.x__check_redis_health_full__mutmut_52
 backend.api.routes.system.x__check_redis_health_full__mutmut_59
 backend.api.routes.system.x__check_redis_health_full__mutmut_8
 backend.api.routes.system.x__check_redis_health_with_timeout__mutmut_10
@@ -179,30 +173,7 @@ backend.api.routes.system.x__check_yolo26_health_with_circuit_breaker__mutmut_14
 backend.api.routes.system.x__check_yolo26_health_with_circuit_breaker__mutmut_19
 backend.api.routes.system.x__check_yolo26_health_with_circuit_breaker__mutmut_21
 backend.api.routes.system.x__check_yolo26_health_with_circuit_breaker__mutmut_9
-backend.api.routes.system.x__emit_health_status_changes__mutmut_1
-backend.api.routes.system.x__emit_health_status_changes__mutmut_10
-backend.api.routes.system.x__emit_health_status_changes__mutmut_11
-backend.api.routes.system.x__emit_health_status_changes__mutmut_12
-backend.api.routes.system.x__emit_health_status_changes__mutmut_13
-backend.api.routes.system.x__emit_health_status_changes__mutmut_14
-backend.api.routes.system.x__emit_health_status_changes__mutmut_15
-backend.api.routes.system.x__emit_health_status_changes__mutmut_16
-backend.api.routes.system.x__emit_health_status_changes__mutmut_17
-backend.api.routes.system.x__emit_health_status_changes__mutmut_18
-backend.api.routes.system.x__emit_health_status_changes__mutmut_19
-backend.api.routes.system.x__emit_health_status_changes__mutmut_2
-backend.api.routes.system.x__emit_health_status_changes__mutmut_20
 backend.api.routes.system.x__emit_health_status_changes__mutmut_21
-backend.api.routes.system.x__emit_health_status_changes__mutmut_22
-backend.api.routes.system.x__emit_health_status_changes__mutmut_23
-backend.api.routes.system.x__emit_health_status_changes__mutmut_24
-backend.api.routes.system.x__emit_health_status_changes__mutmut_3
-backend.api.routes.system.x__emit_health_status_changes__mutmut_4
-backend.api.routes.system.x__emit_health_status_changes__mutmut_5
-backend.api.routes.system.x__emit_health_status_changes__mutmut_6
-backend.api.routes.system.x__emit_health_status_changes__mutmut_7
-backend.api.routes.system.x__emit_health_status_changes__mutmut_8
-backend.api.routes.system.x__emit_health_status_changes__mutmut_9
 backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_12
 backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_14
 backend.api.routes.system.x__get_circuit_breaker_summary__mutmut_17
@@ -225,54 +196,8 @@ backend.api.routes.system.x__get_degradation_status__mutmut_62
 backend.api.routes.system.x__get_degradation_status__mutmut_64
 backend.api.routes.system.x__get_degradation_status__mutmut_67
 backend.api.routes.system.x__get_degradation_status__mutmut_68
-backend.api.routes.system.x__get_model_category__mutmut_1
-backend.api.routes.system.x__get_model_category__mutmut_2
-backend.api.routes.system.x__get_model_category__mutmut_3
-backend.api.routes.system.x__get_model_category__mutmut_4
-backend.api.routes.system.x__get_model_display_name__mutmut_10
-backend.api.routes.system.x__get_model_display_name__mutmut_11
-backend.api.routes.system.x__get_model_display_name__mutmut_12
-backend.api.routes.system.x__get_model_display_name__mutmut_13
-backend.api.routes.system.x__get_model_display_name__mutmut_14
-backend.api.routes.system.x__get_model_display_name__mutmut_15
-backend.api.routes.system.x__get_model_display_name__mutmut_16
-backend.api.routes.system.x__get_model_display_name__mutmut_17
-backend.api.routes.system.x__get_model_display_name__mutmut_18
-backend.api.routes.system.x__get_model_display_name__mutmut_19
-backend.api.routes.system.x__get_model_display_name__mutmut_2
-backend.api.routes.system.x__get_model_display_name__mutmut_20
-backend.api.routes.system.x__get_model_display_name__mutmut_21
-backend.api.routes.system.x__get_model_display_name__mutmut_22
-backend.api.routes.system.x__get_model_display_name__mutmut_23
-backend.api.routes.system.x__get_model_display_name__mutmut_24
-backend.api.routes.system.x__get_model_display_name__mutmut_25
-backend.api.routes.system.x__get_model_display_name__mutmut_26
-backend.api.routes.system.x__get_model_display_name__mutmut_27
-backend.api.routes.system.x__get_model_display_name__mutmut_28
-backend.api.routes.system.x__get_model_display_name__mutmut_29
-backend.api.routes.system.x__get_model_display_name__mutmut_3
-backend.api.routes.system.x__get_model_display_name__mutmut_30
-backend.api.routes.system.x__get_model_display_name__mutmut_31
 backend.api.routes.system.x__get_model_display_name__mutmut_32
 backend.api.routes.system.x__get_model_display_name__mutmut_33
-backend.api.routes.system.x__get_model_display_name__mutmut_34
-backend.api.routes.system.x__get_model_display_name__mutmut_35
-backend.api.routes.system.x__get_model_display_name__mutmut_36
-backend.api.routes.system.x__get_model_display_name__mutmut_37
-backend.api.routes.system.x__get_model_display_name__mutmut_38
-backend.api.routes.system.x__get_model_display_name__mutmut_39
-backend.api.routes.system.x__get_model_display_name__mutmut_4
-backend.api.routes.system.x__get_model_display_name__mutmut_40
-backend.api.routes.system.x__get_model_display_name__mutmut_41
-backend.api.routes.system.x__get_model_display_name__mutmut_5
-backend.api.routes.system.x__get_model_display_name__mutmut_51
-backend.api.routes.system.x__get_model_display_name__mutmut_52
-backend.api.routes.system.x__get_model_display_name__mutmut_53
-backend.api.routes.system.x__get_model_display_name__mutmut_54
-backend.api.routes.system.x__get_model_display_name__mutmut_6
-backend.api.routes.system.x__get_model_display_name__mutmut_7
-backend.api.routes.system.x__get_model_display_name__mutmut_8
-backend.api.routes.system.x__get_model_display_name__mutmut_9
 backend.api.routes.system.x__get_supervisor_health__mutmut_2
 backend.api.routes.system.x__get_worker_status__mutmut_11
 backend.api.routes.system.x__get_worker_status__mutmut_25
@@ -365,131 +290,19 @@ backend.api.routes.system.x_check_ai_services_health__mutmut_60
 backend.api.routes.system.x_check_ai_services_health__mutmut_66
 backend.api.routes.system.x_check_ai_services_health__mutmut_69
 backend.api.routes.system.x_check_database_health__mutmut_2
-backend.api.routes.system.x_check_database_health__mutmut_22
-backend.api.routes.system.x_check_database_health__mutmut_24
-backend.api.routes.system.x_check_database_health__mutmut_27
-backend.api.routes.system.x_check_database_health__mutmut_28
-backend.api.routes.system.x_check_database_health__mutmut_29
-backend.api.routes.system.x_check_database_health__mutmut_30
-backend.api.routes.system.x_check_database_health__mutmut_31
-backend.api.routes.system.x_check_database_health__mutmut_32
-backend.api.routes.system.x_check_database_health__mutmut_33
-backend.api.routes.system.x_check_database_health__mutmut_34
-backend.api.routes.system.x_check_database_health__mutmut_35
-backend.api.routes.system.x_check_database_health__mutmut_36
-backend.api.routes.system.x_check_database_health__mutmut_37
-backend.api.routes.system.x_check_database_health__mutmut_38
-backend.api.routes.system.x_check_database_health__mutmut_39
 backend.api.routes.system.x_check_database_health__mutmut_4
-backend.api.routes.system.x_check_database_health__mutmut_40
-backend.api.routes.system.x_check_database_health__mutmut_41
-backend.api.routes.system.x_check_database_health__mutmut_42
-backend.api.routes.system.x_check_database_health__mutmut_43
-backend.api.routes.system.x_check_database_health__mutmut_44
-backend.api.routes.system.x_check_database_health__mutmut_45
-backend.api.routes.system.x_check_database_health__mutmut_49
-backend.api.routes.system.x_check_database_health__mutmut_51
-backend.api.routes.system.x_check_database_health__mutmut_54
-backend.api.routes.system.x_check_database_health__mutmut_55
-backend.api.routes.system.x_check_database_health__mutmut_56
-backend.api.routes.system.x_check_database_health__mutmut_57
-backend.api.routes.system.x_check_database_health__mutmut_58
-backend.api.routes.system.x_check_database_health__mutmut_59
-backend.api.routes.system.x_check_database_health__mutmut_60
-backend.api.routes.system.x_check_database_health__mutmut_61
-backend.api.routes.system.x_check_database_health__mutmut_62
-backend.api.routes.system.x_check_database_health__mutmut_63
-backend.api.routes.system.x_check_database_health__mutmut_66
-backend.api.routes.system.x_check_database_health__mutmut_69
-backend.api.routes.system.x_check_database_health__mutmut_72
-backend.api.routes.system.x_check_database_health__mutmut_73
-backend.api.routes.system.x_check_database_health__mutmut_74
 backend.api.routes.system.x_check_redis_health__mutmut_10
 backend.api.routes.system.x_check_redis_health__mutmut_11
 backend.api.routes.system.x_check_redis_health__mutmut_12
-backend.api.routes.system.x_check_redis_health__mutmut_13
-backend.api.routes.system.x_check_redis_health__mutmut_14
-backend.api.routes.system.x_check_redis_health__mutmut_15
-backend.api.routes.system.x_check_redis_health__mutmut_16
-backend.api.routes.system.x_check_redis_health__mutmut_17
-backend.api.routes.system.x_check_redis_health__mutmut_39
-backend.api.routes.system.x_check_redis_health__mutmut_4
-backend.api.routes.system.x_check_redis_health__mutmut_41
-backend.api.routes.system.x_check_redis_health__mutmut_44
-backend.api.routes.system.x_check_redis_health__mutmut_45
-backend.api.routes.system.x_check_redis_health__mutmut_48
-backend.api.routes.system.x_check_redis_health__mutmut_51
-backend.api.routes.system.x_check_redis_health__mutmut_55
-backend.api.routes.system.x_check_redis_health__mutmut_57
-backend.api.routes.system.x_check_redis_health__mutmut_60
-backend.api.routes.system.x_check_redis_health__mutmut_61
-backend.api.routes.system.x_check_redis_health__mutmut_62
-backend.api.routes.system.x_check_redis_health__mutmut_63
-backend.api.routes.system.x_check_redis_health__mutmut_64
 backend.api.routes.system.x_check_redis_health__mutmut_65
-backend.api.routes.system.x_check_redis_health__mutmut_66
-backend.api.routes.system.x_check_redis_health__mutmut_67
-backend.api.routes.system.x_check_redis_health__mutmut_68
 backend.api.routes.system.x_check_redis_health__mutmut_69
-backend.api.routes.system.x_check_redis_health__mutmut_7
 backend.api.routes.system.x_check_redis_health__mutmut_70
-backend.api.routes.system.x_check_redis_health__mutmut_71
-backend.api.routes.system.x_check_redis_health__mutmut_72
-backend.api.routes.system.x_check_redis_health__mutmut_73
-backend.api.routes.system.x_check_redis_health__mutmut_76
-backend.api.routes.system.x_check_redis_health__mutmut_79
-backend.api.routes.system.x_check_redis_health__mutmut_82
-backend.api.routes.system.x_check_redis_health__mutmut_83
-backend.api.routes.system.x_check_redis_health__mutmut_84
 backend.api.routes.system.x_get_latency_stats__mutmut_10
 backend.api.routes.system.x_get_latency_stats__mutmut_11
 backend.api.routes.system.x_get_latency_stats__mutmut_12
 backend.api.routes.system.x_get_latency_stats__mutmut_5
 backend.api.routes.system.x_get_latency_stats__mutmut_6
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_1
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_2
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_26
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_27
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_28
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_29
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_3
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_30
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_31
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_32
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_33
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_34
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_35
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_36
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_37
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_38
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_39
 backend.api.routes.system.x_get_latest_gpu_stats__mutmut_4
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_40
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_41
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_42
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_43
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_44
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_45
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_46
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_47
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_48
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_49
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_5
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_50
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_51
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_52
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_53
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_54
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_55
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_56
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_57
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_58
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_59
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_60
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_61
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_62
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_63
-backend.api.routes.system.x_get_latest_gpu_stats__mutmut_7
 backend.api.routes.system.x_register_workers__mutmut_6
 backend.api.routes.system.x_register_workers__mutmut_7
 backend.api.routes.system.x_register_workers__mutmut_8
