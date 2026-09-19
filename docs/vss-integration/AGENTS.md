@@ -23,17 +23,22 @@ docs/vss-integration/
 ├── 03-open-questions.md    # Unresolved questions and in-flight investigations
 ├── 04-fp4-and-deployment.md # FP4 availability, local paths, verified consumer fit
 ├── 05-hardware-profiles.md # Tiering strategy: halo / volume / entry
-└── 06-repo-a-readiness.md  # What must be fixed HERE before any swap
+├── 06-repo-a-readiness.md  # What must be fixed HERE before any swap
+└── 07-lean-backend.md      # Can we avoid VSS's infrastructure? (yes, with caveats)
 ```
 
 ## Key Files
 
-| File                     | Purpose                                                          |
-| ------------------------ | ---------------------------------------------------------------- |
-| `00-context.md`          | Why this research exists; the three-step product plan            |
-| `01-vss-architecture.md` | VSS service decomposition and how it maps onto our `ai/` tier    |
-| `02-model-inventory.md`  | Every model VSS can serve, its slot, precision, and VRAM budget  |
-| `03-open-questions.md`   | What is still unknown, and what must be verified before deciding |
+| File                       | Purpose                                                            |
+| -------------------------- | ------------------------------------------------------------------ |
+| `00-context.md`            | Why this research exists; the three-step product plan              |
+| `01-vss-architecture.md`   | VSS service decomposition and how it maps onto our `ai/` tier      |
+| `02-model-inventory.md`    | Every model VSS can serve, its slot, precision, and VRAM budget    |
+| `03-open-questions.md`     | What is still unknown, and what must be verified before deciding   |
+| `04-fp4-and-deployment.md` | FP4 reality, the formula trap, verified consumer fit math          |
+| `05-hardware-profiles.md`  | Hardware tiering; why the volume tier is the existing architecture |
+| `06-repo-a-readiness.md`   | Verified defects in THIS repo that block a swap                    |
+| `07-lean-backend.md`       | Storage/bus abstraction reality; the overlay recommendation        |
 
 ## Evidence Convention
 

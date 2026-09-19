@@ -48,7 +48,12 @@ Until these are known, **no configuration can be declared to fit**. Every sizing
 only the VLM is misleading. See `skills/vss-build-vision-ai/references/services/rt-cv.md` and
 `rt-embed.md`.
 
-### Q4. Is the storage abstraction clean or leaky? **[?]**
+### ~~Q4. Is the storage abstraction clean or leaky?~~ **ANSWERED 2026-09-19 — LEAKY**
+
+And it is not even in the VSS repo: it lives in `NVIDIA/context-aware-rag`, a pinned pip
+dependency. Signature divergence, semantic divergence (`caption` vs `caption_summary`), zero
+storage tests, and VSS branches on the literal `"elasticsearch_db"` so a new backend value takes
+the _Milvus_ path. See [`07-lean-backend.md`](07-lean-backend.md). Original framing below.
 
 Four backends coexist behind a `type:` discriminator **[V]**, and `LVS_DATABASE_BACKEND` is
 env-selectable **[V]**. That is evidence an interface exists; it is **not** evidence the interface
@@ -64,7 +69,11 @@ traversal; event time-range query; pub/sub fan-out; durable replay; metadata per
 ask whether it is needed _at single-home scale_ — a capability essential for a city deployment may
 be irrelevant for one house with four cameras.
 
-### Q5. Is Kafka mandatory? **[?]**
+### ~~Q5. Is Kafka mandatory?~~ **ANSWERED 2026-09-19 — NO, BUT IT DOESN'T HELP**
+
+Redis Streams is already first-class (`MessageBus.KAFKA/REDIS`, `STREAM_TYPE=redis`). But every
+Logstash output sinks to `elasticsearch:9200`, so swapping the bus does not remove Elasticsearch.
+See [`07-lean-backend.md`](07-lean-backend.md). Original framing below.
 
 Contradictory defaults observed **[V]**: `kafka_enabled: !ENV ${KAFKA_ENABLED:false}` in
 `config.yaml` (off), versus `RTVI_VLM_MESSAGE_BUS=kafka` as "the current Compose default" (on).
@@ -141,7 +150,9 @@ document was written:
    in this repo's own CI that outrank the census.
 2. ~~**Model deployment recon**~~ — **COMPLETE 2026-09-19**, folded into
    [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md).
-3. **Lean backend feasibility** — Q4 and Q5 above, plus VSS contribution governance.
+3. ~~**Lean backend feasibility**~~ — **COMPLETE 2026-09-19**, folded into
+   [`07-lean-backend.md`](07-lean-backend.md). Verdict: overlay downstream, do not open an
+   upstream PR first; lead with GPU topology, not storage.
 
 **If you are a future agent and these results are not reflected in this directory, they were never
 folded in.** Do not assume they were. Re-run the investigation or treat the questions as open.

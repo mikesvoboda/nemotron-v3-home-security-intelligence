@@ -119,7 +119,8 @@ docs/
 │   ├── 03-open-questions.md     # Open question register
 │   ├── 04-fp4-and-deployment.md # FP4, local paths, verified consumer fit
 │   ├── 05-hardware-profiles.md  # Hardware tiering strategy
-│   └── 06-repo-a-readiness.md   # Repo-A defects blocking a swap
+│   ├── 06-repo-a-readiness.md   # Repo-A defects blocking a swap
+│   └── 07-lean-backend.md       # Storage/bus abstraction; overlay play
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin

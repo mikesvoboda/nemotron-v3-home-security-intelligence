@@ -8,12 +8,16 @@ gaming GPUs**.
 
 ## Read in this order
 
-| Document                                           | What it answers                                         |
-| -------------------------------------------------- | ------------------------------------------------------- |
-| [`00-context.md`](00-context.md)                   | Why this exists; the three-step plan; the market thesis |
-| [`01-vss-architecture.md`](01-vss-architecture.md) | What VSS actually is, and how it maps onto `ai/`        |
-| [`02-model-inventory.md`](02-model-inventory.md)   | Every model, its slot, and whether it fits 24-32 GB     |
-| [`03-open-questions.md`](03-open-questions.md)     | What is unresolved, and what to verify first            |
+| Document                                               | What it answers                                         |
+| ------------------------------------------------------ | ------------------------------------------------------- |
+| [`00-context.md`](00-context.md)                       | Why this exists; the three-step plan; the market thesis |
+| [`01-vss-architecture.md`](01-vss-architecture.md)     | What VSS actually is, and how it maps onto `ai/`        |
+| [`02-model-inventory.md`](02-model-inventory.md)       | Every model, its slot, and whether it fits 24-32 GB     |
+| [`03-open-questions.md`](03-open-questions.md)         | What is unresolved, and what to verify first            |
+| [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md) | FP4 reality and the verified consumer fit               |
+| [`05-hardware-profiles.md`](05-hardware-profiles.md)   | Hardware tiering: halo / volume / entry                 |
+| [`06-repo-a-readiness.md`](06-repo-a-readiness.md)     | What must be fixed in THIS repo first                   |
+| [`07-lean-backend.md`](07-lean-backend.md)             | Avoiding Milvus/ES/Neo4j/Kafka; the overlay play        |
 
 Agents should also read [`AGENTS.md`](AGENTS.md) for the evidence convention.
 
