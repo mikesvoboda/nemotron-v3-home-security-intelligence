@@ -105,6 +105,12 @@ from pydantic import BaseModel, ConfigDict, Field
 _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
+# WP6.3 (additive, mirrors the flat /app layout for repo-root imports): also
+# expose this module's own directory so `from metrics import ...` resolves
+# when model.py is imported from the repo, not just from the flat container.
+_here_dir = Path(__file__).parent
+if str(_here_dir) not in sys.path:
+    sys.path.append(str(_here_dir))
 
 from compile_utils import CompileConfig, compile_model, is_compile_available
 from gpu_oom_handler import (
@@ -824,7 +830,10 @@ class EnhancedDetection:
         bbox: dict[str, int],
         frame_width: int,
         frame_height: int,
-    ) -> "EnhancedDetection":
+    ) -> "EnhancedDetection":  # noqa: UP037 - container interpreter Python
+        # version is not pinned in the base image tag (nvcr tensorrt:26.04-py3);
+        # without PEP 563 / PEP 649 here, an unquoted self-class annotation in
+        # this class body would NameError at container startup.
         """Create an EnhancedDetection from raw detection data.
 
         Args:

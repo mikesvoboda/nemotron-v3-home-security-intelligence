@@ -4377,8 +4377,14 @@ def format_detections_with_quality(
     Security:
         Class names are sanitized to prevent prompt injection. See NEM-1722.
     """
-    # Import here to avoid circular dependency
-    from ai.yolo26.model import (
+    # Import here to avoid circular dependency. WP6.3: from the pure-leaf
+    # contract, NOT ai.yolo26.model — the model module is a GPU service
+    # (module-level torch/fastapi/metrics) that cannot import inside the
+    # backend process; the old import raised ModuleNotFoundError on every
+    # call. contract.py duplicates model.py's inline copies because the
+    # yolo26 Dockerfile's per-file COPY list does not ship it (parity is
+    # guarded by test_prompts.py; Dockerfile wiring is a parked RULING).
+    from ai.yolo26.contract import (
         ConfidenceQuality,
         EnhancedDetection,
         enhance_detections,
