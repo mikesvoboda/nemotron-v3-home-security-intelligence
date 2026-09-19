@@ -6753,3 +6753,96 @@ ADDENDUM 2, P-only). Resolved the house way — merge commit `232094f6`
 live PR branch, hook BEHIND check passes afterward. ADDENDUM 2 is the owner's
 A6 narrowing of the test-file-deletion rule plus the A7 ruling batch —
 read-before-work on WP9.x next.
+
+## WP8.5 LANDED `83b78b7b` — DB-vocabulary conformance module: 23 legs, the seven predicted reds pinned as characterizations (2026-09-19)
+
+**What landed.** `backend/tests/contracts/ai_providers/test_conformance_dbvocabulary.py`
+(714 lines, 23 cases; zero production change — it is a pure test module).
+The standing-test companion to the executed evidence section above
+(`a8c25c5e`): the DB CHECKs are the de-facto vocabulary conformance spec,
+enforced only at INSERT and nowhere in unit tests. The module statically
+extracts every server-emitted vocabulary — AST return-literals and dict-key
+tables from the heavy AND light enrichment twins, no torch imports — and
+asserts against the ORM `CheckConstraint` sets parsed from
+`backend/models/enrichment.py`. Draft name `test_vocabulary_conformance.py`
+renamed to `test_conformance_dbvocabulary.py`: the suite convention is
+`test_conformance_<cluster>.py` and the draft name collided with WP8.3's
+`test_conformance_vocabulary.py`.
+
+**MEASURE.** Draft harness under /tmp showed 26P/3F; first in-tree contact
+16P/7F — and the seven are EXACTLY the module's own section-1 prediction.
+The draft's three-red count was an artifact: four AST legs read
+`REPO_ROOT`-relative files that only resolve in-tree, vacuously green under
+/tmp. The plan predicted four subset violations; seven is a finding — the
+plan names ONE pose table, the tree has FOUR pose emitters, two threat maps
+and one age map disagreeing with the CHECKs. Per the goal rule all seven
+were converted to GREEN pins of their EXACT illegal sets as DATA:
+`POSTURE_LABELS` minus DB = {walking, running}; heavy `_classify_pose` =
+{crawling, reaching_up, running}; yolo26 `classify_pose` = {fallen,
+reaching_up, aggressive}; `vitpose_loader` table = {lying, running} (the
+near-miss — `lying` vs the legal `lying_down`); 4 illegal age buckets;
+9-of-12 `BY_NAME` threat rejects; 4-of-6 int-map rejects. Each names the
+parked RULING `WP8.5-vocab-alignment` in its message and reddens the day
+behavior changes — tripwire, not escape. Counts: ai_providers directory
+565 (was 542); with `ai/gateway/tests` 791 passed in 12.3s (was 768).
+
+**SUITE-HYGIENE FINDING (the integration's real cost, worth its own
+paragraph).** Importing `ai/enrichment/models/threat_detector.py:42-43`
+inserts `ai/` into `sys.path` — it must, for the container's flat /app
+layout — which leaves the name `triton` resolving to the DIRECTORY
+`ai/triton/` as a namespace package (pip triton is NOT installed in this
+venv). `torch._dynamo` then dies on `triton.language` and transformers'
+LAZY `CLIPModel` import fails for every module collected afterward. First
+dir-alone run: 2 reds in `test_client_conformance.py`'s clip legs; the pair
+run with `ai/gateway/tests` masked it because `ai/conftest.py`'s slot
+hygiene repairs during gateway collection. Fixed with the house-pattern
+scoped hygiene (the ai/conftest triton block is precedent):
+`_import_enrichment_vocab_tables()` undoes the damage right after its three
+imports — removes `ai/` from `sys.path` (`parents[4]`, the repo root — a
+first fix used `parents[3]` = `backend/` and was a SILENT no-op, the dir-
+alone reds stayed) and evicts ONLY stub `triton*` entries lacking
+`__file__` (a real pip triton installed by another tier stays untouched).
+Post-fix: dir-alone 565 green, module-alone 23, pair 791.
+
+**More pins.** Threat twins heavy==light byte-identical; grenade/explosive/
+other legal-but-never-produced values; gender list ORDER is load-bearing
+(index IS the class id — a reorder inverts every prediction while staying
+CHECK-valid; ordering equality pinned, the inverted-set hazard as data);
+`is_minor` exists in THREE spellings (plan missed the third —
+infant/child/teenager at `age_classifier_loader:94` vs 0-10/11-20/... at
+pipeline :3868/:5324 — all three equalities pinned, plus the membership
+expression proving loader-spelling x server-bucket ⇒ `is_minor` False for
+EVERY child); embedding-dimension equality at both definitions (768);
+risk-score integrality 0-100 vs the DB's wider CHECK; truncation-vs-
+rounding divergence as data (pydantic 74.9→74, Postgres →75); unconstrained
+`object_type` / embedding-vector columns as MISSING-invariant census legs.
+
+**Draft agent's two suggestions, dispositioned.** (1) Land two LIVE-RED
+legs (MISSING-invariant direction): declined per the branch-stays-GREEN
+rule — the census legs stay green characterizations, the gap is stated in
+their docstrings. (2) Claim that `test_embedding_dim_constant_pinned` and
+`test_risk_score_integrality_db_divergence` are VACUOUS asserts (`assert
+isinstance(N, int) and N > 0` / bare `>= 0` against the DB's range): DOES
+NOT REPRODUCE — grepped both the /tmp draft and the landed file, neither
+contains those forms; the legs pin exact equality (`== 768` twice) and the
+CHECK-text containment. No change made; claim recorded here with its
+verification status (subagent-census-fabrication pattern, second instance).
+
+**Plan cite corrections as data (docstrings).** DB CHECKs live in
+`backend/models/enrichment.py`, NOT `api/schemas/` as P cites (plan
+drifted; `backend/api/schemas/alerts.py` carries a PARITY copy of two sets —
+pinned). The "12 threat values" is the STRING-keyed `BY_NAME` map; the
+int-keyed set is a DIFFERENT 6-value COCO map; both checked. Plan's "four
+will fail" → seven. DB-touching choice (plan bullet 4): NO Postgres
+connection in this module — the executed-INSERT proof already lives above
+(`a8c25c5e`, 8/8 rejected live, zero persistence); the CI-parity-safe
+executable tier stays in `test_conformance_numeric.py`'s
+`DB_CONSTRAINT_CONTRACTS`. Portable repo-root resolution (walk parents for
+the file+dir pair) replaced the draft's machine-specific fallback.
+
+**Quality gates.** ruff + ruff-format clean (8 findings total, C405 manual;
+the 5 E402s from hoisting the five `backend.*` imports above the hygiene
+call are order-safe — `backend.*` never touches triton); mypy clean;
+semgrep hook configs 0 findings; WP4.2 ratchet rc=0 (bare mock
+constructors, no convertible patch sites); NO xfail / skip / importorskip /
+deselect anywhere (goal rule).
