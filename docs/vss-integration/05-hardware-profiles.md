@@ -3,6 +3,34 @@
 **Proposed 2026-09-19.** This reframes the product thesis from "port VSS to consumer GPUs" to
 "contribute a consumer-GPU profile tier, for which a reference implementation already exists."
 
+## The gap is confirmed unowned **[O, 2026-09-19]**
+
+> **Source: 1:1 with the VSS Product Manager, 2026-09-19. Consumer GPUs are NOT on the VSS
+> roadmap.**
+
+This is the strongest evidence in this directory and it outranks every inference drawn from the
+repo. Everything below was originally argued from _absence_ — no GeForce row in `sizing.md`, an
+empty `RTX4090_TESTS` table, edge profiles that are unified-memory. Absence is ambiguous; it could
+have meant "next quarter." A PM owns roadmap, so it does not mean that.
+
+It also retires the in-house risk. The governance record showed issue #1345 closed with a
+maintainer stating they intended to build Redis Stream support themselves — the "we'll do it
+ourselves" pattern. That pattern does not apply here.
+
+**What this does NOT settle**, and must not be read as settled: redistribution rights (the
+microservices ship under an Evaluation license; `README.md:99` requires AI Enterprise to self-host
+a NIM; SLA §8.9 bars publishing benchmark data — a legal question, not a roadmap one), whether
+NVFP4 computes on `sm_120`, or the biometrics exposure in [`06`](06-repo-a-readiness.md).
+
+**Open, and worth asking next**: _which_ "not on the roadmap" this is — (a) we'd want it but have
+no headcount, (b) we evaluated the segment and judged against it, or (c) we have not considered it.
+(a) makes this a welcomed contribution; (b) means the demo must precede the argument; (c) means
+you are introducing the idea and carrying it alone. The three imply different first moves.
+
+**Timing note.** Not-on-the-roadmap is a window, not a moat. The thing most likely to change a
+roadmap is a working demonstration — which argues for early visibility over a privately perfected
+fork, and is a second reason to lead with the conformance test rather than a finished derivative.
+
 ## Why profiles, and why this is the right frame
 
 **Profiles are VSS's native idiom, not an imposition on it [V]:**

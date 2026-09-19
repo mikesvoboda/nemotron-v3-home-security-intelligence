@@ -47,8 +47,10 @@ not collect — which must be fixed before any swap claim can be believed (see `
 
 Nothing is decided and nothing is implemented. The recommended order:
 
-1. **Talk to the VSS team** (~30 min). Higher information per hour than any experiment here, and
-   it should precede a fork decision rather than follow one. Questions in `06` §4 and `07` §6.
+1. ~~**Talk to the VSS team**~~ — **DONE 2026-09-19.** VSS PM confirms **consumer GPUs are not on
+   the VSS roadmap**, so the segment is unowned rather than merely unaddressed. See
+   [`05-hardware-profiles.md`](05-hardware-profiles.md). Still unasked: _which_ flavour of
+   "not on the roadmap," and the licensing/redistribution question, which is legal not roadmap.
 2. **Fix this repo's coverage and `ai/` collection** (`06` §1). Hours of work, and until it lands
    every number produced here is unverifiable.
 3. **Run the salience demo**, not a latency benchmark (`06` §4). Fifty boring frames.
@@ -62,6 +64,7 @@ Every claim carries a marker. **Preserve these when editing.**
 - **[C]** Computed from a verified formula
 - **[E]** External source, needs primary confirmation
 - **[?]** Open question
+- **[O]** Stated by a human stakeholder — outranks repo inference
 - **[A]** Agent-reported, not independently verified — check before acting
 
 ## Contributing to this directory
