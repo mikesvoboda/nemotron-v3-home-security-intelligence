@@ -6626,3 +6626,37 @@ RULING stays PARKED per plan (widen the CHECK vs normalize at the
 client boundary, one per vocabulary) — this is the evidence packet,
 remediation is owner territory. Characterization tests come with the
 WP8.5 module, not before.
+
+## WP8.3 FOLLOW-UP — semantics module landed `41a48516` (2026-09-19)
+
+The fifth sibling the WP8.3 section flagged in-flight:
+`test_conformance_semantics.py`, 37 cross-field cases (29 functions: 26
+single-run + 2 matrix guards x 5 ProviderId; 23 sync + 6 async). The WP8.3
+section's 'not counted in the 422' now resolves: suite directory = **459**,
+with ai/gateway/tests **685 passed in 8.3s**. Discovery outcome under
+pytest: **37 passed, 0 failed on FIRST pytest contact** — the first WP8.3
+module whose UNVERIFIED draft landed prediction-clean, because every case
+characterizes CURRENT shipped behavior (the drafting agent's predicted-red
+list was empty by construction and stayed empty). Zero xfail/skip/deselect
+— the module ships its own meta-guard that reddens if those mechanisms
+ever appear in its source, needles assembled at runtime so it can't
+self-match.
+
+Findings pinned as data (characterization, both-sides-correct):
+/enrich person fan-out ships clothing+demographics ONLY (docstring
+advertising pose never gathered, adapters/enrichment.py:904-908 — actual
+contract pinned s9a/s9b); the plan's 'four risk-band tables' = three
+backend tables over TWO number-sets (29/59/84) + frontend 80/60/40/20
+(severityCalculator.ts:57-63/:70-76/:88, ladder :100-103) with backend
+82='high' rendering frontend 'critical' asserted on both sides (s7);
+gateway pose NAMED dicts vs nameless-positional JSONB wire (s1); unclosed
+<|im_start|> passes raw text as payload (s5b). Cite corrections carried:
+nemotron_analyzer.py:4280->:4281; llm_response.py:118 docstring vs
+constants :137-139 (agree); event.py:374->:368.
+
+Gate notes: ruff-format applied at integration (7 hunks); one semgrep
+path-traversal-open FALSE POSITIVE (meta-guard reads this module's own
+source path) suppressed with a line-scoped nosemgrep directive +
+why-comment — hook
+configuration untouched, no exclude-list broadening; WP4.2 ratchet rc=0;
+mypy clean.
