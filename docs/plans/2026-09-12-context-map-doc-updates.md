@@ -6206,3 +6206,85 @@ doesn't "find" 43.
   rerun flags to that ONE subprocess (parity with shards 795-797),
   which moves no floor and gates nothing weaker - it matches the existing
   repo convention. NOT DONE YET (pending one more rerun's data).
+
+## WP7.4 LANDED `4e63bed1` — impossible fixtures migrated, deployed shape pinned (2026-09-19)
+
+Plan P WP7.4 says the detector-client fixtures hand-coded a response shape
+no provider emits, and the two-shape ambiguity must be demonstrated, then
+pinned to the deployed one. Done on feat/wp7-ai-contract.
+
+**Reproduction (the plan's demo, run before touching anything):** the same
+3-detection scene (person 100,150,300,400; car 500,200,200,150 - overflows
+640; dog 0.45) pushed through `DetectorClient.detect_objects` under the two
+accepted shapes, verbatim transcript:
+
+```
+--- shape A impossible-fixture ---
+  person  conf=0.95  box=(100,150,300,400) vw=None
+  car     conf=0.88  box=(500,200,200,150) vw=None
+  dog     conf=0.45  box=(250,300,100,80)  vw=None
+  count=3
+--- shape B shipped/golden ---
+  person  conf=0.95  box=(100,150,300,330) vw=640
+  car     conf=0.88  box=(500,200,140,150) vw=640
+  dog     conf=0.45  box=(250,300,100,80)  vw=640
+  count=3
+REPRO OK: two shapes, one green file - the plan's demo
+```
+
+Shape A = `{detections, image_size, processing_time_ms}` (27/122 fixtures
+per the plan census; no deployed provider emits it). Shape B =
+`{detections, image_width, image_height, inference_time_ms}` - what the
+gateway adapter emits (ai/gateway/adapters/yolo26.py:376-378) and what the
+WP7.2 goldens carry. Same scene, different rows: A is unclamped with no
+video dims, B clamps person height 400 -> 330 and car width 200 -> 140 and
+records the 640x480 frame. Both were green before this WP.
+
+**Migration (`4e63bed1`):** key-pair swap ONLY, 22 dict literals (unit 10 +
+integration 12; HEAD census 22 image_size + 23 processing_time_ms
+occurrences), dims 1920x1080 so no bbox clamps - behavior-preserving for
+the migrated tests. The plan's warning honored: list-form bboxes stay live
+(the per-model server in ai/yolo26/model.py returns list bboxes WITH dims -
+Provider #4 may still speak that combo), so no fixture change flips the
+dict/list parser branch coverage. Green before 96 (74 + 22), green after
+100 (78 + 22).
+
+**Pinning tests (4, new):** `test_wp74_same_scene_both_shapes` (parametrized
+over both shapes at 640x480, asserts the transcript divergence: clamped
+300x330 / w=140 / vw=640 vs unclamped / vw=None);
+`test_list_bbox_still_parses_under_deployed_shape` (list bboxes + dims
+clamps too); `test_wp74_no_impossible_keys_remain` (ratchet: both legacy
+keys banned in both files outside the demonstration section - RED-PROVED
+against pre-migration copies where 22 + 23 occurrences fail it).
+
+**Coverage (plan's "must not fall", same command both sides):** detector
+client BEFORE 328/480 lines, 66/108 branches, 67.01%; AFTER 328/480 lines,
+67/108 branches, 67.18% (+1 branch: the clamp path is now exercised by the
+deployed-shape parametrization). The whole-tree totals from these two files
+are unchanged (15263/78622) - only branch coverage on the target moved.
+Note for future measurers in this sandbox: a serial run with addopts cleared
+and `--cov` SEGFAULTS (rc=139, xdist workers crash); the json report works
+under default addopts.
+
+**Semgrep encounter (house precedent reused, no config moved):** the
+ratchet's own file read tripped the custom path-traversal-open rule;
+annotated with an inline nosemgrep citing test_ai_contract_registry.py:307.
+First attempt failed twice: a long trailing annotation caused ruff format to
+rewrap the expression so the annotation no longer sat on the pattern-match
+line (semgrep rc=1 while ruff rc=0 - the two tools fight over line length
+here). The durable form is the short trailing `# nosemgrep: rule` plus a
+precedent comment ABOVE the call.
+
+**Dog-confidence note:** the client accepts dog at 0.45
+(settings.detection_class_thresholds, NEM-4522), so a 0.45-dog fixture is
+CLIENT-legal. The value-impossibility is server-side: ai/yolo26/model.py
+drops dogs below 0.55 before responding, so a 0.45 dog only ever came from
+a hand-written fixture - one more reason these payloads were fiction.
+
+**Residual (logged, not dropped):** ~546 legacy-key occurrences remain in
+detector-fixture files OUTSIDE this WP's two target files (the plan's 572
+minus the migrated 22 and the WP7.1-era correct-shape census). They are
+green, they parse, and each carries the same silent no-clamping behavior.
+Per the plan, this WP's scope was the two files that feed
+detector_client.py coverage; the wider drain belongs behind the contract
+suite as WP8 work, not as a fixture sweep. No floor moved, nothing omitted.
