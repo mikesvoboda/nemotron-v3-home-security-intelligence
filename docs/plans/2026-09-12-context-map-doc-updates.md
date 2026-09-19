@@ -6524,3 +6524,105 @@ Coverage at this landing: 179 new cases (geometry 25, numeric 31, ops 89,
 vocabulary 34) on top of WP8.2's 243 (registry 7, ai_provider 12, fake 89,
 snapshot 135) = 422. Ratchet: no coverage line moved; mock-spec ratchet
 rc=0 (8 added patch sites converted to autospec, never licensed).
+
+## WP8.5 EVIDENCE — vocabulary violations EXECUTED against host Postgres; plan cites corrected (2026-09-19)
+
+Plan P WP8.5 bullet 2 ("Execute the violations against the host
+Postgres and capture the raised errors in L") executed ahead of the
+WP8.5 test work, so the red-first static cross-check lands against
+reproduced facts, not claims. Host Postgres 16.15 (aarch64-musl) via
+the sandbox-visible DATABASE_URL (host process; no container needed —
+the sandbox ban is on podman, not on the host DBs).
+
+**Execution protocol:** each INSERT ran in its own SAVEPOINT,
+rolled back after capture — zero rows persisted (final conn.rollback()
+as belt). detection_id is an INTEGER FK (plan didn't say; a UUID
+sentinel reddens on type-parse before the CHECK — first-run bug in the
+probe, fixed to -1). created_at has no DB default (SQLAlchemy applies
+it client-side) — supplied explicitly so NOT-NULL never shadows the
+CHECK. Discrimination proof baked into the run: the two SANITY
+legal-value inserts passed the CHECK and stopped one stage later at
+the FK violation — so the 8 violations below are CHECK-gated, the
+sentinel FK never interfered.
+
+**MEASURE: 8/8 server-emitted values REJECTED by live DB CHECK**
+(2 pose, 4 age, 2 threat; every error names its ck\_\* constraint), 0
+passed. Full transcript:
+
+```
+[pose 'walking']  source ai/enrichment/vitpose.py:46
+    -> RAISED: new row for relation "pose_results" violates check constraint "ck_pose_results_pose_class"
+
+[pose 'running']  source ai/enrichment/vitpose.py:50
+    -> RAISED: new row for relation "pose_results" violates check constraint "ck_pose_results_pose_class"
+
+[age '21-35']  source ai/enrichment/models/demographics.py:47
+    -> RAISED: new row for relation "demographics_results" violates check constraint "ck_demographics_results_age_range"
+
+[age '36-50']  source ai/enrichment/models/demographics.py:48
+    -> RAISED: new row for relation "demographics_results" violates check constraint "ck_demographics_results_age_range"
+
+[age '51-65']  source ai/enrichment/models/demographics.py:49
+    -> RAISED: new row for relation "demographics_results" violates check constraint "ck_demographics_results_age_range"
+
+[age '65+']  source ai/enrichment/models/demographics.py:50
+    -> RAISED: new row for relation "demographics_results" violates check constraint "ck_demographics_results_age_range"
+
+[threat 'rifle']  source ai/enrichment/models/threat_detector.py:68 (THREAT_CLASSES)
+    -> RAISED: new row for relation "threat_detections" violates check constraint "ck_threat_detections_threat_type"
+
+[threat 'hammer']  source ai/enrichment/models/threat_detector.py:84 (THREAT_CLASSES_BY_NAME)
+    -> RAISED: new row for relation "threat_detections" violates check constraint "ck_threat_detections_threat_type"
+
+[SANITY pose 'standing']
+    -> UNEXPECTED RAISE: insert or update on table "pose_results" violates foreign key constraint "pose_results_detection_id_fkey"
+
+[SANITY threat 'gun']
+    -> UNEXPECTED RAISE: insert or update on table "threat_detections" violates foreign key constraint "threat_detections_detection_id_fkey"
+
+SUMMARY: 8/8 server-emitted values REJECTED by live DB CHECK; 0/2 sanity legal-values passed
+```
+
+**Cite corrections vs the plan's table** (verified against this tree
+at 88215286; the plan's line numbers drifted, its SEMANTICS all held:
+the four mismatches reproduce exactly as tabled):
+
+- pose: server ai/enrichment/vitpose.py:46,:50 ('walking','running' —
+  plan said :44); DB CHECK backend/models/enrichment.py:77-78
+  (plan said :77 — right line, wrong FILE: it's backend/models/, not
+  backend/api/schemas/); neither value legal → EXECUTED violation.
+- age: server ai/enrichment/models/demographics.py:47-50
+  (plan: ai/enrichment/demographics.py:44); DB :197 full legal set
+  captured live: 0-10,11-20,21-30,31-40,41-50,51-60,61-70,71-80,81+,
+  unknown — the server's 21-35/36-50/51-65/65+ all fail → 4 of the
+  server's 6 buckets illegal, matching plan's '4 of 6'.
+- threat: the plan's '12 values' is THREAT_CLASSES_BY_NAME
+  ai/enrichment/models/threat_detector.py:76-88 (knife,gun,rifle,
+  pistol,firearm,weapon,bat,crowbar,hammer,sword,machete,axe) — the
+  int-keyed set at :66-73 is 6 (COCO-style); light twin identical.
+  DB :139 intersection {gun,knife,weapon} → 9 of 12 rejected;
+  grenade+explosive legal and produced by nothing — plan sentence
+  VERIFIED verbatim; rifle+hammer EXECUTED violations above.
+- gender: server ai/enrichment/models/demographics.py:54
+  GENDER_LABELS=[female,male] — list index IS the class id; DB :193
+  (male,female,unknown). A provider reordering labels inverts every
+  prediction while staying schema-valid (structural, no insert
+  needed to prove — the WP8.5 characterization test will pin it).
+- is_minor: the plan's 4-tuple ('0-10','11-20','child','teenager')
+  verified at EXACT lines enrichment_pipeline.py:3868 + :5324.
+  THIRD spelling the plan missed: age_classifier_loader.py:94 uses
+  ('infant','child','teenager') — different membership (drops the
+  numeric buckets, adds infant). Three spellings of the child-
+  safety predicate is itself WP8.5 evidence; characterization test
+  will pin all three.
+- No-enforcement pair confirmed live: detections.object_type is
+  unconstrained varchar + trigram index; entities.embedding_vector
+  free JSONB (information_schema check at 88215286).
+
+Executed probe script: /home/agent/.claude/jobs/5e2cfdd8/tmp/
+wp85_exec_probe.py (session tmp — the transcript above is the durable
+artifact; the suite's own static cross-check lands in WP8.5 proper).
+RULING stays PARKED per plan (widen the CHECK vs normalize at the
+client boundary, one per vocabulary) — this is the evidence packet,
+remediation is owner territory. Characterization tests come with the
+WP8.5 module, not before.
