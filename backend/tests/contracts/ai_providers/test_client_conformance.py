@@ -69,7 +69,7 @@ backend/tests/contracts/ai_providers/test_conformance_geometry.py:68-70) and
 =============================================================================
 CONTRACT FACTS THIS FILE RELIES ON (all read from the tree at HEAD a8c25c5e)
 =============================================================================
-* The fake mounts EXACTLY the 38 registry paths with no prefix
+* The fake mounts EXACTLY the 37 registry paths with no prefix
   (fake/app.py) — and the registry paths ALREADY carry the service prefixes
   (/florence/extract, /clip/embed, /enrichment/vehicle-classify,
   /enrich-lt/person-reid, /models/status, /object-distance, /completion,
@@ -95,7 +95,7 @@ CONTRACT FACTS THIS FILE RELIES ON (all read from the tree at HEAD a8c25c5e)
 
 Cites relied on (re-verify any that a rebase moves):
   plan §WP8.4 :1001-1026; Tier A table :769-800
-  backend/ai_contract/operations.py (38 ops; availability flags; client_methods)
+  backend/ai_contract/operations.py (37 ops; availability flags; client_methods)
   backend/ai_contract/fake/{__init__.py,app.py,generators.py} (generate/snapshot)
   backend/services/detector_client.py:73,103,262,287,321,325,415,993,1054,1169,1187,1208-1213,1286,1301 (re-spaced -123 by the A7.2 segment_image deletion; 981/1032 died with it)
   backend/services/florence_client.py:73(BoundingBox),309,321,368,561,582,727,749-752,881,980,998,1083,1102-1104,1189,1299,1411,1432-1434,1524,1543-1563

@@ -244,7 +244,6 @@ _OVERRIDES[("enrich_lt_person_reid", "embedding")] = ("unit_embedding", 512)
 _OVERRIDES[("enrich_lt_person_reid", "embedding_dimension")] = ("const", 512)
 # florence ops: 4-coord float bboxes everywhere except the OCR-region quad
 for _op in (
-    "florence_analyze_scene",
     "florence_batch_extract",
     "florence_dense_caption",
     "florence_describe_region",
@@ -259,11 +258,11 @@ for _op in (
 # of type 'array'").
 _OVERRIDES[("florence_phrase_grounding", "bboxes")] = ("florence_bbox_list", 2)
 _OVERRIDES[("florence_ocr_with_regions", "bbox")] = ("florence_bbox", 8)
-# analyze-scene carries BOTH caption regions (4) and text_regions (8 quads)
-# under the same property name: qualified keys are "<DefName>.<prop>", and
-# lookup falls back to the bare name. Exact match wins, so OCRRegion.bbox
-# gets its quad while CaptionedRegion.bbox falls through to the bare-4.
-_OVERRIDES[("florence_analyze_scene", "OCRRegion.bbox")] = ("florence_bbox", 8)
+# Qualified keys ("<DefName>.<prop>", lookup falls back to the bare name,
+# exact match wins) exist because florence_analyze_scene once carried BOTH
+# caption regions (4-coord) and text_regions (8-coord quads) under one
+# property name; A7.2 deleted that op, but the mechanism stays - the
+# walker's def-qualification is exercised by the docstring example below.
 # llm fixed bodies (shape comes from snapshots; values pinned here)
 _OVERRIDES[("llm_completion", "content")] = ("const", "the quick brown fox")
 _OVERRIDES[("llm_completion", "tokens_predicted")] = ("const", 9)
@@ -287,7 +286,8 @@ _OVERRIDES[("llm_slots", "llm_slots")] = (
 def _resolve(node: dict[str, Any], ctx: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """Follow $ref chains; return (node, def_name). The def name qualifies
     property overrides so an op carrying TWO different bbox definitions
-    (analyze_scene: CaptionedRegion 4-coord AND OCRRegion 8-coord) can pin
+    (historically analyze_scene: CaptionedRegion 4-coord AND OCRRegion
+    8-coord - A7.2 deleted that op; the qualification mechanism stays) can pin
     each - a bare-name match alone could not tell them apart."""
     def_name = ""
     while "$ref" in node:
@@ -399,7 +399,7 @@ def create_response_bytes(obj: Any) -> bytes:
 #     below are validated against them, which proves the mirror. A generic
 #     walker would emit "status_471" where the deployed truth is "loaded".
 # Either way the response is still schema-VALIDATED against the committed
-# snapshot - the schema-driven guarantee holds for all 38.
+# snapshot - the schema-driven guarantee holds for all 37.
 
 _YOLO_DETECT_KEYS = ("detections", "image_width", "image_height", "inference_time_ms")
 
@@ -520,7 +520,7 @@ def generate(op_id: str, payload: Any = None, profile: str = "gateway") -> Any:
     """The one entry point: the seven GEN_GAPS ops route to the literal
     deployed-shape generator; the other 31 are WALKED from their committed
     snapshot. Both paths are schema-VALIDATED post-generation (validate()
-    below) so the schema-driven guarantee holds for all 38: a snapshot edit
+    below) so the schema-driven guarantee holds for all 37: a snapshot edit
     that makes the fake's output nonconformant reddens the suite either way."""
     value: Any
     if op_id in _LITERAL_OPS:

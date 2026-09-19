@@ -60,8 +60,10 @@ def _bound_or_reject(op_id: str) -> Any:
     Census 2026-09-19: every op's client_methods is 0 or 1 entries - the
     two-method case is unreachable and fails LOUD rather than silently
     picking one. Ops with no bound client method (WP7.3 candidates kept as
-    deployed surface: yolo26_detect_batch, florence_analyze_scene, the
-    enrich_lt_* trio) get a NOT-WIRED sentinel that raises on call:
+    deployed surface: yolo26_detect_batch, yolo26_segment (A7.2 - client
+    deleted, route stays), the enrich_lt_* trio; florence_analyze_scene
+    left the contract entirely under A7.2) get a NOT-WIRED sentinel that
+    raises on call:
     registration still verifies their slot membership and count, but no
     live path claims them. The call path is WP8.2 FakeProvider / real
     server territory - fabricating a bound callable here would be another

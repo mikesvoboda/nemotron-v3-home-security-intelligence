@@ -286,7 +286,11 @@ PER_MODEL_SERVER: dict[str, bool] = {
     "florence_describe_region": True,
     "florence_phrase_grounding": True,
     "florence_detect_security_objects": True,
-    "florence_analyze_scene": True,
+    # A7.2: florence_analyze_scene deleted with both its deployed routes
+    # (model.py 1206-1300 + this adapter's 530-580); the op is discovered by
+    # walking router.routes, so it cannot come back silently - the
+    # DELETED_REGISTRY_OPS ratchet in test_ai_contract_registry.py reddens
+    # if an adapter route is resurrected.
     "enrichment_vehicle_classify": True,
     "enrichment_clothing_classify": True,
     "enrichment_demographics": True,
@@ -318,7 +322,10 @@ CLIENT_OP_MAP: dict[str, str | None] = {
     # WP7.3: DetectorClient.detect_objects_batch deleted (zero non-test call
     # sites; census in the deletion commit body). The yolo26_detect_batch
     # OPERATION stays - the gateway route is deployed surface.
-    "DetectorClient.segment_image": "yolo26_segment",
+    # A7.2: DetectorClient.segment_image deleted (ADDENDUM 2 A7.2 - zero
+    # non-test call sites, census in the deletion commit body; its dedicated
+    # test file went in the same commit). The yolo26_segment OPERATION stays -
+    # the gateway route is deployed surface (adapters/yolo26.py:447).
     # CLIPClient
     "CLIPClient.close": None,
     "CLIPClient.get_circuit_breaker_state": None,
@@ -669,10 +676,11 @@ def render_operations_module() -> str:
     lines = [
         f'"""{PROVENANCE}',
         "",
-        "The 38-operation AI-tier registry (plan P WP7.1). Availability matrix",
-        "slots: gateway / enrichment_light_adapter / per_model_server / fake.",
-        "The `fake` column is the WP8.2 conformance SPEC (FakeProvider must",
-        "implement all 38), not a present-tense claim about code that exists.",
+        "The 37-operation AI-tier registry (plan P WP7.1; 38 at drafting -",
+        "florence_analyze_scene deleted under ADDENDUM 2 A7.2). Availability",
+        "matrix slots: gateway / enrichment_light_adapter / per_model_server /",
+        "fake. The `fake` column is the WP8.2 conformance SPEC (FakeProvider",
+        "implements all 37), not a present-tense claim about code that exists.",
         '"""',
         "",
         "from __future__ import annotations",

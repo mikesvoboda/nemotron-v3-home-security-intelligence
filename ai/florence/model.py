@@ -291,32 +291,6 @@ class BatchExtractResponse(BaseModel):
     batch_size: int = Field(..., description="Number of items processed")
 
 
-class SceneAnalysisRequest(BaseModel):
-    """Request format for comprehensive scene analysis endpoint."""
-
-    image: str = Field(..., description="Base64 encoded image")
-
-
-class SceneAnalysisResponse(BaseModel):
-    """Response format for comprehensive scene analysis.
-
-    Structured output suitable for Nemotron prompt consumption.
-    Contains detailed caption, region descriptions, and OCR results.
-    """
-
-    caption: str = Field(..., description="Detailed scene description from MORE_DETAILED_CAPTION")
-    regions: list[CaptionedRegion] = Field(
-        default_factory=list, description="Dense region captions with bounding boxes"
-    )
-    text_regions: list[OCRRegion] = Field(
-        default_factory=list, description="OCR text with bounding box regions"
-    )
-    inference_time_ms: float = Field(..., description="Total inference time in milliseconds")
-    task_times_ms: dict[str, float] = Field(
-        default_factory=dict, description="Individual task inference times"
-    )
-
-
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -1201,103 +1175,6 @@ async def dense_caption(request: ImageRequest) -> DenseCaptionResponse:
     except Exception as e:
         logger.error(f"Dense captioning failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Dense captioning failed: {e!s}") from e
-
-
-@app.post("/analyze-scene", response_model=SceneAnalysisResponse)
-async def analyze_scene(request: SceneAnalysisRequest) -> SceneAnalysisResponse:
-    """Comprehensive scene analysis using cascaded Florence-2 prompts.
-
-    Runs multiple Florence-2 tasks to extract maximum scene context:
-    1. MORE_DETAILED_CAPTION - Rich scene description
-    2. DENSE_REGION_CAPTION - Per-region captions with bounding boxes
-    3. OCR_WITH_REGION - Text extraction with locations
-
-    Tasks 2 and 3 (DENSE_REGION_CAPTION and OCR_WITH_REGION) run in parallel
-    since they are independent and don't depend on each other's results.
-
-    The structured output is designed for Nemotron prompt consumption,
-    providing comprehensive scene understanding for risk assessment.
-
-    Returns:
-        SceneAnalysisResponse with caption, regions, text_regions, and timing info
-    """
-    if model is None or model.model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-
-    try:
-        # Decode image once for all tasks
-        image = _decode_image(request.image)
-        start_time = time.perf_counter()
-        task_times: dict[str, float] = {}
-
-        # Step 1: Get detailed caption (must complete first as it's the primary output)
-        caption_result, caption_time = model.extract(image, "<MORE_DETAILED_CAPTION>")
-        task_times["caption"] = caption_time
-
-        # Step 2 & 3: Run DENSE_REGION_CAPTION and OCR_WITH_REGION in parallel
-        # These tasks are independent and can execute concurrently
-        async def run_dense_regions() -> tuple[list[CaptionedRegion], float]:
-            """Run dense region captioning in thread pool."""
-            raw_result, time_ms = await asyncio.to_thread(
-                model.extract_raw, image, "<DENSE_REGION_CAPTION>"
-            )
-            regions: list[CaptionedRegion] = []
-            if isinstance(raw_result, dict):
-                bboxes = raw_result.get("bboxes", [])
-                labels = raw_result.get("labels", [])
-                for i, label in enumerate(labels):
-                    bbox = bboxes[i] if i < len(bboxes) else []
-                    regions.append(CaptionedRegion(caption=label, bbox=bbox))
-            return regions, time_ms
-
-        async def run_ocr_with_regions() -> tuple[list[OCRRegion], float]:
-            """Run OCR with regions in thread pool."""
-            raw_result, time_ms = await asyncio.to_thread(
-                model.extract_raw, image, "<OCR_WITH_REGION>"
-            )
-            text_regions: list[OCRRegion] = []
-            if isinstance(raw_result, dict):
-                quad_boxes = raw_result.get("quad_boxes", [])
-                labels = raw_result.get("labels", [])
-                for i, label in enumerate(labels):
-                    bbox = quad_boxes[i] if i < len(quad_boxes) else []
-                    # Flatten the quad box if it's nested
-                    if bbox and isinstance(bbox[0], list):
-                        bbox = [coord for point in bbox for coord in point]
-                    text_regions.append(OCRRegion(text=label, bbox=bbox))
-            return text_regions, time_ms
-
-        # Execute parallel tasks
-        (regions, regions_time), (text_regions, ocr_time) = await asyncio.gather(
-            run_dense_regions(),
-            run_ocr_with_regions(),
-        )
-
-        task_times["dense_regions"] = regions_time
-        task_times["ocr_with_regions"] = ocr_time
-
-        # Calculate total time
-        total_time_ms = (time.perf_counter() - start_time) * 1000
-
-        # Record metrics
-        INFERENCE_LATENCY_SECONDS.labels(endpoint="analyze_scene").observe(total_time_ms / 1000)
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="analyze_scene", status="success").inc()
-
-        return SceneAnalysisResponse(
-            caption=caption_result,
-            regions=regions,
-            text_regions=text_regions,
-            inference_time_ms=total_time_ms,
-            task_times_ms=task_times,
-        )
-
-    except HTTPException:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="analyze_scene", status="error").inc()
-        raise
-    except Exception as e:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="analyze_scene", status="error").inc()
-        logger.error(f"Scene analysis failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Scene analysis failed: {e!s}") from e
 
 
 @app.post("/detect_security_objects", response_model=SecurityObjectsResponse)
