@@ -50,6 +50,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
@@ -192,25 +193,26 @@ def check_staged(root: Path, files: list[str]) -> int:
         listed = _git(root, "diff", "--cached", "--name-only", "--diff-filter=ACM")
         files = [f for f in listed.stdout.splitlines() if f.endswith(".py")]
     offenders: list[str] = []
-    for rel in files:
-        if not rel.startswith("backend/tests"):
-            continue  # the census's own denominator
-        blob = _git(root, "show", f":{rel}")
-        if blob.returncode != 0:
-            continue  # staged-deleted or unreadable -- not our business here
-        added = _added_lines(root, rel)
-        if not added:
-            continue
-        tmp = root / ".git" / "check-mock-spec-staged"
-        tmp.mkdir(exist_ok=True)
-        probe = tmp / rel.replace("/", "__")
-        probe.write_text(blob.stdout)
-        try:
+    # A real temp dir, NOT root/.git/...: in a linked git worktree `.git` is
+    # a pointer file and mkdir under it raises NotADirectoryError, which
+    # crashed the pre-commit hook (rc 1, indistinguishable from a real gate
+    # failure) and blocked every commit from such a worktree.
+    with tempfile.TemporaryDirectory(prefix="check-mock-spec-staged-") as tmpdir:
+        tmp = Path(tmpdir)
+        for rel in files:
+            if not rel.startswith("backend/tests"):
+                continue  # the census's own denominator
+            blob = _git(root, "show", f":{rel}")
+            if blob.returncode != 0:
+                continue  # staged-deleted or unreadable -- not our business here
+            added = _added_lines(root, rel)
+            if not added:
+                continue
+            probe = tmp / rel.replace("/", "__")
+            probe.write_text(blob.stdout)
             for it in sites_with_lines(probe):
                 if it["lineno"] in added:
                     offenders.append(f"{rel}{it['id'][len(str(probe)) :]}")
-        finally:
-            probe.unlink(missing_ok=True)
     for o in offenders:
         print(f"UNSPECCED MOCK: {o}", file=sys.stderr)
     if offenders:
