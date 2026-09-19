@@ -1309,3 +1309,40 @@ Authoring order by TEST-GAP: admin(30), alertmanager(27), file_cleanup(25),
 session(22), batch_fetch(19), baseline_config(18), scene_change_detector(16),
 calibration(15). All drafts UNVERIFIED until authored + green-under-original
 + strict census re-probe (lane free: run6 terminal, no tier live).
+
+## WAVE 66 KILL FOLD 2026-09-19 (all 8 modules drafted→proved→censused; 180 new kills)
+
+Serial-lane authoring (30 tests across 9 files) + STRICT censuses (kill = rc in
+(1,3), cwd=mutants/, -n 0, 0 no-verdicts):
+
+| module | open | killed | module total | was |
+|---|---|---|---|---|
+| admin | 30 | **30** | **102/102 = 100.0%** | 70.6% |
+| alertmanager | 34 | 27 | 36/43 = 83.7% | 20.9% |
+| file_cleanup_service | 33 | 25 (v2) | 117/125 = 93.6% | 73.6% |
+| session_service | 35 | 22 | 47/60 = 78.3% | 41.7% |
+| batch_fetch | 36 | 19 | 84/101 = 83.2% | 64.4% |
+| baseline_config | 33 | 22 | 99/110 = 90.0% | 70.0% |
+| scene_change_detector | 34 | 16 | 185/203 = 91.1% | 83.3% |
+| calibration | 38 | 19 | 64/83 = 77.1% | 54.2% |
+| **wave-66** | **273** | **180** | | |
+
+Every TEST-GAP cluster key died except — after v2 — zero; all 94 residual
+survivors reconcile to dossier EQUIVALENT/LOW-VALUE clusters exactly, plus one
+post-census EQUIVALENT ruling (scene_change detect_changes__84: kwarg dropped
+== dataclass default False) and one v2 draft fix (file_cleanup batch__16:
+last-wins `=` survives when the LAST event carries the nonzero aggregate —
+rebalanced so the FIRST event owns every nonzero count).
+
+CENSUS INTEGRITY EVENT: the first wave-66 census round (all 8 modules, ~127
+rows) ran against STALE test copies inside mutants/ (run6 snapshot; the probe
+cwd is mutants/ which mirrors the whole repo) — a structurally impossible
+clean 0-kills fold (admin 0/30 rc=0 everywhere). Detected, quarantined
+(/tmp/wp25/wp44-kills/pre-wave66-bogus/), the 9 test files were synced into
+the tree + in-tree green-proof (325 passed) + one hand-probe under a
+known-kill key red-verified BEFORE relaunch. Protocol now standing: sync
+touched tests into mutants/ before ANY killcount launch.
+
+Commits: 8 per-module test(wp44) batches (7566635c..fda8ef2b). Feed re-sync
+this commit (8 kill records + this fold). Untouched band: 33 modules remain.
+Next: wave-67 dossier dispatch (next 8 by arbiter survivors).
