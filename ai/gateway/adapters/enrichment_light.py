@@ -114,7 +114,10 @@ class DepthResponse(BaseModel):
 def _softmax(x: np.ndarray) -> np.ndarray:
     """Compute softmax over a 1D array."""
     e = np.exp(x - np.max(x))
-    return e / (e.sum() + 1e-8)
+    # cast: np division over ndarray is typed Any under numpy-stubs (array_api
+    # gap); the operation is ndarray->ndarray. mypy newly reaches this file
+    # because the WP8 conformance tests import the mounted gateway app.
+    return cast("np.ndarray", e / (e.sum() + 1e-8))
 
 
 COCO_KEYPOINT_NAMES = [
