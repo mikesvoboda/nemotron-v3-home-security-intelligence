@@ -659,24 +659,57 @@ class TestAcceptHeaderMiddlewarePerformance:
             exempt_paths=many_paths,
         )
 
-        # Measure lookup time for first, middle, and last paths
-        paths_to_check = ["/path/0", "/path/500", "/path/999", "/nonexistent"]
-        times = []
+        # Only EXEMPT paths belong in this comparison. `_is_exempt` returns at
+        # the frozenset hit; a MISS falls through and additionally runs
+        # `path.startswith(self.exempt_prefixes)`, so it does strictly more
+        # work by construction. The pre-2026-09-19 version timed "/nonexistent"
+        # alongside the hits and read the extra prefix scan as a complexity
+        # violation — it was comparing two different code paths, not two
+        # positions in one set. (Observed failure: hits 0.80ms/0.88ms, ratio
+        # 1.09; miss 4.08ms, which tripped a <5x bound at 5.07.)
+        hit_paths = ["/path/0", "/path/500", "/path/999"]
 
-        for path in paths_to_check:
-            start = time.perf_counter()
-            for _ in range(10000):
+        # Warm up before measuring. The same failing run's FIRST sample was
+        # 3.83ms against 0.80ms for the identical work a moment later — a 4.8x
+        # spread from cold branch prediction and method-resolution caching
+        # alone, with no complexity difference at all.
+        for path in hit_paths:
+            for _ in range(10_000):
                 middleware._is_exempt(path)
-            elapsed = time.perf_counter() - start
-            times.append(elapsed)
 
-        # All lookups should have similar performance (within 5x)
-        # This verifies O(1) behavior - position in set doesn't matter
+        # ~250k iterations puts each sample near 20ms. The old test's 10k
+        # iterations produced ~1ms samples, which a single scheduler quantum on
+        # a shared runner can double; best-of-N then discards any sample that
+        # got preempted, since noise only ever ADDS time.
+        iterations = 250_000
+        repeats = 5
+        times = []
+        for path in hit_paths:
+            best = min(self._time_lookups(middleware, path, iterations) for _ in range(repeats))
+            times.append(best)
+
+        # Position in the frozenset must not matter. A linear scan would show a
+        # spread on the order of the set size (1000x), so 5x stays a generous
+        # bound while no longer being reachable by measurement noise.
         max_time = max(times)
         min_time = min(times)
         assert max_time / min_time < 5, (
-            f"Lookup times vary too much: {times}. Expected O(1) behavior with similar times."
+            f"Exempt-path lookup times vary too much: {times} (paths={hit_paths}). "
+            "Expected O(1) behavior — position in the frozenset should not matter."
         )
+
+        # The miss path is exercised for correctness, not timed against hits.
+        assert middleware._is_exempt("/nonexistent") is False
+
+    @staticmethod
+    def _time_lookups(middleware, path: str, iterations: int) -> float:
+        """One timing sample: `iterations` lookups of `path`, in seconds."""
+        import time
+
+        start = time.perf_counter()
+        for _ in range(iterations):
+            middleware._is_exempt(path)
+        return time.perf_counter() - start
 
     def test_tuple_startswith_performance(self):
         """Test tuple startswith performance vs any() baseline."""
