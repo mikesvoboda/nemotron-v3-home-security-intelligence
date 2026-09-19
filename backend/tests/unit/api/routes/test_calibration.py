@@ -901,3 +901,111 @@ class TestCalibrationOpenAPI:
         from backend.api.routes.calibration import router
 
         assert router.prefix == "/api/calibration"
+
+
+class TestWp44CalibrationGaps:
+    """WP4.4 kill batch (calibration.md C1-C7 TEST-GAP clusters).
+
+    Auto-create tests let refresh blindly re-supply the fields and never looked
+    at what the route constructed / handed to db.add; the lookup statement was
+    never inspected; update assignment targets were invisible behind refresh.
+    """
+
+    def test_get_calibration_auto_create_constructs_default_row(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Auto-creation builds the row with user_id + default thresholds and adds THAT object.
+
+        Kills C1/C2 (constructor kwargs -> None, user_id kwarg removed) and
+        C4 (db.add(None)). Refresh only supplies DB-generated columns, so the
+        threshold attributes must come from what the route assigned.
+        """
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
+
+        def mock_refresh(obj):
+            obj.id = 1
+            obj.correct_count = 0
+            obj.false_positive_count = 0
+            obj.missed_threat_count = 0
+            obj.severity_wrong_count = 0
+            obj.created_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+            obj.updated_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+        mock_db_session.refresh.side_effect = mock_refresh
+
+        response = client.get("/api/calibration")
+
+        assert response.status_code == 200
+
+        added = mock_db_session.add.call_args.args[0]  # add(None) -> AttributeError
+        assert added.user_id == "default"
+        assert added.low_threshold == 30
+        assert added.medium_threshold == 60
+        assert added.high_threshold == 85
+        assert added.decay_factor == 0.1
+
+        data = response.json()
+        assert data["user_id"] == "default"
+        assert data["low_threshold"] == 30
+        assert data["medium_threshold"] == 60
+        assert data["high_threshold"] == 85
+        assert data["decay_factor"] == 0.1
+
+    def test_get_calibration_query_filters_by_user_id_equality(
+        self, client: TestClient, mock_db_session: AsyncMock, mock_calibration: MagicMock
+    ) -> None:
+        """Lookup executes a UserCalibration SELECT filtered by user_id equality.
+
+        Kills C5/C6: db.execute(None), where(None), select(None), == -> != flip.
+        """
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_calibration
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/calibration")
+
+        assert response.status_code == 200
+
+        mock_db_session.execute.assert_called_once()
+        stmt = mock_db_session.execute.call_args.args[0]
+        sql = str(stmt)
+        assert "user_calibration.id" in sql  # kills select(None)/execute(None)
+        assert "NULL" not in sql.upper()  # kills where(None) -> WHERE NULL
+        assert "!=" not in sql  # kills the equality flip
+        assert "user_calibration.user_id = :" in sql
+
+    def test_put_update_writes_values_onto_calibration_object(
+        self, client: TestClient, mock_db_session: AsyncMock, mock_calibration: MagicMock
+    ) -> None:
+        """PUT assigns the provided values onto the ORM object itself (kills C7, 4).
+
+        refresh is left a plain no-op (fixture default), so a clobbered
+        assignment target (calibration.<field> = None) is observable both on
+        the object and in the response.
+        """
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_calibration
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.put(
+            "/api/calibration",
+            json={
+                "low_threshold": 25,
+                "medium_threshold": 55,
+                "high_threshold": 80,
+                "decay_factor": 0.15,
+            },
+        )
+
+        assert response.status_code == 200
+        assert mock_calibration.low_threshold == 25
+        assert mock_calibration.medium_threshold == 55
+        assert mock_calibration.high_threshold == 80
+        assert mock_calibration.decay_factor == 0.15
+        data = response.json()
+        assert data["low_threshold"] == 25
+        assert data["medium_threshold"] == 55
+        assert data["high_threshold"] == 80
+        assert data["decay_factor"] == 0.15

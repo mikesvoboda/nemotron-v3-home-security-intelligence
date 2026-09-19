@@ -20,7 +20,10 @@ import pytest
 # Import the entire module to ensure coverage tracks it
 import backend.api.routes.entities  # noqa: F401
 from backend.api.routes.entities import (
+    _entity_model_to_summary,
     _entity_to_summary,
+    _entity_to_trust_response,
+    _extract_cameras_seen_from_entity,
     _get_thumbnail_url,
     get_entity,
     get_entity_history,
@@ -941,3 +944,90 @@ class TestEntityToTrustResponse:
 
         assert result.trust_status.value == "unclassified"
         assert result.trust_notes is None
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/entities.md, clusters C1-C4, C6, C9)
+# =============================================================================
+
+
+class TestWp44EntitySummaryGaps:
+    """Direct-helper coverage for _entity_model_to_summary / trust response / cameras."""
+
+    def test_summary_carries_trust_fields(self) -> None:
+        """Trust status and parsed trust_updated_at survive conversion to EntitySummary.
+
+        Kills _entity_model_to_summary mutmut_5-_12/_24/_33 (metadata key
+        mangle/None swaps) and _25 (trust_updated_at kwarg -> None).
+        """
+        entity = _create_test_entity(
+            entity_type="person",
+            entity_metadata={
+                "camera_id": "front_door",
+                "trust_status": "trusted",
+                "trust_updated_at": "2025-12-23T14:30:00+00:00",
+            },
+        )
+
+        summary = _entity_model_to_summary(entity)
+
+        assert summary.trust_status == "trusted"
+        assert summary.trust_updated_at == datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
+
+    def test_prefers_cameras_seen_list_and_ignores_non_list(self) -> None:
+        """cameras_seen list is returned as-is; a non-list value falls back to camera_id.
+
+        Kills _extract_cameras_seen_from_entity mutmut_1-_4 (key mangle /
+        None swap) and _5 (guard and -> or).
+        """
+        entity = _create_test_entity(
+            entity_metadata={"cameras_seen": ["front_door", "backyard", "driveway"]}
+        )
+        assert _extract_cameras_seen_from_entity(entity) == [
+            "front_door",
+            "backyard",
+            "driveway",
+        ]
+
+        # truthy non-list must NOT satisfy the isinstance-and-truthy guard
+        bogus = _create_test_entity(
+            entity_metadata={"cameras_seen": "not-a-list", "camera_id": "cam_x"}
+        )
+        assert _extract_cameras_seen_from_entity(bogus) == ["cam_x"]
+
+    def test_summary_thumbnail_url_and_id(self) -> None:
+        """Summary keeps the entity id and builds the thumbnail from the primary detection.
+
+        Kills mutmut_35 (id=str(None)), _14/_16/_23/_32 (thumbnail
+        suppression) and _13 (thumbnail init None -> "").
+        """
+        entity = _create_test_entity(primary_detection_id=123)
+
+        summary = _entity_model_to_summary(entity)
+
+        assert summary.id == str(entity.id)
+        assert summary.thumbnail_url == "/api/detections/123/image"
+
+        # no primary detection -> thumbnail stays None (not "", not absent)
+        entity_no_det = _create_test_entity()
+        entity_no_det.primary_detection_id = None
+        assert _entity_model_to_summary(entity_no_det).thumbnail_url is None
+
+    def test_entity_trust_response_carries_temporal_fields(self) -> None:
+        """first_seen / last_seen / appearance_count are copied from the Entity model.
+
+        Kills _entity_to_trust_response mutmut_37/_38/_39 (set None) and
+        _46/_47/_48 (kwarg removal == None default).
+        """
+        entity = _create_test_entity(
+            first_seen=datetime(2025, 12, 23, 9, 15, 0, tzinfo=UTC),
+            last_seen=datetime(2025, 12, 23, 18, 45, 0, tzinfo=UTC),
+            detection_count=4,
+        )
+
+        result = _entity_to_trust_response(entity)
+
+        assert result.first_seen == entity.first_seen_at
+        assert result.last_seen == entity.last_seen_at
+        assert result.appearance_count == 4

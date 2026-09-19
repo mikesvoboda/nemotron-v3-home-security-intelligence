@@ -1454,3 +1454,183 @@ class TestRunExportJob:
 
         assert callable(run_export_job)
         assert run_export_job.__name__ == "run_export_job"
+
+
+class TestRunExportJobTask:
+    """Direct unit tests for the run_export_job background task.
+
+    WP4.4 wave-67 (dossier jobs.md): the HTTP-level TestStartExportJob tests run
+    this coroutine under a MagicMock(spec=JobTracker), which accepts ANY argument
+    list, so all 25 argument mutants of start_job/export_events_with_progress/
+    complete_job survived every existing assertion. These drive the task with a
+    REAL JobTracker (hermetic without redis or broadcast callback), so a
+    mis-addressed job id ends the job FAILED by itself.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_export_job_passes_filters_through_to_export_service(
+        self, mock_export_service: MagicMock
+    ) -> None:
+        """Every request filter must reach export_events_with_progress verbatim.
+
+        WP4.4 J2: a None-ed or dropped filter silently exports the ENTIRE event
+        history instead of the requested subset.
+        """
+        from backend.api.routes.jobs import run_export_job
+        from backend.api.schemas.jobs import ExportFormat
+        from backend.services.job_tracker import JobTracker
+
+        tracker = JobTracker()
+        job_id = tracker.create_job("export")
+        expected = {"file_path": "/api/exports/jobs.csv", "event_count": 3}
+
+        async def return_expected(**kwargs):
+            return expected
+
+        mock_export_service.export_events_with_progress.side_effect = return_expected
+
+        await run_export_job(
+            job_id=job_id,
+            export_format=ExportFormat.CSV,
+            camera_id="cam-1",
+            risk_level="high",
+            start_date="2024-01-01T00:00:00+00:00",
+            end_date="2024-01-15T23:59:59+00:00",
+            reviewed=True,
+            export_service=mock_export_service,
+            job_tracker=tracker,
+        )
+
+        kwargs = mock_export_service.export_events_with_progress.call_args.kwargs
+        assert kwargs["camera_id"] == "cam-1"
+        assert kwargs["risk_level"] == "high"
+        assert kwargs["start_date"] == "2024-01-01T00:00:00+00:00"
+        assert kwargs["end_date"] == "2024-01-15T23:59:59+00:00"
+        assert kwargs["reviewed"] is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_export_job_runs_export_with_this_job_identity(
+        self, mock_export_service: MagicMock
+    ) -> None:
+        """The export must run exactly once, bound to this job id and tracker.
+
+        WP4.4 J1: deleting the service call must not yield a COMPLETED job that
+        exported nothing.
+        """
+        from backend.api.routes.jobs import run_export_job
+        from backend.api.schemas.jobs import ExportFormat
+        from backend.services.job_tracker import JobStatus, JobTracker
+
+        tracker = JobTracker()
+        job_id = tracker.create_job("export")
+        expected = {"file_path": "/api/exports/jobs.csv", "event_count": 3}
+        mock_export_service.export_events_with_progress.return_value = expected
+
+        await run_export_job(
+            job_id=job_id,
+            export_format=ExportFormat.CSV,
+            camera_id=None,
+            risk_level=None,
+            start_date=None,
+            end_date=None,
+            reviewed=None,
+            export_service=mock_export_service,
+            job_tracker=tracker,
+        )
+
+        mock_export_service.export_events_with_progress.assert_called_once()
+        kwargs = mock_export_service.export_events_with_progress.call_args.kwargs
+        assert kwargs["job_id"] == job_id
+        assert kwargs["job_tracker"] is tracker
+        assert kwargs["export_format"] == "csv"
+
+        info = tracker.get_job(job_id)
+        assert info is not None
+        assert info["status"] == JobStatus.COMPLETED
+        assert info["result"] == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_export_job_marks_job_running_while_exporting(
+        self, mock_export_service: MagicMock
+    ) -> None:
+        """This job must be RUNNING with a starting message while the export runs.
+
+        WP4.4 J4: mis-addressed or message-less start_job must not leave the job
+        PENDING (or silently FAILED) through a running export.
+        """
+        from backend.api.routes.jobs import run_export_job
+        from backend.api.schemas.jobs import ExportFormat
+        from backend.services.job_tracker import JobStatus, JobTracker
+
+        tracker = JobTracker()
+        job_id = tracker.create_job("export")
+        seen: list[tuple[object, object]] = []
+
+        def snapshot(**kwargs):  # runs while the export is in flight
+            info = tracker.get_job(job_id)
+            seen.append((info["status"] if info else None, info["message"] if info else None))
+            return {"file_path": "/api/exports/jobs.csv", "event_count": 0}
+
+        mock_export_service.export_events_with_progress.side_effect = snapshot
+
+        await run_export_job(
+            job_id=job_id,
+            export_format=ExportFormat.CSV,
+            camera_id=None,
+            risk_level=None,
+            start_date=None,
+            end_date=None,
+            reviewed=None,
+            export_service=mock_export_service,
+            job_tracker=tracker,
+        )
+
+        assert seen == [(JobStatus.RUNNING, "Starting csv export...")]
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_export_job_completes_this_job_with_the_export_result(
+        self, mock_export_service: MagicMock
+    ) -> None:
+        """Completion must land on THIS job id carrying the service result payload.
+
+        WP4.4 J3: the UI renders job.result — a completed export with no file
+        reference (dropped result=) or a completion on a wrong id (swallowed
+        KeyError -> fail_job) must fail here.
+        """
+        from backend.api.routes.jobs import run_export_job
+        from backend.api.schemas.jobs import ExportFormat
+        from backend.services.job_tracker import JobStatus, JobTracker
+
+        tracker = JobTracker()
+        job_id = tracker.create_job("export")
+        expected = {
+            "file_path": "/api/exports/jobs.csv",
+            "file_size": 12345,
+            "event_count": 7,
+            "format": "csv",
+        }
+        mock_export_service.export_events_with_progress.return_value = expected
+
+        await run_export_job(
+            job_id=job_id,
+            export_format=ExportFormat.CSV,
+            camera_id=None,
+            risk_level=None,
+            start_date=None,
+            end_date=None,
+            reviewed=None,
+            export_service=mock_export_service,
+            job_tracker=tracker,
+        )
+
+        info = tracker.get_job(job_id)
+        assert info is not None
+        assert info["status"] == JobStatus.COMPLETED
+        assert info["error"] is None
+        assert info["result"] == expected
+        assert info["started_at"] is not None
+        assert info["completed_at"] is not None

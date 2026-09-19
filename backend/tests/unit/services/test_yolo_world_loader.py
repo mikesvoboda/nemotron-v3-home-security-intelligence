@@ -689,6 +689,132 @@ async def test_detect_with_prompts_verbose_false():
 
 
 # =============================================================================
+# WP4.4 wave-67: CPU guard, continue-vs-break, 15s watchdog
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_load_yolo_world_model_cpu_only_raises(monkeypatch):
+    """CPU-only host must be refused with the CUDA-GPU RuntimeError (GIL starvation guard).
+
+    WP4.4 cluster A: every existing test patched cuda.is_available → True, so the
+    guard line NEVER executed and four message mutants survived untouched. The
+    raise is re-wrapped by the generic ``except Exception`` handler, so the outer
+    message embeds the inner text — the anchored match pins it (case-sensitive,
+    un-decorated).
+    """
+    import sys
+    from unittest.mock import patch
+
+    mock_ultralytics = MagicMock()
+    monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
+
+    with (
+        patch("torch.cuda.is_available", return_value=False, autospec=True),
+        pytest.raises(
+            RuntimeError,
+            match="Failed to load YOLO-World model: YOLO-World requires a CUDA GPU",
+        ),
+    ):
+        await load_yolo_world_model("yolov8s-worldv2.pt")
+
+    # Must refuse BEFORE constructing the model
+    mock_ultralytics.YOLOWorld.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_detect_with_prompts_skips_none_boxes_result_and_continues():
+    """A boxes=None result must be SKIPPED, not abort the loop (WP4.4 cluster E).
+
+    continue → break only diverges with ≥2 results: an early empty one followed by
+    a result carrying detections. Every existing detect test fed a single-result
+    list, where continue ≡ break, so the silent-detection-loss mutant lived.
+    """
+    import numpy as np
+
+    mock_model = MagicMock()
+    mock_model.set_classes = MagicMock()
+
+    # Head result carries the names mapping (the source snapshots results[0].names)
+    # but no boxes — parse must skip it and keep going.
+    head = MagicMock()
+    head.boxes = None
+    head.names = {0: "package"}
+
+    real_result = MagicMock()
+    real_result.names = {0: "package"}
+
+    mock_boxes = MagicMock()
+    mock_boxes.__len__ = lambda _self: 1
+    xy = MagicMock()
+    xy.cpu.return_value.numpy.return_value = np.array([1, 2, 3, 4])
+    real_result.boxes = mock_boxes
+    mock_boxes.xyxy = [xy]
+    cf = MagicMock()
+    cf.cpu.return_value.numpy.return_value = np.array(0.9)
+    mock_boxes.conf = [cf]
+    cl = MagicMock()
+    cl.cpu.return_value.numpy.return_value = np.array(0)
+    mock_boxes.cls = [cl]
+
+    mock_model.predict.return_value = [head, real_result]
+
+    result = await detect_with_prompts(mock_model, MagicMock())
+
+    assert len(result) == 1
+    assert result[0]["class_name"] == "package"
+
+
+@pytest.mark.asyncio
+async def test_detect_with_prompts_applies_15s_inference_timeout(monkeypatch):
+    """The 15s wait_for watchdog (guards the 90s batch window) must be passed verbatim.
+
+    WP4.4 cluster F: timeout=None / timeout=16.0 mutants survived because no test
+    ever inspected the value. Spy on asyncio.wait_for — deterministic, no timing.
+    """
+    import asyncio
+
+    captured: dict = {}
+    real_wait_for = asyncio.wait_for
+
+    async def spy_wait_for(aw, *, timeout=None):
+        captured["timeout"] = timeout
+        return await real_wait_for(aw, timeout=timeout)
+
+    monkeypatch.setattr(asyncio, "wait_for", spy_wait_for)
+
+    mock_model = MagicMock()
+    mock_model.set_classes = MagicMock()
+    mock_model.predict = MagicMock(return_value=[])
+
+    result = await detect_with_prompts(mock_model, MagicMock())
+
+    assert result == []
+    assert captured["timeout"] == 15.0
+
+
+@pytest.mark.asyncio
+async def test_detect_with_prompts_returns_empty_on_inference_timeout(monkeypatch):
+    """A 15s inference timeout must degrade to empty detections, never raise into the batch."""
+    import asyncio
+
+    async def fake_wait_for(aw, *, timeout=None):
+        if hasattr(aw, "close"):
+            aw.close()  # avoid "coroutine never awaited" warning
+        raise TimeoutError
+
+    monkeypatch.setattr(asyncio, "wait_for", fake_wait_for)
+
+    mock_model = MagicMock()
+    mock_model.set_classes = MagicMock()
+    mock_model.predict = MagicMock()
+
+    result = await detect_with_prompts(mock_model, MagicMock())
+
+    assert result == []
+
+
+# =============================================================================
 # Test Hierarchical Prompts (YOLO-World v2)
 # =============================================================================
 

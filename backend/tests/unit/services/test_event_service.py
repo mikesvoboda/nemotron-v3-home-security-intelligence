@@ -12,7 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 import tempfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -532,3 +532,234 @@ class TestEventServiceSingleton:
         service2 = get_event_service()
 
         assert service1 is not service2
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/event_service.md, clusters C1/C2 flips, C5-C9)
+# =============================================================================
+
+
+class TestWp44EventServiceDeleteGaps:
+    """Statement-shape, cascade-default, and tz contracts the mocks hide."""
+
+    @pytest.fixture
+    def mock_file_service(self) -> MagicMock:
+        """Create a mock FileService."""
+        service = MagicMock(spec=FileService)
+        service.schedule_deletion = AsyncMock(return_value="test-job-id")
+        service.cancel_deletion_by_event_id = AsyncMock(return_value=1)
+        service.delete_files_immediately = AsyncMock(return_value=(2, 2))
+        return service
+
+    @pytest.fixture
+    def mock_db_session(self) -> MagicMock:
+        """Create a mock database session."""
+        session = MagicMock()
+        session.execute = AsyncMock()
+        session.flush = AsyncMock()
+        session.refresh = AsyncMock()
+        return session
+
+    def _mock_event(
+        self, event_id: int = 1, clip_path: str | None = None, deleted: bool = False
+    ) -> MagicMock:
+        """Create a mock Event object."""
+        event = MagicMock()
+        event.id = event_id
+        event.clip_path = clip_path
+        event.is_deleted = deleted
+        event.deleted_at = datetime.now(UTC) if deleted else None
+        event.detections = []
+        return event
+
+    def _mock_result(self, event: MagicMock | None) -> MagicMock:
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = event
+        return mock_result
+
+    @pytest.mark.asyncio
+    async def test_soft_delete_fetch_statement_targets_the_requested_event(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """Pinned SQL contract: the event lookup filters Event.id == event_id exactly.
+
+        Kills soft_delete_event mutmut_7 (== -> !=) and pins the where/select/
+        execute-shape family (mutmut_2/_3/_5/_9) invisible to the
+        statement-blind execute mock.
+        """
+        event = self._mock_event(event_id=123)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.soft_delete_event(event_id=123, db=mock_db_session, cascade=True)
+
+        stmt = mock_db_session.execute.call_args_list[0].args[0]
+        sql = " ".join(str(stmt.compile(compile_kwargs={"literal_binds": True})).split())
+        assert "WHERE events.id = 123" in sql
+        assert "!=" not in sql
+        assert "WHERE NULL" not in sql.upper()
+
+    @pytest.mark.asyncio
+    async def test_soft_delete_alert_count_statement_filters_by_event_id(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """Cascade branch must count alerts for THIS event (Alert.event_id == event_id).
+
+        Kills soft_delete_event mutmut_22 (== -> !=); alert_count is otherwise
+        log-only so no existing test inspects the statement.
+        """
+        event = self._mock_event(event_id=123)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.soft_delete_event(event_id=123, db=mock_db_session, cascade=True)
+
+        assert mock_db_session.execute.call_count == 2  # event fetch, then alert count
+        alert_stmt = mock_db_session.execute.call_args_list[1].args[0]
+        sql = " ".join(str(alert_stmt.compile(compile_kwargs={"literal_binds": True})).split())
+        assert sql.startswith("SELECT")
+        assert "WHERE alerts.event_id = 123" in sql
+        assert "!=" not in sql
+        # select(None) renders 'SELECT NULL AS anon_1 FROM alerts ...' — pin the
+        # real alerts.* projection (kills soft_19/_20/_21/_24 shape family)
+        assert "alerts.id" in sql
+        assert "NULL AS" not in sql.upper()
+
+    @pytest.mark.asyncio
+    async def test_restore_fetch_statement_targets_the_requested_event(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """Restore lookup must filter Event.id == event_id exactly.
+
+        Kills restore_event mutmut_14 (== -> !=), invisible to the
+        statement-blind execute mock (mirrors the soft-delete pin).
+        """
+        event = self._mock_event(event_id=123, deleted=True)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.restore_event(event_id=123, db=mock_db_session, cascade=True)
+
+        stmt = mock_db_session.execute.call_args_list[0].args[0]
+        sql = " ".join(str(stmt.compile(compile_kwargs={"literal_binds": True})).split())
+        assert "WHERE events.id = 123" in sql
+        assert "!=" not in sql
+        assert "WHERE NULL" not in sql.upper()
+
+    @pytest.mark.asyncio
+    async def test_hard_delete_fetch_statement_eagerly_loads_and_filters(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """Hard-delete lookup: selectinload(detections) + exact id predicate.
+
+        Kills hard_delete_event mutmut_6 (== -> !=) and the statement-shape
+        family hard_1/_2/_4/_8 (whole-stmt/where/select/execute -> None).
+        """
+        event = self._mock_event(event_id=123)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.hard_delete_event(event_id=123, db=mock_db_session)
+
+        stmt = mock_db_session.execute.call_args_list[0].args[0]
+        assert len(stmt._with_options) == 1  # selectinload(Event.detections)
+        sql = " ".join(str(stmt.compile(compile_kwargs={"literal_binds": True})).split())
+        assert "FROM events" in sql
+        assert "WHERE events.id = 123" in sql
+        assert "!=" not in sql
+        assert "WHERE NULL" not in sql.upper()
+
+    @pytest.mark.asyncio
+    async def test_restore_event_fetch_eagerly_loads_detections_and_deferred_columns(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """Restore fetch must eagerly load detections, reasoning and llm_prompt.
+
+        Kills restore_event mutmut_7 (selectinload removed: _with_options 3->2),
+        _8 (undefer reasoning: column drops from SELECT list), _9 (undefer
+        llm_prompt) and re-kills _10/_2/_3 via the statement capture.
+        """
+        event = self._mock_event(event_id=123, deleted=True)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.restore_event(event_id=123, db=mock_db_session, cascade=True)
+
+        stmt = mock_db_session.execute.call_args_list[0].args[0]
+        # loader options are opaque Load objects that do not affect SQL text —
+        # pin the count (original: selectinload + 2 undefer = 3).
+        assert len(stmt._with_options) == 3
+        sql = " ".join(str(stmt.compile(compile_kwargs={"literal_binds": True})).split())
+        assert "events.reasoning" in sql
+        assert "events.llm_prompt" in sql
+
+    @pytest.mark.asyncio
+    async def test_soft_delete_default_cascade_schedules_file_deletion(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """cascade defaults to True: omitting it must still schedule file deletion.
+
+        Kills soft_delete_event mutmut_1 (keyword default True -> False).
+        """
+        event = self._mock_event(event_id=123, clip_path="/path/to/clip.mp4")
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.soft_delete_event(event_id=123, db=mock_db_session)  # cascade omitted
+
+        mock_file_service.schedule_deletion.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_restore_without_cascade_skips_file_deletion_cancel(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """restore_event(cascade=False) leaves scheduled deletions untouched.
+
+        Kills restore_event mutmut_24 (`cascade and deleted_at is not None`
+        -> `or`, which made non-cascade restores cancel pending deletions).
+        """
+        event = self._mock_event(event_id=123, deleted=True)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.restore_event(event_id=123, db=mock_db_session, cascade=False)
+
+        assert event.deleted_at is None
+        mock_file_service.cancel_deletion_by_event_id.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_restore_default_cascade_cancels_pending_file_deletions(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """cascade defaults to True: omitting it must still cancel deletions.
+
+        Kills restore_event mutmut_1 (keyword default True -> False).
+        """
+        event = self._mock_event(event_id=123, deleted=True)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        await service.restore_event(event_id=123, db=mock_db_session)  # cascade omitted
+
+        mock_file_service.cancel_deletion_by_event_id.assert_called_once_with(123)
+
+    @pytest.mark.asyncio
+    async def test_soft_delete_stamps_utc_aware_deleted_at(
+        self, mock_file_service: MagicMock, mock_db_session: MagicMock
+    ) -> None:
+        """deleted_at must be timezone-aware (UTC): naive timestamps break
+        retention comparisons downstream.
+
+        Kills soft_delete_event mutmut_13 (datetime.now(UTC) -> now(None));
+        existing tests only assert `is not None`.
+        """
+        event = self._mock_event(event_id=123)
+        mock_db_session.execute.return_value = self._mock_result(event)
+
+        service = EventService(file_service=mock_file_service)
+        result = await service.soft_delete_event(event_id=123, db=mock_db_session, cascade=True)
+
+        assert result.deleted_at is not None
+        assert result.deleted_at.tzinfo is not None, "deleted_at must be timezone-aware"
+        assert result.deleted_at.utcoffset() == timedelta(0)

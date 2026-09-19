@@ -94,8 +94,15 @@ async def test_load_clip_model_success_cpu(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+    # WP4.4: pin the full skip-reason prose, not just the prefix (kills C7-class
+    # XX-wrap/case clobbers of the CPU-only RuntimeError message).
+    with pytest.raises(RuntimeError, match="requires a CUDA GPU") as exc:
         await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
+    assert str(exc.value) == (
+        "Failed to load SigLIP 2 model: SigLIP 2 requires a CUDA GPU — "
+        "vision-language transformer CPU inference holds the GIL for 5-20 s per "
+        "image and starves the async event loop. Skipping on CPU-only host."
+    )
 
 
 @pytest.mark.asyncio
@@ -181,8 +188,15 @@ async def test_load_clip_model_success_no_cuda(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+    # WP4.4: pin the full skip-reason prose, not just the prefix (kills C7-class
+    # XX-wrap/case clobbers of the CPU-only RuntimeError message).
+    with pytest.raises(RuntimeError, match="requires a CUDA GPU") as exc:
         await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
+    assert str(exc.value) == (
+        "Failed to load SigLIP 2 model: SigLIP 2 requires a CUDA GPU — "
+        "vision-language transformer CPU inference holds the GIL for 5-20 s per "
+        "image and starves the async event loop. Skipping on CPU-only host."
+    )
 
 
 @pytest.mark.asyncio
@@ -947,3 +961,143 @@ class TestCLIPLoaderIntegration:
         assert loader.model_name == "siglip2-base-patch16-224"
         assert loader.vram_mb == 200
         assert loader.model_path == "openai/siglip2-base-patch16-224arge-patch14"
+
+
+class TestClipLoaderDiagnostics:
+    """Assertions on the emitted log records for the loader's contract paths.
+
+    WP4.4 wave-67 batch (dossier clip_loader.md C1-C5): the covering tests
+    execute every logging call but never inspected the records, so 19
+    message/kwargs mutants survived.
+    """
+
+    @pytest.mark.asyncio
+    async def test_import_error_logs_actionable_warning_with_cause(self, monkeypatch, caplog):
+        """ImportError handler must warn with the actionable message and keep the
+        original ImportError as __cause__ (kills C4 message clobbers)."""
+        import builtins
+        import logging
+        import sys
+
+        modules_to_hide = ["transformers"]
+        hidden_modules = {}
+        for mod in modules_to_hide:
+            for key in list(sys.modules.keys()):
+                if key == mod or key.startswith(f"{mod}."):
+                    hidden_modules[key] = sys.modules.pop(key)
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "transformers" or name.startswith("transformers."):
+                raise ImportError(f"No module named '{name}'")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+
+        try:
+            with caplog.at_level(logging.WARNING):
+                with pytest.raises(ImportError, match="transformers package required") as exc:
+                    await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
+
+            # The warning the operator sees must be exactly the actionable text —
+            # substring matching let XX-wrap and case clobbers survive the census.
+            expected_warning = (
+                "transformers package not installed. Install with: pip install transformers"
+            )
+            warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+            assert expected_warning in warnings, warnings
+
+            # Chaining preserved: original ImportError is the __cause__.
+            assert exc.value.__cause__ is not None
+            assert isinstance(exc.value.__cause__, ImportError)
+        finally:
+            sys.modules.update(hidden_modules)
+
+    @pytest.mark.asyncio
+    async def test_success_path_logs_loading_and_completion_with_model_path(
+        self, monkeypatch, caplog
+    ):
+        """Successful load must log both the attempt and the completion, each with
+        the model path (kills C1/C3/C6 entry+completion log clobbers)."""
+        import logging
+        import sys
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = True
+
+        mock_processor = MagicMock()
+        mock_model = MagicMock()
+
+        mock_transformers = MagicMock()
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+        path = "/models/siglip2-unit-test-path"
+        with caplog.at_level(logging.INFO):
+            await load_clip_model(path)
+
+        infos = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+        assert any(m.startswith("Loading SigLIP 2 model from") and path in m for m in infos), infos
+        assert any(
+            m.startswith("Successfully loaded SigLIP 2 model from") and path in m for m in infos
+        ), infos
+
+    @pytest.mark.asyncio
+    async def test_cuda_move_is_logged(self, monkeypatch, caplog):
+        """Moving the model to CUDA must be logged — the operator's only signal
+        that GPU placement happened (kills C2)."""
+        import logging
+        import sys
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = True
+
+        mock_cuda_model = MagicMock()
+        mock_model = MagicMock()
+        mock_model.cuda.return_value = mock_cuda_model
+
+        mock_processor = MagicMock()
+
+        mock_transformers = MagicMock()
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+        with caplog.at_level(logging.INFO):
+            await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
+
+        infos = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+        assert "SigLIP 2 model moved to CUDA" in infos, infos
+
+    @pytest.mark.asyncio
+    async def test_failure_error_record_carries_traceback_and_model_path(self, monkeypatch, caplog):
+        """The failure handler must log ERROR with exc_info=True (traceback in the
+        log) and the structured extra model_path field (kills C5)."""
+        import logging
+        import sys
+
+        mock_transformers = MagicMock()
+        mock_transformers.AutoProcessor.from_pretrained.side_effect = RuntimeError("boom")
+
+        monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+        path = "/nonexistent/siglip-path"
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
+                await load_clip_model(path)
+
+        errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert errors
+        rec = errors[-1]
+        assert rec.exc_info and rec.exc_info[0] is RuntimeError, rec.exc_info
+        assert getattr(rec, "model_path", None) == path
+        # The record must remain human-locatable: a clobbered message renders as
+        # the literal string "None" (kills the message→None clobber without
+        # pinning error-log prose).
+        assert rec.getMessage() != "None", rec.getMessage()
