@@ -603,10 +603,9 @@ lazy-import **hard failures** (5× `module 'triton' has no attribute 'language'`
       `ModuleNotFoundError` during an `ai/` session.
 - [ ] **DECIDE between two real options:** (i) scope the `ai/tests/conftest.py` insertion to a
       fixture with teardown; (ii) rename `ai/triton` — noting that a rename touches
-      `ai/gateway/triton_client.py` and `ai/triton/model_repository/`, which
-      `ai/gateway/Dockerfile:47` copies to `/models/repository/`, making it an
-      **owner-review-required** Dockerfile-adjacent change. Option (i) is strongly
-      preferred.
+      `ai/gateway/triton_client.py` and `ai/triton/model_repository/`, which `ai/gateway/
+  Dockerfile:47` copies to `/models/repository/`, making it an **owner-review-required**
+      Dockerfile-adjacent change. Option (i) is strongly preferred.
 - [ ] **MEASURE:** whole-tree `ai/` collection errors after. Target 0.
 
 ### WP6.3: Fix the live `prompts.py` crash — without touching container imports. Cap 4h
@@ -1196,3 +1195,94 @@ tier scope (WP9.2).
 Phase 8 is the largest allocation on purpose: it is the deliverable. Phases 5 and 6 are its
 preconditions, not its competitors. **WP caps sum to more than each phase budget — caps are worst
 case. If actuals exceed the phase budget, apply the drop order.**
+
+---
+
+# ADDENDUM 2026-09-19 — verified corrections from the handoff pass
+
+Eight agents, two red teams, run after the body above was written. **These override anything
+above that conflicts.** Each reproduces against the tree.
+
+## A1. `--import-mode=importlib` silently DROPS 60 tests
+
+`importmode` is **not** a pytest ini option — `Config.getini` has no `addini("importmode")` in
+pytest 9.0.3, so setting it in `pyproject.toml` does nothing. Passing `--import-mode=importlib` on
+the command line **does** work, and it drops
+`backend/tests/integration/test_enrichment_edge_cases.py` and `test_multimodal_pipeline.py` with
+`ModuleNotFoundError: No module named 'tools'`. Adding `-o pythonpath=.` restores **exactly 60**
+tests.
+
+**Consequence for WP6 (un-dark `ai/`):** importlib mode is not a free fix. If you use it, you must
+also set `pythonpath`, and you must MEASURE collected-test counts before and after and record both.
+A repair that un-darkens `ai/` while silently dropping 60 backend integration tests is a net loss
+and would not be caught by any existing gate.
+
+## A2. The coverage floor has FOUR numbers and no pinned denominator — RULING `R-COVDENOM`
+
+| Source                                            | Value      | Denominator                       |
+| ------------------------------------------------- | ---------- | --------------------------------- |
+| `pyproject.toml:557` `fail_under`                 | **85**     | unit-only, as CI would measure it |
+| spec ("combined backend coverage is 87.9%")       | —          | unit+integration                  |
+| `scripts/validate.sh:376`                         | **80**     | combined data file                |
+| `.github/workflows/nightly-full-gate.yml:137-139` | **80**     | combined                          |
+| `scripts/test-runner.sh:29` `COVERAGE_THRESHOLD`  | **93**     | —                                 |
+| ledger L~3402, measured                           | **84.39%** | unit-tier only                    |
+
+**Scope consequence, and it enlarges the defect:** `integration-coverage-merge`
+(`ci.yml:905-941`) has **no combine step either** — it is download → `find` → Codecov. If the
+ruling is "combined", the integration merge needs the same `COVERAGE_FILE` treatment as the unit
+merge. Size **both** options for the owner; do not pick the one that passes.
+
+## A3. Frontend: all four metrics below floor, and 84% of the gap is quarantined — RULING `R-FEFLOOR`
+
+Measured, config unchanged, 0 failures, 216.09s, 779 files / 20,239 tests:
+
+| Metric     | Measured                 | Floor |
+| ---------- | ------------------------ | ----- |
+| statements | **80.00%** (31552/39438) | 83    |
+| branches   | **74.61%** (24254/32505) | 77    |
+| functions  | **78.44%** (8750/11154)  | 81    |
+| lines      | **80.93%** (29967/37028) | 84    |
+
+**991 of the 1,182 missing statements (84%) are in the 14 source files quarantined at
+`frontend/vite.config.ts:357-377`.** So this is a quarantine problem wearing a floor problem's
+clothes. Do not lower a floor. Present: repair the quarantine first, or register a second floor
+with an owner and expiry.
+
+## A4. PR #6556 — capture the existing red; do NOT author a new test
+
+Two CI-wired tests are already red on the branch and currently invisible:
+
+```bash
+uv run python -m pytest \
+  scripts/test_ratchet_check.py::test_real_tree_ratchet_is_green \
+  scripts/test_suppression_census.py::test_real_tree_matches_spec_baselines -q
+```
+
+Run both first, paste both failure texts verbatim into the commit body, fix, re-run green.
+
+**Census ids are `path:lineno`** (`scripts/suppression-census.py:379`), not test-name keyed. Any
+insertion above the skip silently changes its id and the ratchet then reports STALE **and**
+UNREGISTERED together. Confirm `test_media.py` is final before regenerating.
+
+**Masking:** the census step (`ci.yml:104-107`) exits 1 and kills the job **before** the ratchet
+step (`:115-116`) and the gate self-tests (`:126-180`) ever run. **Two further reds sit behind this
+one.** Run the job's whole step sequence locally before pushing.
+
+**Registry is machine-minted.** Run `uv run python scripts/suppression-registry-gen.py` with no
+`--only`. Never hand-edit `.github/suppression-registry.yml`. `ratchet-check.py:216-229` only ever
+lowers counts and `--update` cannot raise one — that asymmetry is deliberate. Do not dodge the skip
+with a `# noqa`, do not restructure the test to avoid it, do not delete the probe.
+
+## A5. Six owner RULINGS are outstanding
+
+`R-COVDENOM` (A2), `R-FEFLOOR` (A3), `R-T9-SCENEPERSIST`, `R-T9-JOBSTATEDUP`,
+`R-PERFAUDIT-FREEZEGUN`, `R-WP44SCOPE`.
+
+**The owner is away and cannot answer.** Per the goal prompt: park each in L with the options, the
+measured evidence and your recommendation, then proceed. Do **not** stall, and do **not** pick the
+option that makes a gate pass.
+
+Unblocked regardless of the answers: making coverage **compute** (as opposed to deciding what it
+gates), the `ai/` collection repair, and the whole contract/conformance body of work. That is the
+"make it compute, don't make it gate" split — honour it.
