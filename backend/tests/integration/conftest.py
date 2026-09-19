@@ -1350,6 +1350,16 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
     scan rows). With database-per-worker isolation, TRUNCATE is safe to use
     without AccessExclusiveLock deadlocks.
 
+    Issues ONE ``TRUNCATE TABLE t1, t2, ... CASCADE`` command per sweep
+    (Postgres accepts a comma-separated table list) rather than one
+    round-trip per table. The per-table loop cost 74 round-trips per sweep,
+    run twice per test, and its wall time scales with per-round-trip latency
+    — which is exactly what slow CI storage amplifies. That per-test cost is
+    what pushed 4 tests over the 10s ``test-performance-audit`` threshold in
+    #6553; the single command is ~3x faster even on local postgres. The
+    comma list follows the reflected FK-safe deletion order, so CASCADE
+    still walks children-before-parents regardless of lock ordering.
+
     Implements retry logic with exponential backoff for transient failures.
 
     The table order is automatically determined using SQLAlchemy's reflection
@@ -1378,22 +1388,52 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                     # Disable FK checks temporarily for faster truncation
                     await session.execute(text("SET session_replication_role = replica"))
 
-                    # Truncate all test-related data in FK-safe order
-                    # The order is automatically computed from foreign key relationships
-                    for tbl in deletion_order:
-                        try:
-                            # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
-                            # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                            # Add per-table timeout to prevent hanging on large tables
-                            await asyncio.wait_for(
-                                session.execute(text(f"TRUNCATE TABLE {tbl} CASCADE")),  # nosemgrep
-                                timeout=5.0,
-                            )
-                        except TimeoutError:
-                            logger.warning(f"Truncate timed out for table {tbl}, skipping")
-                        except Exception as e:
-                            # Skip tables that don't exist - they may not be migrated yet
-                            logger.debug(f"Skipping table {tbl}: {e}")
+                    # Truncate all test-related data in ONE command, tables in
+                    # FK-safe order (dependents first, so CASCADE still walks
+                    # children before parents).
+                    # Safe: names come from the SQLAlchemy inspector (trusted
+                    # source), not user input (nosemgrep markers on both
+                    # f-strings below/above).
+                    try:
+                        table_list = ", ".join(deletion_order)
+                        await asyncio.wait_for(
+                            session.execute(
+                                text(f"TRUNCATE TABLE {table_list} CASCADE")
+                            ),  # nosemgrep
+                            timeout=5.0,
+                        )
+                    except Exception as e:
+                        # The command is all-or-nothing: an unmigrated table in
+                        # the list (or a timeout) fails every table and aborts
+                        # the transaction. Roll back, then run the original
+                        # per-table sweep, which skips bad tables individually.
+                        # Two Postgres semantics matter here:
+                        # - plain SET inside a transaction is reverted by a
+                        #   rollback, so re-issue the FK suppression;
+                        # - each per-table failure still aborts the surrounding
+                        #   transaction, so isolate each table with a
+                        #   SAVEPOINT (begin_nested) instead of poisoning the
+                        #   rest of the sweep.
+                        logger.debug(
+                            f"Batched TRUNCATE failed ({e}); falling back to per-table sweep"
+                        )
+                        await session.rollback()
+                        await session.execute(text("SET session_replication_role = replica"))
+                        for tbl in deletion_order:
+                            try:
+                                async with session.begin_nested():
+                                    # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
+                                    await asyncio.wait_for(
+                                        session.execute(
+                                            text(f"TRUNCATE TABLE {tbl} CASCADE")  # nosemgrep
+                                        ),
+                                        timeout=5.0,
+                                    )
+                            except TimeoutError:
+                                logger.warning(f"Truncate timed out for table {tbl}, skipping")
+                            except Exception as te:
+                                # Skip tables that don't exist - they may not be migrated yet
+                                logger.debug(f"Skipping table {tbl}: {te}")
 
                     # Re-enable FK checks
                     await session.execute(text("SET session_replication_role = DEFAULT"))
