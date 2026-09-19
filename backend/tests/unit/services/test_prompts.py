@@ -14,6 +14,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -7695,6 +7696,162 @@ class TestFormatDetectionsWithQualitySignature:
         # Should mention key concepts
         assert "quality" in docstring.lower()
         assert "detection" in docstring.lower()
+
+
+class TestFormatDetectionsWithQualityExecution:
+    """WP6.3: the function must EXECUTE in the backend process.
+
+    The signature tests above were written to avoid importing
+    ai.yolo26.model — and in doing so proved nothing: the runtime
+    `from ai.yolo26.model import ...` inside the function raised
+    ModuleNotFoundError: No module named 'metrics' in the backend
+    process, so a production-path prompt builder was broken and 100%
+    invisible to the suite. These tests CALL it. The fix is a pure-leaf
+    ai/yolo26/contract.py (stdlib+pydantic only) — the second test pins
+    that the call costs the backend process no torch import.
+    """
+
+    def test_formats_real_detections(self) -> None:
+        """Call with real detection dicts; assert the formatted output."""
+        detections = [
+            {
+                "class": "person",
+                "confidence": 0.82,
+                "bbox": {"x": 500, "y": 300, "width": 300, "height": 600},
+            },
+            {
+                "class": "car",
+                "confidence": 0.55,
+                "bbox": {"x": 900, "y": 800, "width": 100, "height": 80},
+            },
+        ]
+        out = format_detections_with_quality(detections, 1920, 1080)
+        assert "## DETECTIONS WITH QUALITY INDICATORS" in out
+        assert "PERSON" in out
+        assert "Good confidence" in out  # 0.82 -> GOOD tier
+        assert "MARGINAL confidence" in out  # 0.55 -> MARGINAL tier
+        assert "## DETECTION QUALITY SUMMARY" in out
+        assert "verify before acting" in out
+
+    def test_execution_survives_unimportable_torch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Formatting a prompt must not need torch in the backend process.
+
+        Stronger than asserting absence afterwards: block `import torch`
+        entirely (the sys.modules-None trick) and require the call to
+        succeed anyway. A pure-leaf contract import passes; anything that
+        drags ai.yolo26.model (module-level torch) in fails with
+        ImportError. Deliberately does NOT delete a loaded torch —
+        re-executing torch/__init__ re-registers TORCH_LIBRARY('triton')
+        and dies in a way unrelated to the fix.
+        """
+        monkeypatch.setitem(sys.modules, "torch", None)
+        detections = [
+            {
+                "class": "dog",
+                "confidence": 0.95,
+                "bbox": {"x": 10, "y": 10, "width": 20, "height": 20},
+            },
+        ]
+        out = format_detections_with_quality(detections, 640, 480)
+        assert "## DETECTIONS WITH QUALITY INDICATORS" in out
+
+
+class TestDetectionContractParity:
+    """WP9.1: ai/yolo26/contract.py must stay behaviorally identical to
+    model.py's inline copies of the same symbols (the Dockerfile's per-file
+    COPY list keeps both; if they diverge, prompts.py and the container
+    disagree about what a "marginal" detection even is).
+
+    Compares behavior, not source text: same tier boundaries, same
+    explanation strings, same spatial math, same prompt formatting — across
+    a grid of inputs. Importing ai.yolo26.model here is deliberate: this is
+    the ONLY prompt test allowed to pull torch (contract divergence is a
+    torch-cost problem the execution tests must not pay).
+    """
+
+    def test_contract_symbols_match_model_copy(self) -> None:
+        from ai.yolo26 import contract
+        from ai.yolo26.model import (
+            ConfidenceQuality as ModelQuality,
+        )
+        from ai.yolo26.model import (
+            compute_confidence_quality as model_quality,
+        )
+        from ai.yolo26.model import (
+            compute_spatial_context as model_spatial,
+        )
+        from ai.yolo26.model import (
+            enhance_detections as model_enhance,
+        )
+        from ai.yolo26.model import (
+            get_confidence_explanation as model_explain,
+        )
+
+        assert [q.value for q in contract.ConfidenceQuality] == [q.value for q in ModelQuality]
+        # The two classes are DISTINCT classes (model.py keeps its inline
+        # copy for the container), so `is` can never hold. What the seam
+        # needs is str-equality AND name-hash equality: prompts.py keys a
+        # dict by tier, so a model-produced member must look up a
+        # contract-keyed dict slot.
+        assert contract.ConfidenceQuality.MARGINAL == ModelQuality.MARGINAL
+        assert hash(contract.ConfidenceQuality.MARGINAL) == hash(ModelQuality.MARGINAL)
+        probe = {contract.ConfidenceQuality.GOOD: 1}
+        probe[ModelQuality.GOOD] = 2  # KeyError if either eq or hash diverges
+        assert probe[contract.ConfidenceQuality.GOOD] == 2
+
+        confidences = [0.0, 0.3, 0.59, 0.6, 0.74, 0.75, 0.89, 0.9, 0.95, 1.0]
+        for c in confidences:
+            assert contract.compute_confidence_quality(c) == model_quality(c), c
+            assert contract.get_confidence_explanation(
+                contract.compute_confidence_quality(c), c
+            ) == model_explain(model_quality(c), c), c
+
+        boxes = [
+            (10, 10, 100, 200),
+            (0, 0, 10, 10),  # boundary corner
+            (1900, 1000, 20, 80),  # boundary far corner
+            (900, 500, 200, 100),  # center
+            (5, 540, 640, 5),  # exactly at threshold, middle row
+        ]
+        for x, y, w, h in boxes:
+            a = contract.compute_spatial_context(x, y, w, h, 1920, 1080)
+            b = model_spatial(x, y, w, h, 1920, 1080)
+            # dataclass __eq__ is same-class only — compare the fields
+            assert (
+                a.relative_position,
+                a.size_relative_to_frame,
+                a.is_at_boundary,
+                a.position_description,
+            ) == (
+                b.relative_position,
+                b.size_relative_to_frame,
+                b.is_at_boundary,
+                b.position_description,
+            ), (x, y, w, h)
+
+        dets = [
+            {
+                "class": "person",
+                "confidence": 0.82,
+                "bbox": {"x": 500, "y": 300, "width": 300, "height": 600},
+            },
+            {
+                "class": "car",
+                "confidence": 0.55,
+                "bbox": {"x": 900, "y": 800, "width": 100, "height": 80},
+            },
+            {"class_name": "dog", "confidence": 0.4, "bbox": "not-a-dict"},
+        ]
+        ca = contract.enhance_detections(dets, 1920, 1080)
+        ma = model_enhance(dets, 1920, 1080)
+        for one, two in zip(ca, ma, strict=True):
+            # dataclasses from different modules: compare fields + rendering
+            assert one.class_name == two.class_name
+            assert one.confidence_quality == two.confidence_quality
+            assert one.is_at_boundary == two.is_at_boundary
+            assert one.relative_position == two.relative_position
+            assert one.size_relative_to_frame == pytest.approx(two.size_relative_to_frame)
+            assert one.to_prompt_context() == two.to_prompt_context()
 
 
 # =============================================================================
