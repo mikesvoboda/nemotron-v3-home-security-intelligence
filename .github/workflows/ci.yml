@@ -118,6 +118,19 @@ jobs:
       # hand-raised baseline in the same reviewed commit.
       - name: Suppression ratchet (counts may only fall)
         run: uv run python scripts/ratchet-check.py
+      # WP9.1: cross-provider AI parity. The golden list pins the adjudicated
+      # Tier-A defect set (D1-D6, 21 ids — plan 2026-09-19-swap-readiness-72h
+      # §WP9.1); the gate FAILS on any divergence not in the list, and a
+      # VANISHING id fails too (GOLDEN-LOST) so fixes re-ratchet instead of
+      # rotting the baseline. Provider #4 cannot drift silently: a new
+      # divergence fails here naming its id until adjudicated, and fixing a
+      # defect means removing its id from .github/ai-parity-baseline.json in
+      # the same commit (same same-commit doctrine as the suppression
+      # baseline above; list members may only fall without owner review).
+      - name: AI provider parity (golden divergence list)
+        run: >-
+          uv run python scripts/check-ai-provider-parity.py
+          --expect .github/ai-parity-baseline.json
       # WP0.7: the two gates above are themselves tested; the suites sit
       # outside testpaths on purpose (no self-collection) — run explicitly.
       # A regression in either gate script fails here (scripts/test_*.py).
@@ -151,6 +164,10 @@ jobs:
           # imported status map — without CI the pin rots the day mutmut
           # upgrades, which is exactly when the score would start lying.
           scripts/test_mutation_score.py
+          # WP9.1: the parity checker's own tests joined with the gate —
+          # same doctrine: a gate with no CI is a gate that rots. Its
+          # synthetic provider-renames-a-key fixture is the plan's done-when.
+          scripts/test_check_ai_provider_parity.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
