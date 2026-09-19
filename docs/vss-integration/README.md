@@ -24,13 +24,35 @@ Agents should also read [`AGENTS.md`](AGENTS.md) for the evidence convention.
 ## The one-paragraph summary
 
 VSS and this project independently converged on the same architecture: a perception tier of
-specialized models feeding a reasoning tier. VSS's `services/rtvi/` (RT-CV, RT-Embed, RT-VLM)
-maps almost one-to-one onto our YOLO26, CLIP, and Florence-2, and both systems use Nemotron for
-reasoning. The opportunity is that VSS's sizing documentation stops at a 32 GB workstation card
-and its edge profiles target unified-memory devices — **nothing addresses a discrete consumer
-GPU.** The obstacles are VSS's heavy stateful infrastructure (Milvus, Elasticsearch, Neo4j,
-ArangoDB, Kafka), an unresolved question about whether NVIDIA credentials are needed at runtime,
-and an unresolved question about whether FP4 quantization actually works on consumer Blackwell.
+specialized models feeding a reasoning tier. VSS's `services/rtvi/` (RT-CV, RT-Embed, RT-VLM) maps
+almost one-to-one onto our YOLO26, CLIP, and Florence-2, and both use Nemotron for reasoning. The
+opportunity is that VSS's sizing documentation stops at a 32 GB workstation card and its edge
+profiles target unified-memory devices — **nothing addresses a discrete consumer GPU.**
+
+**A consumer configuration has since been verified to exist**: an ungated NVFP4 checkpoint
+(`NVIDIA-Nemotron-Nano-12B-v2-VL-NVFP4-QAD`, 10.62 GB, near-parity accuracy) plus RT-CV fits an
+RTX 5090 with 10.4 GB spare. Below ~24 GB the VLM shape stops fitting, and the only viable
+architecture is small specialized models feeding a small text LLM — **which is exactly what `ai/`
+already is.** VSS's own default shape cannot run on a single card at any precision, because two
+vLLM engines cannot share one GPU; ours can, because our perception servers are not vLLM engines.
+
+**The remaining obstacles are not the ones we started with.** The heavy stateful infrastructure is
+avoidable (see `07`). What is _not_ yet settled: whether NVFP4 actually computes on consumer
+Blackwell (`sm_120`) rather than dequantizing to 16-bit; the NIM licensing and redistribution
+terms, which are a legal question and not in the repo; and a set of verified defects in _this_
+repository — backend and frontend coverage compute nothing, and the `ai/` tier's tests largely do
+not collect — which must be fixed before any swap claim can be believed (see `06`).
+
+## Current state and what to do next
+
+Nothing is decided and nothing is implemented. The recommended order:
+
+1. **Talk to the VSS team** (~30 min). Higher information per hour than any experiment here, and
+   it should precede a fork decision rather than follow one. Questions in `06` §4 and `07` §6.
+2. **Fix this repo's coverage and `ai/` collection** (`06` §1). Hours of work, and until it lands
+   every number produced here is unverifiable.
+3. **Run the salience demo**, not a latency benchmark (`06` §4). Fifty boring frames.
+4. **Send the consumer-GPU procurement request.** Longest lead time, five minutes of effort.
 
 ## Evidence convention
 

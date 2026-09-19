@@ -141,8 +141,8 @@ Flagged deliberately so they are not lost:
 
 ## In-flight investigations
 
-Three multi-agent investigations were dispatched on 2026-09-18 and had not reported when this
-document was written:
+Three multi-agent investigations were dispatched on 2026-09-18. **All three have since
+completed:**
 
 1. ~~**Pivot assessment**~~ — **COMPLETE 2026-09-19**, folded into
    [`06-repo-a-readiness.md`](06-repo-a-readiness.md). Verdict: merge #6556, decline further
@@ -154,8 +154,12 @@ document was written:
    [`07-lean-backend.md`](07-lean-backend.md). Verdict: overlay downstream, do not open an
    upstream PR first; lead with GPU topology, not storage.
 
-**If you are a future agent and these results are not reflected in this directory, they were never
-folded in.** Do not assume they were. Re-run the investigation or treat the questions as open.
+**All three landed and are folded in** (commits `2690e1ce`, `39ee3679`, `7f42521d`). Their
+findings corrected several earlier claims in this directory — most importantly the 4-bit sizing
+arithmetic in [`02-model-inventory.md`](02-model-inventory.md), which is now boxed as wrong.
+
+A fourth workstream — drafting handoff prompts for the agent executing the test-platform program —
+was in flight when this was written and is **not** captured here.
 
 ## What to verify first
 

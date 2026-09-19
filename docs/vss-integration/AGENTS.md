@@ -73,7 +73,11 @@ relying on it.** A citation that fails to resolve means VSS moved, not that the 
 
 **File:** [`00-context.md`](00-context.md)
 
-Read in order: `00` → `01` → `02` → `03`. The numbering is a reading order, not a priority order.
+Read in order: `00` → `07`. The numbering is a reading order, not a priority order.
+
+**If you only read two:** [`06-repo-a-readiness.md`](06-repo-a-readiness.md) for what to do next
+in this repo, and [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md) for whether the consumer
+thesis holds.
 
 ### Answering "will X fit on a consumer GPU?"
 
