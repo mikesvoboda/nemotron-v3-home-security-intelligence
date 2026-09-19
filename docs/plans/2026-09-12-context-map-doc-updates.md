@@ -5271,3 +5271,46 @@ autospec conversions cannot flip a census kill verdict (a stricter mock adds
 kills, never masks an assert). Feed re-synced per HANDOFF §3.3 (nine >1 MB
 regenerable scratch diffs held out of the commit by the large-file gate; durable
 content lives in the committed records/ledgers).
+
+## WP4.4 RECORD 2026-09-19 — wave-66 closeout: 8-module kill batches, 180 STRICT kills, stale-mutants-tree protocol
+
+Wave-66 (8-module dossier wave, 273 survivors) authored serially — 30 tests
+across 9 files, each green-proved under `-p no:randomly -n 0`, then STRICT
+kill censuses (kill = rc in (1,3), cwd=mutants/, -n 0, 0 no-verdicts).
+MEASURE (per module, open→killed → module %): admin 30→30 → **100.0%**
+(cleared; was 70.6), alertmanager 34→27 → 83.7 (was 20.9),
+file_cleanup_service 33→25 → 93.6 (was 73.6), session_service 35→22 → 78.3
+(was 41.7), batch_fetch 36→19 → 83.2 (was 64.4; arbiter caught = 44 kills +
+21 timeouts), baseline_config 33→22 → 90.0 (was 70.0),
+scene_change_detector 34→16 → 91.1 (was 83.3), calibration 38→19 → 77.1
+(was 54.2). **Wave-66 total: 180 new module kills.** All 94 residual survivors
+reconcile to dossier EQUIVALENT/LOW-VALUE clusters exactly.
+
+DECIDE (mechanism-level, this wave): (1) file_cleanup `delete_files_batch__16`
+(`total_failed += -> =`) survived v1 because the drafted batch test put the
+only failure on the LAST event — a last-wins `=` is unobservable when the
+final contributor is the nonzero one; v2 rebalanced so the FIRST event owns
+every nonzero aggregate. Corollary pinned in the test docstring.
+(2) scene_change `detect_changes__84` (drops the `is_first_frame=False`
+kwarg) is EQUIVALENT — the dataclass default IS False; recorded as a
+post-census addendum. (3) calibration needed no real DB: the dossier's
+IntegrityError framing was right about blast radius but the mock blindness
+was the tests' `refresh.side_effect` re-writing mutated attrs — a refresh stub
+supplying only DB-generated columns makes constructor/assignment mutants die
+under plain mocks.
+
+CENSUS-INTEGRITY PROTOCOL (this wave's institutional finding): the kill-probe
+runs pytest with cwd=mutants/, and the mutants tree mirrors the WHOLE repo
+including backend/tests/ at the run6 snapshot — mutant sources are live but
+TEST copies are stale, so a census can record a clean, fully-green 0-kills run
+against tests that were never seen (admin first-round 0/30 with rc=0
+throughout — structurally impossible). Detection signature: a 0-kill fold with
+all survivor keys intact. Fix (now standing protocol): `cp` every touched test
+file into the same rel path under `mutants/`, green-proof the synced copies
+in-tree, hand-verify one known-kill key goes RED, only then launch.
+First-round wave-66 JSONLs quarantined under
+`/tmp/wp25/wp44-kills/pre-wave66-bogus/`.
+
+Band state after wave-66: 33 untouched band modules remain
+(.wp25-feed/wp44-queue-index.md WAVE 66 KILL FOLD). Commits: 8 per-module
+test(wp44) batches + this record. Next: wave-67 dispatch.
