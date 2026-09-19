@@ -1287,3 +1287,63 @@ option that makes a gate pass.
 Unblocked regardless of the answers: making coverage **compute** (as opposed to deciding what it
 gates), the `ai/` collection repair, and the whole contract/conformance body of work. That is the
 "make it compute, don't make it gate" split — honour it.
+
+---
+
+# ADDENDUM 2 — 2026-09-19, owner ruling. **This narrows a rule in the session goal.**
+
+## A6. `RULING L#2026-09-19-wp56-test-collision` — ANSWERED. The blunt test-file rule is narrowed.
+
+**The conflict you correctly parked.** The session goal states flatly **"NEVER a test file, fixture
+or conftest."** WP5.6's checklist says WP5.6 deletes modules **and their tests**. Both cannot hold,
+and the safe decomposition fails: deleting `job_state_service.py` while
+`test_job_state_service.py:17` still does `from backend.services.job_state_service import (...)`
+produces a collection error, i.e. a RED branch, which the branch-stays-GREEN rule forbids. You
+parked it and moved on. **That was the right call and the rule was the defect, not your reading of
+it.**
+
+**Why the rule was written that way.** Its purpose was to stop a test being deleted _to make a
+failure disappear_ — laundering. It was drafted too bluntly to distinguish that from deleting a
+test whose **subject no longer exists**, which is not laundering but bookkeeping.
+
+### The narrowed rule — replaces "NEVER a test file, fixture or conftest"
+
+> **Never delete a test to make a failure go away.** That prohibition is absolute and unchanged: no
+> deletion, skip, xfail, quarantine or assertion-widening of a test that is failing, flaky, or
+> inconvenient. If a test is red, it stays red and visible.
+>
+> **Deleting a test file is permitted in exactly one shape:** the _same commit_ that deletes the
+> production module it exclusively tests, when **all five** hold:
+>
+> 1. the module has **zero non-test importers**, by census, re-verified at commit time;
+> 2. the test file's subject is **exclusively** that module — if it also covers a surviving module,
+>    it is not eligible, split it or leave it;
+> 3. the test file is **currently green**. A red test may never be deleted under this clause —
+>    that is the laundering case, and it is how the two are told apart;
+> 4. the **reachability census is quoted in the commit body** (the grep/AST evidence, not a
+>    summary), alongside the count of tests removed;
+> 5. the suppression ratchet **does not increase**; if the deleted file carried suppressions, the
+>    registry and the `ci.yml --expect` literal move **down** in the same commit.
+>
+> **Still never, under any circumstance:** `conftest.py`, shared fixtures, or any file another test
+> imports from. Those are infrastructure, not subjects.
+
+### What this unparks — proceed without further asking
+
+- **WP5.6's two deletions.** `job_state_service.py` (+ `test_job_state_service.py`,
+  `test_job_state_transitions.py`) and `scene_change_service.py` (+ `test_scene_change_service.py`,
+  plus the `backend/services/__init__.py:318-321` re-export block and the `__all__` entries at 542
+  and 582). Your own three-way re-verification stands as the census; re-run it at commit time and
+  quote it. Expected ratchet movement: **none** — you measured these files carry zero suppressions,
+  so the baseline stays and that is a legitimate no-op, not a skipped step.
+- **The five WP7.3 items parked on the same rule.** Apply the five conditions to each independently.
+  Any that fails condition 2 or 3 **stays parked** — do not stretch the clause to fit.
+
+### What this does NOT unpark
+
+`WP6-C(a)` (segmentation test-file disposition) and `WP6-D` (the `test_model.py` near-duplicate
+twins) are **not** covered. Both are about test files whose _subject modules survive_, which is a
+different question — duplication and feature-scope, not bookkeeping. They stay owner-only.
+
+**Recording convention:** cite `L#2026-09-19-wp56-test-collision (ANSWERED, ADDENDUM 2 A6)` in each
+commit body that uses this clause, so the licence is traceable from any deletion.
