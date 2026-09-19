@@ -5351,7 +5351,8 @@ ONLY when census lane idle; reinstall pre-commit after any uv sync; then
 append draft to L with prettier fixed-point, ONE commit via commit-wp43.txt
 squatting WIP 99829f9c, push, watch CI).
 
-#6553 (branch feat/wp44-closeout… wait, PR branch is the DB-sweep fix chain):
+#6553 (PR branch fix/registry-drift-check, head c40acc39 — separate from
+feat/wp44-closeout):
 c40acc39 attempt-2 TPA reds were bit-identical to attempt-1 — `gh run rerun
 --failed` re-grades the STALE attempt-1 junit and can NEVER clear a TPA red;
 must use FULL `gh run rerun <run-id>` (no --failed) so TPA re-measures. Full
