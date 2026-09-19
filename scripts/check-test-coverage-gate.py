@@ -417,6 +417,19 @@ def check_coverage_diff(
                         "--cov=backend",
                         "--cov-report=json",
                         "--cov-fail-under=0",
+                        # Rerun parity with the shard jobs (ci.yml:675,797).
+                        # This inline collection under -n 8 load was the only
+                        # full-tier invocation WITHOUT the repo's rerun
+                        # convention, and it reddened the REQUIRED gate three
+                        # times on one branch with a DIFFERENT pytest-timeout
+                        # flake each time (all green locally + in shards).
+                        # Extraction is not enforcement: --cov-fail-under=0
+                        # above stays, so retries move no floor. Pinned by
+                        # backend/tests/unit/scripts/test_check_test_coverage_gate.py
+                        "--reruns",
+                        "2",
+                        "--reruns-delay",
+                        "5",
                         "-q",
                     ],
                     cwd=project_root,

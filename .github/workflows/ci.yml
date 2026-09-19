@@ -90,7 +90,11 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
       - name: Check tracked test files collect real tests
-        run: uv run --no-project python scripts/check-test-collection.py backend frontend
+        # `ai` added by WP6.5 - the tier was never even census-gated before.
+        # Cheap and NOT sufficient (AST-only: rc=0 measured on a tree with 19
+        # collection errors); the ai-tests job's --collect-only step is the
+        # import-error-visible gate.
+        run: uv run --no-project python scripts/check-test-collection.py backend frontend ai
       - name: Flake allowlist hygiene
         run: uv run --no-project python scripts/check-flake-allowlist.py
       # WP1.1: the escape-hatch census, measured on every CI run. The
@@ -1542,6 +1546,58 @@ jobs:
           path: frontend/coverage/
           retention-days: 7
 
+  # WP6.5: the ai/ tier (the deployed AI provider surface - Triton gateway
+  # adapters + Triton client + per-service model servers) was NEVER run in CI:
+  # no job invoked it and the collection checker only received backend and
+  # frontend. WP6.1-6.4 un-darkened the tier (1764 collected / 0 collection
+  # errors; ai/gateway 226 passed / 0 failed). Staged wiring: a collect-only
+  # gate over the WHOLE tier (import-error-visible: triton shadowing, flat-slot
+  # collisions - the WP6.2 class) plus RUN steps for subtrees green today.
+  # Subtrees with WP6.4 ledger-classified parked reds (ai/yolo26,
+  # ai/enrichment, ai/enrichment_light, ai/triton, ai/tests) join this run
+  # list as each drains - recorded in the plan ledger, never quarantined, so a
+  # parked-red subtree can never hold the branch red for a RECORDED reason.
+  ai-tests:
+    name: AI Tier Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [detect-changes, build-backend-deps]
+    # ai/** is already inside detect-changes' `backend` paths filter - no new
+    # output key invented; same if-shape as the other backend jobs.
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Collection gate (import errors fail the tier)
+        # check-test-collection.py only AST-parses files - it passed clean
+        # (0.159s, measured) on a tree with 19 collection errors. --collect-only
+        # IMPORTS them, so the triton-package shadow and flat-module name
+        # collisions WP6.1/WP6.2 fixed surface here as rc=2. Locally green:
+        # 1764 collected, 0 errors.
+        run: uv run pytest ai/ --collect-only -q --color=no
+
+      - name: AI gateway suite (deployed provider)
+        # 226 passed / 0 failed locally after WP6.4, no network required; the
+        # repo addopts exclude -m gpu nodes by default.
+        run: uv run pytest ai/gateway -q --color=no
+
   # Merge frontend coverage from all shards and upload to Codecov
   frontend-coverage-merge:
     name: Merge Frontend Coverage
@@ -2634,6 +2690,9 @@ jobs:
       # red to the verdict. Enforced by scripts/test_ci_job_graph.py.
       - collection-sanity
       - build-backend-deps
+      # WP6.5: the ai/ tier job. Direct need + check_job below - the WP0.6
+      # invariant (needs-but-never-inspects is the invisibility class).
+      - ai-tests
     if: always()
     steps:
       - name: Check required job results
@@ -2675,6 +2734,7 @@ jobs:
           check_job "Test Performance Audit" "${{ needs.test-performance-audit.result }}"
           check_job "Collection Sanity" "${{ needs.collection-sanity.result }}"
           check_job "Build Backend Dependencies" "${{ needs.build-backend-deps.result }}"
+          check_job "AI Tier Tests" "${{ needs.ai-tests.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
