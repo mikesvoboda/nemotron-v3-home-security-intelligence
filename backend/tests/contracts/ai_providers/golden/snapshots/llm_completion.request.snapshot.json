@@ -1,0 +1,13 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "llm_completion",
+  "properties": {
+    "n_predict": "integer",
+    "prompt": "string",
+    "stream": "boolean",
+    "temperature": "number"
+  },
+  "required": ["prompt"],
+  "side": "request"
+}

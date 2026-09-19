@@ -1,0 +1,15 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrichment_action_classify",
+  "properties": {
+    "action": "string",
+    "all_scores": "object",
+    "confidence": "number",
+    "inference_time_ms": "number",
+    "is_suspicious": "boolean",
+    "risk_weight": "number"
+  },
+  "required": ["action", "confidence", "inference_time_ms"],
+  "side": "response"
+}

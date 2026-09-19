@@ -105,16 +105,18 @@ class TestEmissionDeterminism:
         assert gen._ruff_formatted(src) == src
 
     def test_rendered_schemas_are_prettier_fixpoint(self, tmp_path):
-        """Schema bytes == hook-prettier(schema bytes). The JSON prettier hook
-        (mirrors-prettier + prettier@3.2.4, printWidth 100 from .prettierrc)
-        collapsed the generator's multi-line `required` arrays on the first
-        commit attempt - the same class of failure as the ruff one above.
-        prettier_canonical() implements the hook's rules (collapse iff the
-        line INCLUDING the parent's trailing comma fits printWidth; arrays of
+        """Artifact bytes == hook-prettier(artifact bytes) for EVERY generated
+        JSON file - schemas AND the WP7.2 goldens (snapshots + payloads). The
+        JSON prettier hook (mirrors-prettier + prettier@3.2.4, printWidth 100
+        from .prettierrc) collapsed the generator's multi-line `required`
+        arrays on the first commit attempt - the same class of failure as the
+        ruff one above. prettier_canonical() implements the hook's rules
+        (collapse a primitive-only or array-of-arrays value iff the line
+        INCLUDING the parent's trailing comma fits printWidth; arrays of
         objects always expand) rather than shelling out, so THIS test is the
-        agreement proof: it runs every emitted schema through a real
-        prettier - same shape as the hook (--parser json, --stdin-filepath so
-        .prettierrc resolves like the hook's invocation does)."""
+        agreement proof: it runs every emitted file through a real prettier -
+        same shape as the hook invocation (.prettierrc resolves, so printWidth
+        100 applies)."""
         candidates = [
             os.environ.get("PRETTIER_BIN"),
             str(REPO_ROOT / "frontend" / "node_modules" / ".bin" / "prettier"),
@@ -126,9 +128,14 @@ class TestEmissionDeterminism:
         # Batch ONE prettier process (per-file invocations blow the test
         # timeout); .prettierrc is copied alongside so config resolves like
         # it does for the real hook invocation (printWidth 100 is the rule).
-        payloads = gen.render_schemas()
-        for name, payload in payloads.items():
-            (tmp_path / name).write_text(payload, encoding="utf-8")
+        payloads = {
+            rel: content for rel, content in gen._generated_files().items() if rel.endswith(".json")
+        }
+        assert len(payloads) > 36, "goldens missing from _generated_files()"
+        for rel, payload in payloads.items():
+            target = tmp_path / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(payload, encoding="utf-8")
         shutil.copy(REPO_ROOT / ".prettierrc", tmp_path / ".prettierrc")
         proc = subprocess.run(
             [prettier, "--write", "--no-color", *sorted(payloads)],
@@ -138,10 +145,10 @@ class TestEmissionDeterminism:
             check=False,
         )
         assert proc.returncode == 0, f"prettier failed: {proc.stderr}"
-        for name, payload in payloads.items():
-            after = (tmp_path / name).read_text(encoding="utf-8")
+        for rel, payload in payloads.items():
+            after = (tmp_path / rel).read_text(encoding="utf-8")
             assert after == payload, (
-                f"{name}: emitted bytes are not the prettier fixpoint - "
+                f"{rel}: emitted bytes are not the prettier fixpoint - "
                 "the commit hook WILL rewrite the file (drift-gate red). "
                 f"first difference: {_first_diff(payload, after)}"
             )

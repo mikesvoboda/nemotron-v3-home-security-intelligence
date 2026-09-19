@@ -1,0 +1,14 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_depth_estimate",
+  "properties": {
+    "depth_map_base64": "string",
+    "inference_time_ms": "number",
+    "max_depth": "number",
+    "mean_depth": "number",
+    "min_depth": "number"
+  },
+  "required": ["depth_map_base64", "inference_time_ms", "max_depth", "mean_depth", "min_depth"],
+  "side": "response"
+}

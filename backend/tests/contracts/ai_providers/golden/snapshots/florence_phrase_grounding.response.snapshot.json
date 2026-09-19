@@ -1,0 +1,11 @@
+{
+  "defs": ["GroundedPhrase"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_phrase_grounding",
+  "properties": {
+    "grounded_phrases": "array<ref(GroundedPhrase)>",
+    "inference_time_ms": "number"
+  },
+  "required": ["grounded_phrases", "inference_time_ms"],
+  "side": "response"
+}

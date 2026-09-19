@@ -1,0 +1,16 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_pet_classify",
+  "properties": {
+    "breed": "string",
+    "cat_score": "number",
+    "confidence": "number",
+    "dog_score": "number",
+    "inference_time_ms": "number",
+    "is_household_pet": "boolean",
+    "pet_type": "string"
+  },
+  "required": ["breed", "confidence", "inference_time_ms", "is_household_pet", "pet_type"],
+  "side": "response"
+}

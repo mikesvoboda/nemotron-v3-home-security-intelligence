@@ -1,0 +1,11 @@
+{
+  "detections": [
+    {
+      "bbox": [1.0],
+      "confidence": 0.9,
+      "label": "sample_label"
+    }
+  ],
+  "inference_time_ms": 1.0,
+  "objects_queried": ["sample_objects_queried"]
+}

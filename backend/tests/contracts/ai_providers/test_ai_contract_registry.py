@@ -18,7 +18,10 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# parents[4]: ai_providers -> contracts -> tests -> backend -> repo root.
+# (parents[3] silently resolves to backend/ and the CLIENT_GLOBS match NOTHING
+# - the map test was vacuously green until the WP7.2 window caught it.)
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # The 38 operations, derived from the deployed surfaces (each verified by file
 # evidence at the time of drafting; the generator regenerates the registry from
@@ -95,9 +98,23 @@ CLIENT_GLOBS = (
     "backend/services/enrichment_client.py",
 )
 
+# The consumer classes themselves, NOT every class those modules define: the
+# modules also carry the result dataclasses (BoundingBox, UnifiedPoseResult,
+# ...) whose to_dict/to_context_string methods are serialization helpers, not
+# HTTP call sites. The registry maps consumer methods to operations; a
+# dataclass method has no operation to map to and must not appear in the
+# scan. Drift on this set is caught by the map test itself: a renamed client
+# class drops its methods from CLIENT_METHODS... no - it stays in the map and
+# the scan finds nothing, which is why the test asserts BOTH directions.
+CLIENT_CLASSES = frozenset({"DetectorClient", "CLIPClient", "FlorenceClient", "EnrichmentClient"})
+
 
 def _public_client_methods() -> set[str]:
-    """AST-collect public method names of classes in the client modules.
+    """AST-collect "Class.method" for public methods of the client classes.
+
+    Qualified names, matching CLIENT_METHODS keys: bare names collide across
+    the four classes (three of them all define detect/health-style methods),
+    and the registry's judgement is per-class anyway.
 
     AST, not import: a test that imports the clients drags settings/redis
     singletons in; the registry test must stay a pure structural check.
@@ -107,12 +124,12 @@ def _public_client_methods() -> set[str]:
         for path in sorted(REPO_ROOT.glob(glob)):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
+                if isinstance(node, ast.ClassDef) and node.name in CLIENT_CLASSES:
                     for sub in node.body:
                         if isinstance(
                             sub, (ast.FunctionDef, ast.AsyncFunctionDef)
                         ) and not sub.name.startswith("_"):
-                            methods.add(sub.name)
+                            methods.add(f"{node.name}.{sub.name}")
     return methods
 
 
@@ -168,16 +185,25 @@ class TestContractRegistry:
             }, f"{op.id} availability matrix is missing provider slots"
 
     def test_every_client_method_maps_to_an_operation(self) -> None:
-        """No consumer method may hit a path the registry doesn't declare -
-        that inversion (client knows a route the contract doesn't) is exactly
-        how the four phantom Tier-A paths were born."""
+        """Exactly two-way agreement between the client classes' public
+        surface and the registry's CLIENT_METHODS map.
+
+        - scan minus map: a consumer method the registry doesn't declare -
+          that inversion (client knows a route the contract doesn't) is
+          exactly how the four phantom Tier-A paths were born.
+        - map minus scan: a stale mapping (method renamed away, or a client
+          class renamed so the scan no longer sees it) - one-directional
+          testing would stay green while the map rotted.
+        Helpers that make no HTTP call are whitelisted IN the registry
+        (mapped_to=None records that judgement, generated-side).
+        """
         from backend.ai_contract.operations import CLIENT_METHODS
 
-        unmapped = _public_client_methods() - set(CLIENT_METHODS)
-        # _public_client_methods returns every public method on the client
-        # classes; helpers that make no HTTP call are whitelisted IN the
-        # registry (mapped_to=None records that judgement, generated-side).
+        scanned = _public_client_methods()
+        unmapped = scanned - set(CLIENT_METHODS)
+        stale = set(CLIENT_METHODS) - scanned
         assert not unmapped, f"client methods with no registry mapping: {sorted(unmapped)}"
+        assert not stale, f"registry mappings whose client method is gone: {sorted(stale)}"
 
     def test_availability_matrix_is_generated_not_hand_maintained(self) -> None:
         """The matrix file carries the generator's provenance header; CI

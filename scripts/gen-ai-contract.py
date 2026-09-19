@@ -594,7 +594,9 @@ def _json_node(node: object, indent: int, suffix: str) -> str:
     pad_in = " " * (indent + 2)
     if isinstance(node, dict):
         if not node:
-            raise ValueError("empty object (shape not verified against the hook)")
+            # hook bytes probed: an empty object prints inline ("{}") as a
+            # dict value and inside arrays ("[{}, ...]" is not generated here)
+            return "{}"
         keys = sorted(node)
         parts = [
             f"{pad_in}{json.dumps(k)}: "
@@ -609,9 +611,26 @@ def _json_node(node: object, indent: int, suffix: str) -> str:
             single = json.dumps(node)
             if len(pad) + len(single) + len(suffix) <= _PRINT_WIDTH:
                 return single
+            parts = [pad_in + _json_node(e, indent + 2, "") for e in node]
+            return "[\n" + ",\n".join(parts) + "\n" + pad + "]"
+        if all(isinstance(e, list) for e in node):
+            # array of arrays (array<array<T>> schemas): same fits rule as a
+            # primitive array - collapse iff the joined collapsed form fits
+            inner = [
+                _json_node(e, indent, "," if i < len(node) - 1 else "") for i, e in enumerate(node)
+            ]
+            if all("\n" not in s for s in inner):
+                joined = "[" + ", ".join(inner) + "]"
+                if len(pad) + len(joined) + len(suffix) <= _PRINT_WIDTH:
+                    return joined
+            parts = [
+                pad_in + _json_node(e, indent + 2, "," if i < len(node) - 1 else "")
+                for i, e in enumerate(node)
+            ]
+            return "[\n" + ",\n".join(parts) + "\n" + pad + "]"
         elif not all(isinstance(e, dict) and e for e in node):
             raise ValueError(
-                "array mixes primitives with containers, or nests arrays/empties "
+                "array mixes primitives with containers, or holds empty objects "
                 "(shape not verified against the hook)"
             )
         parts = [
@@ -643,6 +662,153 @@ def render_schemas() -> dict[str, str]:
     return out
 
 
+# ---------------------------------------------------------------- WP7.2 goldens
+
+GOLDEN_DIR = REPO_ROOT / "backend/tests/contracts/ai_providers/golden"
+GOLDEN_GENERATOR = "scripts/gen-ai-contract.py"
+
+
+def _example_for(key: str, prop: dict, defs: dict, depth: int = 0) -> Any:
+    """Deterministic wire instance for one property schema.
+
+    No randomness, no time - the bytes are a pure function of the contract,
+    so --check stays a drift gate. Values are hint-shaped (an image key gets
+    "ZmFrZS1pbWFnZQ==", a confidence gets 0.9) purely for human readability;
+    validation - not the value content - is what the goldens prove.
+    """
+    if depth > 8:
+        raise SystemExit(f"gen-ai-contract: recursive $ref at {key}")
+    if "$ref" in prop:
+        return _example_obj(defs[prop["$ref"].rsplit("/", 1)[-1]], defs, depth + 1)
+    if "anyOf" in prop:
+        # contract-wide vocabulary (surveyed WP7.2): anyOf is ONLY
+        # [X, null] - satisfy it with the non-null branch
+        for branch in prop["anyOf"]:
+            if branch.get("type") != "null":
+                return _example_for(key, branch, defs, depth)
+        return None
+    t = prop.get("type", "object" if "properties" in prop else "string")
+    if t == "string":
+        if prop.get("contentEncoding") == "binary":
+            return "ZmFrZS1pbWFnZQ=="  # b"fake-image"
+        lk = key.lower()
+        if "base64" in lk or "image" in lk or "mask" in lk or "thumbnail" in lk:
+            return "ZmFrZS1pbWFnZQ=="
+        if "time" in lk or "timestamp" in lk:
+            return "2026-09-19T00:00:00Z"
+        return f"sample_{key}"
+    if t == "number":
+        return 0.9 if "confidence" in key.lower() or "score" in key.lower() else 1.0
+    if t == "integer":
+        return 1
+    if t == "boolean":
+        return False
+    if t == "array":
+        items = prop.get("items")
+        return [_example_for(key, items, defs, depth + 1)] if items else []
+    if t == "object":
+        if "properties" in prop:
+            # every property in an example, not just required: the payload
+            # golden doubles as the reference both sides import, and the
+            # contract test asserts every declared key appears
+            return _example_obj(prop, defs, depth)
+        if isinstance(prop.get("additionalProperties"), dict):
+            # open dict - one entry exercises the value schema (validated)
+            return {
+                "sample": _example_for(f"{key}_value", prop["additionalProperties"], defs, depth)
+            }
+        # free-form dict (additionalProperties true/absent): a one-entry
+        # instance. Empty {} would do at the root, but as an ARRAY ITEM the
+        # hook's shape is unverified (and _json_node refuses it), so free-form
+        # always gets the same honest sample entry - additionalProperties:true
+        # validates any key, so "sample" is as contract-true as anything.
+        return {"sample": "sample_value"}
+    return None
+
+
+def _example_obj(schema: dict, defs: dict, depth: int = 0) -> dict:
+    return {
+        k: _example_for(k, v, defs, depth) for k, v in sorted(schema.get("properties", {}).items())
+    }
+
+
+def _type_token(node: dict) -> str:
+    """Property schema -> comparable token. Mirrored in
+    backend/tests/contracts/ai_providers/test_schema_snapshots.py; the two
+    copies are pinned equal by a test there (generator output must reparse
+    to the test's digest byte-for-byte, so drift between them reddens)."""
+    if "$ref" in node:
+        return f"ref({node['$ref'].rsplit('/', 1)[-1]})"
+    if "enum" in node:
+        return "enum"
+    if "anyOf" in node:
+        return "anyOf(" + ",".join(sorted(_type_token(s) for s in node["anyOf"])) + ")"
+    t = node.get("type", "any")
+    if t == "array":
+        items = node.get("items")
+        return f"array<{_type_token(items)}>" if items else "array"
+    if t == "object" and "contentEncoding" in node:
+        return "binary"
+    return t
+
+
+def render_goldens() -> dict[str, str]:
+    """golden/snapshots + golden/payloads for every schema side (WP7.2).
+
+    Snapshots digest SHAPE (key -> type token, required, $defs) so a key
+    rename surfaces as a named diff instead of a payload blob diff; payloads
+    are contract-valid wire instances both provider sides will import in
+    place of the census' 572 hand-written dicts. Payloads carry NO
+    provenance keys on purpose - they are verbatim wire shape, importable
+    and postable as-is; the directory README marks them generated and the
+    --check gate names any hand-edit.
+    """
+    files: dict[str, str] = {}
+    for name, payload in render_schemas().items():
+        schema = json.loads(payload)
+        op_id, side = name[: -len(".json")].rsplit(".", 1)
+        snap_rel = f"golden/snapshots/{op_id}.{side}.snapshot.json"
+        ex_rel = f"golden/payloads/{op_id}.{side}.example.json"
+        snap = {
+            "generated_by": GOLDEN_GENERATOR,
+            "op": op_id,
+            "side": side,
+            "required": sorted(schema.get("required", [])),
+            "properties": {
+                k: _type_token(v) for k, v in sorted(schema.get("properties", {}).items())
+            },
+            "defs": sorted(schema.get("$defs", {})),
+        }
+        files[snap_rel] = prettier_canonical(snap)
+        if schema.get("type") == "object":
+            files[ex_rel] = prettier_canonical(_example_obj(schema, schema.get("$defs", {})))
+        else:
+            # multipart marker root: the contract root IS a binary-string
+            # schema; the example is the marker base64 value verbatim
+            files[ex_rel] = json.dumps("ZmFrZS1pbWFnZQ==") + "\n"
+    files["golden/README.md"] = _GOLDEN_README
+    return files
+
+
+_GOLDEN_README = """# golden/ - GENERATED, do not hand-edit
+
+Both directories here are emitted by `scripts/gen-ai-contract.py` (plan P
+WP7.2) from `backend/ai_contract/schemas/`:
+
+- `snapshots/` - one shape digest per operation side (key to type token,
+  required list, `$defs` names). A key rename in a contract model reddens
+  `backend/tests/contracts/ai_providers/test_schema_snapshots.py` naming the
+  key - a named diff, not a payload blob diff. Each snapshot also carries a
+  `generated_by` field in-file.
+- `payloads/` - one contract-valid wire instance per operation side, verbatim
+  (no wrapper keys): both sides of the AI boundary import these instead of
+  hand-written dicts (WP8.2 FakeProvider; consumer tests migrate per WP7.4).
+
+Regenerate with `uv run python scripts/gen-ai-contract.py`; the api-types-check
+CI job runs `--check`, which fails naming any drifted or stale file here.
+"""
+
+
 # provider.py is HAND-WRITTEN and lives in the package; the generator never
 # writes it. operations.py (generated) imports the frozen Operation dataclass
 # from that static sibling, so the runtime never needs to import ai.* - the
@@ -650,9 +816,18 @@ def render_schemas() -> dict[str, str]:
 
 
 def _generated_files() -> dict[str, str]:
-    files = {"operations.py": render_operations_module()}
+    """All generated artifacts, paths relative to REPO_ROOT."""
+    files = {
+        "backend/ai_contract/operations.py": render_operations_module(),
+    }
     for name, payload in render_schemas().items():
-        files[f"schemas/{name}"] = payload
+        files[f"backend/ai_contract/schemas/{name}"] = payload
+    files.update(
+        {
+            f"backend/tests/contracts/ai_providers/{rel}": content
+            for rel, content in render_goldens().items()
+        }
+    )
     return files
 
 
@@ -660,17 +835,18 @@ def cmd_write() -> int:
     files = _generated_files()
     SCHEMA_DIR.mkdir(parents=True, exist_ok=True)
     for rel, content in files.items():
-        (PKG_DIR / rel).write_text(content, encoding="utf-8")
-    print(f"wrote {len(files)} files under {PKG_DIR.relative_to(REPO_ROOT)}")
+        target = REPO_ROOT / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    print(f"wrote {len(files)} files (operations.py + schemas/ + goldens)")
     return 0
 
 
 def cmd_check(root: Path) -> int:
     files = _generated_files()
-    pkg = root / "backend" / "ai_contract"
     drift: list[str] = []
     for rel, content in files.items():
-        target = pkg / rel
+        target = root / rel
         if not target.exists():
             drift.append(f"{rel}: MISSING from the committed tree")
             continue
@@ -685,20 +861,25 @@ def cmd_check(root: Path) -> int:
                 )
             )
             drift.append(f"{rel}: DRIFT\n{diff[:2000]}")
-    committed = (
-        {p.relative_to(pkg).as_posix() for p in (pkg / "schemas").glob("*.json")}
-        if (pkg / "schemas").exists()
-        else set()
-    )
-    stale = committed - {rel for rel in files if rel.startswith("schemas/")}
-    for rel in sorted(stale):
-        drift.append(f"{rel}: STALE (no longer generated - delete it)")
+    for generated_dir in (
+        "backend/ai_contract/schemas",
+        "backend/tests/contracts/ai_providers/golden",
+    ):
+        dir_abs = root / generated_dir
+        committed = (
+            {p.relative_to(root).as_posix() for p in dir_abs.rglob("*.json")}
+            if dir_abs.exists()
+            else set()
+        )
+        stale = committed - set(files)
+        for rel in sorted(stale):
+            drift.append(f"{rel}: STALE (no longer generated - delete it)")
     if drift:
         print("AI CONTRACT DRIFT - regenerate: uv run python scripts/gen-ai-contract.py")
         for d in drift:
             print(f"--- {d}")
         return 1
-    print("AI contract is current (operations.py + schemas/ match the surfaces)")
+    print("AI contract is current (operations.py + schemas/ + goldens match the surfaces)")
     return 0
 
 

@@ -1,0 +1,11 @@
+{
+  "defs": ["OCRRegion"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_ocr_with_regions",
+  "properties": {
+    "inference_time_ms": "number",
+    "regions": "array<ref(OCRRegion)>"
+  },
+  "required": ["inference_time_ms", "regions"],
+  "side": "response"
+}

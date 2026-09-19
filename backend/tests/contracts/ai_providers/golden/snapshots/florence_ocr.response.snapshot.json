@@ -1,0 +1,11 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_ocr",
+  "properties": {
+    "inference_time_ms": "number",
+    "text": "string"
+  },
+  "required": ["inference_time_ms", "text"],
+  "side": "response"
+}
