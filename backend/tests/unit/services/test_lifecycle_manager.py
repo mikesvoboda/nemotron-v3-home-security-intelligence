@@ -882,7 +882,7 @@ class TestHandleUnhealthy:
         ai_service.last_failure_at = None
         mock_registry.increment_failure.return_value = 1
 
-        with patch("backend.services.lifecycle_manager.datetime") as mock_datetime:
+        with patch("backend.services.lifecycle_manager.datetime", autospec=True) as mock_datetime:
             mock_datetime.now.return_value = frozen
             await lifecycle_manager.handle_unhealthy(ai_service)
 
