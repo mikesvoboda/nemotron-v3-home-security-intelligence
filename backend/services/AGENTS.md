@@ -275,7 +275,6 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `job_tracker.py`           | Job lifecycle management with WebSocket events | No (import directly)       |
 | `job_service.py`           | Job CRUD service layer (NEM-2389, NEM-2390)    | No (import directly)       |
 | `job_status.py`            | Redis-backed job status tracking               | No (import directly)       |
-| `job_state_service.py`     | Job state machine transitions                  | No (import directly)       |
 | `job_timeout_service.py`   | Job timeout detection and handling             | No (import directly)       |
 | `job_history_service.py`   | Job execution history retrieval                | No (import directly)       |
 | `job_search_service.py`    | Job search and filtering                       | No (import directly)       |

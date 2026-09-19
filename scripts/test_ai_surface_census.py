@@ -195,9 +195,15 @@ class TestRealTree:
 
     def test_known_dead_land_dead(self, real: dict) -> None:
         mods = real["modules"]
-        # WP5.6 anchors: 0/385 and 1/192 (the 1 being the __init__ re-export)
-        assert mods["job_state_service"]["bucket"] == "DEAD"
-        assert mods["scene_change_service"]["bucket"] == "DEAD"
+        # WP5.6 anchors, POST-DELETION (ADDENDUM 2 A6): job_state_service
+        # (0 importers / 385 lines) and scene_change_service (1 importer —
+        # the __init__ re-export / 192 lines) were the census's two known-
+        # DEAD modules; they are DELETED, so the honest anchor is absence.
+        # The re-export-is-not-a-consumer trap this census exists to get
+        # right stays pinned by the fixture trees above (dead_service),
+        # which the deletion cannot rot — it is synthetic, not real-tree.
+        assert "job_state_service" not in mods, "WP5.6 deleted it; reappeared?"
+        assert "scene_change_service" not in mods, "WP5.6 deleted it; reappeared?"
 
     def test_known_http_surface(self, real: dict) -> None:
         mods = real["modules"]
