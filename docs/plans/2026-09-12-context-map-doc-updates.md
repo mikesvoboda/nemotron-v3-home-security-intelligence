@@ -5289,3 +5289,149 @@ its flat names collide only with itself today. Recommendation: rename to
 `ai/enrichment_light/` + `__init__.py` when its Dockerfile is next touched;
 until then WP6.4 triage treats its 4 failures as first-class. NOT executed
 (Dockerfile + directory rename = owner territory).
+
+## WP6.4 LANDED (gateway scope) `cf985dc1` — 69 tier reds triaged; gateway's 9 fixed red-first; 60 parked classified (2026-09-19)
+
+MEASURE: serial tier 69f/1680p/15s -> **65f/1684p/15s, 52.9s** after
+`cf985dc1`. Diff: exactly the 9 gateway nodes FIXED (census 8 +
+test_enrich_person, which the random-order baseline masked — the plan's
+"gateway 9f" number was right all along); enrichment-light
+test_should_load_model_defaults_to_light flipped red->green (first-import-
+passes-first order artifact, NOT a fix — the file's del+re-import poisoner
+just claims a different victim now); cpu-offloading gained 5 (13 file-wide
+now = the dossier's standalone prediction exactly — within-file order
+dependence around the reload poisoner; this commit touched nothing there;
+the random -n8 baseline surfaced only 8 of 13 victims). Triage ran as a
+read-only 8-agent dossier wave (subagent probes are the sanctioned
+single-file carve-out; every fix was re-verified alone in the serial lane
+before commit). All 69 reproduce STANDALONE except the cpu-offloading
+within-file order-dependence class; ZERO are WP6.2-conftest fallout (the
+triton-block hint hypothesis was REFUTED for ai/triton/tests with hard
+evidence: test file and client byte-identical to f3d74789^, zero bare
+`import triton` — the 5 are stale RT-DETR-era mocks from migration
+ed218ca7).
+
+FIXED (gateway only, per plan scope): see commit `cf985dc1` — 9 test-side
+fixes, all retargeted at the shipped contract (product/backend-client/
+legacy-service all agree; only the tests invented shapes). Gateway
+subtree: 226 passed / 0 failed / 2.18s, network-free.
+
+PARKED (one line each, per plan; all fix_sketches in
+.wp25-feed-free tmp wp64-dossiers/\*.json, re-derivable from
+git-blob of this ledger commit's sibling PR body):
+
+- ai/yolo26/tests/test_segmentation.py (20) — RULING. Commit 2e184ed4
+  (#5052, 2026-01-31) silently deleted the entire NEM-3912 instance-
+  segmentation feature (~953 lines: models, mask helpers,
+  YOLO26Model.segment(), POST /segment) from ai/yolo26/model.py and left
+  the test file + its LAST TOUCH (cd807160) behind. Tests assert a phantom
+  API. Deleting a test file is never self-licensed (GOAL.txt l.36-37);
+  restoring the feature needs a GPU-bearing decision. Owner ruling
+  WP6-C(a): delete the 20-test file, or restore NEM-3912. NOT a WP6.4 fix.
+- ai/tests/test_cpu_offloading.py (13) — test-contract x13. ONE poisoner:
+  test_returns_false_when_accelerate_not_installed (:51-69) calls
+  importlib.reload(cpu_offloading) under a mocked `builtins.__import__`,
+  permanently leaving the module-global `torch` a MagicMock; the other 12
+  (9 census + 5 serial-order-exposed, minus 2 same-class) assert arithmetic
+  on mock numbers. Fix sketch: reload-with-restore (save/restore
+  sys.modules + module torch attr) or monkeypatch the flag directly.
+  Non-gateway -> parked.
+- ai/enrichment-light/tests/test_model_loading.py (9, +1 order-flipped) —
+  test-contract x10. Every test does del sys.modules["model"] + re-import;
+  model.py:115+ declares Prometheus metrics at module scope -> the 2nd
+  in-process import raises DuplicateTimeseries; the first-executed test
+  always passes (which one is order-dependent). Fix sketch: drop the
+  del+re-import (import once at module top; env-driven branches via
+  monkeypatch + direct calls). Ties into parked RULING WP6-B (package
+  name). Non-gateway -> parked.
+- ai/enrichment/tests/test_meta_tensor_handling.py (7) — test-contract x7.
+  Patch targets (model.create_model_from_pretrained,
+  models.action_recognizer.XCLIP*) are dead seams — the product moved to
+  lazy in-function / TYPE_CHECKING imports in Jan 2026, so mocks can never
+  bind and the tests drive REAL open_clip/transformers constructors.
+  Underlying meta-materialization behavior is intact (passes when targets
+  follow the imports). Fix sketch: retarget patches to open_clip.*/
+  transformers.\* module attrs.
+- ai/enrichment/tests/test_model_registry.py (3) — test-contract x3 with a
+  GATE CENSUS: the 5550-sum assert is a DESIGN BUDGET GATE (VRAM fits-
+  on-card guard), but the drift it caught is two DELIBERATE design changes
+  (depth_estimator 150->100 Tiny variant; action_recognizer 1500->2000) —
+  the registry total stays 5550-exact after updating EXPECTED_VRAM, so the
+  gate keeps its teeth once refreshed. test_all_models_have_positive_vram
+  fixture builds on cpu device where vram=0 by design. Refresh table, keep
+  the sum guard.
+- ai/enrichment/tests/test_person_reid.py (1) — test-contract. Range
+  150k<n<400k was written for OSNet-AIN x0.25 (203,049 params, f51e7798);
+  product ships a different variant now. Re-measure the shipped variant,
+  re-center the window (do not widen to pass-all).
+- ai/triton/tests/test_client.py (5) — test-contract x5, ONE root cause:
+  RT-DETR->YOLO26 migration (ed218ca7) moved detect() to
+  \_postprocess_yolo("output0") but five \_infer mocks kept the RT-DETR
+  labels/boxes/scores payload -> KeyError output0. Dossier emulated the
+  real client with the fixed payload: every assertion then holds. Fix
+  sketch: payload -> {"output0": np.array([[[100,100,200,200,0.95,0]]],
+  np.float32)} at the five sites (:285-288, :318-320, :356-359, :391-394,
+  :412-415). NOT WP6.2 fallout (refuted above, with the diff-identity
+  evidence).
+- ai/tests/test_compile_utils.py (3) — env-blocked x3 (HONEST MECHANISM:
+  no g++/gcc/cc/clang in sandbox -> torch inductor InvalidCxxCompiler at
+  first lazy forward, past compile_model's try/except). ubuntu-latest
+  ships g++ -> plausibly green in CI. Re-measure at WP6.5 CI wiring; if
+  green there, close; if red, re-classify.
+- ai/yolo26/tests/test_model.py::TestTensorRTPyTorchFallback (1) — test-
+  contract: pytest.raises(match=...) pins the intermediate TensorRT error
+  message while the product intentionally re-raises the ultimate cause
+  (pt-model-missing). Retarget the match to the final message.
+- ai/yolo26/tests/test_model.py::TestInvalidImageHandling (1) —
+  env-blocked: ultralytics 8.4.153 monkeypatches PIL.Image.open to lazily
+  pip-install pi-heif on ANY open failure; the sandbox blocks the install
+  and the error face differs. CI-green candidate; re-measure at wiring.
+- ai/yolo26/test_model.py::TestAPIEndpoints::test_health_endpoint (1) —
+  test-contract: root-file autouse fixture is the stale pre-NEM-4996 copy
+  (mock leaves \_is_compiled truthy -> HealthResponse field mismatch); the
+  tests/ twin already caught up. Sync the fixture. The two near-duplicate
+  test_model.py files themselves are WP6-D flag (below).
+- ai/yolo26/tests/test_pose_estimation.py::TestPoseMetrics (1) — **PRODUCT
+  DEFECT, parked for owner**: cd807160 renamed the public kwarg
+  `confidence` -> `_confidence` in the pose-metrics recorder to silence
+  ruff ARG001, breaking the keyword contract the test legitimately guards.
+  Fixing = editing ai/yolo26/metrics.py (Dockerfile-COPYed flat file; the
+  rename is not an import edit but is product surface the plan scopes out
+  of non-gateway WP6.4 fixes). One-line fix + revert this test, or keep
+  the private name and fix callers — owner's call, RULING WP6-C(b).
+
+FLAGGED, NOT FIXED (plan-mandated): the tautology pair —
+ai/yolo26/test_model.py:160 and ai/yolo26/tests/test_model.py:172 both
+assert a HARDCODED literal set == SECURITY_CLASSES (imported from the very
+product under test). Passes for any provider that merely defines the
+constant; proves nothing about a swap. Phase-8 contract-suite material
+(external golden list), do not expand here.
+
+PRODUCT SMELLS FOUND IN PASSING (flag-not-fix, Phase-7/8 input):
+(a) enrich() gather(return_exceptions=True) guards only Exception — a
+BaseException (task cancellation; pytest-timeout's Failed IS one) lands
+in the response body and 500s at Pydantic serialization;
+(b) clip.py's in-process SigLIP text fallback reads .norm on a
+BaseModelOutputWithPooling (attr moved under this transformers) — the
+priority-2 fallback is broken in-product AND reaches huggingface.co when
+priority-1 fails (hermeticity + outage amplifier);
+(c) ai/triton/client.py post-migration else-branch comment claims "yolo26"
+while being the non-yolo26 path; the labels/boxes/scores branch is
+effectively dead for detection models;
+(d) ai/yolo26/test_model.py (root) vs ai/yolo26/tests/test_model.py are
+near-duplicate files diverging silently (the health-fixture staleness IS
+that divergence surfacing) — RULING WP6-D: retire the root twin once its
+unique tests are folded (test-file deletion = owner only).
+
+TALLY over the 69 census nodes: 44 test-contract (8 gateway FIXED + 36
+parked: cpu-offloading 8 [13 file-wide under serial], enrichment-light 10
+[1 order-flipped], meta-tensor 7, registry 3, triton-client 5, reid 1,
+yolo26 misc 2), 20 ruling (segmentation feature-deletion), 4 env-blocked
+(compile 3 + corrupted-image 1; re-measure at WP6.5 CI wiring), 1
+product-defect (pose `_confidence` kwarg rename, parked as RULING
+WP6-C(b)). Plus one census-MASKED gateway red fixed (test_enrich_person —
+the plan's 9th, hidden by random-order distribution in the baseline).
+Per-subtree failures remaining after this commit: gateway 0, yolo26 24,
+ai/tests 16, enrichment 11, enrichment-light 9 (-1 order-volatile),
+triton 5, clip 0, florence 0. Done-when met: all classified in L, gateway
+green, no subtree red for an UNRECORDED reason.
