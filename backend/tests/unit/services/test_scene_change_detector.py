@@ -527,3 +527,172 @@ class TestNullFrameValidation:
         """Test that _to_grayscale with invalid type raises ValueError."""
         with pytest.raises(ValueError, match="must be a numpy array"):
             detector._to_grayscale("not an array")  # type: ignore[arg-type]
+
+
+# =========================================================================
+# WP4.4 kill batch (scene_change_detector.md C5, C6, C7, C10, C11, C13, C15)
+# =========================================================================
+
+
+class TestWp44ThresholdBoundaryContract:
+    """Similarity exactly AT the threshold must not count as a scene change."""
+
+    def test_similarity_exactly_at_threshold_is_not_a_change(
+        self,
+        detector: SceneChangeDetector,
+        sample_frame: np.ndarray,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """kills C15: `<` (original): 0.90 < 0.90 is False; mutant `<=` -> True."""
+        import backend.services.scene_change_detector as scd
+
+        detector.detect_changes("cam", sample_frame)
+        monkeypatch.setattr(scd, "ssim", lambda *_a, **_k: 0.90)
+
+        result = detector.detect_changes("cam", sample_frame.copy())
+
+        assert result.similarity_score == pytest.approx(0.90)
+        assert result.change_detected is False
+
+
+class TestWp44ResultBooleanContract:
+    """SceneChangeResult flags are bools, never None (kills C13, 2).
+
+    Existing asserts were truthiness (`assert not x`), which passes for None;
+    to_dict() ships null instead of false to JSON consumers.
+    """
+
+    def test_first_frame_flags_are_exact_bools(
+        self, detector: SceneChangeDetector, sample_frame: np.ndarray
+    ) -> None:
+        first = detector.detect_changes("camera1", sample_frame)
+
+        assert first.change_detected is False  # mutant: None
+        assert first.is_first_frame is True
+        assert first.to_dict()["change_detected"] is False
+
+    def test_comparison_frame_flags_are_exact_bools(
+        self, detector: SceneChangeDetector, sample_frame: np.ndarray
+    ) -> None:
+        detector.detect_changes("camera1", sample_frame)
+        second = detector.detect_changes("camera1", sample_frame.copy())
+
+        assert second.is_first_frame is False  # mutant: None
+        assert second.change_detected in (True, False)
+        assert second.to_dict()["is_first_frame"] is False
+
+
+class TestWp44SmallFrameWinSizeGuard:
+    """Frames below the 7px SSIM window must still produce a result (kills C10, 6)."""
+
+    def test_4x4_frames_compare_with_odd_floor_win_size(
+        self, detector: SceneChangeDetector, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from skimage.metrics import structural_similarity as real_ssim
+
+        import backend.services.scene_change_detector as scd
+
+        recorded: list[int | None] = []
+
+        def spy(im1: np.ndarray, im2: np.ndarray, **kwargs: object) -> float:
+            recorded.append(kwargs.get("win_size"))
+            return real_ssim(im1, im2, **kwargs)  # type: ignore[no-any-return]
+
+        monkeypatch.setattr(scd, "ssim", spy)
+
+        rng = np.random.default_rng(42)
+        tiny = rng.integers(0, 256, size=(4, 4), dtype=np.uint8)
+        other = rng.integers(0, 256, size=(4, 4), dtype=np.uint8)
+
+        detector.detect_changes("camera1", tiny)  # first frame -> baseline
+        result = detector.detect_changes("camera1", other)
+
+        assert isinstance(result, SceneChangeResult)
+        assert 0.0 <= result.similarity_score <= 1.0
+        # Original clamps 4 -> even -> 3; mutants pass 4 ("Window size must be
+        # odd") or 7/None ("win_size exceeds image extent") -> ssim raises.
+        assert recorded == [3]
+
+
+class TestWp44SsimCallContract:
+    """SSIM must get the explicit uint8 data_range and window (kills C11, 3)."""
+
+    def test_ssim_called_with_explicit_data_range_and_odd_win_size(
+        self,
+        detector: SceneChangeDetector,
+        sample_frame: np.ndarray,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from skimage.metrics import structural_similarity as real_ssim
+
+        import backend.services.scene_change_detector as scd
+
+        seen: dict[str, object] = {}
+
+        def spy(im1: np.ndarray, im2: np.ndarray, **kwargs: object) -> float:
+            seen.update(kwargs)
+            return real_ssim(im1, im2, **kwargs)  # type: ignore[no-any-return]
+
+        monkeypatch.setattr(scd, "ssim", spy)
+
+        detector.detect_changes("camera1", sample_frame)
+        result = detector.detect_changes("camera1", sample_frame.copy())
+
+        assert seen["data_range"] == 255  # kills None/256/dropped variants
+        assert seen["win_size"] == 7  # 100x100 frame -> default window
+        assert result.similarity_score == pytest.approx(1.0, abs=1e-3)
+
+
+class TestWp44ResizeWidthBoundary:
+    """resize_width == 1 is positive and must be accepted (kills C5, 1)."""
+
+    def test_resize_width_one_is_valid(self) -> None:
+        detector = SceneChangeDetector(resize_width=1)  # mutant: ValueError (1 <= 1)
+        assert detector._resize_width == 1
+
+
+class TestWp44ResizeUsesLanczos:
+    """Both resize paths pass LANCZOS, not Pillow's BICUBIC default (kills C7, 2)."""
+
+    def test_resize_frame_passes_lanczos_on_both_paths(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import PIL.Image
+
+        calls: list[object] = []
+        real_resize = PIL.Image.Image.resize
+
+        def spy(
+            self_img: PIL.Image.Image,
+            size: tuple[int, int],
+            resample: int | None = None,
+            **kwargs: object,
+        ) -> PIL.Image.Image:
+            calls.append(resample)
+            return real_resize(self_img, size, resample, **kwargs)
+
+        monkeypatch.setattr(PIL.Image.Image, "resize", spy)
+
+        detector = SceneChangeDetector(resize_width=8)
+        gray = np.zeros((10, 20), dtype=np.uint8)
+
+        detector._resize_frame(gray, target_size=(5, 5))  # explicit-target path
+        detector._resize_frame(gray)  # downscale path (w=20 > resize_width=8)
+
+        assert len(calls) == 2
+        assert all(r is PIL.Image.Resampling.LANCZOS for r in calls)
+
+
+class TestWp44GrayscaleGuard:
+    """The guard needs BOTH attrs (or -> and flip, kills C6, 1)."""
+
+    def test_grayscale_conversion_requires_both_ndim_and_shape(
+        self, detector: SceneChangeDetector
+    ) -> None:
+        """Object with ndim but no shape must raise ValueError, not pass the guard."""
+
+        class _OnlyNdim:
+            ndim = 3
+
+        with pytest.raises(ValueError, match="must be a numpy array"):
+            detector._to_grayscale(_OnlyNdim())  # type: ignore[arg-type]

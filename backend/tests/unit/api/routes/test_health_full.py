@@ -422,3 +422,94 @@ def test_ai_services_config_all_services_present() -> None:
 
     for service in expected_services:
         assert service in actual_services, f"Missing service: {service}"
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/system.md, clusters D3-twin / D6)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_check_redis_health_full_defaults_to_unknown_version() -> None:
+    """health/full redis details fall back to version 'unknown' (WP4.4 redis-full cluster).
+
+    Kills _check_redis_health_full redis_version default mutations (4 keys).
+    """
+    mock_redis = AsyncMock(spec=RedisClient)
+    mock_redis.health_check = AsyncMock(return_value={"status": "healthy"})  # no redis_version
+    result = await _check_redis_health_full(mock_redis)
+    assert result.details == {"redis_version": "unknown"}
+
+
+@pytest.mark.asyncio
+async def test_check_ai_service_health_healthy_payload_contract() -> None:
+    """Healthy branch pins breaker lookup, request URL, timeout, response_time_ms math, last_check.
+
+    Kills _check_ai_service_health: breaker-name lookup (8), url kwarg
+    removal/None (11), response_time_ms kwarg + math incl. round-ndigits
+    twins (12+3, via the fractional fixture), last_check removal/None
+    (18, via tzinfo), health URL (1), settings attr lookup (1), httpx
+    timeout drop (1).
+    """
+    mock_settings = MagicMock(spec=Settings)
+    mock_settings.yolo26_url = "http://ai-yolo26:8095"
+
+    service_config = {  # NOTE: no "circuit_breaker_name" -> must default to name
+        "name": "yolo26",
+        "display_name": "YOLO26 Object Detection",
+        "url_attr": "yolo26_url",
+        "critical": True,
+    }
+
+    with (
+        patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry,
+        patch("httpx.AsyncClient", autospec=True) as mock_client,
+        # 0.123456 s -> 123.456 ms -> round(.,2) = 123.46 (not 123.456 / 123.5 / 123.0)
+        patch(
+            "backend.api.routes.system.time.time",
+            autospec=True,
+            side_effect=[1000.0, 1000.123456],
+        ),
+    ):
+        mock_registry.return_value.get.return_value = None  # no breaker registered -> CLOSED
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_client.return_value.__aenter__.return_value.get = AsyncMock(return_value=mock_response)
+
+        result = await _check_ai_service_health(service_config, mock_settings)
+
+    mock_registry.return_value.get.assert_called_once_with("yolo26")
+    mock_client.assert_called_once_with(timeout=5.0)
+    mock_client.return_value.__aenter__.return_value.get.assert_awaited_once_with(
+        "http://ai-yolo26:8095/health"
+    )
+    assert result.status == ServiceHealthState.HEALTHY
+    assert result.url == "http://ai-yolo26:8095"
+    assert result.response_time_ms == 123.46
+    assert result.last_check is not None
+    assert result.last_check.tzinfo is not None  # kills datetime.now(None) naive twins
+    assert result.circuit_state == CircuitState.CLOSED
+
+
+@pytest.mark.asyncio
+async def test_check_ai_service_health_no_url_payload_contract() -> None:
+    """URL-not-configured branch: url == '' (not None) and last_check tz-aware.
+
+    Kills the no-url branch's url=None/kwarg-removed and last_check=None twins.
+    """
+    mock_settings = MagicMock(spec=Settings)
+    mock_settings.yolo26_url = None
+
+    service_config = {
+        "name": "yolo26",
+        "display_name": "YOLO26 Object Detection",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
+    }
+    result = await _check_ai_service_health(service_config, mock_settings)
+
+    assert result.status == ServiceHealthState.UNKNOWN
+    assert result.url == ""  # explicit '' — kills url=None / kwarg-removed mutations
+    assert result.last_check is not None
+    assert result.last_check.tzinfo is not None

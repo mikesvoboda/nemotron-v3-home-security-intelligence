@@ -8,6 +8,7 @@ Tests follow TDD approach - written before implementation.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
@@ -380,3 +381,148 @@ class TestBatchFetchFilePaths:
 
         assert result == []
         mock_session.execute.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# WP4.4 kill batch (batch_fetch.md C4-C10, C13): statement-contract helpers.
+# Mocks make session.execute(None) / .where(None) / select(None) silently
+# succeed — the only way to see a clobbered query is to inspect the statement
+# handed to execute (idiom: test_event_service.py).
+# ---------------------------------------------------------------------------
+
+_IN_CLAUSE = re.compile(r"WHERE detections\.id IN \(([^)]*)\)")
+
+
+def _executed_sql(mock_session: AsyncMock) -> list[str]:
+    """Normalize every statement handed to session.execute() into compact SQL."""
+    statements: list[str] = []
+    for call in mock_session.execute.call_args_list:
+        stmt = call.args[0]
+        assert stmt is not None, "session.execute() was called with no statement"
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        statements.append(" ".join(sql.split()))
+    assert statements, "session.execute() was never called"
+    return statements
+
+
+def _in_clause_ids(sql: str) -> list[int]:
+    """Extract the expanded detections.id IN list (needs literal_binds rendering)."""
+    match = _IN_CLAUSE.search(sql)
+    assert match, f"no expanded 'WHERE detections.id IN (...)' clause in: {sql}"
+    return [int(part) for part in match.group(1).split(",")]
+
+
+def _empty_scalars_session() -> AsyncMock:
+    """AsyncMock session whose result yields no rows but records every statement."""
+    mock_session = AsyncMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_result = MagicMock()
+    mock_result.scalars.return_value = mock_scalars
+    mock_session.execute.return_value = mock_result
+    return mock_session
+
+
+class TestWp44BatchFetchStatementContracts:
+    """WP4.4: statement contracts + partition coverage for the batch fetchers."""
+
+    @pytest.mark.asyncio
+    async def test_single_query_statement_selects_detections_and_filters_ids(self) -> None:
+        """One query must select Detection rows filtered on the requested IDs (kills C4, 4).
+
+        where(None) renders WHERE NULL, select(None) renders SELECT NULL AS
+        anon_1, query/execute clobbers pass None — all invisible under a mock
+        that accepts any argument.
+        """
+        mock_session = _empty_scalars_session()
+
+        await batch_fetch_detections(mock_session, [3, 1, 2], batch_size=100)
+
+        (sql,) = _executed_sql(mock_session)
+        assert "NULL" not in sql.upper(), f"query was clobbered to a NULL select/predicate: {sql}"
+        assert sorted(_in_clause_ids(sql)) == [1, 2, 3]
+
+    @pytest.mark.asyncio
+    async def test_default_order_by_time_emits_order_by_clause_in_statement(self) -> None:
+        """order_by_time defaults True, so the statement carries ORDER BY detected_at (kills C5+C6).
+
+        Replaces the vacuous test_preserves_order_by_detection_time (all mock
+        detections share one detected_at; the ORDER BY its docstring promises is
+        never inspected). order_by(None) renders byte-identically to no ORDER BY.
+        """
+        mock_session = _empty_scalars_session()
+
+        await batch_fetch_detections(mock_session, [1, 2, 3])
+
+        (sql,) = _executed_sql(mock_session)
+        assert "ORDER BY detections.detected_at ASC" in sql
+
+    @pytest.mark.asyncio
+    async def test_multi_batch_partition_covers_every_id_exactly_once(self) -> None:
+        """Batches must partition deduplicated IDs — none skipped, none repeated (kills C7+C9, 6).
+
+        range(0,..)->range(1,..) drops the first ID; i+size -> i-size yields an
+        empty batch per pass; existing multi-batch tests replay canned rows by
+        call index and ignore the statement, so any partition passes.
+        """
+        mock_session = _empty_scalars_session()
+
+        await batch_fetch_detections(mock_session, list(range(10)), batch_size=5)
+
+        statements = _executed_sql(mock_session)
+        assert len(statements) == 2
+        collected: list[int] = []
+        for sql in statements:
+            assert "NULL" not in sql.upper()
+            collected.extend(_in_clause_ids(sql))
+        assert sorted(collected) == list(range(10))
+
+    @pytest.mark.asyncio
+    async def test_file_paths_statement_selects_only_file_path_filtered_by_ids(self) -> None:
+        """The optimized query projects detections.file_path for requested IDs (kills C10, 4)."""
+        from backend.services.batch_fetch import batch_fetch_file_paths
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        await batch_fetch_file_paths(mock_session, [3, 1, 2])
+
+        (sql,) = _executed_sql(mock_session)
+        assert sql.startswith("SELECT detections.file_path FROM detections")
+        assert "NULL" not in sql.upper()
+        assert sorted(_in_clause_ids(sql)) == [1, 2, 3]
+
+    @pytest.mark.asyncio
+    async def test_file_path_batches_cover_every_id_exactly_once(self) -> None:
+        """File-path batches must partition the deduplicated IDs too (kills C8, 2)."""
+        from backend.services.batch_fetch import batch_fetch_file_paths
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        await batch_fetch_file_paths(mock_session, list(range(10)), batch_size=5)
+
+        statements = _executed_sql(mock_session)
+        assert len(statements) == 2
+        collected: list[int] = []
+        for sql in statements:
+            collected.extend(_in_clause_ids(sql))
+        assert sorted(collected) == list(range(10))
+
+    @pytest.mark.asyncio
+    async def test_by_ids_forwards_batch_size_to_underlying_fetch(self) -> None:
+        """Caller's batch_size must reach batch_fetch_detections, not DEFAULT (kills C13, 1).
+
+        Dropping the kwarg collapses 10 IDs at batch_size=5 into a single
+        DEFAULT_BATCH_SIZE=250 query; existing by_ids tests use the default.
+        """
+        mock_session = _empty_scalars_session()
+
+        result = await batch_fetch_detections_by_ids(mock_session, list(range(10)), batch_size=5)
+
+        assert result == {}
+        assert mock_session.execute.call_count == 2

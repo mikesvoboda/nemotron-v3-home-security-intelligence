@@ -12,6 +12,7 @@ Test Categories:
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
 
@@ -410,3 +411,104 @@ class TestSessionServiceIntegration:
 
         # Should create different session IDs
         assert session_id1 != session_id2
+
+
+class TestWp44SessionServiceGaps:
+    """WP4.4 kill batch (session_service.md C4/C5/C6/C10/C11 — 22 TEST-GAP mutants).
+
+    The suite asserted redis calls via assert_called_once()/substring only, so
+    key-identity, serialized-payload and expire-value mutants all survived.
+    The auth middleware validates sessions by reading user_id from the stored
+    blob (api/middleware/auth.py), making key names + TTL load-bearing.
+    """
+
+    @pytest.mark.asyncio
+    async def test_create_session_stores_serialized_payload_with_identity_metadata(
+        self, mock_redis_client: MagicMock
+    ) -> None:
+        """Stored JSON payload = caller data + exact user_id/session_id keys (kills C4, 8)."""
+        mock_redis_client.set = AsyncMock(return_value=True)
+        service = SessionService(mock_redis_client)
+        session_data = {"email": "test@example.com", "role": "admin"}
+
+        session_id = await service.create_session("user_42", session_data)
+
+        call = mock_redis_client.set.call_args
+        raw_payload = call.args[1]
+        assert isinstance(raw_payload, str), "session payload must be a JSON string"
+        stored = json.loads(raw_payload)
+        assert stored == {
+            "email": "test@example.com",
+            "role": "admin",
+            "user_id": "user_42",
+            "session_id": session_id,
+        }
+
+    @pytest.mark.asyncio
+    async def test_create_session_sets_default_24h_expire_on_redis_set(
+        self, mock_redis_client: MagicMock
+    ) -> None:
+        """Default session written with expire=86400 (kills C5: None/deleted expire)."""
+        mock_redis_client.set = AsyncMock(return_value=True)
+        service = SessionService(mock_redis_client)
+
+        await service.create_session("user123", {"device": "desktop"})
+
+        mock_redis_client.set.assert_called_once()
+        call = mock_redis_client.set.call_args
+        assert call.kwargs["expire"] == 86400
+
+    @pytest.mark.asyncio
+    async def test_create_session_custom_ttl_passed_as_expire_seconds(
+        self, mock_redis_client: MagicMock
+    ) -> None:
+        """Custom timedelta TTL reaches Redis as exact integer seconds."""
+        mock_redis_client.set = AsyncMock(return_value=True)
+        service = SessionService(mock_redis_client)
+
+        await service.create_session("user123", {"device": "mobile"}, ttl=timedelta(hours=2))
+
+        call = mock_redis_client.set.call_args
+        assert call.kwargs["expire"] == 7200
+
+    @pytest.mark.asyncio
+    async def test_create_session_redis_set_receives_prefixed_key_as_first_positional_arg(
+        self, mock_redis_client: MagicMock
+    ) -> None:
+        """redis.set shape is (session:<id>, payload) exactly (kills C6 positional shift).
+
+        The old substring check session_id in str(args[0]) is satisfied by the
+        payload blob too, so an arg-deletion mutant passed there.
+        """
+        mock_redis_client.set = AsyncMock(return_value=True)
+        service = SessionService(mock_redis_client)
+
+        session_id = await service.create_session("user123", {"device": "desktop"})
+
+        call = mock_redis_client.set.call_args
+        assert len(call.args) == 2
+        assert call.args[0] == f"session:{session_id}"
+
+    @pytest.mark.asyncio
+    async def test_get_session_ttl_queries_prefixed_key(self, mock_redis_client: MagicMock) -> None:
+        """ttl() must get the exact session:<id> key (kills C10, 3: None/session:None)."""
+        mock_redis_client.ttl = AsyncMock(return_value=3600)
+        service = SessionService(mock_redis_client)
+
+        ttl = await service.get_session_ttl("session_123")
+
+        assert ttl == 3600
+        mock_redis_client.ttl.assert_called_once_with("session:session_123")
+
+    @pytest.mark.asyncio
+    async def test_refresh_session_calls_expire_with_key_and_seconds(
+        self, mock_redis_client: MagicMock
+    ) -> None:
+        """expire(session:<id>, int(seconds)) exactly (kills C11, 7 arg mutations)."""
+        mock_redis_client.expire = AsyncMock(return_value=True)
+        service = SessionService(mock_redis_client)
+
+        result = await service.refresh_session("session_123", timedelta(hours=2))
+
+        assert result is True
+        mock_redis_client.expire.assert_called_once_with("session:session_123", 7200)
