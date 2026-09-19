@@ -5611,3 +5611,73 @@ packet in WP7's write-up.
 | `websocket_service`          | 0                  | —                  | 0            | 576   |
 | `zone_baseline_service`      | 0                  | —                  | 0            | 74    |
 | `zone_crossing_service`      | 0                  | —                  | 0            | 733   |
+
+## WP5.6 PARTIAL — mutation records retracted; deletions PARKED on a rule conflict (2026-09-19)
+
+**Re-verification (checklist item 1), three independent ways.** (a) An 8-agent
+adversarial workflow (static-import / dynamic-string / package-reexport-symbol /
+DI-wiring lenses × both modules) returned refuted=false on every lens with zero
+live findings. (b) Direct grep: the only non-test file importing
+`scene_change_service` anywhere is the `backend/services/__init__.py:318`
+re-export; `job_state_service` has NO non-test importer, not even a re-export
+(**init** doesn't mention it). (c) Symbol audit: the re-export's two symbols
+(`SceneChangeService`, `classify_scene_change_type`) appear ONLY in
+`__init__.py` itself (lines 318-320 + `__all__` 542/582) — zero consumers
+anywhere else. Census stands: **0/385 and 1/192 (re-export)**, both DEAD in
+WP5.5's bucket table.
+
+**RETRACTED, by name, per the generalized retraction rule (P §3.5)** — these
+WP4.4 surviving-mutant records must never again function as a deletion veto
+for unreachable code:
+
+- `backend/services/job_state_service.py` — gen-1 dossier 147 mutants / **42
+  survivors** (mutants/backend/services/job_state_service.py.meta);
+  generation-2 queue row "| 42 | 70.7 | NEW |" (.wp25-feed/wp44-queue-gen2.md).
+  RETRACTED: the module has zero non-test consumers; a mutation record is
+  evidence about test strength, never a deletion veto for dead code.
+- `backend/services/scene_change_service.py` — gen-1 dossier 88 keys / **39
+  survivors** (mutants/backend/services/scene_change_service.py.meta);
+  generation-2 queue row "| 39 | 55.7 | NEW |". RETRACTED, same rule. The live
+  scene-change path is `scene_change_detector` (enrichment_pipeline.py:141).
+
+**MEASURE (DEAD-bucket reference, checklist item 2):** all 51 WP5.5-DEAD
+modules have non_test_importers = 0; 22,409 lines total. Full table in the
+WP5.5 section above.
+
+**DELETIONS PARKED — RULING L#2026-09-19-wp56-test-collision.** The session
+goal states flatly: "NEVER a test file, fixture or conftest" — deletions are
+licensed on PRODUCTION AI surface only. WP5.6's checklist says "WP5.6 deletes
+modules **and their tests**." The two cannot both hold, and the safe
+decomposition fails: deleting `job_state_service.py` while its two test files
+survive leaves `from backend.services.job_state_service import (...)` in
+test_job_state_service.py:17 and test_job_state_transitions.py:18 → collection
+error → RED branch, which the branch-stays-GREEN rule forbids. Deleting the
+tests is the prohibited act. Parked for the owner, with the package:
+
+1. `git rm backend/services/job_state_service.py
+backend/tests/unit/services/test_job_state_service.py
+backend/tests/integration/test_job_state_transitions.py`
+2. `git rm backend/services/scene_change_service.py
+backend/tests/unit/services/test_scene_change_service.py` plus delete the
+   `__init__.py` re-export block (318-321) and `__all__` entries (542, 582) —
+   symbol audit above proves no other user.
+3. `scripts/ratchet-check.py --update` + ci.yml census `--expect` literal in
+   the same commit — **expected NO-OP**: the three test files and two modules
+   carry zero suppressions (measured: registry has no entries naming them, no
+   skip/xfail/patch markers in the files), so the baseline stays 93/322/… and
+   no ratchet move is needed either way.
+   WP5.6's Done-when ("no surviving-mutant record in L protects a module with
+   zero non-test importers") is ALREADY satisfied by the retractions above —
+   the records are retracted regardless of whether the deletion runs.
+
+**test_system.py naming-convention census (P's companion item):** the gate is
+`pr-review-bot.yml` `test-naming-convention` — it only checks CHANGED files
+(`tj-actions/changed-files`), and its regex admits `\.py$` for anything under
+`backend/tests/` (the condition is a tautology for that tree — anything not
+`test_*.py` still matches `\.py$`). Nothing in CI requires a file named
+`test_system.py` to exist. The 9-line `from ... import *` shim double-collects
+74 tests in whole-tree runs and is safe to delete from the gate's point of
+view — but it is a TEST file, so it stays; recorded here as a deletion
+proposal for the owner, same collision.
+
+**Commits:** this retraction is self-contained; no code deleted this commit.
