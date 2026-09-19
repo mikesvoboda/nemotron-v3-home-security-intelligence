@@ -36,6 +36,7 @@ Every claim carries a marker. **Preserve these when editing.**
 - **[C]** Computed from a verified formula
 - **[E]** External source, needs primary confirmation
 - **[?]** Open question
+- **[A]** Agent-reported, not independently verified — check before acting
 
 ## Contributing to this directory
 

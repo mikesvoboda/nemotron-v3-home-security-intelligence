@@ -20,7 +20,10 @@ docs/vss-integration/
 ├── 00-context.md           # The goal, the two repos, the decision this feeds
 ├── 01-vss-architecture.md  # What VSS is; service map; mapping to our pipeline
 ├── 02-model-inventory.md   # Models, slots, sizing math, consumer-GPU budgets
-└── 03-open-questions.md    # Unresolved questions and in-flight investigations
+├── 03-open-questions.md    # Unresolved questions and in-flight investigations
+├── 04-fp4-and-deployment.md # FP4 availability, local paths, verified consumer fit
+├── 05-hardware-profiles.md # Tiering strategy: halo / volume / entry
+└── 06-repo-a-readiness.md  # What must be fixed HERE before any swap
 ```
 
 ## Key Files
@@ -69,10 +72,18 @@ Read in order: `00` → `01` → `02` → `03`. The numbering is a reading order
 
 ### Answering "will X fit on a consumer GPU?"
 
-**File:** [`02-model-inventory.md`](02-model-inventory.md)
+**File:** [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md) — **not** `02`.
 
-Contains VSS's own sizing formula, its published model budgets, and the derived budgets for
-RTX 4090 (24 GB) and RTX 5090 (32 GB). Use the formula rather than guessing.
+`02` contains VSS's sizing formula and GPU budgets, but its 4-bit column is **wrong** and labelled
+as such: the formula understates NVFP4 by ~40% because vision towers stay BF16. **Always size from
+HuggingFace blob sizes.**
+
+### Deciding what to work on next
+
+**File:** [`06-repo-a-readiness.md`](06-repo-a-readiness.md)
+
+Four verified CI defects in this repo outrank further mutation-census work, including a coverage
+pipeline that has never computed anything.
 
 ## Patterns
 

@@ -89,13 +89,35 @@ Not yet decided. Listed so a future agent does not assume option 2 was chosen.
 infrastructure before the consumer thesis is proven is building a road to a place not yet
 confirmed worth going.
 
+## New blocking questions (added 2026-09-19)
+
+### Q6. Does the volume tier (12-16 GB) have a viable reasoning model? **[?]**
+
+See [`05-hardware-profiles.md`](05-hardware-profiles.md). The 12B-VL NVFP4 checkpoint is 13.78 GB
+and does not fit a 16 GB card's 13.6 GB budget even solo, so the halo-tier shape does not scale
+down. Needs blob-level sizing of small text-only candidates (Qwen3 4B/8B and any sub-4B Nemotron).
+
+### Q7. Is the biometric data model shippable to consumers? **[?]**
+
+512-dim ArcFace templates and ALPR plate text are stored with no retention clock, no consent
+record, and no erasure path. Fine on a localhost box; BIPA/CUBI/GDPR territory in a consumer
+product where the subjects are non-consenting visitors. **This is a product-shape decision that
+must precede building**, not a compliance task to bolt on later.
+
+### Q8. What is the version-pinning tax? **[?]**
+
+VSS restructured four times in 15 months and removes old NGC images on a schedule. No API-stability
+or deprecation policy exists in the repo. Any integration inherits that cadence.
+
 ## Questions nobody has asked yet
 
 Flagged deliberately so they are not lost:
 
-- **Frontend.** The stated goal includes frontend stability, but nearly all analysis so far is
-  backend. VSS ships its own `services/ui/`. Does our React dashboard survive, or does a swap
-  drag the frontend along?
+- ~~**Frontend.**~~ **PARTIALLY ANSWERED 2026-09-19** — ≥62,435 LOC sits in pipeline-shaped
+  components, and the coupling is the _enrichment child-object model_ (pose keypoints,
+  demographics, re-ID galleries, plate reads), not `risk_score`. RT-VLM emits prose plus a
+  severity; there is no skeleton to render. Blast radius plausibly exceeds the backend's and
+  remains unmeasured. See [`06-repo-a-readiness.md`](06-repo-a-readiness.md) §1.7.
 - **Model weight distribution.** How do multi-GB weights reach a consumer user? First-run download?
   Bundled? This is a product-packaging problem with no current answer.
 - **Licensing split.** Blueprint code is Apache-2.0 **[V]**, but NVIDIA model licenses frequently
@@ -113,8 +135,10 @@ Flagged deliberately so they are not lost:
 Three multi-agent investigations were dispatched on 2026-09-18 and had not reported when this
 document was written:
 
-1. **Pivot assessment** — whether the test-platform work serves the VSS goal, and whether 2-3
-   more days of WP4.4 mutation census is the right spend.
+1. ~~**Pivot assessment**~~ — **COMPLETE 2026-09-19**, folded into
+   [`06-repo-a-readiness.md`](06-repo-a-readiness.md). Verdict: merge #6556, decline further
+   kill-test writing, grant ~1 day inverted to _deleting_. It also surfaced four verified defects
+   in this repo's own CI that outrank the census.
 2. ~~**Model deployment recon**~~ — **COMPLETE 2026-09-19**, folded into
    [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md).
 3. **Lean backend feasibility** — Q4 and Q5 above, plus VSS contribution governance.
@@ -126,7 +150,11 @@ folded in.** Do not assume they were. Re-run the investigation or treat the ques
 
 If picking this up cold, in this order:
 
-1. **Q2** (credentials) — cheapest, and can kill the consumer thesis outright.
+0. **Talk to the VSS team** (~30 min) — higher information per hour than any experiment, and it
+   should precede a fork decision rather than follow one. See
+   [`06-repo-a-readiness.md`](06-repo-a-readiness.md) §4.
+1. **Q2** (credentials) — cheapest, and can kill the consumer thesis outright. Partially answered:
+   the ghcr image and the HF NVFP4 checkpoint are both anonymously pullable.
 2. **Q1** (FP4 on `sm_120`) — decides whether the shape is built at FP4 or FP8.
 3. **Q3** (RT-CV / RT-Embed footprints) — required before any fit claim is meaningful.
 4. Only then: the storage and bus questions, which are infrastructure and can wait.

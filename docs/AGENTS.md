@@ -116,7 +116,10 @@ docs/
 │   ├── 00-context.md            # Goal, repos, decision this feeds
 │   ├── 01-vss-architecture.md   # VSS service map and pipeline mapping
 │   ├── 02-model-inventory.md    # Models, slots, consumer-GPU sizing
-│   └── 03-open-questions.md     # Open question register
+│   ├── 03-open-questions.md     # Open question register
+│   ├── 04-fp4-and-deployment.md # FP4, local paths, verified consumer fit
+│   ├── 05-hardware-profiles.md  # Hardware tiering strategy
+│   └── 06-repo-a-readiness.md   # Repo-A defects blocking a swap
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin
