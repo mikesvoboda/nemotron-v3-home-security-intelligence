@@ -27,7 +27,11 @@ os.environ.setdefault(
     "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
 )
 
-from backend.api.routes.prompt_management import _compute_config_diff, router
+from backend.api.routes.prompt_management import (
+    _compute_config_diff,
+    _get_recommended_action,
+    router,
+)
 from backend.api.schemas.prompt_management import (
     AIModelEnum,
     AllPromptsResponse,
@@ -1341,8 +1345,81 @@ class TestComputeConfigDiff:
 
         assert has_changes is False
 
+    def test_diff_list_vs_scalar_is_reported_as_changed(self) -> None:
+        """List value replaced by scalar is 'Changed', not set-diffed character-wise.
 
-class TestPromptManagementSchemas:
+        WP4.4 C6: the list/list guard mutated from `and` to `or` enters the set-diff
+        branch when only ONE side is a list — set("a") yields char-set noise instead
+        of the Changed line (and set(5) raises TypeError → 500 on /import/preview).
+        """
+        current = {"items": ["a", "b"], "version": 1}
+        imported = {"items": "a"}
+
+        has_changes, changes = _compute_config_diff(current, imported)
+
+        assert has_changes is True
+        assert changes == ["Changed: items"]
+
+    def test_diff_scalar_vs_list_does_not_raise(self) -> None:
+        """Scalar replaced by list must NOT reach set(scalar) — the TypeError guard."""
+        current = {"items": 5, "version": 1}
+        imported = {"items": [1, 2]}
+
+        has_changes, changes = _compute_config_diff(current, imported)
+
+        assert has_changes is True
+        assert changes == ["Changed: items"]
+
+    def test_diff_new_config_label_exact(self) -> None:
+        """Exact contract label — substring matches would let decorations through.
+
+        WP4.4 C5: existing probes assert only `"New configuration" in ...`, which an
+        XX-decorated mutant keeps satisfying. The label is API-visible payload text.
+        """
+        has_changes, changes = _compute_config_diff(None, {"key": "value"})
+
+        assert has_changes is True
+        assert changes == ["New configuration (no existing version)"]
+
+
+class TestGetRecommendedAction:
+    """Tests for the _get_recommended_action helper (WP4.4 wave-67 C1-C4)."""
+
+    def test_recommended_action_exact_for_each_known_level(self) -> None:
+        """Each canonical risk level maps to its exact documented action.
+
+        The endpoint ran this lookup for every request but no test ever asserted the
+        VALUE — only `"recommended_action" in data`. The four strings are the entire
+        product output of the helper and have no other consumer pinning them.
+        """
+        expected_actions = {
+            "low": "Monitor - No immediate action required",
+            "medium": "Review - Check event details when convenient",
+            "high": "Investigate - Review event details promptly",
+            "critical": "Alert - Immediate attention required",
+        }
+
+        for level, expected_action in expected_actions.items():
+            assert _get_recommended_action(level) == expected_action
+
+    def test_recommended_action_levels_are_distinct(self) -> None:
+        """No two levels collapse onto the same action (kills key-clobbers aliasing to default)."""
+        actions = {
+            _get_recommended_action(level) for level in ("low", "medium", "high", "critical")
+        }
+        assert len(actions) == 4
+
+    def test_recommended_action_unknown_level_falls_back(self) -> None:
+        """Non-canonical risk level returns the generic review action, never None.
+
+        Unreachable through the endpoint (callers pass canonical levels), so the
+        graceful fallback is pinned at the helper — same direct-call pattern as
+        TestComputeConfigDiff. A None default would 500 the required
+        recommended_action: str field for any future non-canonical caller.
+        """
+        assert _get_recommended_action("unknown") == "Review event details"
+        assert _get_recommended_action("") == "Review event details"
+
     """Tests for prompt management Pydantic schemas."""
 
     def test_ai_model_enum_values(self) -> None:
