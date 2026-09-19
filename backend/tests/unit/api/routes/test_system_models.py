@@ -931,3 +931,44 @@ class TestModelLatencyTracker:
 
         # Should only have max_samples
         assert stats["sample_count"] == 10
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/system.md, cluster D4)
+# =============================================================================
+
+
+@pytest.mark.parametrize(
+    ("name", "display"),
+    [
+        ("yolo11-license-plate", "YOLO11 License Plate"),
+        ("yolo11-face", "YOLO11 Face Detection"),
+        ("paddleocr", "PaddleOCR"),
+        ("yolo26-general", "YOLO26 General Detection"),
+        ("clip_embedder", "CLIP ViT-L/14"),
+        ("yolo-world-s", "YOLO-World Small"),
+        ("depth-anything-v2-tiny", "Depth Anything V2 Tiny"),
+        ("vitpose-small", "ViTPose Small"),
+        # unmapped names go through the "-"/"_" -> space, title-cased fallback
+        ("foo-bar-baz", "Foo Bar Baz"),
+        ("my_model_v2", "My Model V2"),
+    ],
+)
+def test_get_model_display_name_exact_contract(name: str, display: str) -> None:
+    """Every map entry exact; unmapped names use the separator-replacement title fallback.
+
+    Kills _get_model_display_name map-entry mutations (40) and the
+    fallback separator mutations (4).
+    """
+    from backend.api.routes.system import _get_model_display_name
+
+    assert _get_model_display_name(name) == display
+
+
+def test_get_model_category_unknown_is_other() -> None:
+    """Kills _get_model_category "Other" literal mutations (3) and the
+    membership-check flip (1) for the not-in-any-category path."""
+    from backend.api.routes.system import _get_model_category
+
+    assert _get_model_category("totally-unknown-model") == "Other"

@@ -3,11 +3,12 @@
 Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
 """
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import Select
 
 from backend.api.routes.cost_analytics import (
     _build_cost_history,
@@ -500,3 +501,206 @@ class TestCostAnalyticsSchemas:
         # Verify monthly budget
         monthly_budget = response.monthly_budget
         assert monthly_budget.period == "monthly"
+
+
+class TestCostHistoryFieldSemantics:
+    """WP4.4 wave-67: per-day cost fields, per-day query window, exact divisor.
+
+    The dossier (cost_analytics.md C1/C2/C4/C5) found 24 mutants surviving
+    because both history tests assert only list length and ordering, and
+    mock_db_session's bare-AsyncMock execute lets every statement corruption
+    coerce through the pydantic schema.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_cost_history_uses_per_day_usage_for_all_cost_fields(
+        self, mock_cost_tracker, mock_pricing, mock_db_session
+    ):
+        """Per-day usage fields flow into every DailyCostEntry field, not just length.
+
+        WP4.4 C1: kills the `usage = None` and `if (usage) and False` families —
+        a zeroed field is now observable for the day that HAS data.
+        """
+        end = date(2026, 1, 31)
+        day_with_data = date(2026, 1, 30)
+        usage = DailyUsage(
+            date=day_with_data,
+            total_input_tokens=15000,
+            total_output_tokens=5000,
+            total_gpu_seconds=125.5,
+            total_estimated_cost_usd=0.0523,
+            event_count=25,
+            usage_by_model={},
+        )
+
+        tracker = mock_cost_tracker
+
+        def usage_by_day(target_date):
+            return usage if target_date == day_with_data else None
+
+        tracker.get_daily_usage.side_effect = usage_by_day
+
+        with patch(
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=tracker,
+            autospec=True,
+        ):
+            history = await _build_cost_history(tracker, mock_db_session, end, 3)
+
+        assert [h.date for h in history] == ["2026-01-29", "2026-01-30", "2026-01-31"]
+
+        populated = history[1]
+        assert populated.total_cost_usd == pytest.approx(0.0523)
+        assert populated.event_count == 25
+        # pricing: 15000*0.003/1000 + 5000*0.006/1000 = 0.075
+        assert populated.token_cost_usd == pytest.approx(0.075)
+        # 125.5 s * 0.000139/s
+        assert populated.gpu_cost_usd == pytest.approx(0.01744, rel=0.01)
+
+        for blank in (history[0], history[2]):
+            assert blank.total_cost_usd == 0.0
+            assert blank.token_cost_usd == 0.0
+            assert blank.gpu_cost_usd == 0.0
+            assert blank.event_count == 0
+
+        # get_daily_usage must receive the day itself, never None (kills _18)
+        called_dates = [c.args[0] for c in tracker.get_daily_usage.call_args_list]
+        assert None not in called_dates
+        assert called_dates == [date(2026, 1, 29), date(2026, 1, 30), date(2026, 1, 31)]
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_cost_history_per_day_detection_query_bounds_and_count(
+        self, mock_cost_tracker, mock_pricing
+    ):
+        """Each day counts detections in a [day_start, day_start+1d) UTC window.
+
+        WP4.4 C2: the query must be a real tz-bounded count(Detection.id)
+        statement, and the scalar must be carried through verbatim.
+        """
+        per_day_counts = {
+            date(2026, 1, 29): 3,
+            date(2026, 1, 30): 7,
+            date(2026, 1, 31): 0,
+        }
+        executed = []
+
+        def fake_execute(stmt):
+            executed.append(stmt)
+            result = MagicMock()
+            result.scalar.return_value = per_day_counts[_window_day(stmt)]
+            return result
+
+        db = AsyncMock()
+        db.execute.side_effect = fake_execute
+
+        tracker = mock_cost_tracker
+        tracker.get_daily_usage.side_effect = None
+        tracker.get_daily_usage.return_value = None
+
+        with patch(
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=tracker,
+            autospec=True,
+        ):
+            history = await _build_cost_history(tracker, db, date(2026, 1, 31), 3)
+
+        assert len(executed) == 3  # one query per day
+        for stmt, entry in zip(executed, history, strict=True):
+            assert isinstance(stmt, Select)
+            compiled = str(stmt.compile())
+            assert "count(detections.id)" in compiled
+            bounds = _window_bounds(stmt)
+            day_start = datetime.fromisoformat(entry.date + "T00:00:00+00:00")
+            assert bounds["ge"].tzinfo is not None, "day boundary must be tz-aware (UTC)"
+            assert bounds["ge"] == day_start
+            assert bounds["lt"] == day_start + timedelta(days=1)
+        # the scalar must reach the field verbatim (kills the or->and / or 1 family)
+        assert [h.detection_count for h in history] == [3, 7, 0]
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_cost_history_no_usage_days_still_query_with_zero_counts(
+        self, mock_cost_tracker, mock_pricing
+    ):
+        """No-usage days still issue a real per-day query and report zero detection."""
+        calls = []
+
+        def zero_result(stmt):
+            assert stmt is not None, "daily detection query must be a real statement"
+            calls.append(stmt)
+            result = MagicMock()
+            result.scalar.return_value = 0
+            return result
+
+        db = AsyncMock()
+        db.execute.side_effect = zero_result
+
+        tracker = mock_cost_tracker
+        tracker.get_daily_usage.return_value = None
+
+        with patch(
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=tracker,
+            autospec=True,
+        ):
+            history = await _build_cost_history(tracker, db, date(2026, 1, 31), 3)
+
+        assert len(history) == 3
+        for entry in history:
+            assert entry.total_cost_usd == 0.0
+            assert entry.token_cost_usd == 0.0
+            assert entry.gpu_cost_usd == 0.0
+            assert entry.event_count == 0
+            assert entry.detection_count == 0  # kills the `or 1` phantom-detection mutant
+        assert db.execute.await_count == 3
+
+    @pytest.mark.unit
+    def test_model_breakdown_placeholders_are_zero(self, mock_daily_usage):
+        """Not-yet-tracked per-model placeholders are dashboard contract values."""
+        breakdown = _build_model_cost_breakdown(mock_daily_usage)
+
+        assert {m.model for m in breakdown} == {"nemotron", "yolo26"}
+        by_model = {m.model: m for m in breakdown}
+        assert by_model["nemotron"].cost_usd == pytest.approx(0.0234)
+        assert by_model["yolo26"].cost_usd == pytest.approx(0.0189)
+        for m in breakdown:
+            assert m.gpu_seconds == 0.0
+            assert m.request_count == 0
+
+    @pytest.mark.unit
+    def test_token_cost_uses_exact_thousand_token_divisor(self, mock_daily_usage, mock_pricing):
+        """Per-1K pricing divides by exactly 1000.0 — the old rel=0.001 tolerance let
+        a 1001.0 divisor (cost off by 0.0999%) slip through."""
+        with patch("backend.api.routes.cost_analytics.get_cost_tracker", autospec=True) as mock_get:
+            mock_tracker = MagicMock()
+            mock_tracker._pricing = mock_pricing
+            mock_get.return_value = mock_tracker
+
+            cost = _calculate_token_cost(mock_daily_usage)
+
+            # 15000/1000*0.003 + 5000/1000*0.006 = 0.045 + 0.030
+            assert cost == pytest.approx(0.075, abs=1e-9)
+
+    @pytest.mark.unit
+    def test_91_day_range_is_rejected(self):
+        """The effective limit is exactly 90 days — probe the 90/91-day flip point."""
+        start = date(2026, 1, 1)
+        end = start + timedelta(days=90)  # 91 calendar days inclusive
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_date_range(start, end)
+        assert exc_info.value.status_code == 400
+        assert "Date range exceeds maximum allowed" in str(exc_info.value.detail)
+        # and the flip side stays valid: exactly 90 days is allowed
+        _validate_date_range(start, start + timedelta(days=89))
+
+
+def _window_bounds(stmt):
+    """Map comparison operator names -> literal right-hand values on stmt's WHERE."""
+    return {binary.operator.__name__: binary.right.value for binary in stmt.whereclause.clauses}
+
+
+def _window_day(stmt):
+    """The day a per-day history query is anchored to (from its >= bound)."""
+    return _window_bounds(stmt)["ge"].date()

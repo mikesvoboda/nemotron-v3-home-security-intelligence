@@ -23,6 +23,7 @@ from backend.api.schemas.alertmanager import (
     AlertmanagerWebhook,
     PrometheusAlertStatus,
 )
+from backend.core.websocket.event_types import WebSocketEventType
 from backend.models.prometheus_alert import (
     PrometheusAlert,
 )
@@ -558,3 +559,173 @@ class TestPrometheusAlertModel:
         assert "test-fp" in repr_str
         assert "TestAlert" in repr_str
         assert "firing" in repr_str.lower()
+
+
+# WP4.4 kill batch (alertmanager.md): expected payload keys — mirrors
+# frontend/src/types/websocket-events.ts and
+# EVENT_TYPE_METADATA[PROMETHEUS_ALERT].payload_fields.
+WP44_PROMETHEUS_ALERT_PAYLOAD_KEYS = {
+    "fingerprint",
+    "status",
+    "alertname",
+    "severity",
+    "labels",
+    "annotations",
+    "starts_at",
+    "ends_at",
+    "received_at",
+}
+
+
+def _wp44_firing_alert(**overrides):
+    """Shared fixture-builder for the WP4.4 broadcast contract tests."""
+    return PrometheusAlert(
+        **{
+            "id": 1,
+            "fingerprint": "test-fp",
+            "status": ModelPrometheusAlertStatus.FIRING,
+            "labels": {"alertname": "Test", "severity": "warning"},
+            "annotations": {"summary": "Test alert"},
+            "starts_at": datetime(2026, 1, 20, 12, 0, 0, tzinfo=UTC),
+            "received_at": datetime(2026, 1, 20, 12, 0, 5, tzinfo=UTC),
+            **overrides,
+        }
+    )
+
+
+class TestWp44AlertmanagerBroadcastGaps:
+    """WP4.4: published WS envelope + payload contract for _broadcast_prometheus_alert.
+
+    Existing success test only asserts publish was called once with ANY args
+    (AsyncMock swallows everything); the wire contract consumed by
+    frontend/src/stores/prometheus-alert-store.ts is pinned here.
+    """
+
+    @pytest.mark.asyncio
+    async def test_broadcast_success_payload_matches_schema(self) -> None:
+        """Payload carries the exact PrometheusAlertPayload key set and values.
+
+        Kills payload key-rename mutants (18), payload=None (mutmut_8) and
+        create_event payload-arg=None (mutmut_31) — the frontend store reads
+        these exact keys.
+        """
+        alert = _wp44_firing_alert()
+        mock_redis = MagicMock()
+
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
+            mock_broadcaster = MagicMock()
+            mock_broadcaster._redis = MagicMock()
+            mock_broadcaster._redis.publish = AsyncMock()
+            mock_broadcaster.channel_name = "events"
+            mock_broadcaster_cls.get_instance = MagicMock(return_value=mock_broadcaster)
+
+            result = await _broadcast_prometheus_alert(alert, redis_client=mock_redis)
+
+        assert result is True
+        (_channel, event) = mock_broadcaster._redis.publish.call_args.args
+        payload = event["payload"]
+        # mutmut_8 replaces the dict with None -> AttributeError on .keys().
+        assert set(payload.keys()) == WP44_PROMETHEUS_ALERT_PAYLOAD_KEYS
+        assert payload["fingerprint"] == "test-fp"
+        assert payload["status"] == "firing"
+        assert payload["alertname"] == "Test"
+        assert payload["severity"] == "warning"
+        assert payload["labels"] == {"alertname": "Test", "severity": "warning"}
+        assert payload["annotations"] == {"summary": "Test alert"}
+        assert payload["starts_at"] == "2026-01-20T12:00:00+00:00"
+        assert payload["ends_at"] is None  # still firing
+        assert payload["received_at"] == "2026-01-20T12:00:05+00:00"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_resolved_alert_payload_includes_ends_at(self) -> None:
+        """A RESOLVED alert's payload carries the resolution timestamp.
+
+        Kills the ternary-weakening mutant (mutmut_25 `and False`) that forces
+        ends_at None on every event — clients would render resolved alerts as
+        still-firing.
+        """
+        ends = datetime(2026, 1, 20, 12, 30, 0, tzinfo=UTC)
+        alert = _wp44_firing_alert(
+            status=ModelPrometheusAlertStatus.RESOLVED,
+            fingerprint="fp-resolved",
+            ends_at=ends,
+        )
+        mock_redis = MagicMock()
+
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
+            mock_broadcaster = MagicMock()
+            mock_broadcaster._redis = MagicMock()
+            mock_broadcaster._redis.publish = AsyncMock()
+            mock_broadcaster.channel_name = "events"
+            mock_broadcaster_cls.get_instance = MagicMock(return_value=mock_broadcaster)
+
+            result = await _broadcast_prometheus_alert(alert, redis_client=mock_redis)
+
+        assert result is True
+        (_channel, event) = mock_broadcaster._redis.publish.call_args.args
+        payload = event["payload"]
+        assert payload["status"] == "resolved"
+        assert payload["ends_at"] == "2026-01-20T12:30:00+00:00"  # mutant 25 -> None
+
+    @pytest.mark.asyncio
+    async def test_broadcast_success_publishes_prometheus_alert_event_envelope(self) -> None:
+        """Published object is a WS envelope typed prometheus.alert.
+
+        Kills create_event sabotage mutants (mutmut_29 event=None,
+        mutmut_30 event-type=None; mutmut_31 payload=None dies here too).
+        """
+        alert = _wp44_firing_alert()
+        mock_redis = MagicMock()
+
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
+            mock_broadcaster = MagicMock()
+            mock_broadcaster._redis = MagicMock()
+            mock_broadcaster._redis.publish = AsyncMock()
+            mock_broadcaster.channel_name = "events"
+            mock_broadcaster_cls.get_instance = MagicMock(return_value=mock_broadcaster)
+
+            result = await _broadcast_prometheus_alert(alert, redis_client=mock_redis)
+
+        assert result is True
+        (_channel, event) = mock_broadcaster._redis.publish.call_args.args
+        assert event is not None  # mutmut_29 -> None
+        assert event["type"] == WebSocketEventType.PROMETHEUS_ALERT  # mutmut_30 -> None
+        assert event["payload"] is not None  # mutmut_31 / mutmut_8
+        assert "timestamp" in event  # create_event envelope invariant
+
+    @pytest.mark.asyncio
+    async def test_broadcast_publishes_event_to_broadcaster_channel(self) -> None:
+        """publish() awaited once with (channel_name, event) exactly.
+
+        Kills publish-arg mutants (34-37): dropped-arg variants raise TypeError
+        in production that the broad except swallows into a silent False;
+        None-channel/event variants deliver the alert nowhere.
+        """
+        alert = _wp44_firing_alert()
+        mock_redis = MagicMock()
+
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
+            mock_broadcaster = MagicMock()
+            mock_broadcaster._redis = MagicMock()
+            mock_broadcaster._redis.publish = AsyncMock()
+            mock_broadcaster.channel_name = "events"
+            mock_broadcaster_cls.get_instance = MagicMock(return_value=mock_broadcaster)
+
+            result = await _broadcast_prometheus_alert(alert, redis_client=mock_redis)
+
+        assert result is True
+        mock_broadcaster._redis.publish.assert_called_once()
+        (args, kwargs) = mock_broadcaster._redis.publish.call_args
+        assert len(args) == 2  # mutmut_36/37 pass 1 positional -> fail
+        assert args[0] == "events"  # mutmut_34 (channel None) -> fail
+        event = args[1]
+        assert isinstance(event, dict)  # mutmut_35 (event None) / mutmut_29
+        assert event["payload"]["fingerprint"] == "test-fp"

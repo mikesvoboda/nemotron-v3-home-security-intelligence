@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 
 from backend.services.service_provider_matcher import (
+    ProviderEntry,
     ServiceCategory,
     ServiceMatch,
     ServiceProviderMatcher,
@@ -778,3 +779,124 @@ class TestServiceProviderMatcherCustomThreshold:
 
         # UPX vs UPS has ~0.67 similarity, still below 0.70
         assert result is None
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/service_provider_matcher.md, clusters 4, 6, 7, 8, 10)
+# =============================================================================
+
+
+class TestWp44MatcherRiskAndFields:
+    """Pin the observable fields the pre-existing suite never asserts.
+
+    Every category except EMERGENCY maps to "low_risk_service", so all
+    risk_modifier coverage passes even when the lookup degenerates to its
+    fallback. These tests use the only non-default modifier ("authority") and
+    assert the full ServiceMatch field set on both the exact and fuzzy paths.
+    """
+
+    @pytest.fixture
+    def matcher(self) -> ServiceProviderMatcher:
+        """Create a ServiceProviderMatcher instance."""
+        reset_service_provider_matcher()
+        return get_service_provider_matcher()
+
+    def test_exact_match_emergency_has_authority_modifier(
+        self, matcher: ServiceProviderMatcher
+    ) -> None:
+        """Exact EMERGENCY match must resolve risk_modifier 'authority'.
+
+        Kills match mutmut_8/_9/_11/_13/_17/_18: each degenerated lookup
+        yields "low_risk_service" here instead of "authority".
+        """
+        result = matcher.match("Police")  # exact alias "POLICE"
+
+        assert result is not None
+        assert result.provider == "Police"
+        assert result.category == "EMERGENCY"
+        assert result.confidence == 1.0
+        assert result.risk_modifier == "authority"
+
+    def test_exact_match_populates_normalized_matched_alias(
+        self, matcher: ServiceProviderMatcher
+    ) -> None:
+        """Exact path stores the normalized input as matched_alias.
+
+        Kills mutmut __init__9/_10 + match mutmut_25/_30: with the alias
+        index clobbered the call falls through to the fuzzy path, which yields
+        the DB alias string "FedEx Ground" instead of the normalized
+        "FEDEX GROUND"; the None/dropped variants fail the same assert.
+        """
+        result = matcher.match("  fedex ground  ")
+
+        assert result is not None
+        assert result.provider == "FedEx"
+        assert result.confidence == 1.0
+        assert result.matched_alias == "FEDEX GROUND"
+
+    def test_fuzzy_match_emergency_full_result_fields(
+        self, matcher: ServiceProviderMatcher
+    ) -> None:
+        """Fuzzy EMERGENCY match returns the complete, rounded result.
+
+        "Police Departm" is not an exact alias; it scores 0.9032 against
+        "Police Department" and 0.88 against "Police Dept" — two aliases above
+        threshold, so the best-score bookkeeping line executes twice.
+        Kills the eight cluster-8 lookup mutants, cluster 10 (_fuzzy_match__38
+        category, _40 risk_modifier, _41/_46 matched_alias, _51 4-decimal
+        rounding: mutant yields 0.90323), and _fuzzy_match__16
+        (best_score=None raises TypeError on the comparison).
+        """
+        result = matcher.match("Police Departm")
+
+        assert result is not None
+        assert result.provider == "Police"
+        assert result.category == "EMERGENCY"
+        assert result.confidence == 0.9032
+        assert result.risk_modifier == "authority"
+        assert result.matched_alias == "Police Department"
+
+    def test_fuzzy_match_boundary_score_included(self, matcher: ServiceProviderMatcher) -> None:
+        """Similarity exactly at the threshold must match (>=, not >).
+
+        "Southern Californ" scores exactly 0.85 vs alias
+        "Southern California Gas". Kills _fuzzy_match__14 (mutant returns None).
+        """
+        result = matcher.match("Southern Californ")
+
+        assert result is not None
+        assert result.provider == "SoCalGas"
+        assert result.category == "UTILITY"
+        assert result.confidence == 0.85
+
+
+class TestWp44MatcherTieBreak:
+    """Determinism contract of the public providers= injection API."""
+
+    def test_fuzzy_match_first_alias_wins_on_tie(self) -> None:
+        """Equal best scores keep the first-encountered alias (strict >).
+
+        Kills _fuzzy_match__15 (`>` -> `>=`): the mutant's second tied alias
+        (0.95 >= 0.95) replaces the first and provider becomes "Zeta Services".
+        """
+        providers: list[ProviderEntry] = [
+            {
+                "name": "Alpha Services",
+                "aliases": ["ABCDEFGHIJKLMNOPQRSZ"],
+                "category": "DELIVERY",
+            },
+            {
+                "name": "Zeta Services",
+                "aliases": ["ZABCDEFGHIJKLMNOPQRS"],
+                "category": "UTILITY",
+            },
+        ]
+        matcher = ServiceProviderMatcher(providers=providers)
+
+        result = matcher.match("ABCDEFGHIJKLMNOPQRST")  # 0.95 vs both aliases
+
+        assert result is not None
+        assert result.provider == "Alpha Services"
+        assert result.category == "DELIVERY"
+        assert result.confidence == 0.95

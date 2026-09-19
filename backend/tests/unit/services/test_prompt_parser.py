@@ -138,6 +138,26 @@ Setting: {value}
         assert idx1 == idx2
         assert type1 == type2 == "section_end"
 
+    def test_fallback_logs_warning_with_target_and_length(self, caplog) -> None:
+        """Fallback path warns with the missing section name and structured extra.
+
+        WP4.4 wave-67 (dossier C1/C2): 11 survivors were message/extra mutations of
+        exactly this warning — the silent-degradation operator signal.
+        """
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="backend.services.prompt_parser"):
+            find_insertion_point(SAMPLE_PROMPT_CURLY, "Nonexistent Section", "append")
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        record = warnings[0]
+        assert record.getMessage() == (
+            "Section 'Nonexistent Section' not found in prompt, falling back to end insertion"
+        )
+        assert record.target_section == "Nonexistent Section"
+        assert record.prompt_length == len(SAMPLE_PROMPT_CURLY)
+
 
 class TestDetectVariableStyle:
     """Tests for detect_variable_style function."""
@@ -171,6 +191,23 @@ class TestDetectVariableStyle:
         style = detect_variable_style(SAMPLE_PROMPT_EQUALS)
 
         assert style["label_style"] == "equals"
+
+    def test_label_style_none_for_lowercase_colon_labels(self) -> None:
+        """Label regex is anchored on an uppercase first letter — 'camera: {var}' is not colon style.
+
+        WP4.4 wave-67 C5: every existing label test feeds uppercase labels, so
+        dropping the [A-Z] anchor survived.
+        """
+        style = detect_variable_style("camera: {camera_name}\ntimestamp: {timestamp}\n")
+
+        assert style["format"] == "curly"
+        assert style["label_style"] == "none"
+
+    def test_label_style_none_for_lowercase_equals_labels(self) -> None:
+        """The [A-Z] anchor applies to the equals-label regex too — 'camera={var}' stays 'none'."""
+        style = detect_variable_style("camera={camera_name}\ntimestamp={timestamp}\n")
+
+        assert style["label_style"] == "none"
 
     def test_detects_indentation(self) -> None:
         """Test detection of indentation pattern."""
@@ -307,6 +344,16 @@ class TestValidatePromptSyntax:
         assert "var_a" in warnings[0]
         assert "var_b" in warnings[0]
 
+    def test_duplicate_variables_warning_exact_message(self) -> None:
+        """Duplicate list is ', '-joined in sorted order — pin the exact warning string.
+
+        WP4.4 wave-67 C6: membership-only asserts let the join-separator mutant slip.
+        """
+        prompt_with_duplicates = "A: {var_a}\nB: {var_a}\nC: {var_b}\nD: {var_b}\n"
+        warnings = validate_prompt_syntax(prompt_with_duplicates)
+
+        assert warnings == ["Duplicate variables: var_a, var_b"]
+
     def test_detects_unclosed_angle_brackets(self) -> None:
         """Test detection of unclosed angle brackets."""
         prompt_with_unclosed = "Camera: <camera_name\nTime: <timestamp>"
@@ -314,6 +361,19 @@ class TestValidatePromptSyntax:
 
         assert len(warnings) == 1
         assert "Unbalanced angle brackets" in warnings[0]
+
+    def test_angle_bracket_warning_reports_counts(self) -> None:
+        """Angle warning carries open/close counts, mirroring the curly-brace style.
+
+        WP4.4 wave-67 C7: the curly twin test pins counts; the angle test didn't,
+        so a mutated close-count survived.
+        """
+        prompt_with_unclosed = "Camera: <camera_name\nTime: <timestamp>"
+        warnings = validate_prompt_syntax(prompt_with_unclosed)
+
+        assert len(warnings) == 1
+        assert "2 open" in warnings[0]
+        assert "1 close" in warnings[0]
 
     def test_detects_multiple_issues(self) -> None:
         """Test detection of multiple issues at once."""

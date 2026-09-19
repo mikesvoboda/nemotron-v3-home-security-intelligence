@@ -7,7 +7,7 @@ for job lifecycle transitions, including transition history recording.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -599,3 +599,132 @@ class TestExceptionDetails:
         with pytest.raises(InvalidStateTransition) as exc_info:
             await job_state_service.transition(job, "running")
         assert exc_info.value.error_code == "INVALID_STATE_TRANSITION"
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/job_state_service.md, clusters C5-C12)
+# =============================================================================
+
+
+class TestWp44JobStateGaps:
+    """Serialization contract, UTC-aware stamps, error-gate semantics, helper defaults."""
+
+    def test_to_dict_full_serialization_contract(self) -> None:
+        """to_dict() emits every documented key and guards None timestamps.
+
+        Kills to_dict mutmut_12 (started_at guard ``or True`` ->
+        None.isoformat() AttributeError on fresh queued jobs), _15
+        (completed_at guard ``and False``) and _17-_20 (error/metadata
+        key renames).
+        """
+        job_id = str(uuid.uuid4())
+        created = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+        completed = datetime(2026, 1, 1, 12, 5, 0, tzinfo=UTC)
+        job = JobData(
+            id=job_id,
+            job_type="export",
+            status="failed",
+            created_at=created,
+            started_at=None,  # fresh-queued style: never started
+            completed_at=completed,
+            error="disk full",
+            metadata={"attempt": 2},
+        )
+        data = job.to_dict()
+        assert set(data) == {
+            "id",
+            "job_type",
+            "status",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "error",
+            "metadata",
+        }
+        assert data["started_at"] is None
+        assert data["completed_at"] == completed.isoformat()
+        assert data["error"] == "disk full"
+        assert data["metadata"] == {"attempt": 2}
+
+    @pytest.mark.asyncio
+    async def test_created_and_transition_timestamps_are_utc_aware(
+        self, job_state_service: JobStateService
+    ) -> None:
+        """create_job and transition must stamp timezone-aware UTC datetimes.
+
+        Kills create_job mutmut_15 / transition mutmut_28
+        (``datetime.now(UTC)`` -> ``datetime.now(None)`` naive local).
+        """
+        job = job_state_service.create_job("export")
+        assert job.created_at is not None
+        assert job.created_at.tzinfo is not None
+        assert job.created_at.utcoffset() == timedelta(0)
+
+        running = await job_state_service.transition(job, "running")
+        assert running.started_at is not None
+        assert running.started_at.utcoffset() == timedelta(0)
+
+        done = await job_state_service.transition(running, "completed")
+        assert done.completed_at is not None
+        assert done.completed_at.utcoffset() == timedelta(0)
+
+    @pytest.mark.asyncio
+    async def test_error_message_recorded_only_for_failure_states(
+        self, job_state_service: JobStateService
+    ) -> None:
+        """error_message never leaks onto non-failure transitions; a
+        message-less failure transition preserves a pre-existing error.
+
+        Kills transition mutmut_43 (error gate ``and`` -> ``or``).
+        """
+        job = JobData(
+            id=str(uuid.uuid4()),
+            job_type="export",
+            status="queued",
+            created_at=datetime.now(UTC),
+            error="prior error",
+        )
+        running = await job_state_service.transition(job, "running", error_message="transient blip")
+        assert running.status == "running"
+        assert running.error == "prior error"
+
+        failed = await job_state_service.transition(running, "failed")
+        assert failed.status == "failed"
+        assert failed.error == "prior error"
+
+    @pytest.mark.asyncio
+    async def test_aborted_transition_records_error_message(
+        self, job_state_service: JobStateService, aborting_job: JobData
+    ) -> None:
+        """aborting -> aborted with an error_message must record it.
+
+        Kills transition mutmut_47/_48 ("aborted" clobbered in the gate tuple).
+        """
+        result = await job_state_service.transition(
+            aborting_job, "aborted", error_message="user cancelled via UI"
+        )
+        assert result.status == "aborted"
+        assert result.error == "user cancelled via UI"
+
+    @pytest.mark.asyncio
+    async def test_transition_without_metadata_records_null(
+        self, job_state_service: JobStateService, mock_db: AsyncMock, queued_job: JobData
+    ) -> None:
+        """Omitted metadata must store SQL NULL, not the JSON string "null".
+
+        Kills _record_transition mutmut_13 (metadata guard ``or True``).
+        """
+        await job_state_service.transition(queued_job, "running")
+
+        transition = mock_db.add.call_args[0][0]
+        assert transition.metadata_json is None
+
+    def test_module_level_helpers_unknown_status(self) -> None:
+        """Convenience helpers tolerate unknown statuses like the method twins.
+
+        Kills get_valid_target_states mutmut_2/_4 and validate_transition
+        mutmut_3/_5 (``.get(status, [])`` default lost -> None).
+        """
+        assert get_valid_target_states("unknown") == []
+        assert validate_transition("unknown", "running") is False

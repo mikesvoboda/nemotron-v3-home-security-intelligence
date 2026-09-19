@@ -2351,3 +2351,240 @@ class TestHealthCheckMetrics:
         # Should not raise any exceptions
         record_health_check_cache_hit("health")
         record_health_check_cache_miss("health_ready")
+
+
+# =============================================================================
+# WP4.4 kill-tests: worker/degradation/exporter payload contracts
+# (drafted in .wp25-feed/wp44-triage/system.md drafts 1-3 — red-proof in the
+# serial lane against mutants/backend/api/routes/system.py)
+# =============================================================================
+
+
+class TestWp44DegradationPayloadContract:
+    """_get_degradation_status mirrors manager.get_status() exactly (C09-deg-payload)."""
+
+    def test_full_payload_contract(self) -> None:
+        """Every payload slot must mirror the manager dict, incl. fallback_queues."""
+        import backend.api.routes.system as system_module
+
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "mode": "degraded",
+            "is_degraded": True,
+            "redis_healthy": False,
+            "memory_queue_size": 7,
+            "fallback_queues": {"events": 3, "videos": 4},
+            "services": {
+                "nemotron": {
+                    "status": "unhealthy",
+                    "last_check": 1712345678.5,
+                    "consecutive_failures": 2,
+                    "error_message": "connection refused",
+                }
+            },
+            "available_features": ["detect", "watch"],
+        }
+        original = system_module._degradation_manager
+        try:
+            system_module._degradation_manager = mock_manager
+            result = _get_degradation_status()
+        finally:
+            system_module._degradation_manager = original
+
+        assert result is not None
+        assert result.mode.value == "degraded"
+        assert result.is_degraded is True
+        assert result.redis_healthy is False
+        assert result.memory_queue_size == 7
+        assert result.fallback_queues == {"events": 3, "videos": 4}
+        assert result.available_features == ["detect", "watch"]
+        (svc,) = result.services
+        assert svc.name == "nemotron"
+        assert svc.status == "unhealthy"
+        assert svc.last_check == 1712345678.5
+        assert svc.consecutive_failures == 2
+        assert svc.error_message == "connection refused"
+
+    def test_defaults_on_partial_status(self) -> None:
+        """Manager status missing optional keys must fall back to documented defaults."""
+        import backend.api.routes.system as system_module
+
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {"mode": "normal"}
+        original = system_module._degradation_manager
+        try:
+            system_module._degradation_manager = mock_manager
+            result = _get_degradation_status()
+        finally:
+            system_module._degradation_manager = original
+
+        assert result is not None  # services-iter mutants return None here
+        assert result.mode.value == "normal"
+        assert result.is_degraded is False
+        assert result.redis_healthy is False
+        assert result.memory_queue_size == 0
+        assert result.fallback_queues == {}
+        assert result.services == []
+        assert result.available_features == []
+
+    def test_falls_back_to_global_getter(self) -> None:
+        """When the module global is unset, get_degradation_manager() must still be used."""
+        import backend.api.routes.system as system_module
+
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {"mode": "minimal", "is_degraded": True}
+        original = system_module._degradation_manager
+        try:
+            system_module._degradation_manager = None
+            with patch(
+                "backend.services.degradation_manager.get_degradation_manager",
+                return_value=mock_manager,
+                autospec=True,
+            ):
+                result = _get_degradation_status()
+        finally:
+            system_module._degradation_manager = original
+
+        assert result is not None  # manager=None mutant swallows AttributeError -> None
+        assert result.mode.value == "minimal"
+        assert result.is_degraded is True
+
+
+class TestWp44WorkerStatusContract:
+    """_get_worker_statuses key names, defaults and messages exactly (C35/C39/C40)."""
+
+    def test_pipeline_partial_dicts(self) -> None:
+        """Pipeline worker blocks honor key names, defaults and messages exactly."""
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                # legacy single-worker shape, no "workers" list
+                "detection": {"state": "stopped"},
+                # multi-worker shape; state aggregation picks "running" from error
+                "analysis": {"count": 1, "workers": [{"state": "error"}]},
+                # timeout entry WITHOUT a state key -> legacy default "stopped"
+                "timeout": {},
+                # metrics entry WITHOUT a running key -> default False
+                "metrics": {},
+            },
+        }
+        register_workers(pipeline_manager=mock_manager)
+        try:
+            statuses = _get_worker_statuses()
+        finally:
+            register_workers(pipeline_manager=None)
+
+        status_dict = {s.name: s for s in statuses}
+        assert status_dict["detection_worker"].running is False
+        assert status_dict["detection_worker"].message == "State: stopped"
+        assert status_dict["analysis_worker"].running is True
+        assert status_dict["analysis_worker"].message is None
+        assert status_dict["batch_timeout_worker"].running is False
+        assert status_dict["batch_timeout_worker"].message == "State: stopped"
+        assert status_dict["batch_aggregator"].running is False
+        assert status_dict["batch_aggregator"].message == "State: stopped"
+        assert status_dict["metrics_worker"].running is False
+        assert status_dict["metrics_worker"].message == "Not running"
+
+    def test_defaults_when_attrs_missing(self) -> None:
+        """Objects without a running attribute must report running=False, message='Not running'."""
+        gpu_obj = object()  # getattr(_gpu_monitor, "running", False) default path
+        broadcaster_obj = object()  # getattr(_system_broadcaster, "_running", False)
+        file_watcher_obj = object()
+        register_workers(
+            gpu_monitor=gpu_obj,
+            system_broadcaster=broadcaster_obj,
+            file_watcher=file_watcher_obj,
+            cleanup_service=None,
+            pipeline_manager=None,
+        )
+        try:
+            statuses = _get_worker_statuses()
+        finally:
+            register_workers(gpu_monitor=None, system_broadcaster=None, file_watcher=None)
+
+        status_dict = {s.name: s for s in statuses}
+        assert status_dict["gpu_monitor"].running is False
+        assert status_dict["gpu_monitor"].message == "Not running"
+        assert status_dict["system_broadcaster"].running is False
+        assert status_dict["file_watcher"].running is False
+        assert status_dict["file_watcher"].message == "Not running"
+
+    def test_critical_workers_partial_manager_status(self) -> None:
+        """Critical-worker health defaults: missing workers -> empty dict, no crash."""
+        stopped_default = MagicMock()
+        stopped_default.get_status.return_value = {"workers": {}}
+        register_workers(pipeline_manager=stopped_default)
+        try:
+            assert _are_critical_pipeline_workers_healthy() is False
+        finally:
+            register_workers(pipeline_manager=None)
+
+        no_workers = MagicMock()
+        no_workers.get_status.return_value = {"running": True}
+        register_workers(pipeline_manager=no_workers)
+        try:
+            assert (
+                _are_critical_pipeline_workers_healthy() is True
+            )  # {} default; None mutant raises
+        finally:
+            register_workers(pipeline_manager=None)
+
+        multi = MagicMock()
+        multi.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"count": 1, "workers": [{"state": "error"}]},
+                "analysis": {"count": 1, "workers": [{"state": "running"}]},
+            },
+        }
+        register_workers(pipeline_manager=multi)
+        try:
+            assert _are_critical_pipeline_workers_healthy() is True
+        finally:
+            register_workers(pipeline_manager=None)
+
+
+class TestWp44ExporterStatusContract:
+    """_build_exporter_status exact endpoint/error/scrape semantics (C51/C53/C55)."""
+
+    def test_exact_contract_matched_and_unmatched(self) -> None:
+        """Matched targets map endpoint/last_scrape/error exactly; unmatched expose KNOWN defaults."""
+        from backend.api.routes.system import _build_exporter_status
+
+        targets = [
+            {
+                "job": "redis_exporter",
+                "instance": "prom-redis:9121",
+                "health": "UP",
+                "lastScrape": "2024-01-15T10:30:00.123456789Z",
+                "lastError": "",
+            },
+            {
+                # job must carry json_exporter to hit the matcher's first rule
+                "job": "json_exporter",
+                "instance": "json-host:7979",
+                "health": "down",
+                "lastScrape": None,
+                "lastError": "connection refused",
+            },
+        ]
+        result = {e.name: e for e in _build_exporter_status(targets)}
+
+        redis = result["redis-exporter"]
+        assert redis.status.value == "up"  # .lower() normalization of "UP"
+        assert redis.endpoint == "prom-redis:9121"  # target instance wins
+        assert redis.last_scrape is not None
+        assert redis.last_scrape.microsecond == 123456  # ns truncated to us
+        assert redis.last_scrape.utcoffset().total_seconds() == 0
+        assert redis.error is None
+
+        js = result["json-exporter"]
+        assert js.status.value == "down"
+        assert js.error == "connection refused"
+
+        bb = result["blackbox-exporter"]
+        assert bb.status.value == "unknown"
+        assert bb.endpoint == "http://blackbox-exporter:9115"  # KNOWN default endpoint
+        assert bb.error == "Exporter not found in Prometheus targets"  # exact text

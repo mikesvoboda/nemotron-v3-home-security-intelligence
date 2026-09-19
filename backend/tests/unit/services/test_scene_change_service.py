@@ -547,3 +547,178 @@ class TestGetUnacknowledgedForCamera:
 
         assert len(result) == 0
         assert mock_db_session.execute.called
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/scene_change_service.md, clusters C2-C14)
+# =============================================================================
+
+
+class TestWp44SceneChangeGaps:
+    """Constructor kwargs, captured statement shapes, tz-aware stamps, payload keys."""
+
+    @pytest.mark.asyncio
+    async def test_get_scene_change_builds_id_equality_query(
+        self,
+        scene_change_service: SceneChangeService,
+        mock_db_session: AsyncMock,
+    ) -> None:
+        """Captured statement must be a real SELECT ... WHERE id == <given id>.
+
+        Kills get_scene_change mutmut_2 (execute(None)), _4 (select(None)),
+        _3 (where(None)) and _5 (== -> !=).
+        """
+        mock_result = AsyncMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=None)
+        mock_db_session.execute.return_value = mock_result
+
+        await scene_change_service.get_scene_change(scene_change_id=123)
+
+        stmt = mock_db_session.execute.call_args[0][0]
+        assert stmt is not None
+        assert stmt.column_descriptions[0].get("entity") is SceneChange
+        compiled = stmt.compile()
+        assert "scene_changes.id = :" in str(compiled)
+        assert 123 in compiled.params.values()
+
+    @pytest.mark.asyncio
+    async def test_get_unacknowledged_query_filters_orders_limits(
+        self,
+        scene_change_service: SceneChangeService,
+        mock_db_session: AsyncMock,
+    ) -> None:
+        """Statement must filter on camera_id AND unacknowledged, order DESC, apply LIMIT.
+
+        Kills get_unacknowledged_for_camera mutmut_2 (whole stmt -> None),
+        _7 (select(None)), _6/_5 (where(None)), _8 (camera_id !=),
+        _9 (is_(None)), _10 (is_(True)), _4 (order_by(None)), _3 (limit(None)).
+        """
+        mock_scalars = MagicMock()
+        mock_scalars.all = MagicMock(return_value=[])
+        mock_result = AsyncMock()
+        mock_result.scalars = MagicMock(return_value=mock_scalars)
+        mock_db_session.execute.return_value = mock_result
+
+        await scene_change_service.get_unacknowledged_for_camera(camera_id="front_door", limit=50)
+
+        stmt = mock_db_session.execute.call_args[0][0]
+        assert stmt is not None
+        assert stmt.column_descriptions[0].get("entity") is SceneChange
+        compiled = stmt.compile()
+        sql = str(compiled)
+        assert "scene_changes.camera_id = :" in sql
+        assert "acknowledged IS false" in sql
+        assert "detected_at DESC" in sql
+        assert "LIMIT" in sql
+        assert "front_door" in compiled.params.values()
+        assert 50 in compiled.params.values()
+
+    @pytest.mark.asyncio
+    async def test_create_scene_change_persists_all_fields(
+        self,
+        scene_change_service: SceneChangeService,
+        mock_db_session: AsyncMock,
+        mock_websocket_emitter: AsyncMock,
+    ) -> None:
+        """The SceneChange constructor must receive every persisted field, unmodified.
+
+        Kills create_scene_change mutmut_2/_8 (camera_id None/omitted),
+        _3/_9 (similarity_score), _4/_10 (change_type), _5/_11 (file_path),
+        _16 (acknowledged=True), _17 (add(None)), _18 (refresh(None)).
+        """
+        captured: dict = {}
+        recorder = _recording_scene_change(captured)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("backend.services.scene_change_service.SceneChange", recorder)
+            await scene_change_service.create_scene_change(
+                camera_id="front_door",
+                similarity_score=0.3,
+                change_type=SceneChangeType.VIEW_TAMPERED,
+                file_path="/path/to/frame.jpg",
+            )
+
+        assert captured.get("camera_id") == "front_door"
+        assert captured.get("similarity_score") == 0.3
+        assert captured.get("change_type") == SceneChangeType.VIEW_TAMPERED
+        assert captured.get("file_path") == "/path/to/frame.jpg"
+        assert captured.get("acknowledged") is False
+        assert mock_db_session.add.call_args[0][0] is captured["__instance__"]
+        assert mock_db_session.refresh.call_args[0][0] is captured["__instance__"]
+
+    @pytest.mark.asyncio
+    async def test_create_scene_change_detected_at_is_utc_aware(
+        self,
+        scene_change_service: SceneChangeService,
+        mock_db_session: AsyncMock,
+        mock_websocket_emitter: AsyncMock,
+    ) -> None:
+        """detected_at is tz-aware UTC and ships under exactly key 'detected_at'.
+
+        Kills create_scene_change mutmut_15 (datetime.now(None) naive) and
+        _36/_37 (payload key XX-detected_atXX / DETECTED_AT).
+        """
+        captured: dict = {}
+        recorder = _recording_scene_change(captured)
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("backend.services.scene_change_service.SceneChange", recorder)
+            await scene_change_service.create_scene_change(camera_id="cam", similarity_score=0.4)
+
+        assert captured["detected_at"].tzinfo is not None
+        payload = mock_websocket_emitter.emit.call_args[0][1]
+        assert payload["detected_at"] == captured["detected_at"].isoformat()
+
+    @pytest.mark.asyncio
+    async def test_acknowledge_scene_change_payload_refresh_and_tz(
+        self,
+        scene_change_service: SceneChangeService,
+        mock_db_session: AsyncMock,
+        mock_websocket_emitter: AsyncMock,
+    ) -> None:
+        """Ack path: lookup uses the passed id, refresh gets the record, ack ts is
+        UTC-aware and ships under key 'acknowledged_at'.
+
+        Kills acknowledge_scene_change mutmut_2 (get_scene_change(None)),
+        _7 (acknowledged_at naive), _8 (refresh(None)),
+        _22/_23 (acknowledged_at key rename), _24 (guard and False).
+        """
+        mock_scene_change = MagicMock(spec=SceneChange)
+        mock_scene_change.id = 123
+        mock_scene_change.camera_id = "front_door"
+        mock_scene_change.acknowledged = False
+        mock_scene_change.acknowledged_at = None
+        mock_result = AsyncMock()
+        mock_result.scalar_one_or_none = MagicMock(return_value=mock_scene_change)
+        mock_db_session.execute.return_value = mock_result
+
+        result = await scene_change_service.acknowledge_scene_change(scene_change_id=123)
+
+        assert result is not None
+        stmt = mock_db_session.execute.call_args[0][0]
+        compiled = stmt.compile()
+        assert "scene_changes.id = :" in str(compiled)
+        assert 123 in compiled.params.values()  # get_scene_change(None) drops the id
+        assert mock_scene_change.acknowledged_at.tzinfo is not None
+        mock_db_session.refresh.assert_called_once_with(mock_scene_change)
+        payload = mock_websocket_emitter.emit.call_args[0][1]
+        assert payload["acknowledged_at"] == mock_scene_change.acknowledged_at.isoformat()
+
+
+def _recording_scene_change(captured: dict):
+    """Constructor stand-in that records kwargs and exposes them as attributes."""
+
+    def recorder(**kwargs):
+        captured.update(kwargs)
+        m = MagicMock(spec=SceneChange)
+        m.id = 1
+        m.camera_id = kwargs.get("camera_id")
+        m.similarity_score = kwargs.get("similarity_score")
+        m.change_type = kwargs.get("change_type")
+        m.file_path = kwargs.get("file_path")
+        m.detected_at = kwargs.get("detected_at")
+        m.acknowledged = kwargs.get("acknowledged")
+        captured["__instance__"] = m
+        return m
+
+    return recorder
