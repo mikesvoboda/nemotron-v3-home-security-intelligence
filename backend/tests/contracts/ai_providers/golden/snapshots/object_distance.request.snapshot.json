@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "object_distance",
+  "properties": {
+    "bbox": "array<number>",
+    "image": "string",
+    "method": "string"
+  },
+  "required": ["bbox", "image"],
+  "side": "request"
+}

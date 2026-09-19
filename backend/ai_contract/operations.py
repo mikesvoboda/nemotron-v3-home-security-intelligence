@@ -425,7 +425,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=["EnrichmentClient.preload_model"],
-        evidence="backend/services/enrichment_client.py:3287; backend/api/routes/model_management.py:486,646",
+        evidence="backend/services/enrichment_client.py:3287; backend/api/routes/model_management.py:486,646; response from ai/enrichment/model.py:ModelPreloadResponse",
     ),
     "model_status": Operation(
         id="model_status",
@@ -438,7 +438,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=["EnrichmentClient.get_model_status"],
-        evidence="backend/services/enrichment_client.py:3257; backend/api/routes/model_management.py:186; grep over ai/gateway/adapters/ returns 0 hits (re-verified at generation time by check_phantoms)",
+        evidence="backend/services/enrichment_client.py:3257; backend/api/routes/model_management.py:186; grep over ai/gateway/adapters/ returns 0 hits (re-verified at generation time by check_phantoms); response from ai/enrichment/model.py:SystemStatus",
     ),
     "model_unload": Operation(
         id="model_unload",
@@ -451,7 +451,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=[],
-        evidence="canonical ai/enrichment/model.py:3552 (query-param model_name); backend posts /models/{name}/unload at model_management.py:560 - 404 even against the real server (WP7.3 Tier A)",
+        evidence="canonical ai/enrichment/model.py:3552 (query-param model_name); backend posts /models/{name}/unload at model_management.py:560 - 404 even against the real server (WP7.3 Tier A); response from ai/enrichment/model.py:ModelUnloadResponse",
     ),
     "object_distance": Operation(
         id="object_distance",
@@ -464,7 +464,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=["EnrichmentClient.estimate_object_distance"],
-        evidence="backend/services/enrichment_client.py:1955 endpoint='object-distance'; 0 gateway hits; zero non-test callers (WP7.3 deletion candidate)",
+        evidence="backend/services/enrichment_client.py:1955 endpoint='object-distance'; 0 gateway hits; zero non-test callers (WP7.3 deletion candidate); response from ai/enrichment/model.py:ObjectDistanceResponse",
     ),
     "yolo26_detect": Operation(
         id="yolo26_detect",
