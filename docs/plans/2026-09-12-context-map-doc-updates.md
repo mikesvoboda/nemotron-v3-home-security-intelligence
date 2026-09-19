@@ -5197,3 +5197,95 @@ residual tail for the next drafting round.
 Serial-lane note: census was ONE pytest job throughout; the owner-approved
 fan-out lane paused via /tmp/wp25/fanout.pause sentinel for validate.sh, then
 resumes — first production exercise of the carve-out hierarchy.
+
+## WP6.1 LANDED `054b78e3` — sys.modules poisoning killed in ai/enrichment/test_model.py (2026-09-19)
+
+MEASURE: ai/ collection 387/19 -> 1262/9. The file built module-scope
+`ModuleType` mocks and assigned `sys.modules["ai"] = mock` at import time,
+shadowing the REAL package for every later importer in a full-tree run
+(12 collection errors were downstream files seeing a fake `ai`). Census
+proved the mocks dead weight: `MockPoseAnalyzer` referenced nowhere outside
+the mock block; `vitpose` imports only torch/PIL; the file's pose tests
+touch only options/response fields. Double-import was a SEPARATE bug in the
+same file: package chain (`ai.enrichment.test_model` -> `__init__` ->
+`ai.enrichment.model_manager`) + flat `from model import` re-executed the
+same `model_manager.py` -> module-scope prometheus Gauge registered twice
+(DuplicateTimeseries). Fixed test-side (file collects 106/106 alone). The
+file's sys.path insert stays (matches container flatness); mock block
+deleted, comment points at `ai/conftest.py`.
+
+## WP6.2 LANDED `f3d74789` — ai/conftest.py triton block + flat-name owner map; ai/ collects 1764/0 (2026-09-19)
+
+MEASURE: 1262/9 -> 1764/0 errors. Two hazard classes: (a) `ai/triton` is a
+Triton INFERENCE SERVER CLIENT package; with ai/ on sys.path (conftest and
+the production shim both insert it for container parity) it shadowed the
+pip triton compiler and `torch._dynamo.utils` died inside transformers
+lazy imports (`common_constant_types.add(triton.language.dtype)`).
+Append-vs-insert was the plan's verified NON-FIX; fixture-scoping cannot
+cover production shims that insert ai/ mid-session. Fix:
+`sys.modules["triton"] = None` (import-halt) restores the
+graceful-absence path torch takes when triton is truly absent. (b) Flat
+global slots (`model`, `metrics`, `model_manager`, `vitpose`): first
+importer wins session-wide -> cross-service ImportErrors
+(`SECURITY_CLASSES` missing; yolo26 metrics bound to enrichment). Fix:
+`_FLAT_OWNERS` service->canonical map, LEAF-FIRST import order, rebind
+(NOT setdefault — the about-to-import file's service owns the slot) at
+`pytest_collectstart` (module import) and `pytest_runtest_setup` (string
+patch targets, `del sys.modules["model"]` tests). Guards in
+`ai/tests/test_module_hygiene.py` are subprocess collection probes with
+in-process verdict plugins — in-process nested pytest runs contaminate
+each other through the same flat slots. First honest tier baseline
+(serial): 69 failed / 1680 passed / 15 skipped, ~100 s. The plan's
+superseded baseline (896/60/5) predates collection repair.
+
+## WP6.3 LANDED `d6f6a2ef` — format_detections_with_quality had been raising on EVERY call; pure-leaf contract.py lands (2026-09-19)
+
+MEASURE: red faces reproduced: `ModuleNotFoundError: No module named
+'metrics'` (ai/yolo26/model.py:117 flat import executes in the BACKEND
+process) and, with torch blocked, `import of torch halted`. CI never saw it
+because the only prior test asserted the function's signature, never
+executed it. Green: `ai/yolo26/contract.py` (stdlib+typing only — import +
+`enhance_detections()` call proven with `sys.modules["torch"] = None`,
+torch never loaded) backs `backend/services/prompts.py` now; 3 new tests
+(2 execution + parity); test_prompts.py 473 passed file-wide; ai/ collect
+unchanged 1764/0. Duplication is Pinned-not-trusted:
+`TestDetectionContractParity` compares enum ==/hash/dict-lookup across the
+distinct classes, full confidence grid tier+explanation, spatial
+field-tuples (dataclass `__eq__` is same-class only), enhance() outputs
+incl. `to_prompt_context()`, `zip(strict=True)`. If either copy drifts CI
+names the symbol. UP037 hazard: ruff --fix strips the quotes on
+`-> "EnhancedDetection"` in model.py, which has no `__future__` import and
+whose container base (`nvcr tensorrt:26.04-py3`, minor version not
+verifiable from this sandbox) may predate PEP 649 — unquoted self-reference
+NameErrors at class-body evaluation on <=3.13 = broken container. Quotes
+restored + `# noqa: UP037`. contract.py's own annotation stays unquoted
+(backend image python:3.14, requires-python >=3.14). Additive `_here_dir`
+sys.path APPEND after the existing `_ai_dir` shim in both named model.py
+files (append, never insert: insert would shadow package imports). Honest
+residuals: bare `import ai.enrichment.model` still fails OUTSIDE pytest —
+its line-33 `from model_manager import` executes before its own shim and
+plan section 1 bans reordering model.py imports; clip/florence still
+shadow `ai/clip` triton outside `ai/conftest.py`. All pytest paths work.
+
+## RULING WP6-A (parked, owner) — ship contract.py in yolo26 Dockerfile, delete model.py duplicates
+
+Options: (i) add `COPY ai/yolo26/contract.py /app/contract.py` to
+ai/yolo26/Dockerfile, switch model.py's inline block to
+`from contract import ...` (flat /app layout makes the import trivially
+valid in-container), delete ~340 duplicated lines from model.py.
+(ii) keep guarded duplication as landed. Evidence: Dockerfile is an
+explicit per-file COPY list; section 1 of plan P bans import-statement
+edits to model.py during Phase 6; Dockerfile edits are
+owner-review-required by the same rule. Recommendation: (i) as a Phase-7+
+follow-up with a container smoke-test license — the parity test makes (ii)
+safe but the drift tax is forever. NOT executed autonomously.
+
+## RULING WP6-B (parked, owner) — enrichment-light package name
+
+`ai/enrichment-light/` has no importable package name (hyphen dir, no
+`__init__.py` chain) so it is absent from the `_FLAT_OWNERS` map and owns
+its `model` slot per-test (legacy behavior, currently correct). Census:
+its flat names collide only with itself today. Recommendation: rename to
+`ai/enrichment_light/` + `__init__.py` when its Dockerfile is next touched;
+until then WP6.4 triage treats its 4 failures as first-class. NOT executed
+(Dockerfile + directory rename = owner territory).
