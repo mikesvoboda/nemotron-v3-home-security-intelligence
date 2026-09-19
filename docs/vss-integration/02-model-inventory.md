@@ -21,8 +21,27 @@ graphs, framework allocations, and runtime variance. VSS states: _"Do not tune a
 allocation above `0.85`."_
 
 **The formula is self-consistent with their published table** — it reproduces three of their
-quoted budgets exactly (9B FP8 = 11.7, 7B FP16 = 18.2, 8B FP16 = 20.8), so it can be trusted for
-extrapolation.
+quoted budgets exactly (9B FP8 = 11.7, 7B FP16 = 18.2, 8B FP16 = 20.8).
+
+> ### ⚠️ DO NOT EXTRAPOLATE THE FORMULA TO 4-BIT **[V, 2026-09-19]**
+>
+> **Budget from HuggingFace blob sizes, never from the formula.** The formula assumes every
+> parameter is quantized. Real NVFP4 checkpoints quantize only part of the network.
+>
+> For `NVIDIA-Nemotron-Nano-12B-v2-VL-NVFP4-QAD`, **2,216,376,832 parameters stay BF16** — the
+> vision tower, four attention layers, the Mamba `conv1d`, the projector, and `lm_head` are all in
+> `config.json`'s `ignore` list. That BF16 floor is _identical_ in the FP8 and NVFP4 repos.
+>
+> | Model                | Formula  | Actual (HF blob × 1.3) | Error |
+> | -------------------- | -------- | ---------------------- | ----- |
+> | 12B-VL NVFP4         | 7.80 GB  | **13.78 GB**           | −43%  |
+> | 12B-VL FP8           | 15.60 GB | **20.02 GB**           | −22%  |
+> | Nemotron Nano 9B FP8 | 11.70 GB | **13.39 GB**           | −13%  |
+>
+> The earlier hedge in this document — "treat every FP4 figure as an optimistic lower bound" — was
+> correct. The magnitude is now measured: **the formula understates 4-bit by roughly 40%.**
+> The FP4 column in the table below is retained only to show what the formula predicts. **It is
+> wrong.** Use [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md) for real numbers.
 
 **MoE caveat [V]:** for mixture-of-experts models, budget **total** parameters, not active
 parameters. VSS says this explicitly of Nemotron 3.5 Lightning 30B-A3B: _"budget total parameters

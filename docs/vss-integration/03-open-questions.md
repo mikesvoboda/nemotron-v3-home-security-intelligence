@@ -8,7 +8,12 @@ with the answer and the date.
 
 These gate the decision. None is answered.
 
-### Q1. Does the consumer thesis survive contact with NVFP4 reality? **[?]**
+### ~~Q1. Does the consumer thesis survive contact with NVFP4 reality?~~ **PARTIALLY ANSWERED 2026-09-19**
+
+**An ungated first-party NVFP4 checkpoint exists** (`NVIDIA-Nemotron-Nano-12B-v2-VL-NVFP4-QAD`,
+10.62 GB, near-parity accuracy) and a 5090 configuration fits. **Still open:** whether NVFP4
+actually _computes_ on `sm_120` versus dequantizing to 16-bit. See
+[`04-fp4-and-deployment.md`](04-fp4-and-deployment.md). Original framing retained below.
 
 Consumer Blackwell (RTX 50-series) is compute capability `sm_120`; datacenter Blackwell is
 `sm_100`. NVFP4 kernel availability in vLLM / TensorRT-LLM / ModelOpt is **not uniform across
@@ -33,7 +38,11 @@ FP8.
 
 This is the cheapest question to answer and one of the most decisive. Answer it early.
 
-### Q3. What are the RT-CV and RT-Embed VRAM footprints? **[?]**
+### ~~Q3. What are the RT-CV and RT-Embed VRAM footprints?~~ **ANSWERED 2026-09-19**
+
+**RT-Embed = fixed 10 GB** (`sizing.md`: "Reserve about 10 GB for RT-Embed" — no knob, no 4-bit
+path). **RT-CV ≈ 3.0 GB**, bracket 1.7-4.5, but it hits 95-96% SM utilization at 2-3 streams, so
+**compute binds before VRAM does**. Original framing retained below.
 
 Until these are known, **no configuration can be declared to fit**. Every sizing claim that counts
 only the VLM is misleading. See `skills/vss-build-vision-ai/references/services/rt-cv.md` and
@@ -106,7 +115,8 @@ document was written:
 
 1. **Pivot assessment** — whether the test-platform work serves the VSS goal, and whether 2-3
    more days of WP4.4 mutation census is the right spend.
-2. **Model deployment recon** — Q1 above, plus local deployment paths and the Cosmos Reason family.
+2. ~~**Model deployment recon**~~ — **COMPLETE 2026-09-19**, folded into
+   [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md).
 3. **Lean backend feasibility** — Q4 and Q5 above, plus VSS contribution governance.
 
 **If you are a future agent and these results are not reflected in this directory, they were never
