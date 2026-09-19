@@ -1,12 +1,15 @@
-# services/clip_loader.py surviving-mutant record — PROVISIONAL (wave-67, WIP at handoff 2026-09-19)
+# services/clip_loader.py surviving-mutant record (STRICT census 2026-09-19, wave-67)
 
-48 mutants; 24 killed pre-WP4.4 (score 50.0%). Wave-67 batch (4 drafted tests
-in TestClipLoaderDiagnostics, caplog-based): first STRICT census **14/24
-killed** (w67-clip.jsonl, recount from disk; 10 survivors) vs dossier
-prediction 19/24.
+48 mutants; 24 killed pre-WP4.4 (score 50.0%). Wave-67 batch (4 tests in
+TestClipLoaderDiagnostics, caplog-based): **19 newly killed**. STRICT census:
+all 24 open keys re-probed with synced tests, kill = rc in (1,3), -n 0,
+0 no-verdicts. First census read 14/24 vs dossier 19/24; the line-diff audit
+below fixed 3 draft under-shoots + 1 dossier mis-cluster, and the clip-only
+re-census (w67-clip2.jsonl, recounted from disk) terminated at 19/24 with the
+survivor set predicted exactly.
 
-Line-level diff audit of the 10 survivors against `__mutmut_orig` in the
-mutants tree resolved every deviation:
+Line-level diff audit of the first census's 10 survivors against
+`__mutmut_orig` in the mutants tree resolved every deviation:
 
 - 14, 27, 28 — draft under-shoots: D1/D3 used SUBSTRING matching
   (`"moved to CUDA" in m`, `"transformers" in m and "pip install" in m`)
@@ -23,21 +26,12 @@ mutants tree resolved every deviation:
   pinning error-log prose, keeping C8 correctly LOW-VALUE).
 - 6 — predicted survivor (C6), but D2's startswith assertions killed it.
 - 31, 32, 40, 41, 42 — genuine C7/C8 LOW-VALUE survivors (raise-suffix and
-  error-message XX/case clobbers), expected to persist.
+  error-message XX/case clobbers); confirmed dead-on-arrival by the re-census.
 
-Repair verified: 45 passed in-tree, ruff clean, synced into mutants/, key 35
-hand-probed RED. **clip-only re-census RUNNING at handoff**: pid 2443118
-(nohup, survives session), output /tmp/wp25/wp44-kills/w67-clip2.jsonl
-(11 killed / 12 probed at handoff). Expected terminal: 19/24 (module
-24+19 = 43/48 = 89.6%), 5 survivors = 31, 32, 40, 41, 42.
-
-SUCCESSOR TASK: recount clip2 from disk (`python -c` json over the jsonl,
-kill = rc in (1,3)); if it matches, promote this file to FINAL (drop
-PROVISIONAL, list the 5 survivor keys in a fenced block) and commit the
-test file with house-format message `test(wp44): clip_loader kill batch —
-STRICT census 19/24 new kills (module 43/48=89.6%)`. If it deviates again,
-diff surviving keys vs __mutmut_orig in mutants/backend/services/
-clip_loader.py as above before touching assertions.
+Module total: (24+19)/48 = **43 = 89.6%** (was 50.0% pre-WP4.4).
+5 survivors remain — dossier-predicted exactly (C7 raise-suffix, C8
+error-message clobbers under prefix/substring convention). They ARE the
+surviving-mutant record.
 
 ```
 backend.services.clip_loader.x_load_clip_model__mutmut_31
