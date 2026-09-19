@@ -6934,3 +6934,82 @@ entries; reverted, never committed. ruff/ruff-format clean both files;
 semgrep 0 findings; WP4.2 ratchet rc=0; the ruff hook's orphaned
 `import pytest` removal rode in with the commit (my skip-removal orphaned
 it).
+
+## WP9.2 LANDED `8ff4d76d` — in-process AI tier declared OUT of HTTP-conformance scope; counted list; ruling stays parked (2026-09-20)
+
+Docs-only phase, executed as declared in plan P. Q9 in the open-questions
+register asked whether the VSS swap covers the in-process tier; WP9.2 does
+not answer it — it **bounds the scope so the answer cannot be assumed**.
+
+Delivered in `docs/vss-integration/06-repo-a-readiness.md` §2a (new, before
+§3) + the Q9 entry in `03-open-questions.md`:
+
+- **Counted module list [V]**, re-verified at the parent commit (commands
+  cited in the doc): 22 `*_loader.py` modules under `backend/services/`,
+  21 of them importing torch/transformers/ultralytics into the backend
+  process — the sole non-importer is `fast_alpr_loader.py`. Eager pair
+  `stgcn_loader` + `zero_dce_loader` (module-level import); the other 19
+  lazy. Four direct in-process detectors: `face_detector` 375 lines,
+  `plate_detector` 322, `ocr_service` 416, `scene_ocr_service` 889. The
+  `ai_services.py` DI wrappers at `:36-350` (first class at `:36`),
+  `model_zoo.py` 930 lines.
+- **The declaration**: the HTTP-conformance apparatus (WP8.1 protocol,
+  WP8.2 fake, WP8.3 suite, WP8.4 clients, WP9.1 parity checker) guards the
+  provider tier only. The in-process tier has no socket, so none of those
+  suites can see it swap or break.
+- **What remains unguarded, stated plainly**: `await loader.run(frame)`
+  has no fake, no contract, no golden. A future AI provider swap can leave
+  every suite green while silently changing in-process model behavior.
+- **The sequencing claim**: the swap is TWO known projects, not one; this
+  section prices the second one. RULING remains PARKED — WP9.2 declares
+  scope, it does not choose a shape. No gate, no coverage, no code touched.
+
+Anchor movement: none. The census script's real-tree anchors already pin
+the loader count (22 / >=20 INPROC) from WP5.5; §2a cites the same numbers
+from commands re-run at the commit, per the docs [V] convention.
+
+## WP5.6 LANDED `efb7cb6b` — DEAD deletion pair executed under ADDENDUM 2 A6; 5 files / 2,302 lines / 111 cases (2026-09-20)
+
+The census's two known-DEAD modules deleted — the deletion the WP5.5 census
+was built to license and the original WP5.6 ruling parked behind the
+test-collision question (`L#2026-09-19-wp56-test-collision`, ANSWERED by
+ADDENDUM 2 A6). A6's five conditions, each checked at the parent commit
+`8ff4d76d` and quoted verbatim in the commit body — not summarized:
+
+1. **Zero non-test importers** — import-statement grep `rc=1` for
+   `job_state_service`; `scene_change_service`'s ONLY importer was the
+   `__init__.py:318` re-export (removed same commit), and the
+   post-removal symbol census (`SceneChangeService|classify_scene_change_type`)
+   is `rc=1` repo-wide. The live path is `scene_change_detector` via
+   `enrichment_pipeline.py:141` — untouched.
+2. **Exclusive subject** — each deleted test file imports only its deleted
+   module (+ models); no surviving test imports a deleted test. The
+   `JobTransition` MODEL survives with its own coverage
+   (`test_job_transition.py` + `job_history_service.py:22`) — 63 passed.
+3. **Green-before-delete** — the three test files ran 111 passed at HEAD
+   before deletion. A red test would have been laundering, not deleting.
+4. **Census + counts in the body** — 98 test defs (55/18/25) / 111
+   collected cases; modules 385 + 192 lines; five files, 2,302 lines total.
+5. **Ratchet does not increase** — zero real suppressions in the deleted
+   files (the one grep hit was docstring prose); suppression census
+   post-deletion BYTE-IDENTICAL to the ci.yml `--expect` literal,
+   ratchet-check `rc=0`. A no-op, recorded as such rather than assumed.
+
+MEASURE: `backend/tests/unit/services` 12,313 passed / 28 skipped (all 28
+the pre-existing onvif/stream_config markers already in the census) in 62s;
+`check-test-collection` 1,751 files all collect >= 1 test; the census
+script's own suite 15 passed with its real-tree anchor rewritten to assert
+ABSENCE — the re-export-is-not-a-consumer trap that made this deletion
+interesting stays pinned by the **synthetic** fixture tree (`dead_service`),
+which cannot rot when the real tree changes. `backend.services` imports
+clean, `__all__` 302 (was 304, exactly the two scene-change symbols).
+
+Also landed in the commit so no live doc points at a deleted file: the
+`services/__init__.py` re-export + two `__all__` entries, one row in
+`backend/services/AGENTS.md`, one row in `docs/ui/jobs.md`. Historical
+mentions (this ledger, the WP5.x plan dossiers, `OWNER-RULING-A6.md`) are
+record and stay.
+
+The branch-stays-GREEN rule held throughout: every deletion was proved
+green first, every anchor rewritten to pin the NEW truth rather than
+deleted outright.
