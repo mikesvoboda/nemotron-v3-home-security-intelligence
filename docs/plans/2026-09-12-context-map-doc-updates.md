@@ -5299,3 +5299,315 @@ combine deletes inputs; XML copies under coverage-reports/ stay for Codecov).
 (docs `25405f7a`/`74de0627` ride the same branch). Phase-5 draft PR to follow
 with CI proof: `merged=true` + baseline publish + first-ever real merged
 backend coverage % recorded here before any Phase-7 commit.
+
+## WP5.2 FRONTEND COVERAGE MEASURABILITY — shards collect, merge job really merges, floor parked (2026-09-19)
+
+**Me:** frontend-coverage-merge on main never merged and never measured —
+download → `find | head` → Codecov. The 8 Vitest shards each write
+`coverage-final.json`; upload + `merge-multiple: true` flattens same-named
+files, so even with `--coverage` one shard's data would survive and seven
+would silently vanish. No frontend coverage number existed anywhere in CI.
+
+**Did (4 pieces, cap 1h, ~50 min):**
+
+1. **NO new dependency** — `@vitest/coverage-v8` was already a devDep.
+2. **Shards collect:** `--coverage --coverage.reporter=json
+--coverage.reportsDirectory=coverage/shard-N` plus all four
+   `--coverage.thresholds.*=0` (Vitest 4 has no "disable thresholds"
+   switch; zeroing keeps shards from gating mid-run). Per-shard
+   directories defeat the flattening collision.
+3. **Real merge:** new `frontend/scripts/merge-shard-coverage.mjs`
+   (stdlib-only — runs on a bare runner with just Node) does istanbul
+   merge semantics: s/f counts SUM, `b` path-count arrays sum
+   element-wise. Branches counted **per-PATH, not per-site** — verified
+   against the real `coverage-final.json` on disk: per-path reads 74.6 ==
+   A3's 74.61; per-site would read 85.4 and silently disagree with the
+   77 floor, which was declared against istanbul numbers. Lines derived
+   from statementMap start-lines like istanbul's own reporters.
+   Unit-checked by `merge-shard-coverage.test.mjs` (`node --test`, 6/6
+   green) which CI runs IN THE SAME STEP before trusting the output.
+   `normalizeKey` collapses absolute `/frontend/` prefixes so
+   same-file-different-prefix can never double-count; zero input files
+   warns loudly and exits 0 — never mints a fake measurement.
+4. **REPORT, don't gate:** "Report frontend coverage (R-FEFLOOR: not
+   enforced)" prints the four merged metrics + the floors to
+   GITHUB_STEP_SUMMARY with no exit path.
+
+**MEASURE:** merger reproduces A3 exactly on real data: 80.0 / 74.6 /
+78.4 / 80.9 vs floors 83/77/81/84. Quarantine attribution: quarantined
+sources are 1480 stmts @ 32.4%; excluding quarantine reads
+81.83/76.49/80.44/82.79 — **the gap is NOT fully closed by quarantine
+alone**; honest lever is quarantine repair (optional, unlicensed here).
+R-FEFLOOR enforcement stays parked (A3/A5: owner's call — compute, don't
+gate). Wiring pinned by 5 `TestFrontendCoverageMergeWiring` tests
+(integration tier, parses the shipped ci.yml).
+
+**Ratchet touch:** the new test-file insertions line-shifted 8 licensed
+`path:lineno` registry ids in test_github_workflows.py → STALE +
+UNREGISTERED pairs (loud by design). Verified semantics before touching:
+wholesale regen churned 7122 lines (drops retired entries under old
+formatting) — entry-diff proved 590→590 with exactly the 8 shifts, so a
+surgical 16-line re-key landed instead (`65154939`); skip census
+unchanged at 93, `ratchet-check.py` rc=0, `--check` rc=0.
+
+**Commits:** red tests `a65b5e76`, fix+scripts `0272e0b7`, re-key
+`65154939`, per-path branch fix `49f60dc5`. CI proof pending:
+FRONTEND_COVERAGE line on a frontend-touched run of #6559.
+
+## WP5.5 AI-SURFACE CENSUS — buckets over all 206 services modules (2026-09-19)
+
+`scripts/ai-surface-census.py` + `scripts/test_ai_surface_census.py` (15 tests:
+9 fixture-tree pins incl. both traps — `__init__` re-export is not a consumer,
+client-bypass IS HTTP-AI — 6 real-tree anchors). 15 passed. Census ~8s on the
+real tree (a per-module-scan first draft took >120s; the prefix-walk match is
+the fix, pinned by a perf test).
+
+**MEASURE vs plan anchors — all reproduced:** 22 `*_loader.py` modules, 21
+INPROC-AI (the 22nd is `model_zoo` config, DOMAIN — it imports no heavy lib).
+`job_state_service` DEAD 0 importers / 385 lines. `scene_change_service` DEAD
+(only "importer" is the `__init__.py:318` re-export; live path is
+`scene_change_detector`). Five gateway clients HTTP-AI; `go2rtc_client` stays
+DOMAIN (media plumbing, correctly NOT AI).
+
+**Totals:** HTTP-AI 16 / INPROC-AI 23 / DOMAIN 116 / DEAD 51 = 206 modules;
+49 client-bypass call sites; DEAD total 22,409 lines. The DEAD bucket is far
+bigger than the two known-bad records WP5.6 deletes (577 lines) — this census
+is CLASSIFICATION, not a deletion license: §3.5 licenses deleting only under
+the per-module re-verification + one-commit-per-module chain, and the 21.8k
+residual lines go to the owner as a proposal. Two spot-verifications recorded:
+`websocket_service` truly dead (live WS path is `core/websocket/` +
+`websocket_emitter`; only test + self reference it), `transcoding` truly dead
+(live DI at `api/dependencies.py:1182` names `transcoding_service`).
+
+**Swap implication recorded for Phase 7:** HTTP-AI is only 16/206 modules; the
+INPROC-AI tier (23 modules, all loaders + heavy detectors) sits BEHIND the
+gateway and an HTTP conformance suite does not cover it — second-seam RULING
+packet in WP7's write-up.
+
+**Totals:** HTTP-AI 16 / INPROC-AI 23 / DOMAIN 116 / DEAD 51 — 206 modules, DEAD total 22409 lines, client-bypass sites 49.
+
+### HTTP-AI (16)
+
+| module                           | non-test importers | heavy libs | bypass sites | lines |
+| -------------------------------- | ------------------ | ---------- | ------------ | ----- |
+| `batch_aggregator`               | 5                  | —          | 0            | 1586  |
+| `clip_client`                    | 5                  | —          | 1            | 1122  |
+| `detector_client`                | 4                  | —          | 4            | 1711  |
+| `enrichment_client`              | 1                  | —          | 1            | 3329  |
+| `enrichment_pipeline`            | 8                  | —          | 3            | 7583  |
+| `florence_client`                | 2                  | —          | 4            | 1631  |
+| `nemotron_analyzer`              | 8                  | —          | 23           | 4902  |
+| `nemotron_streaming`             | 1                  | —          | 2            | 450   |
+| `pipeline_quality_audit_service` | 5                  | —          | 3            | 801   |
+| `pipeline_workers`               | 3                  | —          | 0            | 2268  |
+| `prompt_service`                 | 2                  | —          | 3            | 1113  |
+| `reid_service`                   | 7                  | —          | 0            | 1165  |
+| `scene_baseline`                 | 1                  | —          | 0            | 482   |
+| `scene_ocr_service`              | 2                  | —          | 2            | 889   |
+| `summary_generator`              | 1                  | —          | 3            | 501   |
+| `vision_extractor`               | 3                  | —          | 0            | 2303  |
+
+### INPROC-AI (23)
+
+| module                      | non-test importers | heavy libs         | bypass sites | lines |
+| --------------------------- | ------------------ | ------------------ | ------------ | ----- |
+| `age_classifier_loader`     | 3                  | torch transformers | 0            | 471   |
+| `clip_loader`               | 1                  | torch transformers | 0            | 190   |
+| `depth_anything_loader`     | 3                  | torch transformers | 0            | 746   |
+| `fashion_clip_loader`       | 3                  | torch              | 0            | 586   |
+| `florence_loader`           | 1                  | torch transformers | 0            | 102   |
+| `gender_classifier_loader`  | 3                  | torch transformers | 0            | 454   |
+| `image_quality_loader`      | 3                  | torch torchvision  | 0            | 315   |
+| `model_zoo`                 | 5                  | torch ultralytics  | 0            | 930   |
+| `osnet_loader`              | 3                  | torch torchvision  | 0            | 535   |
+| `pet_classifier_loader`     | 3                  | torch transformers | 0            | 262   |
+| `rtsp_test_service`         | 1                  | cv2                | 0            | 183   |
+| `segformer_loader`          | 3                  | torch transformers | 0            | 398   |
+| `smoke_fire_loader`         | 4                  | ultralytics        | 0            | 481   |
+| `stgcn_loader`              | 4                  | torch              | 0            | 733   |
+| `threat_detection_loader`   | 3                  | ultralytics        | 0            | 447   |
+| `vehicle_classifier_loader` | 3                  | torch torchvision  | 0            | 474   |
+| `vehicle_damage_loader`     | 3                  | torch ultralytics  | 0            | 636   |
+| `violence_loader`           | 3                  | torch transformers | 0            | 284   |
+| `vitpose_loader`            | 3                  | torch transformers | 0            | 656   |
+| `weather_loader`            | 4                  | torch transformers | 0            | 496   |
+| `xclip_loader`              | 3                  | torch transformers | 0            | 711   |
+| `yolo_world_loader`         | 4                  | torch ultralytics  | 0            | 516   |
+| `zero_dce_loader`           | 2                  | torch torchvision  | 0            | 216   |
+
+### DOMAIN (116)
+
+| module                        | non-test importers | heavy libs | bypass sites | lines |
+| ----------------------------- | ------------------ | ---------- | ------------ | ----- |
+| `action_recognition_service`  | 1                  | —          | 0            | 597   |
+| `ai_quality_metrics`          | 1                  | —          | 0            | 535   |
+| `ai_services`                 | 3                  | —          | 0            | 353   |
+| `alert_engine`                | 2                  | —          | 0            | 1162  |
+| `alert_service`               | 1                  | —          | 0            | 671   |
+| `alpr_service`                | 1                  | —          | 0            | 627   |
+| `analyzer_facade`             | 1                  | —          | 0            | 257   |
+| `approach_vector_service`     | 1                  | —          | 0            | 506   |
+| `audit`                       | 7                  | —          | 0            | 230   |
+| `auth_service`                | 5                  | —          | 0            | 383   |
+| `auto_enrollment_service`     | 1                  | —          | 0            | 607   |
+| `background_evaluator`        | 1                  | —          | 0            | 576   |
+| `backup_service`              | 1                  | —          | 0            | 554   |
+| `baseline`                    | 5                  | —          | 0            | 1121  |
+| `baseline_config`             | 1                  | —          | 0            | 236   |
+| `batch_coalescer`             | 2                  | —          | 0            | 695   |
+| `batch_fetch`                 | 5                  | —          | 0            | 209   |
+| `bbox_validation`             | 5                  | —          | 0            | 691   |
+| `cache_service`               | 13                 | —          | 0            | 1055  |
+| `calibration_monitor`         | 2                  | —          | 0            | 341   |
+| `calibration_service`         | 1                  | —          | 0            | 558   |
+| `circuit_breaker`             | 14                 | —          | 0            | 1125  |
+| `cleanup_service`             | 3                  | —          | 0            | 932   |
+| `clip_generator`              | 3                  | —          | 0            | 659   |
+| `compose_parser`              | 1                  | —          | 0            | 479   |
+| `container_discovery`         | 1                  | —          | 0            | 826   |
+| `container_orchestrator`      | 2                  | —          | 0            | 589   |
+| `context_enricher`            | 6                  | —          | 0            | 727   |
+| `cost_tracker`                | 3                  | —          | 0            | 770   |
+| `dedupe`                      | 1                  | —          | 0            | 618   |
+| `degradation_manager`         | 2                  | —          | 0            | 1173  |
+| `detector_registry`           | 1                  | —          | 0            | 435   |
+| `dwell_time_service`          | 1                  | —          | 0            | 732   |
+| `entity_clustering_service`   | 3                  | —          | 0            | 373   |
+| `entity_recognition_service`  | 1                  | —          | 0            | 324   |
+| `evaluation_queue`            | 3                  | —          | 0            | 200   |
+| `event_broadcaster`           | 16                 | —          | 0            | 2445  |
+| `event_service`               | 1                  | —          | 0            | 385   |
+| `export_service`              | 5                  | —          | 0            | 1192  |
+| `face_detector`               | 1                  | —          | 0            | 375   |
+| `face_recognition_service`    | 1                  | —          | 0            | 870   |
+| `fast_alpr_loader`            | 2                  | —          | 0            | 210   |
+| `file_service`                | 1                  | —          | 0            | 455   |
+| `file_watcher`                | 3                  | —          | 0            | 1114  |
+| `frame_buffer`                | 3                  | —          | 0            | 262   |
+| `go2rtc_client`               | 1                  | —          | 0            | 204   |
+| `gpu_config_service`          | 1                  | —          | 0            | 896   |
+| `gpu_detection_service`       | 1                  | —          | 0            | 525   |
+| `gpu_monitor`                 | 6                  | —          | 0            | 1433  |
+| `health_event_emitter`        | 4                  | —          | 0            | 539   |
+| `health_monitor`              | 4                  | —          | 0            | 402   |
+| `health_monitor_orchestrator` | 1                  | —          | 0            | 526   |
+| `health_service_registry`     | 2                  | —          | 0            | 655   |
+| `heatmap_service`             | 1                  | —          | 0            | 726   |
+| `household_matcher`           | 3                  | —          | 0            | 677   |
+| `hybrid_entity_storage`       | 5                  | —          | 0            | 541   |
+| `inference_semaphore`         | 3                  | —          | 0            | 312   |
+| `insight_generator`           | 1                  | —          | 0            | 467   |
+| `job_history_service`         | 2                  | —          | 0            | 523   |
+| `job_log_emitter`             | 1                  | —          | 0            | 419   |
+| `job_progress_reporter`       | 1                  | —          | 0            | 423   |
+| `job_search_service`          | 2                  | —          | 0            | 633   |
+| `job_service`                 | 2                  | —          | 0            | 829   |
+| `job_status`                  | 3                  | —          | 0            | 727   |
+| `job_timeout_service`         | 1                  | —          | 0            | 518   |
+| `job_tracker`                 | 14                 | —          | 0            | 918   |
+| `lifecycle_manager`           | 1                  | —          | 0            | 461   |
+| `line_zone_service`           | 1                  | —          | 0            | 375   |
+| `model_loader_base`           | 1                  | —          | 0            | 158   |
+| `mqtt_client`                 | 4                  | —          | 0            | 828   |
+| `mqtt_command_handler`        | 1                  | —          | 0            | 531   |
+| `nemotron_latency_optimizer`  | 1                  | —          | 0            | 650   |
+| `notification`                | 1                  | —          | 0            | 724   |
+| `ocr_service`                 | 1                  | —          | 0            | 416   |
+| `onvif_service`               | 2                  | —          | 0            | 531   |
+| `orchestrator.enums`          | 3                  | —          | 0            | 17    |
+| `orchestrator.models`         | 2                  | —          | 0            | 298   |
+| `orchestrator.registry`       | 1                  | —          | 0            | 531   |
+| `orphan_scanner_service`      | 1                  | —          | 0            | 393   |
+| `performance_collector`       | 4                  | —          | 0            | 850   |
+| `plate_detector`              | 2                  | —          | 0            | 322   |
+| `polygon_zone_service`        | 1                  | —          | 0            | 441   |
+| `process_memory_service`      | 1                  | —          | 0            | 256   |
+| `prompt_auto_tuner`           | 1                  | —          | 0            | 205   |
+| `prompt_sanitizer`            | 4                  | —          | 0            | 306   |
+| `prompts`                     | 9                  | —          | 0            | 4538  |
+| `queue_status_service`        | 1                  | —          | 0            | 409   |
+| `redis_streams`               | 3                  | —          | 0            | 1281  |
+| `restore_service`             | 1                  | —          | 0            | 513   |
+| `retry_handler`               | 2                  | —          | 0            | 832   |
+| `scene_change_detector`       | 1                  | —          | 0            | 325   |
+| `search`                      | 1                  | —          | 0            | 495   |
+| `service_managers`            | 2                  | —          | 0            | 597   |
+| `service_provider_matcher`    | 1                  | —          | 0            | 789   |
+| `session_service`             | 2                  | —          | 0            | 190   |
+| `severity`                    | 3                  | —          | 0            | 401   |
+| `skeleton_action_service`     | 1                  | —          | 0            | 273   |
+| `smoke_fire_consecutive`      | 1                  | —          | 0            | 417   |
+| `summary_detail_service`      | 1                  | —          | 0            | 371   |
+| `summary_parser`              | 1                  | —          | 0            | 457   |
+| `system_broadcaster`          | 7                  | —          | 0            | 1370  |
+| `threat_monitor_service`      | 1                  | —          | 0            | 565   |
+| `thumbnail_generator`         | 2                  | —          | 0            | 476   |
+| `token_counter`               | 1                  | —          | 0            | 500   |
+| `track_service`               | 1                  | —          | 0            | 902   |
+| `trajectory_analyzer`         | 1                  | —          | 0            | 543   |
+| `transcoding_service`         | 3                  | —          | 0            | 656   |
+| `trend_service`               | 1                  | —          | 0            | 290   |
+| `video_processor`             | 4                  | —          | 0            | 894   |
+| `webhook_service`             | 7                  | —          | 0            | 1277  |
+| `websocket_emitter`           | 8                  | —          | 0            | 677   |
+| `worker_supervisor`           | 3                  | —          | 0            | 1167  |
+| `zone_anomaly_service`        | 1                  | —          | 0            | 629   |
+| `zone_comparison_service`     | 1                  | —          | 0            | 324   |
+| `zone_household_service`      | 1                  | —          | 0            | 450   |
+| `zone_service`                | 2                  | —          | 0            | 664   |
+
+### DEAD (51)
+
+| module                       | non-test importers | heavy libs         | bypass sites | lines |
+| ---------------------------- | ------------------ | ------------------ | ------------ | ----- |
+| `ai_fallback`                | 0                  | —                  | 0            | 704   |
+| `alert_dedup`                | 0                  | —                  | 0            | 363   |
+| `audit_logger`               | 0                  | —                  | 0            | 481   |
+| `bulk_detection_service`     | 0                  | —                  | 0            | 469   |
+| `cache_warming`              | 0                  | —                  | 0            | 393   |
+| `calibration`                | 0                  | —                  | 0            | 0     |
+| `camera_service`             | 0                  | —                  | 0            | 528   |
+| `camera_status_service`      | 0                  | —                  | 0            | 325   |
+| `credential_service`         | 0                  | —                  | 0            | 71    |
+| `depth_calibration_service`  | 0                  | —                  | 0            | 443   |
+| `feedback_processor`         | 0                  | —                  | 0            | 432   |
+| `file_cleanup_service`       | 0                  | —                  | 0            | 442   |
+| `florence_extractor`         | 0                  | torch              | 0            | 771   |
+| `frame_extractor`            | 0                  | cv2                | 0            | 270   |
+| `frigate_integration`        | 0                  | —                  | 0            | 336   |
+| `guided_constraints`         | 0                  | —                  | 0            | 172   |
+| `ha_discovery`               | 0                  | —                  | 0            | 495   |
+| `household_matcher_service`  | 0                  | —                  | 0            | 61    |
+| `job_state_service`          | 0                  | —                  | 0            | 385   |
+| `managed_service`            | 0                  | —                  | 0            | 734   |
+| `monitoring_stack_validator` | 0                  | —                  | 0            | 554   |
+| `mqtt_publisher`             | 0                  | —                  | 0            | 371   |
+| `notification_filter`        | 0                  | —                  | 0            | 119   |
+| `orphan_cleanup_service`     | 0                  | —                  | 0            | 575   |
+| `package_tracking_service`   | 0                  | —                  | 0            | 594   |
+| `partition_manager`          | 0                  | —                  | 0            | 972   |
+| `pg_notify_listener`         | 0                  | —                  | 0            | 541   |
+| `pose_analysis_service`      | 0                  | —                  | 0            | 536   |
+| `privacy_masking_service`    | 0                  | —                  | 0            | 375   |
+| `prompt_parser`              | 0                  | —                  | 0            | 197   |
+| `prompt_storage`             | 0                  | —                  | 0            | 724   |
+| `prompt_version_service`     | 0                  | —                  | 0            | 405   |
+| `quantization`               | 0                  | torch transformers | 0            | 628   |
+| `read_through_cache`         | 0                  | —                  | 0            | 446   |
+| `redis_json`                 | 0                  | —                  | 0            | 654   |
+| `redis_memory_service`       | 0                  | —                  | 0            | 379   |
+| `reid_matcher`               | 0                  | —                  | 0            | 484   |
+| `risk_rubrics`               | 0                  | —                  | 0            | 260   |
+| `scenario_classifier`        | 0                  | —                  | 0            | 1031  |
+| `scene_change_service`       | 0                  | —                  | 0            | 192   |
+| `service_registry`           | 0                  | —                  | 0            | 70    |
+| `stream_manager`             | 0                  | cv2                | 0            | 497   |
+| `threat_categories`          | 0                  | —                  | 0            | 116   |
+| `transcode_cache`            | 0                  | —                  | 0            | 462   |
+| `transcoding`                | 0                  | —                  | 0            | 549   |
+| `typed_prompt_config`        | 0                  | —                  | 0            | 406   |
+| `unified_embedding_service`  | 0                  | —                  | 0            | 572   |
+| `unique_counter_service`     | 0                  | —                  | 0            | 442   |
+| `websocket_service`          | 0                  | —                  | 0            | 576   |
+| `zone_baseline_service`      | 0                  | —                  | 0            | 74    |
+| `zone_crossing_service`      | 0                  | —                  | 0            | 733   |
