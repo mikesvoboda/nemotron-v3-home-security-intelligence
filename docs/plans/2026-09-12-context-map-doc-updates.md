@@ -5357,7 +5357,14 @@ c40acc39 attempt-2 TPA reds were bit-identical to attempt-1 — `gh run rerun
 --failed` re-grades the STALE attempt-1 junit and can NEVER clear a TPA red;
 must use FULL `gh run rerun <run-id>` (no --failed) so TPA re-measures. Full
 rerun dispatched for run 35419242394 (owner ruling 488a7ff9 governs: flaky
-TPA rows re-run, thresholds untouched); watcher died with the goal — poll
+TPA rows re-run, thresholds untouched); attempt 3 re-measured TPA fresh (new
+job id) and STILL red — but 10 rows, an entirely different set (cameras/
+metrics×2/search/entities/system-concurrency; 13.4-17.5s), none of
+attempt 1's trio. Rotating rows = runner contention, corroborating the
+flaky-runner reading. Second FULL rerun dispatched at handoff (rc=0).
+Successor: poll to completion; a THIRD red on a rotating row set is still
+gate-noise-class, but STOP AND ASK applies before any 10s-threshold change —
+bring row evidence + repair-first option instead. Poll
 `gh api repos/mikesvoboda/nemotron-v3-home-security-intelligence/actions/runs/35419242394`
 to completion; redis-pubsub flake (test_redis_pubsub.py:610) re-rolled clean
 in attempt 2 — if it returns, it is PRE-EXISTING and gets its own repair
