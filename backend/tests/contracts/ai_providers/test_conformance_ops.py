@@ -138,19 +138,28 @@ EXPECTED_DEPLOYED = {
 # the llamacpp provider, not per_model_http), so _bound_or_reject sentinels
 # them too (backend/ai_contract/providers.py:77-85). Pinned from live output
 # 2026-09-19; UNVERIFIED at pytest level.
+# 6 since ADDENDUM 2 A7.2 deleted DetectorClient.segment_image: the
+# yolo26_segment OPERATION stays (deployed gateway route,
+# adapters/yolo26.py:447) but its client_methods binding dropped, so it
+# enters the not-wired third state alongside the others.
 SENTINELS_GATEWAY = {
     "enrich_lt_depth_estimate",
     "enrich_lt_pet_classify",
     "enrich_lt_pose_analyze",
     "florence_analyze_scene",
     "yolo26_detect_batch",
+    "yolo26_segment",
 }
 SENTINELS_LIGHT = {
     "enrich_lt_depth_estimate",
     "enrich_lt_pet_classify",
     "enrich_lt_pose_analyze",
 }
-SENTINELS_PER_MODEL = SENTINELS_GATEWAY | {
+# yolo26_segment is gateway-only (per_model_server: False) - on per_model it
+# is ABSENT (absent-guarded via ABSENT_* above), not not-wired, so the A7.2
+# gateway addition must NOT carry into this set (unlike the pre-A7.2 gateway
+# literals, which all happened to be served on both slots).
+SENTINELS_PER_MODEL = (SENTINELS_GATEWAY - {"yolo26_segment"}) | {
     "llm_completion",
     "llm_chat_completion",
     "model_unload",
@@ -510,9 +519,12 @@ class TestMatrixNotWiredSentinels:
     def test_not_wired_set_exact(self, pid: ProviderId) -> None:
         """Structural census: registered ops whose registry
         client_methods == [] AND whose callable qualname carries '_not_wired'
-        == the literals above (5/3/8 — per_model's 8 includes the two LLM ops
-        and model_unload; the dossier NOTE's 'plus model_unload' count of 6
-        is stale vs live output; pinned from live import 2026-09-19).
+        == the literals above (6/3/8 — gateway gains yolo26_segment under
+        ADDENDUM 2 A7.2 (client binding deleted, route stays deployed);
+        per_model's 8 includes the two LLM ops and model_unload, and NOT
+        yolo26_segment, which that slot does not serve at all; the dossier
+        NOTE's 'plus model_unload' count of 6 is stale vs live output;
+        pinned from live import 2026-09-19).
         PREDICTED-GREEN. UNVERIFIED at pytest level."""
         ops = _provider_ops(pid)
         unbound = {o for o in ops if not OPERATIONS[o].client_methods}

@@ -118,8 +118,11 @@ CLIENT_CLASSES = frozenset({"DetectorClient", "CLIPClient", "FlorenceClient", "E
 #
 # Kept-list members were censused and REJECTED (callers found, or the only
 # removals would land on test files, which the GOAL carve-out forbids):
-# see the WP7.3 ledger section.
-DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch"})
+# see the WP7.3 ledger section. That list was written under the pre-A7.2
+# rule; segment_image enters under ADDENDUM 2 A7.2's extended licence (the
+# dedicated-file carve-out), census + five conditions in its commit body:
+# L#2026-09-19-wp56-test-collision (ANSWERED, ADDENDUM 2 A6/A7.2).
+DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch", "segment_image"})
 
 # Server-side carry-cost: a deployed-but-unreachable route, deleted from the
 # model server's own file (production AI surface - the GOAL carve-out's named

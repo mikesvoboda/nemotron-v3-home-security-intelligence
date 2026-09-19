@@ -97,7 +97,7 @@ Cites relied on (re-verify any that a rebase moves):
   plan §WP8.4 :1001-1026; Tier A table :769-800
   backend/ai_contract/operations.py (38 ops; availability flags; client_methods)
   backend/ai_contract/fake/{__init__.py,app.py,generators.py} (generate/snapshot)
-  backend/services/detector_client.py:73,103,262,287,321,325,415,981,1032,1116,1177,1292,1310,1331-1336,1409,1424
+  backend/services/detector_client.py:73,103,262,287,321,325,415,993,1054,1169,1187,1208-1213,1286,1301 (re-spaced -123 by the A7.2 segment_image deletion; 981/1032 died with it)
   backend/services/florence_client.py:73(BoundingBox),309,321,368,561,582,727,749-752,881,980,998,1083,1102-1104,1189,1299,1411,1432-1434,1524,1543-1563
   backend/services/clip_client.py:54,99,111,152,332,352-366,488-493,512,680,700-701,830,983,1005
   backend/services/enrichment_client.py:838,847,855,865,917,928-943,1085-1133,1136-1149,1203,1216,1407,1613-1621,1626,1806,1945-1956,2013,2226-2241,2320,2443-2448,2620-2623,2782-2786,2944-2948,3048-3116,3161-3200,3253-3260,3285-3300
@@ -1244,10 +1244,14 @@ class TestTierAUnloadPathMismatch:
 
 class TestTierASegmentOnlyOnGateway:
     """Tier A row 4: /segment exists ONLY on the gateway
-    (adapters/yolo26.py:447; registry per_model_server=False) while
-    DetectorClient.segment_image posts ``{detector_url}/segment`` (:981) — so
-    off-gateway (settings.yolo26_url = bare host) the call 404s and the client
-    raises ValueError('... HTTP 404') (:1032-1033)."""
+    (adapters/yolo26.py:447; registry per_model_server=False). The client-
+    driven legs that used to live here (DetectorClient.segment_image posted
+    the bare ``{detector_url}/segment`` and 404ed off the gateway prefix)
+    went with the A7.2 deletion — zero non-test callers, census in that
+    commit body. The TOPOLOGY fact survives the client: the gateway still
+    serves /yolo26/segment, the native server still does not, and the fake
+    still serves the op (test_conformance_vocabulary drives it). The parity
+    checker's golden D4 pins the same matrix row from the AST side."""
 
     def test_matrix_says_gateway_only(self) -> None:
         op = OPERATIONS["yolo26_segment"]
@@ -1256,36 +1260,6 @@ class TestTierASegmentOnlyOnGateway:
             "the matrix now claims /segment on the per-model server — re-read "
             "ai/yolo26/model.py (plan grep: 0 hits)"
         )
-
-    @_aio
-    async def test_segment_404s_off_the_gateway_prefix(
-        self, fake_app, monkeypatch, settings_factory
-    ) -> None:
-        from backend.services import detector_client as dcmod
-
-        _patch_settings(
-            monkeypatch,
-            "backend.services.detector_client",
-            settings_factory(yolo26_url=FAKE_BASE),  # bare host = deployed shape
-        )
-        client = dcmod.DetectorClient(max_retries=1)
-        _point_at(client, fake_app)
-        with pytest.raises(ValueError, match="404"):
-            await client.segment_image(b"fake-image-bytes")
-
-    @_aio
-    async def test_segment_succeeds_through_the_gateway_prefix(self, detector_client) -> None:
-        """Same client method, base URL WITH the /yolo26 prefix (what
-        use_ai_gateway=True produces) → the fake serves /yolo26/segment and the
-        client passes the body through raw (:981 returns the dict). A rollout
-        flag silently flips which branch runs. PREDICTED-GREEN."""
-        result = await detector_client.segment_image(b"fake-image-bytes")
-        body = await _served_body("yolo26_segment")
-        assert result["detections"]
-        assert [d["class"] for d in result["detections"]] == [
-            d["class"] for d in body["detections"]
-        ]
-        assert result["image_width"] == body["image_width"] == 640
 
 
 class TestTierACLIPDivergences:
@@ -1790,7 +1764,6 @@ _COVERAGE = {
     ),
     "FlorenceClient.batch_extract": "test_florence_batch_extract_parses_per_row_fields",
     "DetectorClient.detect_objects": "test_detector_client_detect_objects_parses_the_shipped_bbox_dict",
-    "DetectorClient.segment_image": "TestTierASegmentOnlyOnGateway.test_segment_succeeds_through_the_gateway_prefix",
     "EnrichmentClient.analyze_pose": "test_pose_analyze_raises_on_the_nameless_contract_shape",
     "EnrichmentClient.enrich_detection": "test_enrich_detection_parses_everything_away",
     "EnrichmentClient.estimate_object_distance": "test_object_distance_404s_through_the_client_paths",
@@ -1802,9 +1775,9 @@ _COVERAGE = {
 def test_every_registry_declared_client_method_is_driven() -> None:
     """MEASURE hook (plan :1024): ``client_methods`` is a registry CLAIM that
     the client speaks the op; every claim must be covered here, and this
-    module may not claim methods the registry retired. PREDICTED-GREEN: 29
-    declared methods, all mapped above (verified against
-    OPERATIONS[*].client_methods at draft time)."""
+    module may not claim methods the registry retired. 28 declared methods
+    map above (29 at WP8.4 draft time; DetectorClient.segment_image left
+    the claim set with its ADDENDUM 2 A7.2 deletion)."""
     declared = {m for op in OPERATIONS.values() for m in op.client_methods}
     missing = sorted(declared - set(_COVERAGE))
     extra = sorted(set(_COVERAGE) - declared)
