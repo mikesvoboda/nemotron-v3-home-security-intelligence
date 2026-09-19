@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_create_refresh_token__mutmut_2: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -20,7 +20,7 @@
+         msg = "user_id cannot be empty"
+         raise ValueError(msg)
+ 
+-    expire = datetime.now(UTC) + (expires_delta or _DEFAULT_REFRESH_TOKEN_EXPIRES)
++    expire = None
+     payload = {
+         "sub": user_id,
+         "exp": expire,

@@ -1,0 +1,299 @@
+=== backend.services.frame_extractor.x__create_subtractor__mutmut_3 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -7,4 +7,4 @@
+     raw = cv2.createBackgroundSubtractorMOG2()
+     if _is_mock(raw):
+         return raw
+-    return _MOG2Wrapper(raw)
++    return _MOG2Wrapper(None)
+=== backend.services.frame_extractor.x__is_mock__mutmut_2 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -1,3 +1,3 @@
+ def _is_mock(obj: Any) -> bool:
+     """Check if an object is a unittest Mock."""
+-    return hasattr(obj, "_mock_name") or hasattr(obj, "assert_called")
++    return hasattr(None, "_mock_name") or hasattr(obj, "assert_called")
+=== backend.services.frame_extractor.x__is_mock__mutmut_6 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -1,3 +1,3 @@
+ def _is_mock(obj: Any) -> bool:
+     """Check if an object is a unittest Mock."""
+-    return hasattr(obj, "_mock_name") or hasattr(obj, "assert_called")
++    return hasattr(obj, "XX_mock_nameXX") or hasattr(obj, "assert_called")
+=== backend.services.frame_extractor.x__is_mock__mutmut_7 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -1,3 +1,3 @@
+ def _is_mock(obj: Any) -> bool:
+     """Check if an object is a unittest Mock."""
+-    return hasattr(obj, "_mock_name") or hasattr(obj, "assert_called")
++    return hasattr(obj, "_MOCK_NAME") or hasattr(obj, "assert_called")
+=== backend.services.frame_extractor.xǁFrameExtractorǁ__init____mutmut_20 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -34,4 +34,4 @@
+ 
+     # Motion threshold from sensitivity: high sensitivity = low threshold
+     # Examples: sensitivity 0.1 -> threshold 0.81, sensitivity 0.9 -> threshold 0.01
+-    self._motion_threshold = (1.0 - motion_sensitivity) ** 2
++    self._motion_threshold = (1.0 - motion_sensitivity) ** 3
+=== backend.services.frame_extractor.xǁFrameExtractorǁ__init____mutmut_3 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         Raises:
+             ValueError: If motion_sensitivity is not between 0.0 and 1.0.
+         """
+-    if not 0.0 <= motion_sensitivity <= 1.0:
++    if not 0.0 < motion_sensitivity <= 1.0:
+         raise ValueError("motion_sensitivity must be between 0.0 and 1.0")
+ 
+     self.redis_client = redis_client
+=== backend.services.frame_extractor.xǁFrameExtractorǁ__init____mutmut_4 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         Raises:
+             ValueError: If motion_sensitivity is not between 0.0 and 1.0.
+         """
+-    if not 0.0 <= motion_sensitivity <= 1.0:
++    if not 0.0 <= motion_sensitivity < 1.0:
+         raise ValueError("motion_sensitivity must be between 0.0 and 1.0")
+ 
+     self.redis_client = redis_client
+=== backend.services.frame_extractor.xǁFrameExtractorǁ__init____mutmut_7 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -20,7 +20,7 @@
+             ValueError: If motion_sensitivity is not between 0.0 and 1.0.
+         """
+     if not 0.0 <= motion_sensitivity <= 1.0:
+-        raise ValueError("motion_sensitivity must be between 0.0 and 1.0")
++        raise ValueError("XXmotion_sensitivity must be between 0.0 and 1.0XX")
+ 
+     self.redis_client = redis_client
+     self.motion_sensitivity = motion_sensitivity
+=== backend.services.frame_extractor.xǁFrameExtractorǁ_get_camera_subtractor__mutmut_7 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -9,7 +9,7 @@
+         return self._camera_subtractors[camera_id]
+ 
+     # Use shared subtractor if .apply is patched (test compatibility)
+-    bg_apply = getattr(self._bg_subtractor, "apply", None)
++    bg_apply = getattr(self._bg_subtractor, "apply", )
+     if bg_apply is not None and _is_mock(bg_apply):
+         self._camera_subtractors[camera_id] = self._bg_subtractor
+     else:
+=== backend.services.frame_extractor.xǁFrameExtractorǁdetect_motion__mutmut_13 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -20,4 +20,4 @@
+         return False
+ 
+     motion_ratio = np.count_nonzero(fg_mask) / fg_mask.size
+-    return bool(motion_ratio > self._motion_threshold)
++    return bool(motion_ratio >= self._motion_threshold)
+=== backend.services.frame_extractor.xǁFrameExtractorǁdetect_motion__mutmut_2 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -11,7 +11,7 @@
+         Returns:
+             True if motion exceeds threshold, False otherwise.
+         """
+-    if frame.size == 0:
++    if frame.size == 1:
+         return False
+ 
+     fg_mask = self._get_camera_subtractor(camera_id).apply(frame)
+=== backend.services.frame_extractor.xǁFrameExtractorǁdetect_motion__mutmut_3 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -12,7 +12,7 @@
+             True if motion exceeds threshold, False otherwise.
+         """
+     if frame.size == 0:
+-        return False
++        return True
+ 
+     fg_mask = self._get_camera_subtractor(camera_id).apply(frame)
+ 
+=== backend.services.frame_extractor.xǁFrameExtractorǁdetect_motion__mutmut_8 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -16,7 +16,7 @@
+ 
+     fg_mask = self._get_camera_subtractor(camera_id).apply(frame)
+ 
+-    if fg_mask.size == 0:
++    if fg_mask.size == 1:
+         return False
+ 
+     motion_ratio = np.count_nonzero(fg_mask) / fg_mask.size
+=== backend.services.frame_extractor.xǁFrameExtractorǁextract_frame__mutmut_2 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -27,7 +27,7 @@
+         """
+     # Validate frame
+     if frame is None:
+-        raise ValueError("Frame cannot be None")
++        raise ValueError(None)
+ 
+     # Check for motion
+     has_motion = self.detect_motion(frame, camera_id=camera_id)
+=== backend.services.frame_extractor.xǁFrameExtractorǁextract_frame__mutmut_3 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -27,7 +27,7 @@
+         """
+     # Validate frame
+     if frame is None:
+-        raise ValueError("Frame cannot be None")
++        raise ValueError("XXFrame cannot be NoneXX")
+ 
+     # Check for motion
+     has_motion = self.detect_motion(frame, camera_id=camera_id)
+=== backend.services.frame_extractor.xǁFrameExtractorǁextract_frame__mutmut_4 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -27,7 +27,7 @@
+         """
+     # Validate frame
+     if frame is None:
+-        raise ValueError("Frame cannot be None")
++        raise ValueError("frame cannot be none")
+ 
+     # Check for motion
+     has_motion = self.detect_motion(frame, camera_id=camera_id)
+=== backend.services.frame_extractor.xǁFrameExtractorǁextract_frame__mutmut_5 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -27,7 +27,7 @@
+         """
+     # Validate frame
+     if frame is None:
+-        raise ValueError("Frame cannot be None")
++        raise ValueError("FRAME CANNOT BE NONE")
+ 
+     # Check for motion
+     has_motion = self.detect_motion(frame, camera_id=camera_id)
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_12 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -22,7 +22,7 @@
+     camera_dir.mkdir(parents=True, exist_ok=True)
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+-    filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
++    filename = timestamp.strftime("XX%Y%m%d_%H%M%SXX") + f"_{timestamp.microsecond:06d}.jpg"
+     file_path = camera_dir / filename
+ 
+     # Save the frame as JPEG
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_18 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -26,7 +26,7 @@
+     file_path = camera_dir / filename
+ 
+     # Save the frame as JPEG
+-    success = cv2.imwrite(str(file_path), frame)
++    success = cv2.imwrite(None, frame)
+ 
+     if not success:
+         raise RuntimeError(f"Failed to save frame to {file_path}")
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_22 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -26,7 +26,7 @@
+     file_path = camera_dir / filename
+ 
+     # Save the frame as JPEG
+-    success = cv2.imwrite(str(file_path), frame)
++    success = cv2.imwrite(str(None), frame)
+ 
+     if not success:
+         raise RuntimeError(f"Failed to save frame to {file_path}")
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_3 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         """
+     # Create camera subdirectory if it doesn't exist
+     camera_dir = self.frame_save_dir / camera_id
+-    camera_dir.mkdir(parents=True, exist_ok=True)
++    camera_dir.mkdir(parents=None, exist_ok=True)
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+     filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_4 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         """
+     # Create camera subdirectory if it doesn't exist
+     camera_dir = self.frame_save_dir / camera_id
+-    camera_dir.mkdir(parents=True, exist_ok=True)
++    camera_dir.mkdir(parents=True, exist_ok=None)
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+     filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_5 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         """
+     # Create camera subdirectory if it doesn't exist
+     camera_dir = self.frame_save_dir / camera_id
+-    camera_dir.mkdir(parents=True, exist_ok=True)
++    camera_dir.mkdir(exist_ok=True)
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+     filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_6 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         """
+     # Create camera subdirectory if it doesn't exist
+     camera_dir = self.frame_save_dir / camera_id
+-    camera_dir.mkdir(parents=True, exist_ok=True)
++    camera_dir.mkdir(parents=True, )
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+     filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_7 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         """
+     # Create camera subdirectory if it doesn't exist
+     camera_dir = self.frame_save_dir / camera_id
+-    camera_dir.mkdir(parents=True, exist_ok=True)
++    camera_dir.mkdir(parents=False, exist_ok=True)
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+     filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
+=== backend.services.frame_extractor.xǁFrameExtractorǁsave_frame__mutmut_8 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -19,7 +19,7 @@
+         """
+     # Create camera subdirectory if it doesn't exist
+     camera_dir = self.frame_save_dir / camera_id
+-    camera_dir.mkdir(parents=True, exist_ok=True)
++    camera_dir.mkdir(parents=True, exist_ok=False)
+ 
+     # Generate filename from timestamp (YYYYMMDD_HHMMSS_microseconds.jpg)
+     filename = timestamp.strftime("%Y%m%d_%H%M%S") + f"_{timestamp.microsecond:06d}.jpg"
+=== backend.services.frame_extractor.xǁ_MOG2Wrapperǁ__init____mutmut_1 ===
+--- backend/services/frame_extractor.py
++++ backend/services/frame_extractor.py
+@@ -1,3 +1,3 @@
+ def __init__(self, subtractor: Any) -> None:
+     """Initialize with a pre-created subtractor."""
+-    self._subtractor = subtractor
++    self._subtractor = None

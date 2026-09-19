@@ -1,0 +1,838 @@
+{
+ "x__crop_bbox_with_padding|1": [
+  "-    img_w, img_h = image.size",
+  "+    img_w, img_h = None"
+ ],
+ "x__crop_bbox_with_padding|2": [
+  "-    x, y, w, h = bbox",
+  "+    x, y, w, h = None"
+ ],
+ "x__crop_bbox_with_padding|3": [
+  "-    pad_w = int(w * padding)",
+  "+    pad_w = None"
+ ],
+ "x__crop_bbox_with_padding|4": [
+  "-    pad_w = int(w * padding)",
+  "+    pad_w = int(None)"
+ ],
+ "x__crop_bbox_with_padding|5": [
+  "-    pad_w = int(w * padding)",
+  "+    pad_w = int(w / padding)"
+ ],
+ "x__crop_bbox_with_padding|6": [
+  "-    pad_h = int(h * padding)",
+  "+    pad_h = None"
+ ],
+ "x__crop_bbox_with_padding|7": [
+  "-    pad_h = int(h * padding)",
+  "+    pad_h = int(None)"
+ ],
+ "x__crop_bbox_with_padding|8": [
+  "-    pad_h = int(h * padding)",
+  "+    pad_h = int(h / padding)"
+ ],
+ "x__crop_bbox_with_padding|9": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = None"
+ ],
+ "x__crop_bbox_with_padding|10": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = max(None, x - pad_w)"
+ ],
+ "x__crop_bbox_with_padding|11": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = max(0, None)"
+ ],
+ "x__crop_bbox_with_padding|12": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = max(x - pad_w)"
+ ],
+ "x__crop_bbox_with_padding|13": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = max(0, )"
+ ],
+ "x__crop_bbox_with_padding|14": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = max(1, x - pad_w)"
+ ],
+ "x__crop_bbox_with_padding|15": [
+  "-    x1 = max(0, x - pad_w)",
+  "+    x1 = max(0, x + pad_w)"
+ ],
+ "x__crop_bbox_with_padding|16": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = None"
+ ],
+ "x__crop_bbox_with_padding|17": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = max(None, y - pad_h)"
+ ],
+ "x__crop_bbox_with_padding|18": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = max(0, None)"
+ ],
+ "x__crop_bbox_with_padding|19": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = max(y - pad_h)"
+ ],
+ "x__crop_bbox_with_padding|20": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = max(0, )"
+ ],
+ "x__crop_bbox_with_padding|21": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = max(1, y - pad_h)"
+ ],
+ "x__crop_bbox_with_padding|22": [
+  "-    y1 = max(0, y - pad_h)",
+  "+    y1 = max(0, y + pad_h)"
+ ],
+ "x__crop_bbox_with_padding|23": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = None"
+ ],
+ "x__crop_bbox_with_padding|24": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = min(None, x + w + pad_w)"
+ ],
+ "x__crop_bbox_with_padding|25": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = min(img_w, None)"
+ ],
+ "x__crop_bbox_with_padding|26": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = min(x + w + pad_w)"
+ ],
+ "x__crop_bbox_with_padding|27": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = min(img_w, )"
+ ],
+ "x__crop_bbox_with_padding|28": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = min(img_w, x + w - pad_w)"
+ ],
+ "x__crop_bbox_with_padding|29": [
+  "-    x2 = min(img_w, x + w + pad_w)",
+  "+    x2 = min(img_w, x - w + pad_w)"
+ ],
+ "x__crop_bbox_with_padding|30": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = None"
+ ],
+ "x__crop_bbox_with_padding|31": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = min(None, y + h + pad_h)"
+ ],
+ "x__crop_bbox_with_padding|32": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = min(img_h, None)"
+ ],
+ "x__crop_bbox_with_padding|33": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = min(y + h + pad_h)"
+ ],
+ "x__crop_bbox_with_padding|34": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = min(img_h, )"
+ ],
+ "x__crop_bbox_with_padding|35": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = min(img_h, y + h - pad_h)"
+ ],
+ "x__crop_bbox_with_padding|36": [
+  "-    y2 = min(img_h, y + h + pad_h)",
+  "+    y2 = min(img_h, y - h + pad_h)"
+ ],
+ "x__crop_bbox_with_padding|37": [
+  "-    return image.crop((x1, y1, x2, y2))",
+  "+    return image.crop(None)"
+ ],
+ "x__convert_crop_bbox_to_original|1": [
+  "-    orig_x, orig_y, orig_w, orig_h = original_bbox",
+  "+    orig_x, orig_y, orig_w, orig_h = None"
+ ],
+ "x__convert_crop_bbox_to_original|2": [
+  "-    crop_w, crop_h = crop_size",
+  "+    crop_w, crop_h = None"
+ ],
+ "x__convert_crop_bbox_to_original|3": [
+  "-    img_w, img_h = image_size",
+  "+    img_w, img_h = None"
+ ],
+ "x__convert_crop_bbox_to_original|4": [
+  "-    pad_w = int(orig_w * padding)",
+  "+    pad_w = None"
+ ],
+ "x__convert_crop_bbox_to_original|5": [
+  "-    pad_w = int(orig_w * padding)",
+  "+    pad_w = int(None)"
+ ],
+ "x__convert_crop_bbox_to_original|6": [
+  "-    pad_w = int(orig_w * padding)",
+  "+    pad_w = int(orig_w / padding)"
+ ],
+ "x__convert_crop_bbox_to_original|7": [
+  "-    pad_h = int(orig_h * padding)",
+  "+    pad_h = None"
+ ],
+ "x__convert_crop_bbox_to_original|8": [
+  "-    pad_h = int(orig_h * padding)",
+  "+    pad_h = int(None)"
+ ],
+ "x__convert_crop_bbox_to_original|9": [
+  "-    pad_h = int(orig_h * padding)",
+  "+    pad_h = int(orig_h / padding)"
+ ],
+ "x__convert_crop_bbox_to_original|10": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = None"
+ ],
+ "x__convert_crop_bbox_to_original|11": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = max(None, orig_x - pad_w)"
+ ],
+ "x__convert_crop_bbox_to_original|12": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = max(0, None)"
+ ],
+ "x__convert_crop_bbox_to_original|13": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = max(orig_x - pad_w)"
+ ],
+ "x__convert_crop_bbox_to_original|14": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = max(0, )"
+ ],
+ "x__convert_crop_bbox_to_original|15": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = max(1, orig_x - pad_w)"
+ ],
+ "x__convert_crop_bbox_to_original|16": [
+  "-    crop_x1 = max(0, orig_x - pad_w)",
+  "+    crop_x1 = max(0, orig_x + pad_w)"
+ ],
+ "x__convert_crop_bbox_to_original|17": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = None"
+ ],
+ "x__convert_crop_bbox_to_original|18": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = max(None, orig_y - pad_h)"
+ ],
+ "x__convert_crop_bbox_to_original|19": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = max(0, None)"
+ ],
+ "x__convert_crop_bbox_to_original|20": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = max(orig_y - pad_h)"
+ ],
+ "x__convert_crop_bbox_to_original|21": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = max(0, )"
+ ],
+ "x__convert_crop_bbox_to_original|22": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = max(1, orig_y - pad_h)"
+ ],
+ "x__convert_crop_bbox_to_original|23": [
+  "-    crop_y1 = max(0, orig_y - pad_h)",
+  "+    crop_y1 = max(0, orig_y + pad_h)"
+ ],
+ "x__convert_crop_bbox_to_original|24": [
+  "-    x1_crop = crop_bbox_normalized[0] * crop_w",
+  "+    x1_crop = None"
+ ],
+ "x__convert_crop_bbox_to_original|25": [
+  "-    x1_crop = crop_bbox_normalized[0] * crop_w",
+  "+    x1_crop = crop_bbox_normalized[0] / crop_w"
+ ],
+ "x__convert_crop_bbox_to_original|26": [
+  "-    x1_crop = crop_bbox_normalized[0] * crop_w",
+  "+    x1_crop = crop_bbox_normalized[1] * crop_w"
+ ],
+ "x__convert_crop_bbox_to_original|27": [
+  "-    y1_crop = crop_bbox_normalized[1] * crop_h",
+  "+    y1_crop = None"
+ ],
+ "x__convert_crop_bbox_to_original|28": [
+  "-    y1_crop = crop_bbox_normalized[1] * crop_h",
+  "+    y1_crop = crop_bbox_normalized[1] / crop_h"
+ ],
+ "x__convert_crop_bbox_to_original|29": [
+  "-    y1_crop = crop_bbox_normalized[1] * crop_h",
+  "+    y1_crop = crop_bbox_normalized[2] * crop_h"
+ ],
+ "x__convert_crop_bbox_to_original|30": [
+  "-    x2_crop = crop_bbox_normalized[2] * crop_w",
+  "+    x2_crop = None"
+ ],
+ "x__convert_crop_bbox_to_original|31": [
+  "-    x2_crop = crop_bbox_normalized[2] * crop_w",
+  "+    x2_crop = crop_bbox_normalized[2] / crop_w"
+ ],
+ "x__convert_crop_bbox_to_original|32": [
+  "-    x2_crop = crop_bbox_normalized[2] * crop_w",
+  "+    x2_crop = crop_bbox_normalized[3] * crop_w"
+ ],
+ "x__convert_crop_bbox_to_original|33": [
+  "-    y2_crop = crop_bbox_normalized[3] * crop_h",
+  "+    y2_crop = None"
+ ],
+ "x__convert_crop_bbox_to_original|34": [
+  "-    y2_crop = crop_bbox_normalized[3] * crop_h",
+  "+    y2_crop = crop_bbox_normalized[3] / crop_h"
+ ],
+ "x__convert_crop_bbox_to_original|35": [
+  "-    y2_crop = crop_bbox_normalized[3] * crop_h",
+  "+    y2_crop = crop_bbox_normalized[4] * crop_h"
+ ],
+ "x__convert_crop_bbox_to_original|36": [
+  "-    x1_orig = crop_x1 + x1_crop",
+  "+    x1_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|37": [
+  "-    x1_orig = crop_x1 + x1_crop",
+  "+    x1_orig = crop_x1 - x1_crop"
+ ],
+ "x__convert_crop_bbox_to_original|38": [
+  "-    y1_orig = crop_y1 + y1_crop",
+  "+    y1_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|39": [
+  "-    y1_orig = crop_y1 + y1_crop",
+  "+    y1_orig = crop_y1 - y1_crop"
+ ],
+ "x__convert_crop_bbox_to_original|40": [
+  "-    x2_orig = crop_x1 + x2_crop",
+  "+    x2_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|41": [
+  "-    x2_orig = crop_x1 + x2_crop",
+  "+    x2_orig = crop_x1 - x2_crop"
+ ],
+ "x__convert_crop_bbox_to_original|42": [
+  "-    y2_orig = crop_y1 + y2_crop",
+  "+    y2_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|43": [
+  "-    y2_orig = crop_y1 + y2_crop",
+  "+    y2_orig = crop_y1 - y2_crop"
+ ],
+ "x__convert_crop_bbox_to_original|44": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|45": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(None, min(img_w, x1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|46": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(0, None)"
+ ],
+ "x__convert_crop_bbox_to_original|47": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(min(img_w, x1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|48": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(0, )"
+ ],
+ "x__convert_crop_bbox_to_original|49": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(1, min(img_w, x1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|50": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(0, min(None, x1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|51": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(0, min(img_w, None))"
+ ],
+ "x__convert_crop_bbox_to_original|52": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(0, min(x1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|53": [
+  "-    x1_orig = max(0, min(img_w, x1_orig))",
+  "+    x1_orig = max(0, min(img_w, ))"
+ ],
+ "x__convert_crop_bbox_to_original|54": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|55": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(None, min(img_h, y1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|56": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(0, None)"
+ ],
+ "x__convert_crop_bbox_to_original|57": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(min(img_h, y1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|58": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(0, )"
+ ],
+ "x__convert_crop_bbox_to_original|59": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(1, min(img_h, y1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|60": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(0, min(None, y1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|61": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(0, min(img_h, None))"
+ ],
+ "x__convert_crop_bbox_to_original|62": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(0, min(y1_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|63": [
+  "-    y1_orig = max(0, min(img_h, y1_orig))",
+  "+    y1_orig = max(0, min(img_h, ))"
+ ],
+ "x__convert_crop_bbox_to_original|64": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|65": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(None, min(img_w, x2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|66": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(0, None)"
+ ],
+ "x__convert_crop_bbox_to_original|67": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(min(img_w, x2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|68": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(0, )"
+ ],
+ "x__convert_crop_bbox_to_original|69": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(1, min(img_w, x2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|70": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(0, min(None, x2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|71": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(0, min(img_w, None))"
+ ],
+ "x__convert_crop_bbox_to_original|72": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(0, min(x2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|73": [
+  "-    x2_orig = max(0, min(img_w, x2_orig))",
+  "+    x2_orig = max(0, min(img_w, ))"
+ ],
+ "x__convert_crop_bbox_to_original|74": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = None"
+ ],
+ "x__convert_crop_bbox_to_original|75": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(None, min(img_h, y2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|76": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(0, None)"
+ ],
+ "x__convert_crop_bbox_to_original|77": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(min(img_h, y2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|78": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(0, )"
+ ],
+ "x__convert_crop_bbox_to_original|79": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(1, min(img_h, y2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|80": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(0, min(None, y2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|81": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(0, min(img_h, None))"
+ ],
+ "x__convert_crop_bbox_to_original|82": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(0, min(y2_orig))"
+ ],
+ "x__convert_crop_bbox_to_original|83": [
+  "-    y2_orig = max(0, min(img_h, y2_orig))",
+  "+    y2_orig = max(0, min(img_h, ))"
+ ],
+ "x__load_image_sync|1": [
+  "-    return Image.open(path).convert(\"RGB\")",
+  "+    return Image.open(path).convert(None)"
+ ],
+ "x__load_image_sync|2": [
+  "-    return Image.open(path).convert(\"RGB\")",
+  "+    return Image.open(None).convert(\"RGB\")"
+ ],
+ "x__load_image_sync|3": [
+  "-    return Image.open(path).convert(\"RGB\")",
+  "+    return Image.open(path).convert(\"XXRGBXX\")"
+ ],
+ "x__load_image_sync|4": [
+  "-    return Image.open(path).convert(\"RGB\")",
+  "+    return Image.open(path).convert(\"rgb\")"
+ ],
+ "x__run_plate_detection_sync|1": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = None"
+ ],
+ "x__run_plate_detection_sync|2": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(None, verbose=False, conf=confidence_threshold)"
+ ],
+ "x__run_plate_detection_sync|3": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(image_crop, verbose=None, conf=confidence_threshold)"
+ ],
+ "x__run_plate_detection_sync|4": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(image_crop, verbose=False, conf=None)"
+ ],
+ "x__run_plate_detection_sync|5": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(verbose=False, conf=confidence_threshold)"
+ ],
+ "x__run_plate_detection_sync|6": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(image_crop, conf=confidence_threshold)"
+ ],
+ "x__run_plate_detection_sync|7": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(image_crop, verbose=False, )"
+ ],
+ "x__run_plate_detection_sync|8": [
+  "-        predictions = model.predict(image_crop, verbose=False, conf=confidence_threshold)",
+  "+        predictions = model.predict(image_crop, verbose=True, conf=confidence_threshold)"
+ ],
+ "x__run_plate_detection_sync|9": [
+  "-        results = []",
+  "+        results = None"
+ ],
+ "x__run_plate_detection_sync|10": [
+  "-        if predictions and len(predictions) > 0:",
+  "+        if predictions or len(predictions) > 0:"
+ ],
+ "x__run_plate_detection_sync|11": [
+  "-        if predictions and len(predictions) > 0:",
+  "+        if predictions and len(predictions) >= 0:"
+ ],
+ "x__run_plate_detection_sync|12": [
+  "-        if predictions and len(predictions) > 0:",
+  "+        if predictions and len(predictions) > 1:"
+ ],
+ "x__run_plate_detection_sync|13": [
+  "-            for pred in predictions[0].boxes:",
+  "+            for pred in predictions[1].boxes:"
+ ],
+ "x__run_plate_detection_sync|14": [
+  "-                bbox_norm = pred.xyxyn[0].tolist()",
+  "+                bbox_norm = None"
+ ],
+ "x__run_plate_detection_sync|15": [
+  "-                bbox_norm = pred.xyxyn[0].tolist()",
+  "+                bbox_norm = pred.xyxyn[1].tolist()"
+ ],
+ "x__run_plate_detection_sync|16": [
+  "-                conf = float(pred.conf[0])",
+  "+                conf = None"
+ ],
+ "x__run_plate_detection_sync|17": [
+  "-                conf = float(pred.conf[0])",
+  "+                conf = float(None)"
+ ],
+ "x__run_plate_detection_sync|18": [
+  "-                conf = float(pred.conf[0])",
+  "+                conf = float(pred.conf[1])"
+ ],
+ "x__run_plate_detection_sync|19": [
+  "-                results.append((bbox_norm, conf))",
+  "+                results.append(None)"
+ ],
+ "x__run_plate_detection_sync|20": [
+  "-        logger.warning(f\"Plate detection inference failed: {e}\")",
+  "+        logger.warning(None)"
+ ],
+ "x_detect_plates|1": [
+  "-    if not vehicle_detections:",
+  "+    if vehicle_detections:"
+ ],
+ "x_detect_plates|2": [
+  "-    if model is None:",
+  "+    if model is not None:"
+ ],
+ "x_detect_plates|3": [
+  "-        logger.warning(\"No plate detection model provided, skipping\")",
+  "+        logger.warning(None)"
+ ],
+ "x_detect_plates|4": [
+  "-        logger.warning(\"No plate detection model provided, skipping\")",
+  "+        logger.warning(\"XXNo plate detection model provided, skippingXX\")"
+ ],
+ "x_detect_plates|5": [
+  "-        logger.warning(\"No plate detection model provided, skipping\")",
+  "+        logger.warning(\"no plate detection model provided, skipping\")"
+ ],
+ "x_detect_plates|6": [
+  "-        logger.warning(\"No plate detection model provided, skipping\")",
+  "+        logger.warning(\"NO PLATE DETECTION MODEL PROVIDED, SKIPPING\")"
+ ],
+ "x_detect_plates|7": [
+  "-    results: list[PlateDetection] = []",
+  "+    results: list[PlateDetection] = None"
+ ],
+ "x_detect_plates|8": [
+  "-    loaded_images: dict[str, PILImage] = images.copy() if images else {}",
+  "+    loaded_images: dict[str, PILImage] = None"
+ ],
+ "x_detect_plates|9": [
+  "-    loaded_images: dict[str, PILImage] = images.copy() if images else {}",
+  "+    loaded_images: dict[str, PILImage] = images.copy() if (images) and False else {}"
+ ],
+ "x_detect_plates|10": [
+  "-    loaded_images: dict[str, PILImage] = images.copy() if images else {}",
+  "+    loaded_images: dict[str, PILImage] = images.copy() if (images) or True else {}"
+ ],
+ "x_detect_plates|11": [
+  "-            file_path = detection.file_path",
+  "+            file_path = None"
+ ],
+ "x_detect_plates|12": [
+  "-            if file_path not in loaded_images:",
+  "+            if file_path in loaded_images:"
+ ],
+ "x_detect_plates|13": [
+  "-                path = Path(file_path)",
+  "+                path = None"
+ ],
+ "x_detect_plates|14": [
+  "-                path = Path(file_path)",
+  "+                path = Path(None)"
+ ],
+ "x_detect_plates|15": [
+  "-                if not path.exists():",
+  "+                if path.exists():"
+ ],
+ "x_detect_plates|16": [
+  "-                    logger.warning(f\"Image not found for plate detection: {file_path}\")",
+  "+                    logger.warning(None)"
+ ],
+ "x_detect_plates|17": [
+  "-                    continue",
+  "+                    break"
+ ],
+ "x_detect_plates|18": [
+  "-                loaded_images[file_path] = _load_image_sync(path)",
+  "+                loaded_images[file_path] = None"
+ ],
+ "x_detect_plates|19": [
+  "-                loaded_images[file_path] = _load_image_sync(path)",
+  "+                loaded_images[file_path] = _load_image_sync(None)"
+ ],
+ "x_detect_plates|20": [
+  "-            image = loaded_images[file_path]",
+  "+            image = None"
+ ],
+ "x_detect_plates|21": [
+  "-            img_w, img_h = image.size",
+  "+            img_w, img_h = None"
+ ],
+ "x_detect_plates|22": [
+  "-            bbox = (",
+  "-                detection.bbox_x,",
+  "-                detection.bbox_y,",
+  "-                detection.bbox_width,",
+  "-                detection.bbox_height,",
+  "-            )",
+  "+            bbox = None"
+ ],
+ "x_detect_plates|23": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = None"
+ ],
+ "x_detect_plates|24": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = _crop_bbox_with_padding(None, bbox, padding)"
+ ],
+ "x_detect_plates|25": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = _crop_bbox_with_padding(image, None, padding)"
+ ],
+ "x_detect_plates|26": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = _crop_bbox_with_padding(image, bbox, None)"
+ ],
+ "x_detect_plates|27": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = _crop_bbox_with_padding(bbox, padding)"
+ ],
+ "x_detect_plates|28": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = _crop_bbox_with_padding(image, padding)"
+ ],
+ "x_detect_plates|29": [
+  "-            crop = _crop_bbox_with_padding(image, bbox, padding)",
+  "+            crop = _crop_bbox_with_padding(image, bbox, )"
+ ],
+ "x_detect_plates|30": [
+  "-            crop_size = crop.size",
+  "+            crop_size = None"
+ ],
+ "x_detect_plates|31": [
+  "-            plate_results = await asyncio.to_thread(",
+  "-                _run_plate_detection_sync,",
+  "-                model,",
+  "-                crop,",
+  "-                confidence_threshold,",
+  "-            )",
+  "+            plate_results = None"
+ ],
+ "x_detect_plates|32": [
+  "-                _run_plate_detection_sync,",
+  "+                None,"
+ ],
+ "x_detect_plates|33": [
+  "-                model,",
+  "+                None,"
+ ],
+ "x_detect_plates|34": [
+  "-                crop,",
+  "+                None,"
+ ],
+ "x_detect_plates|35": [
+  "-                confidence_threshold,",
+  "+                None,"
+ ],
+ "x_detect_plates|36": [
+  "-                _run_plate_detection_sync,"
+ ],
+ "x_detect_plates|37": [
+  "-                model,"
+ ],
+ "x_detect_plates|38": [
+  "-                crop,"
+ ],
+ "x_detect_plates|39": [
+  "-                confidence_threshold,",
+  "-            )",
+  "+                )"
+ ],
+ "x_detect_plates|40": [
+  "-                original_bbox = _convert_crop_bbox_to_original(",
+  "-                    bbox_norm,",
+  "-                    bbox,",
+  "-                    crop_size,",
+  "-                    (img_w, img_h),",
+  "-                    padding,",
+  "-                )",
+  "+                original_bbox = None"
+ ],
+ "x_detect_plates|41": [
+  "-                    bbox_norm,",
+  "+                    None,"
+ ],
+ "x_detect_plates|42": [
+  "-                    bbox,",
+  "+                    None,"
+ ],
+ "x_detect_plates|43": [
+  "-                    crop_size,",
+  "+                    None,"
+ ],
+ "x_detect_plates|44": [
+  "-                    (img_w, img_h),",
+  "+                    None,"
+ ],
+ "x_detect_plates|45": [
+  "-                    padding,",
+  "+                    None,"
+ ],
+ "x_detect_plates|46": [
+  "-                    bbox_norm,"
+ ],
+ "x_detect_plates|47": [
+  "-                    bbox,"
+ ],
+ "x_detect_plates|48": [
+  "-                    crop_size,"
+ ],
+ "x_detect_plates|49": [
+  "-                    (img_w, img_h),"
+ ],
+ "x_detect_plates|50": [
+  "-                    padding,",
+  "-                )",
+  "+                    )"
+ ],
+ "x_detect_plates|51": [
+  "-                    PlateDetection(",
+  "-                        bbox=original_bbox,",
+  "-                        confidence=conf,",
+  "-                        vehicle_detection_id=detection.id,",
+  "-                    )",
+  "+                    None"
+ ],
+ "x_detect_plates|52": [
+  "-                        bbox=original_bbox,",
+  "+                        bbox=None,"
+ ],
+ "x_detect_plates|53": [
+  "-                        confidence=conf,",
+  "+                        confidence=None,"
+ ],
+ "x_detect_plates|54": [
+  "-                        vehicle_detection_id=detection.id,",
+  "+                        vehicle_detection_id=None,"
+ ],
+ "x_detect_plates|55": [
+  "-                        bbox=original_bbox,"
+ ],
+ "x_detect_plates|56": [
+  "-                        confidence=conf,"
+ ],
+ "x_detect_plates|57": [
+  "-                        vehicle_detection_id=detection.id,",
+  "-                    )",
+  "+                        )"
+ ],
+ "x_detect_plates|58": [
+  "-                f\"Detected {len(plate_results)} plates in vehicle detection \"",
+  "-                f\"{detection.id} from {file_path}\"",
+  "+                None"
+ ],
+ "x_detect_plates|59": [
+  "-        f\"Plate detection complete: {len(results)} plates found in \"",
+  "-        f\"{len(vehicle_detections)} vehicles\"",
+  "+        None"
+ ],
+ "x_is_vehicle_class|1": [
+  "-    return object_type.lower() in VEHICLE_CLASSES",
+  "+    return object_type.upper() in VEHICLE_CLASSES"
+ ],
+ "x_is_vehicle_class|2": [
+  "-    return object_type.lower() in VEHICLE_CLASSES",
+  "+    return object_type.lower() not in VEHICLE_CLASSES"
+ ]
+}

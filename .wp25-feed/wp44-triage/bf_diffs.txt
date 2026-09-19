@@ -1,0 +1,430 @@
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_2: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -18,7 +18,7 @@
+             ValueError: If user_id is None.
+         """
+     if user_id is None:
+-        msg = "user_id cannot be None"
++        msg = None
+         raise ValueError(msg)
+ 
+     # Generate unique session ID
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_3: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -18,7 +18,7 @@
+             ValueError: If user_id is None.
+         """
+     if user_id is None:
+-        msg = "user_id cannot be None"
++        msg = "XXuser_id cannot be NoneXX"
+         raise ValueError(msg)
+ 
+     # Generate unique session ID
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_4: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -18,7 +18,7 @@
+             ValueError: If user_id is None.
+         """
+     if user_id is None:
+-        msg = "user_id cannot be None"
++        msg = "user_id cannot be none"
+         raise ValueError(msg)
+ 
+     # Generate unique session ID
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_5: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -18,7 +18,7 @@
+             ValueError: If user_id is None.
+         """
+     if user_id is None:
+-        msg = "user_id cannot be None"
++        msg = "USER_ID CANNOT BE NONE"
+         raise ValueError(msg)
+ 
+     # Generate unique session ID
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_6: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -19,7 +19,7 @@
+         """
+     if user_id is None:
+         msg = "user_id cannot be None"
+-        raise ValueError(msg)
++        raise ValueError(None)
+ 
+     # Generate unique session ID
+     session_id = secrets.token_urlsafe(32)
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_8: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -22,7 +22,7 @@
+         raise ValueError(msg)
+ 
+     # Generate unique session ID
+-    session_id = secrets.token_urlsafe(32)
++    session_id = secrets.token_urlsafe(None)
+ 
+     # Prepare session data with metadata
+     full_data = {
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_9: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -22,7 +22,7 @@
+         raise ValueError(msg)
+ 
+     # Generate unique session ID
+-    session_id = secrets.token_urlsafe(32)
++    session_id = secrets.token_urlsafe(33)
+ 
+     # Prepare session data with metadata
+     full_data = {
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_10: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -25,11 +25,7 @@
+     session_id = secrets.token_urlsafe(32)
+ 
+     # Prepare session data with metadata
+-    full_data = {
+-        **session_data,
+-        "user_id": user_id,
+-        "session_id": session_id,
+-    }
++    full_data = None
+ 
+     # Calculate TTL in seconds
+     ttl_seconds = int((ttl or _DEFAULT_SESSION_TTL).total_seconds())
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_11: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -27,7 +27,7 @@
+     # Prepare session data with metadata
+     full_data = {
+         **session_data,
+-        "user_id": user_id,
++        "XXuser_idXX": user_id,
+         "session_id": session_id,
+     }
+ 
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_12: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -27,7 +27,7 @@
+     # Prepare session data with metadata
+     full_data = {
+         **session_data,
+-        "user_id": user_id,
++        "USER_ID": user_id,
+         "session_id": session_id,
+     }
+ 
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_13: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -28,7 +28,7 @@
+     full_data = {
+         **session_data,
+         "user_id": user_id,
+-        "session_id": session_id,
++        "XXsession_idXX": session_id,
+     }
+ 
+     # Calculate TTL in seconds
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_14: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -28,7 +28,7 @@
+     full_data = {
+         **session_data,
+         "user_id": user_id,
+-        "session_id": session_id,
++        "SESSION_ID": session_id,
+     }
+ 
+     # Calculate TTL in seconds
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_15: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -32,7 +32,7 @@
+     }
+ 
+     # Calculate TTL in seconds
+-    ttl_seconds = int((ttl or _DEFAULT_SESSION_TTL).total_seconds())
++    ttl_seconds = None
+ 
+     # Store in Redis with TTL
+     key = self._session_key(session_id)
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_21: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -38,7 +38,7 @@
+     key = self._session_key(session_id)
+     await self._redis.set(
+         key,
+-        json.dumps(full_data),
++        None,
+         expire=ttl_seconds,
+     )
+ 
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_22: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -39,7 +39,7 @@
+     await self._redis.set(
+         key,
+         json.dumps(full_data),
+-        expire=ttl_seconds,
++        expire=None,
+     )
+ 
+     return session_id
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_23: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -37,7 +37,6 @@
+     # Store in Redis with TTL
+     key = self._session_key(session_id)
+     await self._redis.set(
+-        key,
+         json.dumps(full_data),
+         expire=ttl_seconds,
+     )
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_24: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -38,7 +38,6 @@
+     key = self._session_key(session_id)
+     await self._redis.set(
+         key,
+-        json.dumps(full_data),
+         expire=ttl_seconds,
+     )
+ 
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_25: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -39,7 +39,6 @@
+     await self._redis.set(
+         key,
+         json.dumps(full_data),
+-        expire=ttl_seconds,
+-    )
++        )
+ 
+     return session_id
+===END===
+# backend.services.session_service.xǁSessionServiceǁcreate_session__mutmut_26: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -38,7 +38,7 @@
+     key = self._session_key(session_id)
+     await self._redis.set(
+         key,
+-        json.dumps(full_data),
++        json.dumps(None),
+         expire=ttl_seconds,
+     )
+ 
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session__mutmut_2: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -13,7 +13,7 @@
+             SessionNotFoundError: If the session doesn't exist.
+         """
+     if not session_id:
+-        msg = "session_id cannot be empty"
++        msg = None
+         raise ValueError(msg)
+ 
+     key = self._session_key(session_id)
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session__mutmut_3: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -13,7 +13,7 @@
+             SessionNotFoundError: If the session doesn't exist.
+         """
+     if not session_id:
+-        msg = "session_id cannot be empty"
++        msg = "XXsession_id cannot be emptyXX"
+         raise ValueError(msg)
+ 
+     key = self._session_key(session_id)
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session__mutmut_4: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -13,7 +13,7 @@
+             SessionNotFoundError: If the session doesn't exist.
+         """
+     if not session_id:
+-        msg = "session_id cannot be empty"
++        msg = "SESSION_ID CANNOT BE EMPTY"
+         raise ValueError(msg)
+ 
+     key = self._session_key(session_id)
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session__mutmut_5: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -14,7 +14,7 @@
+         """
+     if not session_id:
+         msg = "session_id cannot be empty"
+-        raise ValueError(msg)
++        raise ValueError(None)
+ 
+     key = self._session_key(session_id)
+     data = await self._redis.get(key)
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session__mutmut_11: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -24,7 +24,7 @@
+         # We raise SessionExpiredError for both cases since from the
+         # client's perspective, an expired session is indistinguishable
+         # from one that doesn't exist
+-        raise SessionExpiredError(f"Session {session_id} has expired or doesn't exist")
++        raise SessionExpiredError(None)
+ 
+     # Parse JSON data
+     if isinstance(data, bytes):
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session__mutmut_13: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -33,4 +33,4 @@
+         result: dict[str, Any] = json.loads(data)
+         return result
+     # Cast to expected type (Redis returns Any)
+-    return dict(data) if data else {}
++    return dict(data) if (data) or True else {}
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session_ttl__mutmut_1: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -9,6 +9,6 @@
+             - -1 if the key exists but has no TTL
+             - -2 if the key doesn't exist
+         """
+-    key = self._session_key(session_id)
++    key = None
+     ttl: int = await self._redis.ttl(key)
+     return ttl
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session_ttl__mutmut_2: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -9,6 +9,6 @@
+             - -1 if the key exists but has no TTL
+             - -2 if the key doesn't exist
+         """
+-    key = self._session_key(session_id)
++    key = self._session_key(None)
+     ttl: int = await self._redis.ttl(key)
+     return ttl
+===END===
+# backend.services.session_service.xǁSessionServiceǁget_session_ttl__mutmut_4: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -10,5 +10,5 @@
+             - -2 if the key doesn't exist
+         """
+     key = self._session_key(session_id)
+-    ttl: int = await self._redis.ttl(key)
++    ttl: int = await self._redis.ttl(None)
+     return ttl
+===END===
+# backend.services.session_service.xǁSessionServiceǁrefresh_session__mutmut_1: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -12,7 +12,7 @@
+         Returns:
+             True if the session was refreshed, False if it doesn't exist.
+         """
+-    key = self._session_key(session_id)
++    key = None
+     ttl_seconds = int(new_ttl.total_seconds())
+     result: bool = await self._redis.expire(key, ttl_seconds)
+     return result
+===END===
+# backend.services.session_service.xǁSessionServiceǁrefresh_session__mutmut_2: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -12,7 +12,7 @@
+         Returns:
+             True if the session was refreshed, False if it doesn't exist.
+         """
+-    key = self._session_key(session_id)
++    key = self._session_key(None)
+     ttl_seconds = int(new_ttl.total_seconds())
+     result: bool = await self._redis.expire(key, ttl_seconds)
+     return result
+===END===
+# backend.services.session_service.xǁSessionServiceǁrefresh_session__mutmut_3: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -13,6 +13,6 @@
+             True if the session was refreshed, False if it doesn't exist.
+         """
+     key = self._session_key(session_id)
+-    ttl_seconds = int(new_ttl.total_seconds())
++    ttl_seconds = None
+     result: bool = await self._redis.expire(key, ttl_seconds)
+     return result
+===END===
+# backend.services.session_service.xǁSessionServiceǁrefresh_session__mutmut_6: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -14,5 +14,5 @@
+         """
+     key = self._session_key(session_id)
+     ttl_seconds = int(new_ttl.total_seconds())
+-    result: bool = await self._redis.expire(key, ttl_seconds)
++    result: bool = await self._redis.expire(None, ttl_seconds)
+     return result
+===END===
+# backend.services.session_service.xǁSessionServiceǁrefresh_session__mutmut_7: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -14,5 +14,5 @@
+         """
+     key = self._session_key(session_id)
+     ttl_seconds = int(new_ttl.total_seconds())
+-    result: bool = await self._redis.expire(key, ttl_seconds)
++    result: bool = await self._redis.expire(key, None)
+     return result
+===END===
+# backend.services.session_service.xǁSessionServiceǁrefresh_session__mutmut_8: survived
+--- backend/services/session_service.py
++++ backend/services/session_service.py
+@@ -14,5 +14,5 @@
+         """
+     key = self._session_key(session_id)
+     ttl_seconds = int(new_ttl.total_seconds())
+-    result: bool = await self._redis.expire(key, ttl_seconds)
++    result: bool = await self._redis.expire(ttl_seconds)
+     return result
+===END===

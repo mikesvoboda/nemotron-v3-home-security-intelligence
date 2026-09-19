@@ -1,0 +1,438 @@
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ__init____mutmut_7
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ__init____mutmut_7: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -13,7 +13,7 @@
+                 SCENE_CHANGE_RESIZE_WIDTH (default: 640).
+         """
+     if not 0 <= similarity_threshold <= 1:
+-        raise ValueError("similarity_threshold must be between 0 and 1")
++        raise ValueError("XXsimilarity_threshold must be between 0 and 1XX")
+ 
+     # Use configured default if not explicitly provided (NEM-2520)
+     if resize_width is None:
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ__init____mutmut_13
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ__init____mutmut_13: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -22,7 +22,7 @@
+         settings = get_settings()
+         resize_width = settings.scene_change_resize_width
+ 
+-    if resize_width <= 0:
++    if resize_width <= 1:
+         raise ValueError("resize_width must be positive")
+ 
+     self._threshold = similarity_threshold
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ__init____mutmut_15
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ__init____mutmut_15: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -23,7 +23,7 @@
+         resize_width = settings.scene_change_resize_width
+ 
+     if resize_width <= 0:
+-        raise ValueError("resize_width must be positive")
++        raise ValueError("XXresize_width must be positiveXX")
+ 
+     self._threshold = similarity_threshold
+     self._resize_width = resize_width
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_3
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_3: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -11,7 +11,7 @@
+             ValueError: If frame is None or has invalid shape.
+         """
+     if frame is None:
+-        raise ValueError("Frame cannot be None for grayscale conversion")
++        raise ValueError("XXFrame cannot be None for grayscale conversionXX")
+     if not hasattr(frame, "ndim") or not hasattr(frame, "shape"):
+         raise ValueError(f"Frame must be a numpy array, got {type(frame).__name__}")
+     if frame.ndim == 2:
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_6
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_6: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -12,7 +12,7 @@
+         """
+     if frame is None:
+         raise ValueError("Frame cannot be None for grayscale conversion")
+-    if not hasattr(frame, "ndim") or not hasattr(frame, "shape"):
++    if not hasattr(frame, "ndim") and not hasattr(frame, "shape"):
+         raise ValueError(f"Frame must be a numpy array, got {type(frame).__name__}")
+     if frame.ndim == 2:
+         # Already grayscale
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_22
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_22: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -13,7 +13,7 @@
+     if frame is None:
+         raise ValueError("Frame cannot be None for grayscale conversion")
+     if not hasattr(frame, "ndim") or not hasattr(frame, "shape"):
+-        raise ValueError(f"Frame must be a numpy array, got {type(frame).__name__}")
++        raise ValueError(f"Frame must be a numpy array, got {type(None).__name__}")
+     if frame.ndim == 2:
+         # Already grayscale
+         return frame
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_32
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_32: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -20,7 +20,7 @@
+     if frame.ndim == 3:
+         if frame.shape[2] == 3:
+             # RGB to grayscale using PIL
+-            img = Image.fromarray(frame, mode="RGB")
++            img = Image.fromarray(frame, mode=None)
+             gray_img = img.convert("L")
+             return np.array(gray_img)
+         if frame.shape[2] == 4:
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_34
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_34: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -20,7 +20,7 @@
+     if frame.ndim == 3:
+         if frame.shape[2] == 3:
+             # RGB to grayscale using PIL
+-            img = Image.fromarray(frame, mode="RGB")
++            img = Image.fromarray(frame, )
+             gray_img = img.convert("L")
+             return np.array(gray_img)
+         if frame.shape[2] == 4:
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_47
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_47: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -25,7 +25,7 @@
+             return np.array(gray_img)
+         if frame.shape[2] == 4:
+             # RGBA to grayscale using PIL
+-            img = Image.fromarray(frame, mode="RGBA")
++            img = Image.fromarray(frame, mode=None)
+             gray_img = img.convert("L")
+             return np.array(gray_img)
+     raise ValueError(f"Unsupported frame shape: {frame.shape}")
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_49
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_to_grayscale__mutmut_49: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -25,7 +25,7 @@
+             return np.array(gray_img)
+         if frame.shape[2] == 4:
+             # RGBA to grayscale using PIL
+-            img = Image.fromarray(frame, mode="RGBA")
++            img = Image.fromarray(frame, )
+             gray_img = img.convert("L")
+             return np.array(gray_img)
+     raise ValueError(f"Unsupported frame shape: {frame.shape}")
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_2
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_2: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -11,7 +11,7 @@
+         Returns:
+             Resized grayscale image.
+         """
+-    h, w = frame.shape[:2]
++    h, w = frame.shape[:3]
+ 
+     if target_size is not None:
+         target_w, target_h = target_size
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_7
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_7: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -15,7 +15,7 @@
+ 
+     if target_size is not None:
+         target_w, target_h = target_size
+-        img = Image.fromarray(frame, mode="L")
++        img = Image.fromarray(frame, mode=None)
+         resized = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+         return np.array(resized)
+ 
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_9
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_9: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -15,7 +15,7 @@
+ 
+     if target_size is not None:
+         target_w, target_h = target_size
+-        img = Image.fromarray(frame, mode="L")
++        img = Image.fromarray(frame, )
+         resized = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+         return np.array(resized)
+ 
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_14
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_14: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -16,7 +16,7 @@
+     if target_size is not None:
+         target_w, target_h = target_size
+         img = Image.fromarray(frame, mode="L")
+-        resized = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
++        resized = img.resize((target_w, target_h), None)
+         return np.array(resized)
+ 
+     if w <= self._resize_width:
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_16
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_16: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -16,7 +16,7 @@
+     if target_size is not None:
+         target_w, target_h = target_size
+         img = Image.fromarray(frame, mode="L")
+-        resized = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
++        resized = img.resize((target_w, target_h), )
+         return np.array(resized)
+ 
+     if w <= self._resize_width:
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_18
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁ_resize_frame__mutmut_18: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -19,7 +19,7 @@
+         resized = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+         return np.array(resized)
+ 
+-    if w <= self._resize_width:
++    if w < self._resize_width:
+         return frame
+ 
+     scale = self._resize_width / w
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_3
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_3: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -15,7 +15,7 @@
+             ValueError: If current_frame is None or has invalid shape.
+         """
+     if current_frame is None:
+-        raise ValueError("current_frame cannot be None for scene change detection")
++        raise ValueError("XXcurrent_frame cannot be None for scene change detectionXX")
+     if not hasattr(current_frame, "shape"):
+         raise ValueError(
+             f"current_frame must be a numpy array with shape attribute, "
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_14
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_14: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -19,7 +19,7 @@
+     if not hasattr(current_frame, "shape"):
+         raise ValueError(
+             f"current_frame must be a numpy array with shape attribute, "
+-            f"got {type(current_frame).__name__}"
++            f"got {type(None).__name__}"
+         )
+     if camera_id not in self._baselines:
+         # First frame - set as baseline, no change detected
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_19
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_19: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -26,7 +26,7 @@
+         prepared = self._prepare_frame(current_frame)
+         self._baselines[camera_id] = prepared
+         return SceneChangeResult(
+-            change_detected=False,
++            change_detected=None,
+             similarity_score=1.0,
+             is_first_frame=True,
+         )
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_30
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_30: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -32,7 +32,7 @@
+         )
+ 
+     baseline = self._baselines[camera_id]
+-    baseline_h, baseline_w = baseline.shape[:2]
++    baseline_h, baseline_w = baseline.shape[:3]
+ 
+     # Prepare current frame to match baseline size
+     prepared = self._prepare_frame(current_frame, target_size=(baseline_w, baseline_h))
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_46
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_46: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -41,7 +41,7 @@
+     # win_size must be odd and <= min(height, width)
+     min_dim = min(baseline_h, baseline_w)
+     # Default win_size is 7, but must be <= image dimensions
+-    win_size = min(7, min_dim)
++    win_size = min(8, min_dim)
+     # win_size must be odd
+     if win_size % 2 == 0:
+         win_size -= 1
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_47
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_47: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -43,7 +43,7 @@
+     # Default win_size is 7, but must be <= image dimensions
+     win_size = min(7, min_dim)
+     # win_size must be odd
+-    if win_size % 2 == 0:
++    if win_size / 2 == 0:
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_48
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_48: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -43,7 +43,7 @@
+     # Default win_size is 7, but must be <= image dimensions
+     win_size = min(7, min_dim)
+     # win_size must be odd
+-    if win_size % 2 == 0:
++    if win_size % 3 == 0:
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_51
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_51: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -45,7 +45,7 @@
+     # win_size must be odd
+     if win_size % 2 == 0:
+         win_size -= 1
+-    win_size = max(win_size, 3)
++    win_size = None
+ 
+     similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
+ 
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_56
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_56: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -45,7 +45,7 @@
+     # win_size must be odd
+     if win_size % 2 == 0:
+         win_size -= 1
+-    win_size = max(win_size, 3)
++    win_size = max(win_size, 4)
+ 
+     similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
+ 
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_60
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_60: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -47,7 +47,7 @@
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+-    similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
++    similarity = ssim(baseline, prepared, win_size=None, data_range=255)
+ 
+     # Clamp similarity to [0, 1] range to handle floating point precision issues
+     # SSIM can return slightly negative values when comparing very different images
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_61
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_61: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -47,7 +47,7 @@
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+-    similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
++    similarity = ssim(baseline, prepared, win_size=win_size, data_range=None)
+ 
+     # Clamp similarity to [0, 1] range to handle floating point precision issues
+     # SSIM can return slightly negative values when comparing very different images
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_64
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_64: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -47,7 +47,7 @@
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+-    similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
++    similarity = ssim(baseline, prepared, data_range=255)
+ 
+     # Clamp similarity to [0, 1] range to handle floating point precision issues
+     # SSIM can return slightly negative values when comparing very different images
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_65
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_65: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -47,7 +47,7 @@
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+-    similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
++    similarity = ssim(baseline, prepared, win_size=win_size, )
+ 
+     # Clamp similarity to [0, 1] range to handle floating point precision issues
+     # SSIM can return slightly negative values when comparing very different images
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_66
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_66: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -47,7 +47,7 @@
+         win_size -= 1
+     win_size = max(win_size, 3)
+ 
+-    similarity = ssim(baseline, prepared, win_size=win_size, data_range=255)
++    similarity = ssim(baseline, prepared, win_size=win_size, data_range=256)
+ 
+     # Clamp similarity to [0, 1] range to handle floating point precision issues
+     # SSIM can return slightly negative values when comparing very different images
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_77
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_77: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -51,7 +51,7 @@
+ 
+     # Clamp similarity to [0, 1] range to handle floating point precision issues
+     # SSIM can return slightly negative values when comparing very different images
+-    clamped_similarity = max(0.0, min(1.0, float(similarity)))
++    clamped_similarity = max(0.0, min(2.0, float(similarity)))
+ 
+     return SceneChangeResult(
+         change_detected=clamped_similarity < self._threshold,
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_81
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_81: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -56,5 +56,5 @@
+     return SceneChangeResult(
+         change_detected=clamped_similarity < self._threshold,
+         similarity_score=clamped_similarity,
+-        is_first_frame=False,
++        is_first_frame=None,
+     )
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_84
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_84: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -56,5 +56,4 @@
+     return SceneChangeResult(
+         change_detected=clamped_similarity < self._threshold,
+         similarity_score=clamped_similarity,
+-        is_first_frame=False,
+-    )
++        )
+===KEY=== backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_85
+# backend.services.scene_change_detector.xǁSceneChangeDetectorǁdetect_changes__mutmut_85: survived
+--- backend/services/scene_change_detector.py
++++ backend/services/scene_change_detector.py
+@@ -54,7 +54,7 @@
+     clamped_similarity = max(0.0, min(1.0, float(similarity)))
+ 
+     return SceneChangeResult(
+-        change_detected=clamped_similarity < self._threshold,
++        change_detected=clamped_similarity <= self._threshold,
+         similarity_score=clamped_similarity,
+         is_first_frame=False,
+     )

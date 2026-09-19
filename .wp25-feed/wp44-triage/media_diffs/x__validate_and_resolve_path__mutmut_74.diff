@@ -1,0 +1,12 @@
+# backend.api.routes.media.x__validate_and_resolve_path__mutmut_74: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -63,7 +63,7 @@
+         raise HTTPException(
+             status_code=status.HTTP_404_NOT_FOUND,
+             detail=MediaErrorResponse(
+-                error="File not found",
++                error="XXFile not foundXX",
+                 path=requested_path,
+             ).model_dump(),
+         )

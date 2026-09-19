@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_88: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -75,7 +75,7 @@
+         raise HTTPException(
+             status_code=status.HTTP_404_NOT_FOUND,
+             detail=MediaErrorResponse(
+-                error="File not found on disk",
++                error="XXFile not found on diskXX",
+                 path=f"detections/{detection_id}",
+             ).model_dump(),
+         )

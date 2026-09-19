@@ -1,0 +1,631 @@
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁ_validate_dedup_key__mutmut_3
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -20,7 +20,7 @@
+             - Rejects non-ASCII unicode characters
+         """
+     if not dedup_key:
+-        raise ValueError("dedup_key cannot be empty or None")
++        raise ValueError("XXdedup_key cannot be empty or NoneXX")
+     if not dedup_key.strip():
+         raise ValueError("dedup_key cannot be whitespace-only")
+     if dedup_key != dedup_key.strip():
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁ_validate_dedup_key__mutmut_4
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -20,7 +20,7 @@
+             - Rejects non-ASCII unicode characters
+         """
+     if not dedup_key:
+-        raise ValueError("dedup_key cannot be empty or None")
++        raise ValueError("dedup_key cannot be empty or none")
+     if not dedup_key.strip():
+         raise ValueError("dedup_key cannot be whitespace-only")
+     if dedup_key != dedup_key.strip():
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁ_validate_dedup_key__mutmut_8
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -22,7 +22,7 @@
+     if not dedup_key:
+         raise ValueError("dedup_key cannot be empty or None")
+     if not dedup_key.strip():
+-        raise ValueError("dedup_key cannot be whitespace-only")
++        raise ValueError("XXdedup_key cannot be whitespace-onlyXX")
+     if dedup_key != dedup_key.strip():
+         raise ValueError("dedup_key cannot have leading or trailing whitespace")
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁ_validate_dedup_key__mutmut_12
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -24,7 +24,7 @@
+     if not dedup_key.strip():
+         raise ValueError("dedup_key cannot be whitespace-only")
+     if dedup_key != dedup_key.strip():
+-        raise ValueError("dedup_key cannot have leading or trailing whitespace")
++        raise ValueError("XXdedup_key cannot have leading or trailing whitespaceXX")
+ 
+     # Validate character pattern to prevent injection attacks
+     if not DEDUP_KEY_PATTERN.match(dedup_key):
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁ_validate_dedup_key__mutmut_17
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -29,6 +29,6 @@
+     # Validate character pattern to prevent injection attacks
+     if not DEDUP_KEY_PATTERN.match(dedup_key):
+         raise ValueError(
+-            "dedup_key contains invalid characters. "
++            "XXdedup_key contains invalid characters. XX"
+             "Only alphanumeric characters, underscores, hyphens, and colons are allowed."
+         )
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_3
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -17,7 +17,7 @@
+         """
+     self._validate_dedup_key(dedup_key)
+     # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+-    cutoff_time = datetime.now(UTC) - timedelta(seconds=cooldown_seconds)
++    cutoff_time = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
+ 
+     # Find the most recent alert with this dedup_key within the cooldown window
+     # Use with_for_update() to lock the rows during check-then-insert operation
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_6
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -25,14 +25,7 @@
+     # pass the duplicate check before either inserts.
+     # skip_locked=True allows non-blocking behavior for concurrent queries on
+     # different dedup_keys.
+-    stmt = (
+-        select(Alert)
+-        .where(Alert.dedup_key == dedup_key)
+-        .where(Alert.created_at >= cutoff_time)
+-        .order_by(Alert.created_at.desc())
+-        .limit(1)
+-        .with_for_update(skip_locked=True)
+-    )
++    stmt = None
+ 
+     result = await self.session.execute(stmt)
+     existing_alert = result.scalar_one_or_none()
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_7
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -31,7 +31,7 @@
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(1)
+-        .with_for_update(skip_locked=True)
++        .with_for_update(skip_locked=None)
+     )
+ 
+     result = await self.session.execute(stmt)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_8
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -30,7 +30,7 @@
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+-        .limit(1)
++        .limit(None)
+         .with_for_update(skip_locked=True)
+     )
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_9
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -29,7 +29,7 @@
+         select(Alert)
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+-        .order_by(Alert.created_at.desc())
++        .order_by(None)
+         .limit(1)
+         .with_for_update(skip_locked=True)
+     )
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_10
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -28,7 +28,7 @@
+     stmt = (
+         select(Alert)
+         .where(Alert.dedup_key == dedup_key)
+-        .where(Alert.created_at >= cutoff_time)
++        .where(None)
+         .order_by(Alert.created_at.desc())
+         .limit(1)
+         .with_for_update(skip_locked=True)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_11
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -27,7 +27,7 @@
+     # different dedup_keys.
+     stmt = (
+         select(Alert)
+-        .where(Alert.dedup_key == dedup_key)
++        .where(None)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(1)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_12
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -26,7 +26,7 @@
+     # skip_locked=True allows non-blocking behavior for concurrent queries on
+     # different dedup_keys.
+     stmt = (
+-        select(Alert)
++        select(None)
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_13
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -27,7 +27,7 @@
+     # different dedup_keys.
+     stmt = (
+         select(Alert)
+-        .where(Alert.dedup_key == dedup_key)
++        .where(Alert.dedup_key != dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(1)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_14
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -28,7 +28,7 @@
+     stmt = (
+         select(Alert)
+         .where(Alert.dedup_key == dedup_key)
+-        .where(Alert.created_at >= cutoff_time)
++        .where(Alert.created_at > cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(1)
+         .with_for_update(skip_locked=True)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_15
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -30,7 +30,7 @@
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+-        .limit(1)
++        .limit(2)
+         .with_for_update(skip_locked=True)
+     )
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_16
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -31,7 +31,7 @@
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(1)
+-        .with_for_update(skip_locked=True)
++        .with_for_update(skip_locked=False)
+     )
+ 
+     result = await self.session.execute(stmt)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcheck_duplicate__mutmut_18
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -34,7 +34,7 @@
+         .with_for_update(skip_locked=True)
+     )
+ 
+-    result = await self.session.execute(stmt)
++    result = await self.session.execute(None)
+     existing_alert = result.scalar_one_or_none()
+ 
+     if existing_alert:
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_cooldown_for_rule__mutmut_3
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -10,7 +10,7 @@
+     if rule_id is None:
+         return 300  # Default cooldown
+ 
+-    stmt = select(AlertRule).where(AlertRule.id == rule_id)
++    stmt = None
+     result = await self.session.execute(stmt)
+     rule = result.scalar_one_or_none()
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_cooldown_for_rule__mutmut_4
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -10,7 +10,7 @@
+     if rule_id is None:
+         return 300  # Default cooldown
+ 
+-    stmt = select(AlertRule).where(AlertRule.id == rule_id)
++    stmt = select(AlertRule).where(None)
+     result = await self.session.execute(stmt)
+     rule = result.scalar_one_or_none()
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_cooldown_for_rule__mutmut_5
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -10,7 +10,7 @@
+     if rule_id is None:
+         return 300  # Default cooldown
+ 
+-    stmt = select(AlertRule).where(AlertRule.id == rule_id)
++    stmt = select(None).where(AlertRule.id == rule_id)
+     result = await self.session.execute(stmt)
+     rule = result.scalar_one_or_none()
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_cooldown_for_rule__mutmut_6
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -10,7 +10,7 @@
+     if rule_id is None:
+         return 300  # Default cooldown
+ 
+-    stmt = select(AlertRule).where(AlertRule.id == rule_id)
++    stmt = select(AlertRule).where(AlertRule.id != rule_id)
+     result = await self.session.execute(stmt)
+     rule = result.scalar_one_or_none()
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_cooldown_for_rule__mutmut_8
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -11,7 +11,7 @@
+         return 300  # Default cooldown
+ 
+     stmt = select(AlertRule).where(AlertRule.id == rule_id)
+-    result = await self.session.execute(stmt)
++    result = await self.session.execute(None)
+     rule = result.scalar_one_or_none()
+ 
+     if rule:
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcreate_alert_if_not_duplicate__mutmut_8
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -31,7 +31,7 @@
+         cooldown_seconds = await self.get_cooldown_for_rule(rule_id)
+ 
+     # Check for duplicates
+-    dedup_result = await self.check_duplicate(dedup_key, cooldown_seconds)
++    dedup_result = await self.check_duplicate(dedup_key, )
+ 
+     if dedup_result.is_duplicate and dedup_result.existing_alert:
+         return dedup_result.existing_alert, False
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcreate_alert_if_not_duplicate__mutmut_9
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -33,7 +33,7 @@
+     # Check for duplicates
+     dedup_result = await self.check_duplicate(dedup_key, cooldown_seconds)
+ 
+-    if dedup_result.is_duplicate and dedup_result.existing_alert:
++    if dedup_result.is_duplicate or dedup_result.existing_alert:
+         return dedup_result.existing_alert, False
+ 
+     # Create new alert
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcreate_alert_if_not_duplicate__mutmut_13
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -39,7 +39,7 @@
+     # Create new alert
+     alert = Alert(
+         event_id=event_id,
+-        rule_id=rule_id,
++        rule_id=None,
+         severity=severity,
+         status=AlertStatus.PENDING,
+         dedup_key=dedup_key,
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcreate_alert_if_not_duplicate__mutmut_20
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -39,7 +39,6 @@
+     # Create new alert
+     alert = Alert(
+         event_id=event_id,
+-        rule_id=rule_id,
+         severity=severity,
+         status=AlertStatus.PENDING,
+         dedup_key=dedup_key,
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁcreate_alert_if_not_duplicate__mutmut_28
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -48,7 +48,7 @@
+     )
+ 
+     try:
+-        self.session.add(alert)
++        self.session.add(None)
+         await self.session.flush()
+     except Exception as e:
+         logger.error(
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_3
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -21,7 +21,7 @@
+         """
+     self._validate_dedup_key(dedup_key)
+     # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+-    cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
++    cutoff_time = datetime.now(UTC) + timedelta(hours=hours)
+ 
+     stmt = (
+         select(Alert)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_4
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -21,7 +21,7 @@
+         """
+     self._validate_dedup_key(dedup_key)
+     # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+-    cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
++    cutoff_time = datetime.now(None) - timedelta(hours=hours)
+ 
+     stmt = (
+         select(Alert)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_6
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -23,13 +23,7 @@
+     # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+     cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+ 
+-    stmt = (
+-        select(Alert)
+-        .where(Alert.dedup_key == dedup_key)
+-        .where(Alert.created_at >= cutoff_time)
+-        .order_by(Alert.created_at.desc())
+-        .limit(limit)
+-    )
++    stmt = None
+ 
+     result = await self.session.execute(stmt)
+     return list(result.scalars().all())
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_7
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -28,7 +28,7 @@
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+-        .limit(limit)
++        .limit(None)
+     )
+ 
+     result = await self.session.execute(stmt)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_8
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -27,7 +27,7 @@
+         select(Alert)
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+-        .order_by(Alert.created_at.desc())
++        .order_by(None)
+         .limit(limit)
+     )
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_9
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -26,7 +26,7 @@
+     stmt = (
+         select(Alert)
+         .where(Alert.dedup_key == dedup_key)
+-        .where(Alert.created_at >= cutoff_time)
++        .where(None)
+         .order_by(Alert.created_at.desc())
+         .limit(limit)
+     )
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_10
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -25,7 +25,7 @@
+ 
+     stmt = (
+         select(Alert)
+-        .where(Alert.dedup_key == dedup_key)
++        .where(None)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(limit)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_11
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -24,7 +24,7 @@
+     cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+ 
+     stmt = (
+-        select(Alert)
++        select(None)
+         .where(Alert.dedup_key == dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_12
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -25,7 +25,7 @@
+ 
+     stmt = (
+         select(Alert)
+-        .where(Alert.dedup_key == dedup_key)
++        .where(Alert.dedup_key != dedup_key)
+         .where(Alert.created_at >= cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(limit)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_13
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -26,7 +26,7 @@
+     stmt = (
+         select(Alert)
+         .where(Alert.dedup_key == dedup_key)
+-        .where(Alert.created_at >= cutoff_time)
++        .where(Alert.created_at > cutoff_time)
+         .order_by(Alert.created_at.desc())
+         .limit(limit)
+     )
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_recent_alerts_for_key__mutmut_15
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -31,5 +31,5 @@
+         .limit(limit)
+     )
+ 
+-    result = await self.session.execute(stmt)
++    result = await self.session.execute(None)
+     return list(result.scalars().all())
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_2
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -14,7 +14,7 @@
+             - potential_duplicates: Alerts that were likely suppressed
+         """
+     # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+-    cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
++    cutoff_time = datetime.now(UTC) + timedelta(hours=hours)
+ 
+     # Get total alerts
+     total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_3
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -14,7 +14,7 @@
+             - potential_duplicates: Alerts that were likely suppressed
+         """
+     # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+-    cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
++    cutoff_time = datetime.now(None) - timedelta(hours=hours)
+ 
+     # Get total alerts
+     total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_5
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -17,7 +17,7 @@
+     cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+ 
+     # Get total alerts
+-    total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
++    total_stmt = None
+     total_result = await self.session.execute(total_stmt)
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_6
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -17,7 +17,7 @@
+     cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+ 
+     # Get total alerts
+-    total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
++    total_stmt = select(Alert).where(None)
+     total_result = await self.session.execute(total_stmt)
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_7
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -17,7 +17,7 @@
+     cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+ 
+     # Get total alerts
+-    total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
++    total_stmt = select(None).where(Alert.created_at >= cutoff_time)
+     total_result = await self.session.execute(total_stmt)
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_8
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -17,7 +17,7 @@
+     cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+ 
+     # Get total alerts
+-    total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
++    total_stmt = select(Alert).where(Alert.created_at > cutoff_time)
+     total_result = await self.session.execute(total_stmt)
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_10
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -18,7 +18,7 @@
+ 
+     # Get total alerts
+     total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
+-    total_result = await self.session.execute(total_stmt)
++    total_result = await self.session.execute(None)
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+     # Get unique dedup keys
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_12
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -22,7 +22,7 @@
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+     # Get unique dedup keys
+-    unique_stmt = select(Alert.dedup_key).where(Alert.created_at >= cutoff_time).distinct()
++    unique_stmt = None
+     unique_result = await self.session.execute(unique_stmt)
+     unique_keys = len(list(unique_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_13
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -22,7 +22,7 @@
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+     # Get unique dedup keys
+-    unique_stmt = select(Alert.dedup_key).where(Alert.created_at >= cutoff_time).distinct()
++    unique_stmt = select(Alert.dedup_key).where(None).distinct()
+     unique_result = await self.session.execute(unique_stmt)
+     unique_keys = len(list(unique_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_14
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -22,7 +22,7 @@
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+     # Get unique dedup keys
+-    unique_stmt = select(Alert.dedup_key).where(Alert.created_at >= cutoff_time).distinct()
++    unique_stmt = select(None).where(Alert.created_at >= cutoff_time).distinct()
+     unique_result = await self.session.execute(unique_stmt)
+     unique_keys = len(list(unique_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_15
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -22,7 +22,7 @@
+     total_alerts = len(list(total_result.scalars().all()))
+ 
+     # Get unique dedup keys
+-    unique_stmt = select(Alert.dedup_key).where(Alert.created_at >= cutoff_time).distinct()
++    unique_stmt = select(Alert.dedup_key).where(Alert.created_at > cutoff_time).distinct()
+     unique_result = await self.session.execute(unique_stmt)
+     unique_keys = len(list(unique_result.scalars().all()))
+ 
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_17
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -23,7 +23,7 @@
+ 
+     # Get unique dedup keys
+     unique_stmt = select(Alert.dedup_key).where(Alert.created_at >= cutoff_time).distinct()
+-    unique_result = await self.session.execute(unique_stmt)
++    unique_result = await self.session.execute(None)
+     unique_keys = len(list(unique_result.scalars().all()))
+ 
+     return {
+===KEY=== backend.services.alert_dedup.xǁAlertDeduplicationServiceǁget_duplicate_stats__mutmut_34
+--- backend/services/alert_dedup.py
++++ backend/services/alert_dedup.py
+@@ -29,5 +29,5 @@
+     return {
+         "total_alerts": total_alerts,
+         "unique_dedup_keys": unique_keys,
+-        "dedup_ratio": round(unique_keys / total_alerts, 2) if total_alerts > 0 else 0.0,
++        "dedup_ratio": round(unique_keys / total_alerts, 2) if total_alerts > 1 else 0.0,
+     }

@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_74: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -65,7 +65,7 @@
+             raise HTTPException(
+                 status_code=status.HTTP_403_FORBIDDEN,
+                 detail=MediaErrorResponse(
+-                    error="Access denied - file outside allowed directory",
++                    error="XXAccess denied - file outside allowed directoryXX",
+                     path=f"detections/{detection_id}",
+                 ).model_dump(),
+             )

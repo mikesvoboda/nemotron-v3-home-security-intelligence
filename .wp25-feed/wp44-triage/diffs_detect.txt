@@ -1,0 +1,48 @@
+# d24 # backend.services.yolo_world_loader.x_detect_with_prompts__mutmut_24: survived
+# d24 --- backend/services/yolo_world_loader.py
+# d24 +++ backend/services/yolo_world_loader.py
+# d24 @@ -68,7 +68,7 @@
+# d24  
+# d24          for result in results:
+# d24              if result.boxes is None:
+# d24 -                continue
+# d24 +                break
+# d24  
+# d24              boxes = result.boxes
+# d24              for i in range(len(boxes)):
+# d64 # backend.services.yolo_world_loader.x_detect_with_prompts__mutmut_64: survived
+# d64 --- backend/services/yolo_world_loader.py
+# d64 +++ backend/services/yolo_world_loader.py
+# d64 @@ -97,7 +97,7 @@
+# d64      try:
+# d64          detections = await asyncio.wait_for(
+# d64              loop.run_in_executor(None, _run_detection),
+# d64 -            timeout=15.0,
+# d64 +            timeout=None,
+# d64          )
+# d64      except TimeoutError:
+# d64          logger.warning("YOLO-World inference timed out after 15s — returning empty detections")
+# d70 # backend.services.yolo_world_loader.x_detect_with_prompts__mutmut_70: survived
+# d70 --- backend/services/yolo_world_loader.py
+# d70 +++ backend/services/yolo_world_loader.py
+# d70 @@ -97,7 +97,7 @@
+# d70      try:
+# d70          detections = await asyncio.wait_for(
+# d70              loop.run_in_executor(None, _run_detection),
+# d70 -            timeout=15.0,
+# d70 +            timeout=16.0,
+# d70          )
+# d70      except TimeoutError:
+# d70          logger.warning("YOLO-World inference timed out after 15s — returning empty detections")
+# d71 # backend.services.yolo_world_loader.x_detect_with_prompts__mutmut_71: survived
+# d71 --- backend/services/yolo_world_loader.py
+# d71 +++ backend/services/yolo_world_loader.py
+# d71 @@ -104,7 +104,7 @@
+# d71          return []
+# d71  
+# d71      logger.debug(
+# d71 -        f"YOLO-World detected {len(detections)} objects using {len(detection_prompts)} prompts"
+# d71 +        None
+# d71      )
+# d71  
+# d71      return detections

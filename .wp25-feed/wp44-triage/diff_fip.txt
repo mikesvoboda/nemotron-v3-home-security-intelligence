@@ -1,0 +1,135 @@
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_24=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_24: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -32,7 +32,7 @@
+     # Fallback: append to end
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+-        target_section,
++        None,
+         extra={"target_section": target_section, "prompt_length": len(prompt)},
+     )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_25=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_25: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -33,6 +33,6 @@
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+-        extra={"target_section": target_section, "prompt_length": len(prompt)},
++        extra=None,
+     )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_26=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_26: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -31,7 +31,6 @@
+ 
+     # Fallback: append to end
+     logger.warning(
+-        "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+         extra={"target_section": target_section, "prompt_length": len(prompt)},
+     )
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_27=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_27: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -32,7 +32,6 @@
+     # Fallback: append to end
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+-        target_section,
+         extra={"target_section": target_section, "prompt_length": len(prompt)},
+     )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_28=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_28: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -33,6 +33,5 @@
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+-        extra={"target_section": target_section, "prompt_length": len(prompt)},
+-    )
++        )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_29=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_29: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -31,7 +31,7 @@
+ 
+     # Fallback: append to end
+     logger.warning(
+-        "Section '%s' not found in prompt, falling back to end insertion",
++        "XXSection '%s' not found in prompt, falling back to end insertionXX",
+         target_section,
+         extra={"target_section": target_section, "prompt_length": len(prompt)},
+     )
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_30=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_30: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -31,7 +31,7 @@
+ 
+     # Fallback: append to end
+     logger.warning(
+-        "Section '%s' not found in prompt, falling back to end insertion",
++        "section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+         extra={"target_section": target_section, "prompt_length": len(prompt)},
+     )
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_32=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_32: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -33,6 +33,6 @@
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+-        extra={"target_section": target_section, "prompt_length": len(prompt)},
++        extra={"XXtarget_sectionXX": target_section, "prompt_length": len(prompt)},
+     )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_33=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_33: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -33,6 +33,6 @@
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+-        extra={"target_section": target_section, "prompt_length": len(prompt)},
++        extra={"TARGET_SECTION": target_section, "prompt_length": len(prompt)},
+     )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_34=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_34: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -33,6 +33,6 @@
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+-        extra={"target_section": target_section, "prompt_length": len(prompt)},
++        extra={"target_section": target_section, "XXprompt_lengthXX": len(prompt)},
+     )
+     return len(prompt), "fallback"
+=====backend.services.prompt_parser.x_find_insertion_point__mutmut_35=====
+# backend.services.prompt_parser.x_find_insertion_point__mutmut_35: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -33,6 +33,6 @@
+     logger.warning(
+         "Section '%s' not found in prompt, falling back to end insertion",
+         target_section,
+-        extra={"target_section": target_section, "prompt_length": len(prompt)},
++        extra={"target_section": target_section, "PROMPT_LENGTH": len(prompt)},
+     )
+     return len(prompt), "fallback"

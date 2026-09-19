@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_49: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -56,7 +56,7 @@
+         # Determine full path (absolute or relative)
+         full_path = (
+             Path(file_path)
+-            if Path(file_path).is_absolute()
++            if (Path(file_path).is_absolute()) and False
+             else base_path / detection.camera_id / file_path
+         ).resolve()
+ 

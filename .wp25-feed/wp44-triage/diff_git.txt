@@ -1,0 +1,130 @@
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_11=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_11: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -13,7 +13,7 @@
+         Formatted insertion text, e.g., "Time Since Last Event: {time_since_last_event}\n"
+     """
+     indent = style.get("indentation", "")
+-    var_format = style.get("format", "curly")
++    var_format = style.get("format", None)
+     label_style = style.get("label_style", "colon")
+ 
+     # Format variable based on detected style
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_13=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_13: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -13,7 +13,7 @@
+         Formatted insertion text, e.g., "Time Since Last Event: {time_since_last_event}\n"
+     """
+     indent = style.get("indentation", "")
+-    var_format = style.get("format", "curly")
++    var_format = style.get("format", )
+     label_style = style.get("label_style", "colon")
+ 
+     # Format variable based on detected style
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_16=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_16: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -13,7 +13,7 @@
+         Formatted insertion text, e.g., "Time Since Last Event: {time_since_last_event}\n"
+     """
+     indent = style.get("indentation", "")
+-    var_format = style.get("format", "curly")
++    var_format = style.get("format", "XXcurlyXX")
+     label_style = style.get("label_style", "colon")
+ 
+     # Format variable based on detected style
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_17=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_17: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -13,7 +13,7 @@
+         Formatted insertion text, e.g., "Time Since Last Event: {time_since_last_event}\n"
+     """
+     indent = style.get("indentation", "")
+-    var_format = style.get("format", "curly")
++    var_format = style.get("format", "CURLY")
+     label_style = style.get("label_style", "colon")
+ 
+     # Format variable based on detected style
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_20=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_20: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -14,7 +14,7 @@
+     """
+     indent = style.get("indentation", "")
+     var_format = style.get("format", "curly")
+-    label_style = style.get("label_style", "colon")
++    label_style = style.get("label_style", None)
+ 
+     # Format variable based on detected style
+     if var_format == "curly":
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_22=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_22: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -14,7 +14,7 @@
+     """
+     indent = style.get("indentation", "")
+     var_format = style.get("format", "curly")
+-    label_style = style.get("label_style", "colon")
++    label_style = style.get("label_style", )
+ 
+     # Format variable based on detected style
+     if var_format == "curly":
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_25=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_25: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -14,7 +14,7 @@
+     """
+     indent = style.get("indentation", "")
+     var_format = style.get("format", "curly")
+-    label_style = style.get("label_style", "colon")
++    label_style = style.get("label_style", "XXcolonXX")
+ 
+     # Format variable based on detected style
+     if var_format == "curly":
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_26=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_26: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -14,7 +14,7 @@
+     """
+     indent = style.get("indentation", "")
+     var_format = style.get("format", "curly")
+-    label_style = style.get("label_style", "colon")
++    label_style = style.get("label_style", "COLON")
+ 
+     # Format variable based on detected style
+     if var_format == "curly":
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_28=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_28: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -17,7 +17,7 @@
+     label_style = style.get("label_style", "colon")
+ 
+     # Format variable based on detected style
+-    if var_format == "curly":
++    if var_format == "XXcurlyXX":
+         var = f"{{{proposed_variable}}}"
+     elif var_format == "angle":
+         var = f"<{proposed_variable}>"
+=====backend.services.prompt_parser.x_generate_insertion_text__mutmut_29=====
+# backend.services.prompt_parser.x_generate_insertion_text__mutmut_29: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -17,7 +17,7 @@
+     label_style = style.get("label_style", "colon")
+ 
+     # Format variable based on detected style
+-    if var_format == "curly":
++    if var_format == "CURLY":
+         var = f"{{{proposed_variable}}}"
+     elif var_format == "angle":
+         var = f"<{proposed_variable}>"

@@ -1,0 +1,341 @@
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_2 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_2: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -8,7 +8,7 @@
+         Recommended action string
+     """
+     actions = {
+-        "low": "Monitor - No immediate action required",
++        "XXlowXX": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_3 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_3: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -8,7 +8,7 @@
+         Recommended action string
+     """
+     actions = {
+-        "low": "Monitor - No immediate action required",
++        "LOW": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_4 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_4: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -8,7 +8,7 @@
+         Recommended action string
+     """
+     actions = {
+-        "low": "Monitor - No immediate action required",
++        "low": "XXMonitor - No immediate action requiredXX",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_5 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_5: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -8,7 +8,7 @@
+         Recommended action string
+     """
+     actions = {
+-        "low": "Monitor - No immediate action required",
++        "low": "monitor - no immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_6 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_6: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -8,7 +8,7 @@
+         Recommended action string
+     """
+     actions = {
+-        "low": "Monitor - No immediate action required",
++        "low": "MONITOR - NO IMMEDIATE ACTION REQUIRED",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_7 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_7: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -9,7 +9,7 @@
+     """
+     actions = {
+         "low": "Monitor - No immediate action required",
+-        "medium": "Review - Check event details when convenient",
++        "XXmediumXX": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_8 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_8: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -9,7 +9,7 @@
+     """
+     actions = {
+         "low": "Monitor - No immediate action required",
+-        "medium": "Review - Check event details when convenient",
++        "MEDIUM": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_9 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_9: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -9,7 +9,7 @@
+     """
+     actions = {
+         "low": "Monitor - No immediate action required",
+-        "medium": "Review - Check event details when convenient",
++        "medium": "XXReview - Check event details when convenientXX",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_10 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_10: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -9,7 +9,7 @@
+     """
+     actions = {
+         "low": "Monitor - No immediate action required",
+-        "medium": "Review - Check event details when convenient",
++        "medium": "review - check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_11 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_11: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -9,7 +9,7 @@
+     """
+     actions = {
+         "low": "Monitor - No immediate action required",
+-        "medium": "Review - Check event details when convenient",
++        "medium": "REVIEW - CHECK EVENT DETAILS WHEN CONVENIENT",
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_12 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_12: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -10,7 +10,7 @@
+     actions = {
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+-        "high": "Investigate - Review event details promptly",
++        "XXhighXX": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_13 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_13: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -10,7 +10,7 @@
+     actions = {
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+-        "high": "Investigate - Review event details promptly",
++        "HIGH": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_14 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_14: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -10,7 +10,7 @@
+     actions = {
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+-        "high": "Investigate - Review event details promptly",
++        "high": "XXInvestigate - Review event details promptlyXX",
+         "critical": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_15 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_15: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -10,7 +10,7 @@
+     actions = {
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+-        "high": "Investigate - Review event details promptly",
++        "high": "investigate - review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_16 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_16: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -10,7 +10,7 @@
+     actions = {
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+-        "high": "Investigate - Review event details promptly",
++        "high": "INVESTIGATE - REVIEW EVENT DETAILS PROMPTLY",
+         "critical": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_17 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_17: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -11,6 +11,6 @@
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+-        "critical": "Alert - Immediate attention required",
++        "XXcriticalXX": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_18 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_18: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -11,6 +11,6 @@
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+-        "critical": "Alert - Immediate attention required",
++        "CRITICAL": "Alert - Immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_19 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_19: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -11,6 +11,6 @@
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+-        "critical": "Alert - Immediate attention required",
++        "critical": "XXAlert - Immediate attention requiredXX",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_20 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_20: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -11,6 +11,6 @@
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+-        "critical": "Alert - Immediate attention required",
++        "critical": "alert - immediate attention required",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_21 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_21: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -11,6 +11,6 @@
+         "low": "Monitor - No immediate action required",
+         "medium": "Review - Check event details when convenient",
+         "high": "Investigate - Review event details promptly",
+-        "critical": "Alert - Immediate attention required",
++        "critical": "ALERT - IMMEDIATE ATTENTION REQUIRED",
+     }
+     return actions.get(risk_level, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_22 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_22: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -13,4 +13,4 @@
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+-    return actions.get(risk_level, "Review event details")
++    return actions.get(None, "Review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_23 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_23: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -13,4 +13,4 @@
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+-    return actions.get(risk_level, "Review event details")
++    return actions.get(risk_level, None)
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_25 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_25: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -13,4 +13,4 @@
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+-    return actions.get(risk_level, "Review event details")
++    return actions.get(risk_level, )
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_26 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_26: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -13,4 +13,4 @@
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+-    return actions.get(risk_level, "Review event details")
++    return actions.get(risk_level, "XXReview event detailsXX")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_27 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_27: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -13,4 +13,4 @@
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+-    return actions.get(risk_level, "Review event details")
++    return actions.get(risk_level, "review event details")
+##### KEY backend.api.routes.prompt_management.x__get_recommended_action__mutmut_28 rc 0
+# backend.api.routes.prompt_management.x__get_recommended_action__mutmut_28: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -13,4 +13,4 @@
+         "high": "Investigate - Review event details promptly",
+         "critical": "Alert - Immediate attention required",
+     }
+-    return actions.get(risk_level, "Review event details")
++    return actions.get(risk_level, "REVIEW EVENT DETAILS")
+##### KEY backend.api.routes.prompt_management.x__compute_config_diff__mutmut_4 rc 0
+# backend.api.routes.prompt_management.x__compute_config_diff__mutmut_4: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -6,7 +6,7 @@
+     changes: list[str] = []
+ 
+     if current_config is None:
+-        return True, ["New configuration (no existing version)"]
++        return True, ["XXNew configuration (no existing version)XX"]
+ 
+     current = {k: v for k, v in current_config.items() if k != "version"}
+     imported = {k: v for k, v in imported_config.items() if k != "version"}
+##### KEY backend.api.routes.prompt_management.x__compute_config_diff__mutmut_22 rc 0
+# backend.api.routes.prompt_management.x__compute_config_diff__mutmut_22: survived
+--- backend/api/routes/prompt_management.py
++++ backend/api/routes/prompt_management.py
+@@ -21,7 +21,7 @@
+ 
+     for key in imported:  # noqa: PLC0206 - need to check against current dict
+         if key in current and current[key] != imported[key]:
+-            if isinstance(current[key], list) and isinstance(imported[key], list):
++            if isinstance(current[key], list) or isinstance(imported[key], list):
+                 added = set(imported[key]) - set(current[key])
+                 removed = set(current[key]) - set(imported[key])
+                 if added:

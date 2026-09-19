@@ -1,0 +1,242 @@
+{
+ "backend.services.job_progress_reporter.x_create_job_progress_reporter__mutmut_1": [
+  "-    return await JobProgressReporter.create(job_id, job_type, total_items)",
+  "+    return await JobProgressReporter.create(None, job_type, total_items)"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1__init____mutmut_12": [
+  "-        self._last_progress_time: float = 0.0",
+  "+        self._last_progress_time: float = None"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1__init____mutmut_13": [
+  "-        self._last_progress_time: float = 0.0",
+  "+        self._last_progress_time: float = 1.0"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1__init____mutmut_16": [
+  "-        self._last_progress_percent: int = -1",
+  "+        self._last_progress_percent: int = -2"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_10": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"duration_seconds\": duration,",
+  "-            },",
+  "+            extra=None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_12": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"duration_seconds\": duration,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_13": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"XXjob_idXX\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_14": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"JOB_ID\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_15": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"XXjob_typeXX\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_16": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"JOB_TYPE\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_17": [
+  "-                \"duration_seconds\": duration,",
+  "+                \"XXduration_secondsXX\": duration,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_18": [
+  "-                \"duration_seconds\": duration,",
+  "+                \"DURATION_SECONDS\": duration,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_7": [
+  "-        completed_at = datetime.now(UTC)",
+  "+        completed_at = datetime.now(None)"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1complete__mutmut_9": [
+  "-            f\"Job completed: {self._job_type}\",",
+  "+            None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_13": [
+  "-            f\"Job failed: {self._job_type}\",",
+  "+            None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_14": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"error\": error_message,",
+  "-            },",
+  "+            extra=None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_16": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"error\": error_message,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_17": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"XXjob_idXX\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_18": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"JOB_ID\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_19": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"XXjob_typeXX\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_20": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"JOB_TYPE\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_21": [
+  "-                \"error\": error_message,",
+  "+                \"XXerrorXX\": error_message,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_22": [
+  "-                \"error\": error_message,",
+  "+                \"ERROR\": error_message,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1fail__mutmut_8": [
+  "-        failed_at = datetime.now(UTC)",
+  "+        failed_at = datetime.now(None)"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_14": [
+  "-        progress_percent = min(100, int((items_processed / self._total_items) * 100))",
+  "+        progress_percent = min(100, int((items_processed / self._total_items) * 101))"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_24": [
+  "-        should_emit = force or time_since_last >= PROGRESS_THROTTLE_INTERVAL or progress_delta >= 10",
+  "+        should_emit = force or time_since_last > PROGRESS_THROTTLE_INTERVAL or progress_delta >= 10"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_31": [
+  "-            f\"Job progress: {progress_percent}%\",",
+  "+            None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_32": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"progress\": progress_percent,",
+  "-                \"items_processed\": items_processed,",
+  "-                \"total_items\": self._total_items,",
+  "-            },",
+  "+            extra=None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_34": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"progress\": progress_percent,",
+  "-                \"items_processed\": items_processed,",
+  "-                \"total_items\": self._total_items,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_35": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"XXjob_idXX\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_36": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"JOB_ID\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_37": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"XXjob_typeXX\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_38": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"JOB_TYPE\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_39": [
+  "-                \"progress\": progress_percent,",
+  "+                \"XXprogressXX\": progress_percent,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_40": [
+  "-                \"progress\": progress_percent,",
+  "+                \"PROGRESS\": progress_percent,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_41": [
+  "-                \"items_processed\": items_processed,",
+  "+                \"XXitems_processedXX\": items_processed,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_42": [
+  "-                \"items_processed\": items_processed,",
+  "+                \"ITEMS_PROCESSED\": items_processed,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_43": [
+  "-                \"total_items\": self._total_items,",
+  "+                \"XXtotal_itemsXX\": self._total_items,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_44": [
+  "-                \"total_items\": self._total_items,",
+  "+                \"TOTAL_ITEMS\": self._total_items,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_52": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"XXjob_typeXX\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1report_progress__mutmut_53": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"JOB_TYPE\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_10": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"total_items\": self._total_items,",
+  "-            },",
+  "-        )",
+  "+            )"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_11": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"XXjob_idXX\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_12": [
+  "-                \"job_id\": self._job_id,",
+  "+                \"JOB_ID\": self._job_id,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_13": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"XXjob_typeXX\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_14": [
+  "-                \"job_type\": self._job_type,",
+  "+                \"JOB_TYPE\": self._job_type,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_15": [
+  "-                \"total_items\": self._total_items,",
+  "+                \"XXtotal_itemsXX\": self._total_items,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_16": [
+  "-                \"total_items\": self._total_items,",
+  "+                \"TOTAL_ITEMS\": self._total_items,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_7": [
+  "-            f\"Job started: {self._job_type}\",",
+  "+            None,"
+ ],
+ "backend.services.job_progress_reporter.x\u01c1JobProgressReporter\u01c1start__mutmut_8": [
+  "-            extra={",
+  "-                \"job_id\": self._job_id,",
+  "-                \"job_type\": self._job_type,",
+  "-                \"total_items\": self._total_items,",
+  "-            },",
+  "+            extra=None,"
+ ]
+}

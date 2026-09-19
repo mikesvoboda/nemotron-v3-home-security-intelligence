@@ -1,0 +1,573 @@
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_10
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_10: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -8,6 +8,6 @@
+ 
+     # Check host (netloc includes user:pass@host:port)
+     if not parsed.netloc or not parsed.hostname:
+-        return "Invalid URL format - missing host"
++        return "XXInvalid URL format - missing hostXX"
+ 
+     return None
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_11
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_11: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -8,6 +8,6 @@
+ 
+     # Check host (netloc includes user:pass@host:port)
+     if not parsed.netloc or not parsed.hostname:
+-        return "Invalid URL format - missing host"
++        return "invalid url format - missing host"
+ 
+     return None
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_12
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_12: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -8,6 +8,6 @@
+ 
+     # Check host (netloc includes user:pass@host:port)
+     if not parsed.netloc or not parsed.hostname:
+-        return "Invalid URL format - missing host"
++        return "INVALID URL FORMAT - MISSING HOST"
+ 
+     return None
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_2
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_2: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -1,7 +1,7 @@
+ def _check_url_components(self, parsed: ParseResult) -> str | None:
+     """Check URL scheme and host components."""
+     if not parsed.scheme:
+-        return "Invalid URL format - missing protocol (expected rtsp:// or rtsps://)"
++        return "XXInvalid URL format - missing protocol (expected rtsp:// or rtsps://)XX"
+ 
+     if parsed.scheme.lower() not in self.VALID_SCHEMES:
+         return f"Invalid URL format - unsupported protocol '{parsed.scheme}' (expected rtsp:// or rtsps://)"
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_3
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_3: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -1,7 +1,7 @@
+ def _check_url_components(self, parsed: ParseResult) -> str | None:
+     """Check URL scheme and host components."""
+     if not parsed.scheme:
+-        return "Invalid URL format - missing protocol (expected rtsp:// or rtsps://)"
++        return "invalid url format - missing protocol (expected rtsp:// or rtsps://)"
+ 
+     if parsed.scheme.lower() not in self.VALID_SCHEMES:
+         return f"Invalid URL format - unsupported protocol '{parsed.scheme}' (expected rtsp:// or rtsps://)"
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_4
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_4: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -1,7 +1,7 @@
+ def _check_url_components(self, parsed: ParseResult) -> str | None:
+     """Check URL scheme and host components."""
+     if not parsed.scheme:
+-        return "Invalid URL format - missing protocol (expected rtsp:// or rtsps://)"
++        return "INVALID URL FORMAT - MISSING PROTOCOL (EXPECTED RTSP:// OR RTSPS://)"
+ 
+     if parsed.scheme.lower() not in self.VALID_SCHEMES:
+         return f"Invalid URL format - unsupported protocol '{parsed.scheme}' (expected rtsp:// or rtsps://)"
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_7
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_check_url_components__mutmut_7: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -7,7 +7,7 @@
+         return f"Invalid URL format - unsupported protocol '{parsed.scheme}' (expected rtsp:// or rtsps://)"
+ 
+     # Check host (netloc includes user:pass@host:port)
+-    if not parsed.netloc or not parsed.hostname:
++    if not parsed.netloc and not parsed.hostname:
+         return "Invalid URL format - missing host"
+ 
+     return None
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_1
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_1: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -1,4 +1,4 @@
+-def _test_capture(self, rtsp_url: str, has_credentials: bool = False) -> RTSPTestResult:
++def _test_capture(self, rtsp_url: str, has_credentials: bool = True) -> RTSPTestResult:
+     """Synchronous capture test (run in executor)."""
+     cap = cv2.VideoCapture(rtsp_url)
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_10
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_10: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -9,7 +9,7 @@
+             if has_credentials:
+                 return RTSPTestResult(
+                     success=False,
+-                    error_message="Authentication failed - check username and password",
++                    error_message="XXAuthentication failed - check username and passwordXX",
+                 )
+             return RTSPTestResult(
+                 success=False,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_11
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_11: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -9,7 +9,7 @@
+             if has_credentials:
+                 return RTSPTestResult(
+                     success=False,
+-                    error_message="Authentication failed - check username and password",
++                    error_message="authentication failed - check username and password",
+                 )
+             return RTSPTestResult(
+                 success=False,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_12
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_12: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -9,7 +9,7 @@
+             if has_credentials:
+                 return RTSPTestResult(
+                     success=False,
+-                    error_message="Authentication failed - check username and password",
++                    error_message="AUTHENTICATION FAILED - CHECK USERNAME AND PASSWORD",
+                 )
+             return RTSPTestResult(
+                 success=False,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_15
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_15: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -12,7 +12,6 @@
+                     error_message="Authentication failed - check username and password",
+                 )
+             return RTSPTestResult(
+-                success=False,
+                 error_message="Failed to connect to RTSP stream",
+             )
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_18
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_18: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -13,7 +13,7 @@
+                 )
+             return RTSPTestResult(
+                 success=False,
+-                error_message="Failed to connect to RTSP stream",
++                error_message="XXFailed to connect to RTSP streamXX",
+             )
+ 
+         # Get stream properties
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_19
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_19: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -13,7 +13,7 @@
+                 )
+             return RTSPTestResult(
+                 success=False,
+-                error_message="Failed to connect to RTSP stream",
++                error_message="failed to connect to rtsp stream",
+             )
+ 
+         # Get stream properties
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_20
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_20: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -13,7 +13,7 @@
+                 )
+             return RTSPTestResult(
+                 success=False,
+-                error_message="Failed to connect to RTSP stream",
++                error_message="FAILED TO CONNECT TO RTSP STREAM",
+             )
+ 
+         # Get stream properties
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_3
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_3: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -1,6 +1,6 @@
+ def _test_capture(self, rtsp_url: str, has_credentials: bool = False) -> RTSPTestResult:
+     """Synchronous capture test (run in executor)."""
+-    cap = cv2.VideoCapture(rtsp_url)
++    cap = cv2.VideoCapture(None)
+ 
+     try:
+         if not cap.isOpened():
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_32
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_32: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -23,7 +23,7 @@
+ 
+         capabilities = RTSPCapabilities(
+             video=True,
+-            audio=False,  # Would need separate audio detection
++            audio=None,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_33
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_33: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -24,7 +24,7 @@
+         capabilities = RTSPCapabilities(
+             video=True,
+             audio=False,  # Would need separate audio detection
+-            ptz=False,  # Would need ONVIF query
++            ptz=None,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+             fps=fps if fps > 0 else None,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_37
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_37: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -22,7 +22,6 @@
+         fps = int(cap.get(cv2.CAP_PROP_FPS))
+ 
+         capabilities = RTSPCapabilities(
+-            video=True,
+             audio=False,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_38
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_38: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -23,7 +23,6 @@
+ 
+         capabilities = RTSPCapabilities(
+             video=True,
+-            audio=False,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_39
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_39: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -24,7 +24,6 @@
+         capabilities = RTSPCapabilities(
+             video=True,
+             audio=False,  # Would need separate audio detection
+-            ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+             fps=fps if fps > 0 else None,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_41
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_41: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -26,7 +26,6 @@
+             audio=False,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+-            codec="H.264",  # Default assumption
+             fps=fps if fps > 0 else None,
+         )
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_44
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_44: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -23,7 +23,7 @@
+ 
+         capabilities = RTSPCapabilities(
+             video=True,
+-            audio=False,  # Would need separate audio detection
++            audio=True,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_45
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_45: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -24,7 +24,7 @@
+         capabilities = RTSPCapabilities(
+             video=True,
+             audio=False,  # Would need separate audio detection
+-            ptz=False,  # Would need ONVIF query
++            ptz=True,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+             fps=fps if fps > 0 else None,
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_47
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_47: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -25,7 +25,7 @@
+             video=True,
+             audio=False,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+-            resolution=f"{width}x{height}" if width and height else None,
++            resolution=f"{width}x{height}" if (width and height) or True else None,
+             codec="H.264",  # Default assumption
+             fps=fps if fps > 0 else None,
+         )
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_48
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_48: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -25,7 +25,7 @@
+             video=True,
+             audio=False,  # Would need separate audio detection
+             ptz=False,  # Would need ONVIF query
+-            resolution=f"{width}x{height}" if width and height else None,
++            resolution=f"{width}x{height}" if width or height else None,
+             codec="H.264",  # Default assumption
+             fps=fps if fps > 0 else None,
+         )
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_52
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_52: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -27,7 +27,7 @@
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+-            fps=fps if fps > 0 else None,
++            fps=fps if (fps > 0) or True else None,
+         )
+ 
+         return RTSPTestResult(
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_53
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_53: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -27,7 +27,7 @@
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+-            fps=fps if fps > 0 else None,
++            fps=fps if fps >= 0 else None,
+         )
+ 
+         return RTSPTestResult(
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_54
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_test_capture__mutmut_54: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -27,7 +27,7 @@
+             ptz=False,  # Would need ONVIF query
+             resolution=f"{width}x{height}" if width and height else None,
+             codec="H.264",  # Default assumption
+-            fps=fps if fps > 0 else None,
++            fps=fps if fps > 1 else None,
+         )
+ 
+         return RTSPTestResult(
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_validate_url__mutmut_6
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_validate_url__mutmut_6: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -5,7 +5,7 @@
+         """
+     # Check for invalid characters (spaces, etc.)
+     if re.search(r"\s", rtsp_url):
+-        return "Invalid URL format - URL contains spaces or invalid characters"
++        return "XXInvalid URL format - URL contains spaces or invalid charactersXX"
+ 
+     # Parse the URL
+     try:
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_validate_url__mutmut_7
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_validate_url__mutmut_7: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -5,7 +5,7 @@
+         """
+     # Check for invalid characters (spaces, etc.)
+     if re.search(r"\s", rtsp_url):
+-        return "Invalid URL format - URL contains spaces or invalid characters"
++        return "invalid url format - url contains spaces or invalid characters"
+ 
+     # Parse the URL
+     try:
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_validate_url__mutmut_8
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁ_validate_url__mutmut_8: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -5,7 +5,7 @@
+         """
+     # Check for invalid characters (spaces, etc.)
+     if re.search(r"\s", rtsp_url):
+-        return "Invalid URL format - URL contains spaces or invalid characters"
++        return "INVALID URL FORMAT - URL CONTAINS SPACES OR INVALID CHARACTERS"
+ 
+     # Parse the URL
+     try:
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_10
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_10: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -22,7 +22,7 @@
+             error_message=validation_error,
+         )
+ 
+-    has_credentials = bool(username and password)
++    has_credentials = bool(username or password)
+ 
+     # Build authenticated URL if credentials provided
+     if has_credentials:
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_11
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_11: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -27,7 +27,7 @@
+     # Build authenticated URL if credentials provided
+     if has_credentials:
+         # Insert credentials into URL
+-        if "://" in rtsp_url:
++        if "XX://XX" in rtsp_url:
+             protocol, rest = rtsp_url.split("://", 1)
+             rtsp_url = f"{protocol}://{username}:{password}@{rest}"
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_12
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_12: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -27,7 +27,7 @@
+     # Build authenticated URL if credentials provided
+     if has_credentials:
+         # Insert credentials into URL
+-        if "://" in rtsp_url:
++        if "://" not in rtsp_url:
+             protocol, rest = rtsp_url.split("://", 1)
+             rtsp_url = f"{protocol}://{username}:{password}@{rest}"
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_17
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_17: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -28,7 +28,7 @@
+     if has_credentials:
+         # Insert credentials into URL
+         if "://" in rtsp_url:
+-            protocol, rest = rtsp_url.split("://", 1)
++            protocol, rest = rtsp_url.split("://", )
+             rtsp_url = f"{protocol}://{username}:{password}@{rest}"
+ 
+     start_time = time.monotonic()
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_18
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_18: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -28,7 +28,7 @@
+     if has_credentials:
+         # Insert credentials into URL
+         if "://" in rtsp_url:
+-            protocol, rest = rtsp_url.split("://", 1)
++            protocol, rest = rtsp_url.rsplit("://", 1)
+             rtsp_url = f"{protocol}://{username}:{password}@{rest}"
+ 
+     start_time = time.monotonic()
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_20
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_20: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -28,7 +28,7 @@
+     if has_credentials:
+         # Insert credentials into URL
+         if "://" in rtsp_url:
+-            protocol, rest = rtsp_url.split("://", 1)
++            protocol, rest = rtsp_url.split("://", 2)
+             rtsp_url = f"{protocol}://{username}:{password}@{rest}"
+ 
+     start_time = time.monotonic()
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_21
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_21: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -29,7 +29,7 @@
+         # Insert credentials into URL
+         if "://" in rtsp_url:
+             protocol, rest = rtsp_url.split("://", 1)
+-            rtsp_url = f"{protocol}://{username}:{password}@{rest}"
++            rtsp_url = None
+ 
+     start_time = time.monotonic()
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_30
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_30: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -37,7 +37,7 @@
+         # Run capture in thread pool to avoid blocking
+         loop = asyncio.get_running_loop()
+         result = await asyncio.wait_for(
+-            loop.run_in_executor(None, self._test_capture, rtsp_url, has_credentials),
++            loop.run_in_executor(None, self._test_capture, None, has_credentials),
+             timeout=self.CONNECTION_TIMEOUT,
+         )
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_41
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_41: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -41,7 +41,7 @@
+             timeout=self.CONNECTION_TIMEOUT,
+         )
+ 
+-        latency_ms = max(1, int((time.monotonic() - start_time) * 1000))
++        latency_ms = max(2, int((time.monotonic() - start_time) * 1000))
+         result.latency_ms = latency_ms
+         return result
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_43
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_43: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -41,7 +41,7 @@
+             timeout=self.CONNECTION_TIMEOUT,
+         )
+ 
+-        latency_ms = max(1, int((time.monotonic() - start_time) * 1000))
++        latency_ms = max(1, int((time.monotonic() - start_time) / 1000))
+         result.latency_ms = latency_ms
+         return result
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_45
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_45: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -41,7 +41,7 @@
+             timeout=self.CONNECTION_TIMEOUT,
+         )
+ 
+-        latency_ms = max(1, int((time.monotonic() - start_time) * 1000))
++        latency_ms = max(1, int((time.monotonic() - start_time) * 1001))
+         result.latency_ms = latency_ms
+         return result
+ 
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_52
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_52: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -48,7 +48,7 @@
+     except TimeoutError:
+         return RTSPTestResult(
+             success=False,
+-            error_message="Connection timeout - stream did not respond within 5 seconds",
++            error_message="XXConnection timeout - stream did not respond within 5 secondsXX",
+         )
+     except Exception as e:
+         return RTSPTestResult(
+===KEY=== backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_53
+# backend.services.rtsp_test_service.xǁRTSPTestServiceǁtest_connection__mutmut_53: survived
+--- backend/services/rtsp_test_service.py
++++ backend/services/rtsp_test_service.py
+@@ -48,7 +48,7 @@
+     except TimeoutError:
+         return RTSPTestResult(
+             success=False,
+-            error_message="Connection timeout - stream did not respond within 5 seconds",
++            error_message="connection timeout - stream did not respond within 5 seconds",
+         )
+     except Exception as e:
+         return RTSPTestResult(
