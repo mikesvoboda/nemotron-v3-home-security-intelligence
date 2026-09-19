@@ -22,7 +22,7 @@
 // stays the owner's; nothing here enforces or moves a line.
 //
 // Stdlib-only: runs on a bare runner with just Node (no npm ci needed).
-// Unit-checked by scripts/merge-shard-coverage.test.mjs (node --test), which
+// Unit-checked by scripts/merge-shard-coverage-test.mjs (node --test), which
 // CI runs in the same step before trusting the output.
 
 import { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';

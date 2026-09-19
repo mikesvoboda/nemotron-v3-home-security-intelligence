@@ -1578,7 +1578,7 @@ jobs:
       # trusted — no npm ci needed for either.
       - name: Merge frontend coverage
         run: |
-          node --test frontend/scripts/merge-shard-coverage.test.mjs
+          node --test frontend/scripts/merge-shard-coverage-test.mjs
           node frontend/scripts/merge-shard-coverage.mjs coverage-reports/ --out coverage-merged
 
       # R-FEFLOOR (plan P ADDENDUM A3, parked): measured actuals sit 2.4-3.1
