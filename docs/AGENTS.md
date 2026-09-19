@@ -6,20 +6,21 @@ This directory contains all project documentation organized into role-based hubs
 
 ## Quick Navigation
 
-| Directory          | Purpose                                   | Entry Point                         |
-| ------------------ | ----------------------------------------- | ----------------------------------- |
-| `ai/`              | AI model zoo and pipeline architecture    | [AGENTS.md](ai/AGENTS.md)           |
-| `archive/`         | Archived working documents (historical)   | [AGENTS.md](archive/AGENTS.md)      |
-| `getting-started/` | Installation and first-run setup          | [README](getting-started/README.md) |
-| `developer/`       | Architecture, API, patterns, contributing | [README](developer/README.md)       |
-| `guides/`          | Feature guides (video analytics, zones)   | [AGENTS.md](guides/AGENTS.md)       |
-| `operations/`      | Operational runbooks for production       | [AGENTS.md](operations/AGENTS.md)   |
-| `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
-| `templates/`       | Document templates (AGENTS.md, etc.)      | [AGENTS.md](templates/AGENTS.md)    |
-| `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
-| `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
-| `deployment/`      | Container orchestration documentation     | [AGENTS.md](deployment/AGENTS.md)   |
-| `style-guides/`    | Documentation style guides                | [AGENTS.md](style-guides/AGENTS.md) |
+| Directory          | Purpose                                    | Entry Point                            |
+| ------------------ | ------------------------------------------ | -------------------------------------- |
+| `ai/`              | AI model zoo and pipeline architecture     | [AGENTS.md](ai/AGENTS.md)              |
+| `archive/`         | Archived working documents (historical)    | [AGENTS.md](archive/AGENTS.md)         |
+| `getting-started/` | Installation and first-run setup           | [README](getting-started/README.md)    |
+| `developer/`       | Architecture, API, patterns, contributing  | [README](developer/README.md)          |
+| `guides/`          | Feature guides (video analytics, zones)    | [AGENTS.md](guides/AGENTS.md)          |
+| `operations/`      | Operational runbooks for production        | [AGENTS.md](operations/AGENTS.md)      |
+| `operator/`        | Deployment, monitoring, administration     | [README](operator/README.md)           |
+| `templates/`       | Document templates (AGENTS.md, etc.)       | [AGENTS.md](templates/AGENTS.md)       |
+| `user/`            | End-user dashboard documentation           | [README](user/README.md)               |
+| `reference/`       | Env vars, glossary, troubleshooting        | [README](reference/README.md)          |
+| `deployment/`      | Container orchestration documentation      | [AGENTS.md](deployment/AGENTS.md)      |
+| `style-guides/`    | Documentation style guides                 | [AGENTS.md](style-guides/AGENTS.md)    |
+| `vss-integration/` | NVIDIA VSS pipeline research (in progress) | [AGENTS.md](vss-integration/AGENTS.md) |
 
 ## Directory Structure
 
@@ -108,6 +109,18 @@ docs/
 ├── style-guides/                # Documentation style guides
 │   ├── AGENTS.md                # Style guides navigation
 │   └── diagrams.md              # Mermaid diagram style guide
+│
+├── vss-integration/             # NVIDIA VSS pipeline research (in progress)
+│   ├── AGENTS.md                # VSS research navigation
+│   ├── README.md                # Human entry point
+│   ├── 00-context.md            # Goal, repos, decision this feeds
+│   ├── 01-vss-architecture.md   # VSS service map and pipeline mapping
+│   ├── 02-model-inventory.md    # Models, slots, consumer-GPU sizing
+│   ├── 03-open-questions.md     # Open question register
+│   ├── 04-fp4-and-deployment.md # FP4, local paths, verified consumer fit
+│   ├── 05-hardware-profiles.md  # Hardware tiering strategy
+│   ├── 06-repo-a-readiness.md   # Repo-A defects blocking a swap
+│   └── 07-lean-backend.md       # Storage/bus abstraction; overlay play
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin
@@ -223,6 +236,7 @@ Each major directory has its own AGENTS.md:
 | `user/AGENTS.md`                      | End-user documentation         |
 | `style-guides/AGENTS.md`              | Documentation style guides     |
 | `templates/AGENTS.md`                 | Document templates             |
+| `vss-integration/AGENTS.md`           | NVIDIA VSS pipeline research   |
 
 ## Visual Assets
 
